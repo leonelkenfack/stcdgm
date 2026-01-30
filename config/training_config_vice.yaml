@@ -1,0 +1,188 @@
+# Hydra Training Configuration for ST-CDGM - CyVerse VICE Environment
+# 
+# This configuration is optimized for CyVerse Discovery Environment (VICE).
+# 
+# IMPORTANT NOTES FOR VICE USERS:
+# - Data Store paths (~/data-store/home/<username>/) are slower for large NetCDF files
+# - RECOMMENDED: Copy data to local disk (~/climate_data/data/raw/) for better performance
+# - Use scripts/sync_datastore.py to copy data from Data Store to local disk
+# - Save results regularly to Data Store as VICE containers are ephemeral
+# 
+# For more information, see CYVERSE_VICE_SETUP.md
+
+defaults:
+  - _self_
+
+# Data Configuration
+# 
+# For VICE users:
+# - Option 1 (RECOMMENDED): Copy data to ~/climate_data/data/raw/ first using sync_datastore.py
+#   Then use relative paths: "data/raw/your_file.nc"
+# - Option 2: Use Data Store paths directly (slower but persistent):
+#   "~/data-store/home/<username>/data/raw/your_file.nc"
+data:
+  # Paths relative to project root (recommended for VICE after copying to local disk)
+  # Replace these with your actual file paths
+  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"  # Low-resolution input data
+  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"  # High-resolution target data
+  
+  # Alternative: Data Store paths (slower but persistent)
+  # lr_path: "~/data-store/home/<username>/data/raw/predictor_ACCESS-CM2_hist.nc"
+  # hr_path: "~/data-store/home/<username>/data/raw/pr_ACCESS-CM2_hist.nc"
+  
+  static_path: null  # Optional static fields (e.g., topography)
+  seq_len: 6  # Temporal sequence length
+  stride: 1  # Stride for sliding window
+  baseline_strategy: "hr_smoothing"  # or "lr_interp"
+  baseline_factor: 4
+  normalize: true
+  target_transform: null
+  lr_variables: null  # Auto-detect if null
+  hr_variables: null  # Auto-detect if null
+  static_variables: null
+
+# Graph Configuration
+graph:
+  lr_shape: [23, 26]  # Low-resolution grid shape (lat, lon)
+  hr_shape: [172, 179]  # High-resolution grid shape (lat, lon)
+  static_variables: []
+  include_mid_layer: false
+
+# Encoder Configuration
+encoder:
+  hidden_dim: 128
+  conditioning_dim: 128
+  metapaths:
+    - name: "GP850_spat_adj"
+      src: "GP850"
+      relation: "spat_adj"
+      target: "GP850"
+      pool: "mean"
+    - name: "GP850_to_GP500"
+      src: "GP850"
+      relation: "vert_adj"
+      target: "GP500"
+      pool: "mean"
+    - name: "GP500_spat_adj"
+      src: "GP500"
+      relation: "spat_adj"
+      target: "GP500"
+      pool: "mean"
+    - name: "GP500_to_GP250"
+      src: "GP500"
+      relation: "vert_adj"
+      target: "GP250"
+      pool: "mean"
+    - name: "GP250_spat_adj"
+      src: "GP250"
+      relation: "spat_adj"
+      target: "GP250"
+      pool: "mean"
+
+# RCN Configuration
+rcn:
+  hidden_dim: 128
+  driver_dim: 8
+  reconstruction_dim: 8
+  dropout: 0.0
+  detach_interval: null
+
+# Diffusion Decoder Configuration
+diffusion:
+  in_channels: 3
+  conditioning_dim: 128
+  height: 172
+  width: 179
+  steps: 1000
+  scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
+  use_gradient_checkpointing: false
+
+# Loss Configuration
+loss:
+  lambda_gen: 1.0
+  beta_rec: 0.1
+  gamma_dag: 0.1
+  lambda_phy: 0.0
+  dag_method: "dagma"  # "dagma" or "no_tears"
+  dagma_s: 1.0
+  use_focal_loss: false
+  focal_alpha: 1.0
+  focal_gamma: 2.0
+  extreme_weight_factor: 0.0
+  extreme_percentiles: [95.0, 99.0]
+  dag_l1_regularization: false
+  dag_l1_weight: 0.01
+  reconstruction_loss_type: "mse"  # "mse", "cosine", or "mse+cosine"
+
+# Training Configuration
+# 
+# For VICE users:
+# - GPU availability depends on VICE configuration
+# - Check GPU availability: python -c "import torch; print(torch.cuda.is_available())"
+# - If GPU available, set device: "cuda" and enable mixed precision training
+# - If CPU only, keep device: "cpu" and use_amp: false
+training:
+  # Device: "cuda" or "cpu"
+  # In VICE, check GPU availability first before setting to "cuda"
+  device: "cpu"  # Change to "cuda" if GPU available in your VICE session
+  
+  epochs: 100  # Adjust based on your needs
+  lr: 0.0001
+  gradient_clipping: 1.0
+  log_every: 10  # Log progress every N batches
+  
+  # Mixed Precision Training (recommended for GPU)
+  use_amp: false  # Enable if GPU available: set to true
+  
+  # Early Stopping and LR Scheduling
+  early_stopping:
+    enabled: true  # Recommended for VICE (containers have time limits)
+    patience: 7
+    min_delta: 0.0
+    restore_best: true
+  lr_scheduler:
+    enabled: true  # Recommended for better convergence
+    mode: "min"
+    factor: 0.5
+    patience: 3
+    min_lr: 1e-7
+  
+  # Physical Loss Options
+  physical_loss:
+    use_predicted_output: false
+    physical_sample_interval: 10
+    physical_num_steps: 15
+  
+  # torch.compile (may improve performance on GPU)
+  compile:
+    enabled: false  # Enable if GPU available for potential speedup
+    rcn_mode: "reduce-overhead"
+    diffusion_mode: "max-autotune"
+    encoder_mode: "reduce-overhead"
+
+# Model Checkpointing
+# 
+# IMPORTANT FOR VICE: Save checkpoints regularly as containers are ephemeral
+# Use scripts/sync_datastore.py to backup checkpoints to Data Store
+checkpoint:
+  enabled: true
+  save_dir: "models"  # Will be created in ~/climate_data/models/
+  save_every: 5  # Save checkpoint every N epochs (adjust based on your needs)
+  save_best: true  # Save best model based on validation loss
+  max_checkpoints: 5  # Keep only last N checkpoints (to save disk space)
+
+# Evaluation Configuration
+evaluation:
+  enabled: true
+  eval_every: 5  # Evaluate every N epochs
+  num_samples: 10  # Number of samples for evaluation metrics
+  compute_f1_extremes: true
+  f1_percentiles: [95.0, 99.0]
+  save_visualizations: true
+  output_dir: "results"  # Will be created in ~/climate_data/results/
+  
+  # Save results to Data Store regularly:
+  # python scripts/sync_datastore.py --save-to-datastore \
+  #     ~/climate_data/results/ \
+  #     ~/data-store/home/<username>/st-cdgm/results/
+

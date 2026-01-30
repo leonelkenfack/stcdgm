@@ -1,0 +1,57 @@
+services:
+  st-cdgm-training:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: st-cdgm-training
+    working_dir: /workspace
+    
+    # GPU support (requires nvidia-docker or Docker with GPU runtime)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    # Environment variables
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-all}
+      - PYTHONPATH=/workspace/src:/workspace
+      - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    
+    # Volumes for data persistence
+    volumes:
+      - ./data:/workspace/data                    # Input NetCDF files and processed data
+      - ./models:/workspace/models                # Saved model checkpoints
+      - ./results:/workspace/results              # Evaluation results and logs
+      - ./src:/workspace/src                      # Source code (bind mount)
+      - ./ops:/workspace/ops                      # Operations scripts
+      - ./scripts:/workspace/scripts              # Execution scripts
+      - ./config:/workspace/config                # Configuration files
+      - ./tests:/workspace/tests                  # Test files
+    
+    # Ports (optional, for Jupyter if needed)
+    # ports:
+    #   - "8888:8888"
+    
+    # Keep container running (can be overridden with command)
+    stdin_open: true
+    tty: true
+    
+    # Default command (can be overridden)
+    command: /bin/bash
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Resource limits (optional, adjust based on your system)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '8'
+    #       memory: 32G
+

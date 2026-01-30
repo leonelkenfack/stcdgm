@@ -1,0 +1,1517 @@
+{
+  "file_info": {
+    "filepath": "./NorESM2-MM_histupdated_compressed.nc",
+    "filename": "NorESM2-MM_histupdated_compressed.nc",
+    "file_size_bytes": 217310777,
+    "file_size_mb": 207.24,
+    "file_extension": ".nc",
+    "file_format": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc"
+  },
+  "dimensions": {
+    "time": {
+      "size": 7300,
+      "unlimited": true,
+      "has_coordinates": true,
+      "dtype": "object",
+      "shape": [
+        7300
+      ],
+      "attributes": {},
+      "min_value": "1986-01-01 00:00:00",
+      "max_value": "2005-12-31 00:00:00",
+      "mean_value": "1995-12-31 12:00:00",
+      "values_sample": [
+        "1986-01-01 00:00:00",
+        "1986-01-02 00:00:00",
+        "1986-01-03 00:00:00",
+        "1986-01-04 00:00:00",
+        "1986-01-05 00:00:00",
+        "1986-01-06 00:00:00",
+        "1986-01-07 00:00:00",
+        "1986-01-08 00:00:00",
+        "1986-01-09 00:00:00",
+        "1986-01-10 00:00:00"
+      ],
+      "netcdf4_id": "Dimension"
+    },
+    "lat": {
+      "size": 23,
+      "unlimited": false,
+      "has_coordinates": true,
+      "dtype": "float64",
+      "shape": [
+        23
+      ],
+      "attributes": {
+        "standard_name": "latitude",
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "axis": "Y"
+      },
+      "min_value": -59.38,
+      "max_value": -26.380000000000003,
+      "mean_value": -42.88,
+      "values_sample": [
+        -59.38,
+        -57.88,
+        -56.38,
+        -54.88,
+        -53.38,
+        -51.88,
+        -50.38,
+        -48.88,
+        -47.38,
+        -45.88
+      ],
+      "netcdf4_id": "Dimension"
+    },
+    "lon": {
+      "size": 26,
+      "unlimited": false,
+      "has_coordinates": true,
+      "dtype": "float64",
+      "shape": [
+        26
+      ],
+      "attributes": {
+        "standard_name": "longitude",
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "axis": "X"
+      },
+      "min_value": 150.6,
+      "max_value": 188.1,
+      "mean_value": 169.35000000000002,
+      "values_sample": [
+        150.6,
+        152.1,
+        153.6,
+        155.1,
+        156.6,
+        158.1,
+        159.6,
+        161.1,
+        162.6,
+        164.1
+      ],
+      "netcdf4_id": "Dimension"
+    }
+  },
+  "coordinates": {},
+  "data_variables": {
+    "t_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 251.9374237060547,
+        "max": 299.81768798828125,
+        "mean": 275.5995788574219,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 6.415265083312988,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "t_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 227.02061462402344,
+        "max": 275.2542419433594,
+        "mean": 253.26918029785156,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 7.3385396003723145,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "t_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 204.3632049560547,
+        "max": 239.75775146484375,
+        "mean": 222.84344482421875,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 5.005284786224365,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -37.91753005981445,
+        "max": 39.81140899658203,
+        "mean": 7.004383563995361,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 8.753339767456055,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -30.826129913330078,
+        "max": 62.41065216064453,
+        "mean": 14.587430000305176,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 10.458207130432129,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -40.83777618408203,
+        "max": 93.4031982421875,
+        "mean": 25.20738983154297,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 14.893157005310059,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -38.89788055419922,
+        "max": 42.43639373779297,
+        "mean": -0.8492357134819031,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 6.900809288024902,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -48.62022399902344,
+        "max": 49.010337829589844,
+        "mean": -0.906661868095398,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 9.331302642822266,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -65.61503601074219,
+        "max": 66.41313934326172,
+        "mean": -0.8343009352684021,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 13.10961627960205,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.2237137258052826,
+        "max": 0.26198911666870117,
+        "mean": -0.0002054092037724331,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.012605391442775726,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.38293278217315674,
+        "max": 0.48701292276382446,
+        "mean": -5.987402346363524e-06,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.02132747322320938,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.2414090931415558,
+        "max": 0.5248967409133911,
+        "mean": 0.0004757193091791123,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.016292216256260872,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 5.875585884496104e-06,
+        "max": 0.017141252756118774,
+        "mean": 0.004244939424097538,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.00196230411529541,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 3.543378397807828e-06,
+        "max": 0.006711352150887251,
+        "mean": 0.0006539419409818947,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.0006003747694194317,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 1.337454165195595e-07,
+        "max": 0.0007597199873998761,
+        "mean": 5.339308700058609e-05,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 5.7975234085461125e-05,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    }
+  },
+  "global_attributes": {},
+  "cf_standard_attributes": {},
+  "encoding": {
+    "unlimited_dims": "{'time'}",
+    "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc"
+  },
+  "file_structure": {
+    "has_groups": false,
+    "number_of_dimensions": 3,
+    "number_of_coordinates": 3,
+    "number_of_data_variables": 15,
+    "total_variables": 18,
+    "unlimited_dimensions": [
+      "time"
+    ],
+    "root_path": "/"
+  },
+  "statistics": {},
+  "cf_conventions": {}
+}

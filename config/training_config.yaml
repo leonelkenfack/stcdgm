@@ -1,0 +1,163 @@
+# Hydra Training Configuration for ST-CDGM
+# This configuration includes all new optimizations (Phase C, D, E)
+#
+# FOR CYVERSE VICE USERS:
+# - See config/training_config_vice.yaml for VICE-optimized configuration
+# - See CYVERSE_VICE_SETUP.md for installation and usage instructions
+# - Data Store paths (~/data-store/home/<username>/) are slower for large files
+# - Recommended: Copy data to local disk first using scripts/sync_datastore.py
+
+defaults:
+  - _self_
+
+# Data Configuration
+# 
+# For CyVerse VICE users:
+# - Option 1 (RECOMMENDED): Copy data to ~/climate_data/data/raw/ first
+#   Use relative paths: "data/raw/your_file.nc"
+# - Option 2: Use Data Store paths directly (slower):
+#   "~/data-store/home/<username>/data/raw/your_file.nc"
+data:
+  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"
+  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"
+  static_path: null
+  seq_len: 6
+  stride: 1
+  baseline_strategy: "hr_smoothing"  # or "lr_interp"
+  baseline_factor: 4
+  normalize: true
+  target_transform: null
+  nan_fill_strategy: "zero"  # "zero", "mean", or "interpolate"
+  precipitation_delta: 0.01  # Delta pour log1p des précipitations
+  lr_variables: null
+  hr_variables: null
+  static_variables: null
+
+# Graph Configuration
+graph:
+  lr_shape: [23, 26]
+  hr_shape: [172, 179]
+  static_variables: []
+  include_mid_layer: false
+
+# Encoder Configuration
+encoder:
+  hidden_dim: 128
+  conditioning_dim: 128
+  metapaths:
+    - name: "GP850_spat_adj"
+      src: "GP850"
+      relation: "spat_adj"
+      target: "GP850"
+      pool: "mean"
+    - name: "GP850_to_GP500"
+      src: "GP850"
+      relation: "vert_adj"
+      target: "GP500"
+      pool: "mean"
+    - name: "GP500_spat_adj"
+      src: "GP500"
+      relation: "spat_adj"
+      target: "GP500"
+      pool: "mean"
+    - name: "GP500_to_GP250"
+      src: "GP500"
+      relation: "vert_adj"
+      target: "GP250"
+      pool: "mean"
+    - name: "GP250_spat_adj"
+      src: "GP250"
+      relation: "spat_adj"
+      target: "GP250"
+      pool: "mean"
+
+# RCN Configuration
+rcn:
+  hidden_dim: 128
+  driver_dim: 8
+  reconstruction_dim: 8
+  dropout: 0.0
+  detach_interval: null
+
+# Diffusion Decoder Configuration
+diffusion:
+  in_channels: 3
+  conditioning_dim: 128
+  height: 172
+  width: 179
+  steps: 1000
+  scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
+  use_gradient_checkpointing: false  # Phase C3: Gradient checkpointing
+
+# Loss Configuration
+loss:
+  lambda_gen: 1.0
+  beta_rec: 0.1
+  gamma_dag: 0.1
+  lambda_phy: 0.0  # Phase B2: Physical loss weight
+  dag_method: "dagma"  # "dagma" or "no_tears"
+  dagma_s: 1.0
+  # Phase D1: Focal Loss
+  use_focal_loss: false
+  focal_alpha: 1.0
+  focal_gamma: 2.0
+  # Phase D2: Extreme Loss Weighting
+  extreme_weight_factor: 0.0
+  extreme_percentiles: [95.0, 99.0]
+  # Phase D3: DAG Stabilization
+  dag_l1_regularization: false
+  dag_l1_weight: 0.01
+  # Phase D4: Reconstruction Loss Type
+  reconstruction_loss_type: "mse"  # "mse", "cosine", or "mse+cosine"
+
+# Training Configuration
+training:
+  device: "cpu"  # "cuda" or "cpu" - using CPU for local test
+  epochs: 1  # Only 1 epoch for local testing
+  lr: 0.00005  # Réduit pour éviter la divergence
+  gradient_clipping: 0.5  # Réduit pour stabiliser l'entraînement
+  log_every: 1
+  # Phase C1: Mixed Precision Training
+  use_amp: false  # Disable AMP for CPU
+  # Phase C2: Early Stopping and LR Scheduling
+  early_stopping:
+    enabled: false
+    patience: 7
+    min_delta: 0.0
+    restore_best: true
+  lr_scheduler:
+    enabled: false
+    mode: "min"  # "min" or "max"
+    factor: 0.5  # LR reduction factor
+    patience: 3  # Patience for LR reduction
+    min_lr: 1e-7
+  # Phase B2: Physical Loss Options
+  physical_loss:
+    use_predicted_output: false
+    physical_sample_interval: 10
+    physical_num_steps: 15
+  # Phase A3: torch.compile
+  compile:
+    enabled: false  # Disable for local test
+    rcn_mode: "reduce-overhead"
+    diffusion_mode: "max-autotune"
+    encoder_mode: "reduce-overhead"
+
+# Model Checkpointing
+checkpoint:
+  enabled: true
+  save_dir: "models"
+  save_every: 5  # Save every N epochs
+  save_best: true  # Save best model based on validation loss
+  max_checkpoints: 5  # Keep only last N checkpoints
+
+# Evaluation Configuration
+evaluation:
+  enabled: true
+  eval_every: 5  # Evaluate every N epochs
+  num_samples: 10  # Number of samples for evaluation metrics
+  compute_f1_extremes: true
+  f1_percentiles: [95.0, 99.0]
+  save_visualizations: true
+  output_dir: "results"
+
