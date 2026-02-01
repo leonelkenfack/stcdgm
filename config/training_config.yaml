@@ -18,20 +18,20 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
-  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"
-  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"
-  static_path: null
+  lr_path: "data/raw/train/predictor_ACCESS-CM2_hist.nc"
+  hr_path: "data/raw/train/pr_ACCESS-CM2_hist.nc"
+  static_path: "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
   seq_len: 6
   stride: 1
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
-  target_transform: null
-  nan_fill_strategy: "zero"  # "zero", "mean", or "interpolate"
-  precipitation_delta: 0.01  # Delta pour log1p des précipitations
-  lr_variables: null
-  hr_variables: null
-  static_variables: null
+  target_transform: "log1p"  # ["log1p", "none"]
+  nan_fill_strategy: "mean"  # ["zero", "mean", "interpolate"]
+  precipitation_delta: 0.01  
+  lr_variables: ['u_850', 'u_500', 'u_250', 'v_850', 'v_500', 'v_250', 'w_850', 'w_500', 'w_250', 'q_850', 'q_500', 'q_250', 't_850', 't_500', 't_250']
+  hr_variables: ["pr"]
+  static_variables: ["orog", "he", "vegt"]
 
 # Graph Configuration
 graph:
@@ -113,13 +113,11 @@ loss:
 # Training Configuration
 training:
   device: "cpu"  # "cuda" or "cpu" - using CPU for local test
-  epochs: 1  # Only 1 epoch for local testing
-  lr: 0.00005  # Réduit pour éviter la divergence
-  gradient_clipping: 0.5  # Réduit pour stabiliser l'entraînement
+  epochs: 1  
+  lr: 0.00005 
+  gradient_clipping: 0.5  =
   log_every: 1
-  # Phase C1: Mixed Precision Training
   use_amp: false  # Disable AMP for CPU
-  # Phase C2: Early Stopping and LR Scheduling
   early_stopping:
     enabled: false
     patience: 7
@@ -128,17 +126,15 @@ training:
   lr_scheduler:
     enabled: false
     mode: "min"  # "min" or "max"
-    factor: 0.5  # LR reduction factor
-    patience: 3  # Patience for LR reduction
+    factor: 0.5 
+    patience: 3  
     min_lr: 1e-7
-  # Phase B2: Physical Loss Options
   physical_loss:
     use_predicted_output: false
     physical_sample_interval: 10
     physical_num_steps: 15
-  # Phase A3: torch.compile
   compile:
-    enabled: false  # Disable for local test
+    enabled: false  
     rcn_mode: "reduce-overhead"
     diffusion_mode: "max-autotune"
     encoder_mode: "reduce-overhead"
@@ -147,15 +143,15 @@ training:
 checkpoint:
   enabled: true
   save_dir: "models"
-  save_every: 5  # Save every N epochs
-  save_best: true  # Save best model based on validation loss
-  max_checkpoints: 5  # Keep only last N checkpoints
+  save_every: 5  
+  save_best: true  
+  max_checkpoints: 5  
 
 # Evaluation Configuration
 evaluation:
   enabled: true
-  eval_every: 5  # Evaluate every N epochs
-  num_samples: 10  # Number of samples for evaluation metrics
+  eval_every: 5  
+  num_samples: 10  
   compute_f1_extremes: true
   f1_percentiles: [95.0, 99.0]
   save_visualizations: true

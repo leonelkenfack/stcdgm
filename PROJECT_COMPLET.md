@@ -10,14 +10,26 @@ Ce document liste l'ensemble du projet, incluant tous les fichiers Python, les f
 
 ```
 climate_data/
+├── .dockerignore
+├── .gitignore
+├── README.md
 ├── config/                          # Fichiers de configuration
 │   ├── docker.env
 │   ├── training_config.yaml
 │   └── training_config_vice.yaml
 ├── data/                            # Données
 │   ├── metadata/
+│   │   ├── NorESM2-MM_histupdated_compressed.metadata.csv
+│   │   └── NorESM2-MM_histupdated_compressed.metadata.json
 │   └── raw/
 ├── docs/                            # Documentation
+│   ├── ARCHITECTURE_MODEL.md
+│   ├── DOCKER_README.md
+│   ├── GUIDE_PEDAGOGIQUE_ST-CDGM.md
+│   ├── OPTIMISATION.md
+│   ├── RAPPORT_TECHNIQUE_COMPLET.md
+│   ├── SCRIPTS_README.md
+│   └── st_cdgm_quickstart.md
 ├── ops/                             # Scripts d'opérations
 │   ├── preprocess_to_shards.py
 │   ├── preprocess_to_zarr.py
@@ -138,6 +150,8 @@ data:
   baseline_factor: 4
   normalize: true
   target_transform: null
+  nan_fill_strategy: "zero"  # "zero", "mean", or "interpolate"
+  precipitation_delta: 0.01  # Delta pour log1p des précipitations
   lr_variables: null
   hr_variables: null
   static_variables: null
@@ -223,8 +237,8 @@ loss:
 training:
   device: "cpu"  # "cuda" or "cpu" - using CPU for local test
   epochs: 1  # Only 1 epoch for local testing
-  lr: 0.0001
-  gradient_clipping: 1.0
+  lr: 0.00005  # Réduit pour éviter la divergence
+  gradient_clipping: 0.5  # Réduit pour stabiliser l'entraînement
   log_every: 1
   # Phase C1: Mixed Precision Training
   use_amp: false  # Disable AMP for CPU
@@ -808,6 +822,68 @@ setup(
     ],
 )
 ```
+
+---
+
+## 📄 Fichiers racine / outil
+
+### `.gitignore`
+
+Fichiers et répertoires exclus du versionnement Git. Principaux motifs : Python (`__pycache__/`, `*.pyc`, `venv/`, `*.egg-info/`), IDE (`.idea/`, `.vscode/`), Jupyter (`.ipynb_checkpoints/`), tests (`.pytest_cache/`, `.coverage`), variables d'environnement (`.env`), logs et fichiers temporaires. Optionnel : `data/raw` pour éviter de versionner les gros fichiers NetCDF.
+
+### `.dockerignore`
+
+Fichiers exclus du contexte de build Docker. Inclut : artefacts Python, environnements virtuels, IDE, Jupyter, `.git/`, Dockerfiles, `docs/` et la plupart des `*.md` (sauf `README.md`), logs, cache, résultats et images. Permet de garder l'image légère et d'éviter de copier données sensibles ou volumineuses.
+
+### `README.md`
+
+Vue d'ensemble du projet ST-CDGM pour utilisateurs et contributeurs. Contenu : description du downscaling climatique (LR→HR), installation locale et CyVerse VICE, quick start (préparation des données, entraînement, évaluation, pipeline complet), liens vers la documentation (`docs/`, CYVERSE_VICE_SETUP.md), structure du projet, dépendances principales, utilitaires VICE, tests et métriques d'évaluation (CRPS, FSS, Wasserstein, etc.).
+
+---
+
+## 📚 Documentation (`docs/`)
+
+### `docs/ARCHITECTURE_MODEL.md`
+
+Architecture technique et flux de données du modèle ST-CDGM. Décrit les trois modules (Encodeur GNN, RCN causal, Décodeur de diffusion), schémas Mermaid, équations et rôles des composants pour le downscaling climatique.
+
+### `docs/DOCKER_README.md`
+
+Guide Docker Compose pour exécuter ST-CDGM en container. Prérequis (Docker GPU, données dans `data/raw/`), configuration des volumes, commandes pour démarrer le container, accès shell, entraînement et bonnes pratiques.
+
+### `docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md`
+
+Guide pédagogique pour non-initiés. Explique le problème (cartes LR pixelisées → HR détaillées), les étapes (DATA, Graphe, Encodeur, RCN, Diffusion), avec analogies et exemples concrets (NorESM2, normalisation, métapaths).
+
+### `docs/OPTIMISATION.md`
+
+Optimisations proposées pour ST-CDGM : performance (pipeline, boucle d'entraînement, RCN, graphe, diffusion, encodeur) et accuracy/loss/métriques (pertes, F1 extremes, régularisation). Table des matières et solutions par fichier.
+
+### `docs/RAPPORT_TECHNIQUE_COMPLET.md`
+
+Référence technique : modèles climatiques sources (NorESM2-MM), variables (T, U, V, W, Q aux niveaux 850/500/250 hPa), flux de données, baselines (hr_smoothing, lr_interp), formule résiduelle et chaîne de traitement complète.
+
+### `docs/SCRIPTS_README.md`
+
+Documentation des scripts d'exécution. Usage et options de `run_preprocessing.py`, `run_training.py`, `run_evaluation.py`, `run_full_pipeline.py` et autres scripts (chemins, config, checkpoint, format zarr/webdataset).
+
+### `docs/st_cdgm_quickstart.md`
+
+Quickstart en anglais : préparation de l'environnement (PyTorch, PyG, diffusers, Hydra, xbatcher), format des données d'entrée (LR/HR/static, time commun), invocation du driver Hydra `ops/train_st_cdgm.py` et groupes de configuration clés.
+
+---
+
+## 📂 Données et métadonnées (`data/metadata/`)
+
+Fichiers de métadonnées exportés à partir de NetCDF via `NetCDFToDataFrame` (module `netcdf_utils`) : `export_metadata_to_json()` et `export_metadata_to_csv()`. Ils décrivent dimensions, coordonnées, variables, attributs et structure du fichier source.
+
+### `data/metadata/NorESM2-MM_histupdated_compressed.metadata.json`
+
+Métadonnées JSON du fichier NorESM2-MM (historique, compressé). Contient `file_info`, `dimensions` (time, lat, lon avec tailles et plages), `data_variables` et attributs CF/NetCDF. Utilisable pour inspection sans charger le NetCDF complet.
+
+### `data/metadata/NorESM2-MM_histupdated_compressed.metadata.csv`
+
+Version tabulaire (CSV) des métadonnées des variables du même fichier NorESM2-MM, exportée par `export_metadata_to_csv()`. Pratique pour analyse ou comparaison de variables.
 
 ---
 
@@ -7410,7 +7486,7 @@ if __name__ == "__main__":
 
 ### `scripts/run_preprocessing.py`
 
-[Code complet - 195 lignes]
+[Code complet - 196 lignes]
 
 **Fonctionnalités:**
 - Interface unifiée pour preprocessing
@@ -7419,7 +7495,7 @@ if __name__ == "__main__":
 
 ### `scripts/run_evaluation.py`
 
-[Code complet - 332 lignes]
+[Code complet - 331 lignes]
 
 **Fonctionnalités:**
 - Évaluation de modèles entraînés
@@ -7429,7 +7505,7 @@ if __name__ == "__main__":
 
 ### `scripts/run_full_pipeline.py`
 
-[Code complet - 189 lignes]
+[Code complet - 190 lignes]
 
 **Fonctionnalités:**
 - Orchestration du pipeline complet
@@ -7438,7 +7514,7 @@ if __name__ == "__main__":
 
 ### `scripts/load_model.py`
 
-[Code complet - 153 lignes]
+[Code complet - 152 lignes]
 
 **Fonctionnalités:**
 - Chargement de checkpoints
@@ -7465,7 +7541,7 @@ if __name__ == "__main__":
 
 ### `scripts/test_installation.py`
 
-[Code complet - 254 lignes]
+[Code complet - 230 lignes]
 
 **Fonctionnalités:**
 - Vérification de l'installation
@@ -7475,7 +7551,7 @@ if __name__ == "__main__":
 
 ### `scripts/validate_setup.py`
 
-[Code complet - 312 lignes]
+[Code complet - 319 lignes]
 
 **Fonctionnalités:**
 - Validation complète du projet
@@ -7485,7 +7561,7 @@ if __name__ == "__main__":
 
 ### `scripts/sync_datastore.py`
 
-[Code complet - 386 lignes]
+[Code complet - 385 lignes]
 
 **Fonctionnalités:**
 - Synchronisation Data Store ↔ disque local
@@ -7505,7 +7581,7 @@ if __name__ == "__main__":
 
 ### `scripts/cleanup_repeated_lines.py`
 
-[Code complet - 103 lignes]
+[Code complet - 99 lignes]
 
 **Fonctionnalités:**
 - Nettoyage de notebooks Jupyter
@@ -7526,7 +7602,7 @@ Tests unitaires pour ST-CDGM.
 
 ### `tests/test_st_cdgm_smoke.py`
 
-[Code complet - 152 lignes]
+[Code complet - 151 lignes]
 
 **Fonctionnalités:**
 - Test smoke avec données synthétiques
@@ -7535,7 +7611,7 @@ Tests unitaires pour ST-CDGM.
 
 ### `tests/test_installation.py`
 
-[Code complet - 138 lignes]
+[Code complet - 137 lignes]
 
 **Fonctionnalités:**
 - Vérification installation
@@ -7548,7 +7624,7 @@ Tests unitaires pour ST-CDGM.
 
 ### `st_cdgm_training_evaluation.ipynb`
 
-Le notebook complet contient 45 cellules organisées en sections:
+Le notebook complet contient 54 cellules organisées en sections:
 
 #### **Section 1: Installation et Imports**
 - Configuration de l'environnement
@@ -7728,24 +7804,27 @@ src/st_cdgm/__init__.py
 
 ### Statistiques
 
-- **Fichiers Python**: 33 fichiers
+- **Fichiers Python**: 33 fichiers (src/st_cdgm 14, ops 3, scripts 12, tests 3, setup 1)
 - **Fichiers de configuration**: 5 fichiers (YAML, ENV, YML, TXT)
 - **Scripts utilitaires**: 12 scripts
-- **Modules principaux**: 8 modules
+- **Modules principaux**: 8 modules (data 2, models 4, training 2, evaluation 1)
 - **Tests**: 3 fichiers de test
-- **Notebook**: 1 notebook complet (45 cellules)
+- **Notebook**: 1 notebook complet (54 cellules)
+- **Documentation**: 7 fichiers .md dans `docs/`
+- **Fichiers racine**: .gitignore, .dockerignore, README.md
+- **Données métadonnées**: 2 fichiers dans `data/metadata/` (CSV, JSON)
 
 ### Lignes de Code (approximatif)
 
-- `pipeline.py`: ~1037 lignes
+- `pipeline.py`: ~1119 lignes
 - `netcdf_utils.py`: ~1087 lignes
 - `causal_rcn.py`: ~386 lignes
 - `diffusion_decoder.py`: ~631 lignes
 - `graph_builder.py`: ~481 lignes
 - `intelligible_encoder.py`: ~283 lignes
-- `training_loop.py`: ~840 lignes
-- `evaluation_xai.py`: ~640 lignes
-- **Total estimé**: ~8000+ lignes de code Python
+- `training_loop.py`: ~874 lignes
+- `evaluation_xai.py`: ~654 lignes
+- **Total estimé**: ~8500+ lignes de code Python (src + ops + scripts + tests)
 
 ---
 

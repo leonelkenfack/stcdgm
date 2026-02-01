@@ -403,6 +403,61 @@ def compute_spectrum_distance(pred: Tensor, target: Tensor) -> float:
     return torch.mean(torch.abs(pred_spec - target_spec)).item()
 
 
+def compute_temporal_variance_metrics(
+    predictions: Sequence[Tensor],
+    targets: Sequence[Tensor],
+) -> Dict[str, float]:
+    """
+    Compare la variabilité temporelle des prédictions et des cibles.
+
+    Calcule la variance le long de la dimension "temps" (échantillons ordonnés),
+    puis compare les champs de variance (RMSE et corrélation de Pearson).
+
+    Parameters
+    ----------
+    predictions : Sequence[Tensor]
+        Liste de tenseurs [C, H, W] ou [1, C, H, W] (un par pas de temps / échantillon).
+    targets : Sequence[Tensor]
+        Liste de tenseurs de même forme que predictions.
+
+    Returns
+    -------
+    Dict[str, float]
+        {"temporal_var_rmse": float, "temporal_var_corr": float}
+        Si N < 2, les valeurs sont float("nan").
+    """
+    nan_result = {"temporal_var_rmse": float("nan"), "temporal_var_corr": float("nan")}
+    if len(predictions) < 2 or len(targets) < 2 or len(predictions) != len(targets):
+        return nan_result
+
+    # Stack: ensure [N, C, H, W]
+    pred_list = [p.squeeze(0) if p.dim() == 4 else p for p in predictions]
+    tgt_list = [t.squeeze(0) if t.dim() == 4 else t for t in targets]
+    pred_stack = torch.stack(pred_list, dim=0)
+    target_stack = torch.stack(tgt_list, dim=0)
+
+    # Variance along dim=0 -> [C, H, W]
+    var_pred = pred_stack.var(dim=0)
+    var_target = target_stack.var(dim=0)
+
+    # Flatten for scalar metrics
+    vp = var_pred.flatten()
+    vt = var_target.flatten()
+
+    # RMSE between variance maps
+    rmse = torch.sqrt(torch.mean((vp - vt) ** 2)).item()
+
+    # Pearson correlation
+    vp_c = vp - vp.mean()
+    vt_c = vt - vt.mean()
+    eps = 1e-8
+    num = (vp_c * vt_c).sum()
+    denom = torch.sqrt((vp_c ** 2).sum()) * torch.sqrt((vt_c ** 2).sum()) + eps
+    corr = (num / denom).item() if denom.item() > eps else 0.0
+
+    return {"temporal_var_rmse": rmse, "temporal_var_corr": corr}
+
+
 @dataclass
 class MetricReport:
     mse: float
