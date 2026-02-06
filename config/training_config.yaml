@@ -21,8 +21,9 @@ data:
   lr_path: "data/raw/train/predictor_ACCESS-CM2_hist.nc"
   hr_path: "data/raw/train/pr_ACCESS-CM2_hist.nc"
   static_path: "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
-  seq_len: 6
-  stride: 1
+  zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
+  seq_len: 8  # Increased for 256 Go RAM
+  stride: 2  # Faster dataset iteration
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
@@ -82,10 +83,10 @@ rcn:
 # Diffusion Decoder Configuration
 diffusion:
   in_channels: 3
-  conditioning_dim: 128
+  conditioning_dim: 128  # must match encoder.conditioning_dim
   height: 172
   width: 179
-  steps: 1000
+  steps: 100  # Increased for better quality (GPUs handle this well)
   scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
   use_gradient_checkpointing: false  # Phase C3: Gradient checkpointing
 
@@ -112,12 +113,20 @@ loss:
 
 # Training Configuration
 training:
-  device: "cpu"  # "cuda" or "cpu" - using CPU for local test
-  epochs: 1  
-  lr: 0.00005 
-  gradient_clipping: 0.5  =
-  log_every: 1
-  use_amp: false  # Disable AMP for CPU
+  device: "cuda"  # "cuda" or "cpu" - using GPU for multi-GPU training
+  epochs: 3  
+  batch_size: 32  # Gradient accumulation (256 Go RAM permits 16-32 samples)
+  lr: 0.0002  # Increased for larger batch size
+  gradient_clipping: 1.0
+  log_every: 10
+  use_amp: true  # Mixed Precision for GPU performance
+  
+  # Multi-GPU configuration (4 GPUs available)
+  multi_gpu:
+    enabled: true
+    strategy: "ddp"  # DistributedDataParallel (better than DataParallel)
+    gpus: [0, 1, 2, 3]  # Use all 4 GPUs
+    find_unused_parameters: true  # Required for PyG HeteroData graphs
   early_stopping:
     enabled: false
     patience: 7
@@ -134,7 +143,7 @@ training:
     physical_sample_interval: 10
     physical_num_steps: 15
   compile:
-    enabled: false  
+    enabled: true  # torch.compile for performance (PyTorch 2.0+)
     rcn_mode: "reduce-overhead"
     diffusion_mode: "max-autotune"
     encoder_mode: "reduce-overhead"

@@ -405,10 +405,14 @@ class NetCDFDataPipeline:
             hr_lat=_infer_dim(self.hr_dataset_raw, "lat"),
             hr_lon=_infer_dim(self.hr_dataset_raw, "lon"),
         )
+        self.grid_metadata = self.dims  # backward compatibility
 
         # Align datasets along the shared temporal axis
         self.lr_dataset_raw, self.hr_dataset_raw = self._align_time(self.lr_dataset_raw, self.hr_dataset_raw)
-        
+        # Load into memory to avoid NetCDF/HDF read errors during reductions (mean, fillna, etc.)
+        self.lr_dataset_raw = self.lr_dataset_raw.load()
+        self.hr_dataset_raw = self.hr_dataset_raw.load()
+
         # Clean NaN values from datasets
         self.lr_dataset_raw = self._clean_nan_values(self.lr_dataset_raw, self.nan_fill_strategy)
         self.hr_dataset_raw = self._clean_nan_values(self.hr_dataset_raw, self.nan_fill_strategy)
@@ -529,10 +533,11 @@ class NetCDFDataPipeline:
         if strategy == "zero":
             return dataset.fillna(0.0)
         elif strategy == "mean":
-            # Remplacer par la moyenne spatiale pour chaque timestep
-            return dataset.fillna(dataset.mean(dim=[self.grid_metadata.hr_lat, self.grid_metadata.hr_lon]))
+            # Remplacer par la moyenne spatiale (dimensions spatiales selon LR ou HR)
+            spatial_dims = [self.dims.hr_lat, self.dims.hr_lon] if self.dims.hr_lat in dataset.dims else [self.dims.lr_lat, self.dims.lr_lon]
+            return dataset.fillna(dataset.mean(dim=spatial_dims))
         elif strategy == "interpolate":
-            return dataset.interpolate_na(dim=self.grid_metadata.time, method="linear")
+            return dataset.interpolate_na(dim=self.dims.time, method="linear")
         else:
             raise ValueError(f"Unknown nan_fill_strategy: {strategy}. Must be 'zero', 'mean', or 'interpolate'")
 

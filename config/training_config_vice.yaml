@@ -31,6 +31,7 @@ data:
   # hr_path: "~/data-store/home/<username>/data/raw/pr_ACCESS-CM2_hist.nc"
   
   static_path: null  # Optional static fields (e.g., topography)
+  zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
   seq_len: 6  # Temporal sequence length
   stride: 1  # Stride for sliding window
   baseline_strategy: "hr_smoothing"  # or "lr_interp"

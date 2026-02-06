@@ -472,15 +472,25 @@ def train_epoch(
         print(f"{'='*80}\n")
 
     for batch_idx, batch in enumerate(data_loader):
+        # Support batch_size > 1: batch can be a list of batch dicts (gradient accumulation)
+        batches = batch if isinstance(batch, list) else [batch]
         batch_start_time = time.time()
         
-        if verbose and batch_idx == 0:
-            print(f"Batch {batch_idx + 1}:")
-            print(f"   - Keys: {list(batch.keys())}")
+        optimizer.zero_grad()
+        step_loss_total = 0.0
+        step_loss_gen = 0.0
+        step_loss_rec = 0.0
+        step_loss_dag = 0.0
+        step_loss_phy = 0.0
         
-        lr_data: Tensor = batch["lr"].to(device)      # [seq_len, N, features_lr]
-        target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
-        hetero_data = batch["hetero"]
+        for micro_idx, batch in enumerate(batches):
+            if verbose and batch_idx == 0 and micro_idx == 0:
+                print(f"Batch {batch_idx + 1}" + (f" (n={len(batches)})" if len(batches) > 1 else "") + ":")
+                print(f"   - Keys: {list(batch.keys())}")
+            
+            lr_data: Tensor = batch["lr"].to(device)      # [seq_len, N, features_lr]
+            target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
+            hetero_data = batch["hetero"]
         
         # Vérifications de diagnostic avant forward pass
         if torch.isnan(target_data).any():
@@ -498,12 +508,10 @@ def train_epoch(
             print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with 0")
             lr_data = torch.nan_to_num(lr_data, nan=0.0)
         
-        if verbose and batch_idx == 0:
-            print(f"   - LR data shape: {lr_data.shape}")
-            print(f"   - Target data shape: {target_data.shape}")
-            print(f"   - Sequence length: {lr_data.shape[0]}")
-
-        optimizer.zero_grad()
+            if verbose and batch_idx == 0 and micro_idx == 0:
+                print(f"   - LR data shape: {lr_data.shape}")
+                print(f"   - Target data shape: {target_data.shape}")
+                print(f"   - Sequence length: {lr_data.shape[0]}")
 
         # Phase C1: Mixed Precision - Use autocast for forward pass
         # Encoder step
@@ -755,15 +763,23 @@ def train_epoch(
                 print(f"   - Loss is Inf, skipping batch")
                 continue
         
-        loss_time = time.time() - loss_time
-        
-        # Phase C1: Mixed Precision - Backward pass with scaler
-        backward_time = time.time()
-        if use_amp and scaler is not None:
-            scaler.scale(loss_total).backward()
-        else:
-            loss_total.backward()
-        backward_time = time.time() - backward_time
+            loss_time = time.time() - loss_time
+            
+            # Accumulate for logging (average over micro-batches)
+            step_loss_total += loss_total.item()
+            step_loss_gen += loss_gen_value.item()
+            step_loss_rec += loss_rec_value.item()
+            step_loss_dag += loss_dag_value.item()
+            step_loss_phy += loss_phy_value.item()
+            
+            # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
+            backward_time = time.time()
+            scale = 1.0 / len(batches)  # Scale gradients for accumulation
+            if use_amp and scaler is not None:
+                scaler.scale(loss_total * scale).backward()
+            else:
+                (loss_total * scale).backward()
+            backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:
             clip_time = time.time()
@@ -808,22 +824,23 @@ def train_epoch(
             optimizer.step()
         step_time = time.time() - batch_start_time
 
-        total_loss += loss_total.item()
-        total_gen += loss_gen_value.item()
-        total_rec += loss_rec_value.item()
-        total_dag += loss_dag_value.item()
-        total_phy += loss_phy_value.item()
+        n_micro = len(batches)
+        total_loss += step_loss_total
+        total_gen += step_loss_gen
+        total_rec += step_loss_rec
+        total_dag += step_loss_dag
+        total_phy += step_loss_phy
         num_batches += 1
         
-        # Logging
+        # Logging (show average loss over micro-batches when batch_size > 1)
         if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
-            print(f"\nBatch {batch_idx + 1}:")
-            print(f"   - Loss total: {loss_total.item():.6f}")
-            print(f"   - Loss gen: {loss_gen_value.item():.6f}")
-            print(f"   - Loss rec: {loss_rec_value.item():.6f}")
-            print(f"   - Loss DAG: {loss_dag_value.item():.6f}")
+            print(f"\nBatch {batch_idx + 1}" + (f" (n={n_micro})" if n_micro > 1 else "") + ":")
+            print(f"   - Loss total: {step_loss_total/n_micro:.6f}")
+            print(f"   - Loss gen: {step_loss_gen/n_micro:.6f}")
+            print(f"   - Loss rec: {step_loss_rec/n_micro:.6f}")
+            print(f"   - Loss DAG: {step_loss_dag/n_micro:.6f}")
             if lambda_phy > 0.0:
-                print(f"   - Loss phy: {loss_phy_value.item():.6f}")
+                print(f"   - Loss phy: {step_loss_phy/n_micro:.6f}")
             print(f"   - Batch time: {step_time:.4f}s")
             if batch_idx == 0:
                 print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
