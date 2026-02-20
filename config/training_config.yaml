@@ -18,10 +18,12 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
+  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
   lr_path: "data/raw/train/predictor_ACCESS-CM2_hist.nc"
   hr_path: "data/raw/train/pr_ACCESS-CM2_hist.nc"
   static_path: "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
   zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
+  shard_dir: "data/raw/train/shards"  # Répertoire pour shards WebDataset
   seq_len: 8  # Increased for 256 Go RAM
   stride: 2  # Faster dataset iteration
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
@@ -114,8 +116,8 @@ loss:
 # Training Configuration
 training:
   device: "cuda"  # "cuda" or "cpu" - using GPU for multi-GPU training
-  epochs: 3  
-  batch_size: 32  # Gradient accumulation (256 Go RAM permits 16-32 samples)
+  epochs: 100  
+  batch_size: 48  # Optimized for 64 CPU / 4 GPU (moderate increase for 128GB RAM)
   lr: 0.0002  # Increased for larger batch size
   gradient_clipping: 1.0
   log_every: 10

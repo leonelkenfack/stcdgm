@@ -14,6 +14,7 @@ netCDF4
 h5netcdf
 zarr
 dask[complete]
+webdataset  # For shard-based data format (high-performance sequential I/O)
 
 # =========================
 # Visualization
@@ -21,6 +22,27 @@ dask[complete]
 matplotlib
 seaborn
 plotly
+
+# =========================
+# PyTorch (GPU support)
+# Install CPU version via: pip install -r requirements.txt
+# For CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# For CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# =========================
+torch>=2.1.0
+torchvision
+torchaudio
+
+# PyTorch Geometric (GNNs for heterogeneous graphs)
+torch-geometric
+torch-scatter
+torch-sparse
+
+# =========================
+# Data batching and time
+# =========================
+xbatcher
+cftime
 
 # =========================
 # Deep Learning / Diffusion
@@ -45,3 +67,8 @@ requests
 # =========================
 ipykernel
 ipywidgets
+
+# =========================
+# GPU monitoring (optional)
+# =========================
+nvidia-ml-py

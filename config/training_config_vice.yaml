@@ -21,6 +21,7 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower but persistent):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
+  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
   # Paths relative to project root (recommended for VICE after copying to local disk)
   # Replace these with your actual file paths
   lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"  # Low-resolution input data
@@ -32,6 +33,7 @@ data:
   
   static_path: null  # Optional static fields (e.g., topography)
   zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
+  shard_dir: "data/raw/train/shards"  # Répertoire pour shards WebDataset
   seq_len: 6  # Temporal sequence length
   stride: 1  # Stride for sliding window
   baseline_strategy: "hr_smoothing"  # or "lr_interp"

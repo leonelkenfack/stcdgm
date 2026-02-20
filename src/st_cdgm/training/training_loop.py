@@ -8,6 +8,7 @@ encodeur de variables intelligibles, RCN et décodeur de diffusion.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, Optional, Sequence
 import time
@@ -15,6 +16,7 @@ import time
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ..models.causal_rcn import RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder
@@ -773,12 +775,18 @@ def train_epoch(
             step_loss_phy += loss_phy_value.item()
             
             # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
+            # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
             backward_time = time.time()
             scale = 1.0 / len(batches)  # Scale gradients for accumulation
-            if use_amp and scaler is not None:
-                scaler.scale(loss_total * scale).backward()
-            else:
-                (loss_total * scale).backward()
+            is_last_micro = (micro_idx == len(batches) - 1)
+            ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
+            ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
+            ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
+            with ctx_enc, ctx_rcn, ctx_diff:
+                if use_amp and scaler is not None:
+                    scaler.scale(loss_total * scale).backward()
+                else:
+                    (loss_total * scale).backward()
             backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:

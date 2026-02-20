@@ -242,10 +242,20 @@ class RCNCell(nn.Module):
         # Reconstruction facultative
         reconstruction = None
         if self.reconstruction_decoder is not None:
-            # Use the hidden state H_prev as reconstruction source
-            # H_prev has shape [num_vars, N, hidden_dim]
-            # Reshape to [N, num_vars * hidden_dim] for the decoder
-            recon_input = H_prev.permute(1, 0, 2).reshape(N, -1)
+            # Use provided reconstruction source or default to H_prev
+            source = reconstruction_source if reconstruction_source is not None else H_prev
+            
+            # Ensure source has shape [N, num_vars * hidden_dim]
+            # If source is [q, N, hidden_dim] (like H_prev), permute and reshape
+            if source.dim() == 3 and source.shape[0] == self.num_vars and source.shape[2] == self.hidden_dim:
+                recon_input = source.permute(1, 0, 2).reshape(N, -1)
+            elif source.dim() == 2:
+                # Assume already flattened or correct shape [N, features]
+                recon_input = source
+            else:
+                # Fallback reshape trying to preserve N
+                recon_input = source.reshape(N, -1)
+                
             reconstruction = self.reconstruction_decoder(recon_input)
 
         return H_next_tensor, reconstruction, A_masked

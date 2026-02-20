@@ -1024,6 +1024,129 @@ class ZarrDataPipeline:
     def get_residual_dataset(self) -> xr.Dataset:
         """Return the residual dataset."""
         return self.residual_dataset
+    
+    def get_static_dataset(self) -> Optional[xr.Dataset]:
+        """Return the static dataset."""
+        return self.static_dataset
+
+
+class WebDatasetDataPipeline:
+    """
+    High-level data preparation pipeline for ST-CDGM training using pre-processed WebDataset shards.
+    
+    This class reads pre-processed TAR shards that have already been transformed
+    (normalized, baseline computed, residuals calculated) and creates IterableDatasets
+    for training with high I/O performance.
+    
+    Parameters
+    ----------
+    shard_dir :
+        Directory containing the pre-processed shard files (*.tar) and metadata.json.
+    shuffle :
+        Whether to shuffle shards and samples (default: False for deterministic training).
+    """
+    
+    def __init__(
+        self,
+        shard_dir: str | Path,
+        *,
+        shuffle: bool = False,
+        shardshuffle: int = 100,
+        shuffle_buffer_size: int = 1000,
+    ) -> None:
+        if not HAS_WEBDATASET:
+            raise ImportError(
+                "WebDataset support is not available. Install webdataset via `pip install webdataset`."
+            )
+        
+        shard_dir = Path(shard_dir)
+        if not shard_dir.exists():
+            raise ValueError(f"Shard directory does not exist: {shard_dir}")
+        
+        # Load metadata
+        metadata_path = shard_dir / "metadata.json"
+        if not metadata_path.exists():
+            raise ValueError(f"Metadata file not found: {metadata_path}")
+        
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        
+        self.shard_dir = shard_dir
+        self.seq_len = metadata.get("seq_len", 10)
+        self.shuffle = shuffle
+        self.shardshuffle = shardshuffle
+        self.shuffle_buffer_size = shuffle_buffer_size
+        
+        # Load dimension metadata
+        dims_dict = metadata.get("dims", {})
+        self.dims = GridMetadata(
+            time=dims_dict.get("time", "time"),
+            lr_lat=dims_dict.get("lr_lat", "lat"),
+            lr_lon=dims_dict.get("lr_lon", "lon"),
+            hr_lat=dims_dict.get("hr_lat", "lat"),
+            hr_lon=dims_dict.get("hr_lon", "lon"),
+        )
+        
+        # Shard pattern (all .tar files in the directory)
+        self.shard_pattern = str(shard_dir / "*.tar")
+        
+        # Static dataset is embedded in shards (not separate)
+        self.static_dataset = None
+    
+    def build_sequence_dataset(
+        self,
+        *,
+        seq_len: Optional[int] = None,
+        stride: int = 1,
+        drop_last: bool = True,
+        as_torch: bool = True,
+    ) -> "WebDatasetIterableDataset":
+        """
+        Build an IterableDataset for training from WebDataset shards.
+        
+        Parameters
+        ----------
+        seq_len :
+            Sequence length (ignored, read from metadata).
+        stride :
+            Stride (ignored, shards contain pre-generated sequences).
+        drop_last :
+            Whether to drop incomplete sequences (ignored, shards contain complete sequences).
+        as_torch :
+            Whether to return PyTorch tensors (always True for WebDataset).
+        
+        Returns
+        -------
+        WebDatasetIterableDataset
+            IterableDataset yielding ResDiff-style batches.
+        """
+        return WebDatasetIterableDataset(
+            shard_pattern=self.shard_pattern,
+            metadata_path=self.shard_dir / "metadata.json",
+            shuffle=self.shuffle,
+            shardshuffle=self.shardshuffle,
+            shuffle_buffer_size=self.shuffle_buffer_size,
+        )
+    
+    def get_lr_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_hr_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_baseline_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_residual_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_static_dataset(self) -> Optional[xr.Dataset]:
+        """Return None (static data is embedded in shards)."""
+        return None
 
 
 class WebDatasetIterableDataset(IterableDataset):
