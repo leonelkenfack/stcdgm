@@ -351,13 +351,13 @@ def main():
     )
 
     batch_size = CONFIG.training.get("batch_size", 1)
-    num_workers = 4  # Per process (4 workers × 4 GPUs = 16 total)
+    num_workers = CONFIG.training.get("num_workers", 0)  # 0 on CyVerse (limited /dev/shm)
     train_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=True,
-        prefetch_factor=4,
+        prefetch_factor=4 if num_workers > 0 else None,
         persistent_workers=num_workers > 0,
         collate_fn=lambda x: x,
     )

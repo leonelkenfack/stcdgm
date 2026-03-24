@@ -18,9 +18,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 import warnings
 from pathlib import Path
 from typing import Optional, Sequence
+
+# Ensure st_cdgm is importable when run as subprocess (e.g. from notebook)
+_script_dir = Path(__file__).resolve().parent
+_project_root = _script_dir.parent
+_src_path = _project_root / "src"
+if _src_path.exists() and str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
 
 import numpy as np
 import xarray as xr

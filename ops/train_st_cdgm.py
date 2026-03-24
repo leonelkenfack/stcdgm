@@ -112,6 +112,7 @@ class TrainingConfig:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     gradient_clipping: Optional[float] = 1.0
     log_every: int = 1
+    num_workers: int = 0  # 0 avoids /dev/shm (CyVerse/Docker have ~64MB). Use 4-8 if shm is large
 
 
 @dataclass
@@ -208,14 +209,15 @@ def main(cfg: DictConfig) -> None:
         stride=cfg.data.stride,
         as_torch=True,
     )
-    # Optimized DataLoader with parallel workers and pinned memory
+    # DataLoader: num_workers=0 on CyVerse/Docker (limited /dev/shm)
+    num_workers = getattr(cfg.training, 'num_workers', 0)
     dataloader = DataLoader(
         dataset,
         batch_size=None,
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
-        prefetch_factor=2,
-        persistent_workers=True,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=num_workers > 0,
     )
 
     builder = HeteroGraphBuilder(

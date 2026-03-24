@@ -11,6 +11,7 @@ from __future__ import annotations
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, Optional, Sequence
+import math
 import time
 
 import torch
@@ -497,18 +498,25 @@ def train_epoch(
         # Vérifications de diagnostic avant forward pass
         if torch.isnan(target_data).any():
             nan_count = torch.isnan(target_data).sum().item()
-            print(f"[WARN] Target contains {nan_count} NaN values ({100*nan_count/target_data.numel():.2f}%) - replacing with 0")
-            target_data = torch.nan_to_num(target_data, nan=0.0)
+            nan_fill = torch.nanmean(target_data).item()
+            if not math.isfinite(nan_fill):
+                nan_fill = 0.0
+            # print(f"[WARN] Target contains {nan_count} NaN values ({100*nan_count/target_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
+            target_data = torch.nan_to_num(target_data, nan=nan_fill)
         
         if torch.isinf(target_data).any():
             inf_count = torch.isinf(target_data).sum().item()
-            print(f"[WARN] Target contains {inf_count} Inf values ({100*inf_count/target_data.numel():.2f}%) - replacing with 0")
-            target_data = torch.nan_to_num(target_data, nan=0.0, posinf=0.0, neginf=0.0)
+            valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if (target_data.numel() > inf_count) else 0.0
+            # print(f"[WARN] Target contains {inf_count} Inf values ({100*inf_count/target_data.numel():.2f}%) - replacing with mean ({valid_mean:.6f})")
+            target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
         
         if torch.isnan(lr_data).any():
             nan_count = torch.isnan(lr_data).sum().item()
-            print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with 0")
-            lr_data = torch.nan_to_num(lr_data, nan=0.0)
+            nan_fill = torch.nanmean(lr_data).item()
+            if not math.isfinite(nan_fill):
+                nan_fill = 0.0
+            # print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
+            lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
         
             if verbose and batch_idx == 0 and micro_idx == 0:
                 print(f"   - LR data shape: {lr_data.shape}")
@@ -764,30 +772,28 @@ def train_epoch(
             elif torch.isinf(loss_total):
                 print(f"   - Loss is Inf, skipping batch")
                 continue
-        
-            loss_time = time.time() - loss_time
-            
-            # Accumulate for logging (average over micro-batches)
-            step_loss_total += loss_total.item()
-            step_loss_gen += loss_gen_value.item()
-            step_loss_rec += loss_rec_value.item()
-            step_loss_dag += loss_dag_value.item()
-            step_loss_phy += loss_phy_value.item()
-            
-            # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
-            # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
-            backward_time = time.time()
-            scale = 1.0 / len(batches)  # Scale gradients for accumulation
-            is_last_micro = (micro_idx == len(batches) - 1)
-            ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
-            ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
-            ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
-            with ctx_enc, ctx_rcn, ctx_diff:
-                if use_amp and scaler is not None:
-                    scaler.scale(loss_total * scale).backward()
-                else:
-                    (loss_total * scale).backward()
-            backward_time = time.time() - backward_time
+
+        # Accumulate for logging (average over micro-batches)
+        step_loss_total += loss_total.item()
+        step_loss_gen += loss_gen_value.item()
+        step_loss_rec += loss_rec_value.item()
+        step_loss_dag += loss_dag_value.item()
+        step_loss_phy += loss_phy_value.item()
+
+        # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
+        # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
+        backward_time = time.time()
+        scale = 1.0 / len(batches)  # Scale gradients for accumulation
+        is_last_micro = (micro_idx == len(batches) - 1)
+        ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
+        ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
+        ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
+        with ctx_enc, ctx_rcn, ctx_diff:
+            if use_amp and scaler is not None:
+                scaler.scale(loss_total * scale).backward()
+            else:
+                (loss_total * scale).backward()
+        backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:
             clip_time = time.time()

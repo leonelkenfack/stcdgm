@@ -129,6 +129,9 @@ training:
   # In VICE, check GPU availability first before setting to "cuda"
   device: "cpu"  # Change to "cuda" if GPU available in your VICE session
   
+  # CRITICAL for CyVerse: num_workers=0 to avoid "No space left on device" /dev/shm errors
+  num_workers: 0  # VICE has ~64MB /dev/shm - use 0, never 20+
+  
   epochs: 100  # Adjust based on your needs
   lr: 0.0001
   gradient_clipping: 1.0

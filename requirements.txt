@@ -72,3 +72,5 @@ ipywidgets
 # GPU monitoring (optional)
 # =========================
 nvidia-ml-py
+
+cartopy

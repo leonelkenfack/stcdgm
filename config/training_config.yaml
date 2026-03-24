@@ -115,17 +115,18 @@ loss:
 
 # Training Configuration
 training:
-  device: "cuda"  # "cuda" or "cpu" - using GPU for multi-GPU training
+  device: "cpu"  # "cuda" or "cpu" - use "cpu" if PyTorch not compiled with CUDA
   epochs: 100  
-  batch_size: 48  # Optimized for 64 CPU / 4 GPU (moderate increase for 128GB RAM)
+  batch_size: 48  # Reduce to 8-16 if OOM on CPU
+  num_workers: 0  # 0 = avoid shared memory (/dev/shm). Use 4-8 only if /dev/shm is large (CyVerse: use 0)
   lr: 0.0002  # Increased for larger batch size
   gradient_clipping: 1.0
   log_every: 10
-  use_amp: true  # Mixed Precision for GPU performance
+  use_amp: false  # AMP requires CUDA - disable for CPU
   
   # Multi-GPU configuration (4 GPUs available)
   multi_gpu:
-    enabled: true
+    enabled: false  # Disable when using CPU
     strategy: "ddp"  # DistributedDataParallel (better than DataParallel)
     gpus: [0, 1, 2, 3]  # Use all 4 GPUs
     find_unused_parameters: true  # Required for PyG HeteroData graphs

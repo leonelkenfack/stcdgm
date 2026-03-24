@@ -409,16 +409,16 @@ class NetCDFDataPipeline:
 
         # Align datasets along the shared temporal axis
         self.lr_dataset_raw, self.hr_dataset_raw = self._align_time(self.lr_dataset_raw, self.hr_dataset_raw)
-        # Load into memory to avoid NetCDF/HDF read errors during reductions (mean, fillna, etc.)
-        self.lr_dataset_raw = self.lr_dataset_raw.load()
-        self.hr_dataset_raw = self.hr_dataset_raw.load()
+        # Load into memory (chunked on failure for CyVerse Data Store / slow HDF reads)
+        self.lr_dataset_raw = self._load_dataset_robust(self.lr_dataset_raw, "LR", self.lr_path)
+        self.hr_dataset_raw = self._load_dataset_robust(self.hr_dataset_raw, "HR", self.hr_path)
 
         # Clean NaN values from datasets
         self.lr_dataset_raw = self._clean_nan_values(self.lr_dataset_raw, self.nan_fill_strategy)
         self.hr_dataset_raw = self._clean_nan_values(self.hr_dataset_raw, self.nan_fill_strategy)
         
         if self.static_dataset is not None:
-            self.static_dataset = self.static_dataset.load()
+            self.static_dataset = self._load_dataset_robust(self.static_dataset, "static", self.static_path)
 
         # Normalise LR predictors if requested
         if self.normalize:
@@ -450,8 +450,78 @@ class NetCDFDataPipeline:
             return None
         if not path.exists():
             raise FileNotFoundError(f"Dataset not found: {path}")
-        kwargs = {"chunks": self._chunks} if self._chunks else {}
-        return xr.open_dataset(path, **kwargs)
+        path_str = str(path)
+        # Try engines in order (fixes "did not find a match" on CyVerse/remote paths)
+        for engine in ("netcdf4", "scipy", "h5netcdf"):
+            try:
+                kwargs = {"chunks": self._chunks} if self._chunks and engine != "scipy" else {}
+                return xr.open_dataset(path_str, engine=engine, **kwargs)
+            except Exception as e:
+                if engine == "h5netcdf":
+                    raise
+                continue
+        raise RuntimeError(f"Could not open {path_str} with any NetCDF engine")
+
+    def _load_dataset_robust(
+        self, ds: xr.Dataset, name: str = "dataset", path: Optional[Path] = None
+    ) -> xr.Dataset:
+        """Load xarray dataset into memory. On HDF error (CyVerse Data Store), retry with alternate engines."""
+        src = path
+        if src is None and getattr(ds, "encoding", None):
+            src = ds.encoding.get("source") if isinstance(ds.encoding, dict) else None
+        if isinstance(src, list):
+            src = src[0] if len(src) == 1 else None
+        path = Path(src) if src else None
+        try:
+            return ds.load()
+        except RuntimeError as e:
+            err_str = str(e)
+            if "HDF" not in err_str and "netCDF" not in err_str.lower():
+                raise
+            if path is None:
+                raise RuntimeError(
+                    f"Failed to load {name}: {e}. Path unknown (multi-file?). "
+                    "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                    "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                ) from e
+            if not path.exists():
+                raise RuntimeError(
+                    f"Failed to load {name}: {e}. Path not found: {path}. "
+                    "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                    "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                ) from e
+            # Retry with alternate engines (h5netcdf often works better on remote/slow HDF)
+            try:
+                ds.close()
+            except Exception:
+                pass
+            path_str = str(path)
+            time_dim = self.dims.time if (self.dims and hasattr(self.dims, "time")) else "time"
+            for engine in ("h5netcdf", "scipy"):
+                ds_new = None
+                try:
+                    ds_new = xr.open_dataset(path_str, engine=engine)
+                    vars_in_ds = [v for v in ds.data_vars if v in ds_new]
+                    ds_new = ds_new[vars_in_ds]
+                    if time_dim in ds.dims and time_dim in ds_new.dims and ds.dims[time_dim] != ds_new.dims.get(time_dim, 0):
+                        ds_new = ds_new.reindex({time_dim: ds[time_dim]}, method="nearest")
+                    result = ds_new.load()
+                    ds_new.close()
+                    return result
+                except Exception as e2:
+                    if ds_new is not None:
+                        try:
+                            ds_new.close()
+                        except Exception:
+                            pass
+                    if engine == "scipy":
+                        raise RuntimeError(
+                            f"Failed to load {name}: {e}. Retry with h5netcdf/scipy also failed: {e2}. "
+                            "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                            "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                        ) from e2
+                    continue
+            raise
 
     def _convert_cftime_to_datetime(self, time_values):
         """
@@ -513,6 +583,7 @@ class NetCDFDataPipeline:
         
         return lr_aligned, hr_aligned
 
+    #TODO: recuperer strategy depuis config.yml
     def _clean_nan_values(self, dataset: xr.Dataset, strategy: str = "zero") -> xr.Dataset:
         """
         Nettoie les valeurs NaN du dataset selon la stratégie spécifiée.
@@ -749,6 +820,7 @@ class NetCDFDataPipeline:
             drop_last=drop_last,
             as_torch=as_torch,
         )
+
 
 class ResDiffIterableDataset(IterableDataset):
     """
