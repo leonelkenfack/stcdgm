@@ -14,6 +14,7 @@ Example:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, List, Optional, Tuple
 
@@ -33,6 +34,8 @@ from st_cdgm import (
     RCNSequenceRunner,
     CausalDiffusionDecoder,
     train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
 )
 
 
@@ -63,7 +66,7 @@ class DataConfig:
 class GraphConfig:
     lr_shape: Tuple[int, int] = (23, 26)
     hr_shape: Tuple[int, int] = (172, 179)
-    include_mid_layer: bool = False
+    include_mid_layer: bool = True
     static_variables: Optional[List[str]] = None
 
 
@@ -83,15 +86,15 @@ class EncoderConfig:
 @dataclass
 class RCNConfig:
     hidden_dim: int = 128
-    driver_dim: int = 8
-    reconstruction_dim: Optional[int] = 8
+    driver_dim: int = 15
+    reconstruction_dim: Optional[int] = 15
     dropout: float = 0.0
     detach_interval: Optional[int] = None
 
 
 @dataclass
 class DiffusionConfig:
-    in_channels: int = 3
+    in_channels: int = 1
     conditioning_dim: int = 128
     height: int = 172
     width: int = 179
@@ -117,13 +120,13 @@ class TrainingConfig:
 
 @dataclass
 class STCDGMConfig:
-    data: DataConfig = DataConfig()
-    graph: GraphConfig = GraphConfig()
-    encoder: EncoderConfig = EncoderConfig()
-    rcn: RCNConfig = RCNConfig()
-    diffusion: DiffusionConfig = DiffusionConfig()
-    loss: LossConfig = LossConfig()
-    training: TrainingConfig = TrainingConfig()
+    data: DataConfig = field(default_factory=DataConfig)
+    graph: GraphConfig = field(default_factory=GraphConfig)
+    encoder: EncoderConfig = field(default_factory=EncoderConfig)
+    rcn: RCNConfig = field(default_factory=RCNConfig)
+    diffusion: DiffusionConfig = field(default_factory=DiffusionConfig)
+    loss: LossConfig = field(default_factory=LossConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
 
 
 cs = ConfigStore.instance()
@@ -143,6 +146,51 @@ def _build_encoder(cfg: EncoderConfig) -> IntelligibleVariableEncoder:
         configs=meta_configs,
         hidden_dim=cfg.hidden_dim,
         conditioning_dim=cfg.conditioning_dim,
+    )
+
+
+def build_encoder_for_graph(cfg_encoder, builder: HeteroGraphBuilder) -> IntelligibleVariableEncoder:
+    """
+    Construit l'encodeur en ne gardant que les méta-chemins dont src/cible existent dans le graphe.
+
+    Si ``graph.include_mid_layer`` est False, seuls GP850 (et SP_HR si données statiques) sont
+    présents : les chemins vers GP500/GP250 doivent être ignorés pour éviter KeyError après HeteroConv.
+    Aligné sur ``train_ddp.py`` et les notebooks d'inférence.
+    """
+    allowed_nodes = set(builder.dynamic_node_types) | set(builder.static_node_types)
+    meta_configs: List[IntelligibleVariableConfig] = []
+    for mp in cfg_encoder.metapaths:
+        if mp.src not in allowed_nodes or mp.target not in allowed_nodes:
+            continue
+        pool = getattr(mp, "pool", None) or "mean"
+        meta_configs.append(
+            IntelligibleVariableConfig(
+                name=mp.name,
+                meta_path=(mp.src, mp.relation, mp.target),
+                pool=pool,
+            )
+        )
+    static_key = ("SP_HR", "causes", "GP850")
+    if builder.static_dataset is not None and "SP_HR" in allowed_nodes:
+        if not any(c.meta_path == static_key for c in meta_configs):
+            meta_configs.append(
+                IntelligibleVariableConfig(
+                    name="static",
+                    meta_path=static_key,
+                    pool="mean",
+                )
+            )
+    if not meta_configs:
+        raise ValueError(
+            "Aucun méta-chemin compatible avec le graphe. "
+            f"Nœuds disponibles: {sorted(allowed_nodes)}. "
+            "Utilisez graph.include_mid_layer: true si vos méta-chemins utilisent GP500/GP250, "
+            "ou réduisez encoder.metapaths à la topologie présente (ex. GP850 uniquement)."
+        )
+    return IntelligibleVariableEncoder(
+        configs=meta_configs,
+        hidden_dim=cfg_encoder.hidden_dim,
+        conditioning_dim=cfg_encoder.conditioning_dim,
     )
 
 
@@ -174,6 +222,8 @@ def _convert_sample_to_batch(
         "baseline": sample.get("baseline"),
         "hetero": hetero,
     }
+    if "valid_mask" in sample:
+        batch["valid_mask"] = sample["valid_mask"]
     return batch
 
 
@@ -188,6 +238,10 @@ def _iterate_batches(
 
 @hydra.main(version_base=None, config_name="st_cdgm_default")
 def main(cfg: DictConfig) -> None:
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    print(f"[PERF] torch.set_num_threads({n_threads})")
+
     print("===== ST-CDGM training configuration =====")
     print(OmegaConf.to_yaml(cfg))
 
@@ -204,6 +258,17 @@ def main(cfg: DictConfig) -> None:
         nan_fill_strategy=getattr(cfg.data, 'nan_fill_strategy', 'zero'),
         precipitation_delta=getattr(cfg.data, 'precipitation_delta', 0.01),
     )
+    dataset = pipeline.build_sequence_dataset(
+        seq_len=cfg.data.seq_len,
+        stride=cfg.data.stride,
+        as_torch=True,
+    )
+
+    sample_for_shapes = next(iter(dataset))
+    rcn_driver_dim = sample_for_shapes["lr"].shape[1]
+    hr_channels = sample_for_shapes["residual"].shape[1]
+    print(f"[DIM] Inferred from data: rcn_driver_dim={rcn_driver_dim}, hr_channels={hr_channels}")
+
     dataset = pipeline.build_sequence_dataset(
         seq_len=cfg.data.seq_len,
         stride=cfg.data.stride,
@@ -228,22 +293,35 @@ def main(cfg: DictConfig) -> None:
         include_mid_layer=cfg.graph.include_mid_layer,
     )
 
-    encoder = _build_encoder(cfg.encoder).to(device)
+    encoder = build_encoder_for_graph(cfg.encoder, builder).to(device)
     rcn_cell = RCNCell(
-        num_vars=len(cfg.encoder.metapaths),
+        num_vars=len(encoder.configs),
         hidden_dim=cfg.rcn.hidden_dim,
-        driver_dim=cfg.rcn.driver_dim,
-        reconstruction_dim=cfg.rcn.reconstruction_dim,
+        driver_dim=rcn_driver_dim,
+        reconstruction_dim=rcn_driver_dim,
         dropout=cfg.rcn.dropout,
     ).to(device)
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
 
+    unet_kwargs = dict(cfg.diffusion.unet_kwargs) if cfg.diffusion.get("unet_kwargs") else dict(
+        layers_per_block=1,
+        block_out_channels=(32,),
+        down_block_types=("DownBlock2D",),
+        up_block_types=("UpBlock2D",),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=cfg.diffusion.in_channels,
+        in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
         height=cfg.diffusion.height,
         width=cfg.diffusion.width,
         num_diffusion_steps=cfg.diffusion.steps,
+        unet_kwargs=unet_kwargs,
+        scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
+        use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=cfg.diffusion.get("anti_checkerboard", False),
     ).to(device)
     
     # Phase A3: Compile critical modules with torch.compile for performance
@@ -323,7 +401,35 @@ def main(cfg: DictConfig) -> None:
             conditioning_fn=None,
             device=device,
             gradient_clipping=cfg.training.gradient_clipping,
+            use_focal_loss=cfg.loss.get("use_focal_loss", False),
+            focal_alpha=cfg.loss.get("focal_alpha", 1.0),
+            focal_gamma=cfg.loss.get("focal_gamma", 2.0),
+            extreme_weight_factor=cfg.loss.get("extreme_weight_factor", 0.0),
+            extreme_percentiles=list(cfg.loss.get("extreme_percentiles", [95.0, 99.0])),
+            reconstruction_loss_type=cfg.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
+            lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
         )
+        if cfg.loss.get("log_spectral_metric_each_epoch", False):
+            amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
+            try:
+                biter = _iterate_batches(dataloader, builder, device)
+                batch0 = next(biter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as ex:
+                print(f"[WARN] RAPSD epoch metric: {ex}")
         if (epoch + 1) % cfg.training.log_every == 0:
             pretty = ", ".join(f"{k}: {v:.4f}" for k, v in metrics.items())
             print(f"[Epoch {epoch + 1}] {pretty}")

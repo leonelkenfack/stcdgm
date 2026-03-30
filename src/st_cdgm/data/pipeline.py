@@ -831,6 +831,7 @@ class ResDiffIterableDataset(IterableDataset):
         * ``baseline``  : (seq_len, channels_hr, lat_hr, lon_hr)
         * ``residual``  : (seq_len, channels_hr, lat_hr, lon_hr)
         * ``hr``        : (seq_len, channels_hr, lat_hr, lon_hr)
+        * ``valid_mask``: (seq_len, lat_hr, lon_hr) float32, 1.0 où HR/résidu sont finis (Phase 5.5)
         * ``static``    : (channels_static, lat_hr, lon_hr)  (optional)
         * ``time``      : sequence of timestamps
     """
@@ -868,8 +869,8 @@ class ResDiffIterableDataset(IterableDataset):
             preload_batch=False,
         )
         # Store original dataset shapes for potential reshaping if xbatcher flattens spatial dims
-        self.lr_spatial_shape = (lr_dataset.dims[dims.lr_lat], lr_dataset.dims[dims.lr_lon])
-        self.hr_spatial_shape = (hr_dataset.dims[dims.hr_lat], hr_dataset.dims[dims.hr_lon])
+        self.lr_spatial_shape = (lr_dataset.sizes[dims.lr_lat], lr_dataset.sizes[dims.lr_lon])
+        self.hr_spatial_shape = (hr_dataset.sizes[dims.hr_lat], hr_dataset.sizes[dims.hr_lon])
         
         self.lr_gen = xbatcher.BatchGenerator(lr_dataset, **batch_kwargs)
         self.baseline_gen = xbatcher.BatchGenerator(baseline_dataset, **batch_kwargs)
@@ -889,7 +890,7 @@ class ResDiffIterableDataset(IterableDataset):
     # Helper utilities
     # ------------------------------------------------------------------
     def _window_has_required_length(self, window: xr.Dataset) -> bool:
-        return window.dims.get(self.dims.time, 0) == self.seq_len
+        return window.sizes.get(self.dims.time, 0) == self.seq_len
 
     def _format_sample(
         self,
@@ -914,6 +915,9 @@ class ResDiffIterableDataset(IterableDataset):
             hr_window, self.dims.time, self.dims.hr_lat, self.dims.hr_lon,
             spatial_shape=self.hr_spatial_shape
         )
+        valid_np = (
+            np.isfinite(residual_np).all(axis=1) & np.isfinite(hr_np).all(axis=1)
+        ).astype(np.float32)
 
         if self.as_torch and torch is not None:
             sample = {
@@ -921,6 +925,7 @@ class ResDiffIterableDataset(IterableDataset):
                 "baseline": torch.from_numpy(baseline_np),
                 "residual": torch.from_numpy(residual_np),
                 "hr": torch.from_numpy(hr_np),
+                "valid_mask": torch.from_numpy(valid_np),
                 "time": lr_window[self.dims.time].values,
             }
             if self.static_tensor_torch is not None:
@@ -931,6 +936,7 @@ class ResDiffIterableDataset(IterableDataset):
                 "baseline": baseline_np,
                 "residual": residual_np,
                 "hr": hr_np,
+                "valid_mask": valid_np,
                 "time": lr_window[self.dims.time].values,
             }
             if self.static_tensor_np is not None:

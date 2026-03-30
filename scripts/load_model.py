@@ -57,7 +57,9 @@ def load_checkpoint(
     
     # Extract components
     encoder_state = checkpoint["encoder_state_dict"]
-    rcn_state = checkpoint["rcn_state_dict"]
+    rcn_state = checkpoint.get("rcn_state_dict") or checkpoint.get("rcn_cell_state_dict")
+    if rcn_state is None:
+        raise KeyError("Checkpoint missing rcn_state_dict or rcn_cell_state_dict")
     diffusion_state = checkpoint["diffusion_state_dict"]
     config = checkpoint.get("config", {})
     metrics = checkpoint.get("metrics", {})
@@ -105,13 +107,25 @@ def load_checkpoint(
     
     # Build diffusion decoder
     diffusion_cfg = config.get("diffusion", {})
+    unet_kwargs = dict(diffusion_cfg.get("unet_kwargs", {})) or dict(
+        layers_per_block=1,
+        block_out_channels=(32,),
+        down_block_types=("DownBlock2D",),
+        up_block_types=("UpBlock2D",),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=diffusion_cfg.get("in_channels", 3),
+        in_channels=diffusion_cfg.get("in_channels", 1),
         conditioning_dim=diffusion_cfg.get("conditioning_dim", 128),
         height=diffusion_cfg.get("height", 172),
         width=diffusion_cfg.get("width", 179),
         num_diffusion_steps=diffusion_cfg.get("steps", 1000),
+        unet_kwargs=unet_kwargs,
         use_gradient_checkpointing=diffusion_cfg.get("use_gradient_checkpointing", False),
+        scheduler_type=diffusion_cfg.get("scheduler_type", "ddpm"),
+        conv_padding_mode=diffusion_cfg.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=diffusion_cfg.get("anti_checkerboard", False),
     )
     diffusion.load_state_dict(diffusion_state)
     diffusion.to(device)

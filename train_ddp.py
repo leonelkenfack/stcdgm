@@ -33,6 +33,8 @@ from st_cdgm import (
     RCNSequenceRunner,
     CausalDiffusionDecoder,
     train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
 )
 from st_cdgm.models.intelligible_encoder import IntelligibleVariableConfig
 from st_cdgm.training.multi_gpu import setup_ddp, cleanup_ddp, wrap_model_ddp, get_rank
@@ -61,12 +63,15 @@ def _convert_sample_to_batch(sample, builder, device):
     lr_tensor = torch.stack(lr_nodes_steps, dim=0)
     dynamic_features = {nt: lr_nodes_steps[0] for nt in builder.dynamic_node_types}
     hetero = builder.prepare_step_data(dynamic_features).to(device)
-    return {
+    out = {
         "lr": lr_tensor,
         "residual": sample["residual"],
         "baseline": sample.get("baseline"),
         "hetero": hetero,
     }
+    if "valid_mask" in sample:
+        out["valid_mask"] = sample["valid_mask"]
+    return out
 
 
 def iterate_batches(dataloader, builder, device):
@@ -88,6 +93,11 @@ def main():
         setup_ddp(rank=rank, world_size=world_size, backend="nccl")
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
+
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    if rank == 0:
+        print(f"[PERF] torch.set_num_threads({n_threads})")
 
     # Load config
     cfg = OmegaConf.load(PROJECT_ROOT / "config" / "training_config.yaml")
@@ -278,7 +288,7 @@ def main():
         lr_shape=lr_shape,
         hr_shape=hr_shape,
         static_dataset=pipeline.get_static_dataset(),
-        include_mid_layer=CONFIG.graph.get("include_mid_layer", False),
+        include_mid_layer=CONFIG.graph.get("include_mid_layer", True),
     )
 
     # Encoder configs (only metapaths whose nodes exist in the graph)
@@ -314,6 +324,7 @@ def main():
         block_out_channels=(32,),
         down_block_types=("DownBlock2D",),
         up_block_types=("UpBlock2D",),
+        mid_block_type="UNetMidBlock2D",
         norm_num_groups=8,
     )
     diffusion = CausalDiffusionDecoder(
@@ -323,6 +334,10 @@ def main():
         width=CONFIG.diffusion.width,
         num_diffusion_steps=CONFIG.diffusion.steps,
         unet_kwargs=unet_kwargs,
+        scheduler_type=CONFIG.diffusion.get("scheduler_type", "ddpm"),
+        use_gradient_checkpointing=CONFIG.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=CONFIG.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=CONFIG.diffusion.get("anti_checkerboard", False),
     ).to(device)
 
     # Apply torch.compile if enabled (before DDP wrapping)
@@ -356,7 +371,7 @@ def main():
         dataset,
         batch_size=batch_size,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=torch.cuda.is_available(),
         prefetch_factor=4 if num_workers > 0 else None,
         persistent_workers=num_workers > 0,
         collate_fn=lambda x: x,
@@ -383,7 +398,35 @@ def main():
             use_amp=CONFIG.training.get("use_amp", True),
             dag_method=CONFIG.loss.get("dag_method", "dagma"),
             dagma_s=CONFIG.loss.get("dagma_s", 1.0),
+            use_focal_loss=CONFIG.loss.get("use_focal_loss", False),
+            focal_alpha=CONFIG.loss.get("focal_alpha", 1.0),
+            focal_gamma=CONFIG.loss.get("focal_gamma", 2.0),
+            extreme_weight_factor=CONFIG.loss.get("extreme_weight_factor", 0.0),
+            extreme_percentiles=list(CONFIG.loss.get("extreme_percentiles", [95.0, 99.0])),
+            reconstruction_loss_type=CONFIG.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=CONFIG.loss.get("use_spectral_loss", False),
+            lambda_spectral=CONFIG.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=CONFIG.diffusion.get("conditioning_dropout_prob", 0.0),
         )
+        if get_rank() == 0 and CONFIG.loss.get("log_spectral_metric_each_epoch", False):
+            amp_m = resolve_train_amp_mode(device, CONFIG.training.get("use_amp", True))
+            try:
+                metric_iter = iterate_batches(train_loader, builder, device)
+                batch0 = next(metric_iter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as ex:
+                print(f"[WARN] RAPSD epoch metric: {ex}")
         for k in history:
             if k in metrics:
                 history[k].append(metrics[k])
@@ -402,6 +445,7 @@ def main():
                 "diffusion_state_dict": diff.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "history": history,
+                "config": OmegaConf.to_container(CONFIG, resolve=True),
             }, ckpt)
             print(f"Checkpoint saved: {ckpt}")
 

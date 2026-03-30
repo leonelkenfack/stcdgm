@@ -1,41 +1,49 @@
-# 📋 Documentation Complète du Projet ST-CDGM
+# Documentation complete du projet ST-CDGM
 
-## 🌍 Spatio-Temporal Causal Diffusion Generative Model
+## Spatio-Temporal Causal Diffusion Generative Model
 
-Ce document liste l'ensemble du projet, incluant tous les fichiers Python, les fichiers de configuration, et le notebook d'entraînement/évaluation.
+Ce document est genere automatiquement par `scripts/gen_project_complet_st_cdgm.py`.
+Derniere generation : **2026-03-30 14:32 UTC**.
+
+Les **notebooks** (.ipynb) ne sont pas embarques en integralite : seul un resume (nombre de cellules) est fourni.
 
 ---
 
-## 📁 Structure du Projet
+## Structure du Projet
 
 ```
 climate_data/
 ├── .dockerignore
 ├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+├── environment.yml
 ├── README.md
-├── config/                          # Fichiers de configuration
+├── requirements.txt
+├── setup.py
+├── st_cdgm_publication_figures.ipynb
+├── st_cdgm_results_presentation.ipynb
+├── st_cdgm_training_evaluation.ipynb
+├── st_cdgm_validation_inference.ipynb
+├── train_ddp.py
+├── config/
 │   ├── docker.env
 │   ├── training_config.yaml
 │   └── training_config_vice.yaml
-├── data/                            # Données
+├── data/
 │   ├── metadata/
 │   │   ├── NorESM2-MM_histupdated_compressed.metadata.csv
 │   │   └── NorESM2-MM_histupdated_compressed.metadata.json
 │   └── raw/
-├── docs/                            # Documentation
-│   ├── ARCHITECTURE_MODEL.md
-│   ├── DOCKER_README.md
-│   ├── GUIDE_PEDAGOGIQUE_ST-CDGM.md
-│   ├── OPTIMISATION.md
-│   ├── RAPPORT_TECHNIQUE_COMPLET.md
-│   ├── SCRIPTS_README.md
-│   └── st_cdgm_quickstart.md
-├── ops/                             # Scripts d'opérations
+├── models/
+│   └── *.pth (checkpoints)
+├── ops/
 │   ├── preprocess_to_shards.py
 │   ├── preprocess_to_zarr.py
 │   └── train_st_cdgm.py
-├── scripts/                         # Scripts utilitaires
+├── scripts/
 │   ├── cleanup_repeated_lines.py
+│   ├── gen_project_complet_st_cdgm.py
 │   ├── load_model.py
 │   ├── run_evaluation.py
 │   ├── run_full_pipeline.py
@@ -45,43 +53,49 @@ climate_data/
 │   ├── sync_datastore.py
 │   ├── test_installation.py
 │   ├── test_pipeline.py
+│   ├── validate_antismoothing.py
 │   ├── validate_setup.py
 │   └── vice_utils.py
-├── src/                             # Code source principal
-│   └── st_cdgm/
-│       ├── __init__.py
-│       ├── data/
-│       │   ├── __init__.py
-│       │   ├── netcdf_utils.py
-│       │   └── pipeline.py
-│       ├── evaluation/
-│       │   ├── __init__.py
-│       │   └── evaluation_xai.py
-│       ├── models/
-│       │   ├── __init__.py
-│       │   ├── causal_rcn.py
-│       │   ├── diffusion_decoder.py
-│       │   ├── graph_builder.py
-│       │   └── intelligible_encoder.py
-│       └── training/
-│           ├── __init__.py
-│           ├── callbacks.py
-│           └── training_loop.py
-├── tests/                           # Tests
-│   ├── __init__.py
-│   ├── test_installation.py
-│   └── test_st_cdgm_smoke.py
-├── docker-compose.yml
-├── Dockerfile
-├── environment.yml
-├── requirements.txt
-├── setup.py
-└── st_cdgm_training_evaluation.ipynb
+├── src/
+│   ├── st_cdgm/
+│   │   ├── data/
+│   │   │   ├── __init__.py
+│   │   │   ├── netcdf_utils.py
+│   │   │   └── pipeline.py
+│   │   ├── evaluation/
+│   │   │   ├── __init__.py
+│   │   │   └── evaluation_xai.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── causal_rcn.py
+│   │   │   ├── diffusion_decoder.py
+│   │   │   ├── graph_builder.py
+│   │   │   └── intelligible_encoder.py
+│   │   ├── training/
+│   │   │   ├── __init__.py
+│   │   │   ├── callbacks.py
+│   │   │   ├── multi_gpu.py
+│   │   │   └── training_loop.py
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   └── checkpoint.py
+│   │   └── __init__.py
+│   └── st_cdgm.egg-info/
+│       ├── dependency_links.txt
+│       ├── PKG-INFO
+│       ├── requires.txt
+│       ├── SOURCES.txt
+│       └── top_level.txt
+└── tests/
+    ├── __init__.py
+    ├── test_corrections_antilissage.py
+    ├── test_installation.py
+    └── test_st_cdgm_smoke.py
 ```
 
 ---
 
-## 🔧 Fichiers de Configuration
+## Fichiers de configuration et code source
 
 ### `config/docker.env`
 
@@ -118,6 +132,8 @@ LOG_LEVEL=INFO
 LOG_DIR=/workspace/results/logs
 ```
 
+---
+
 ### `config/training_config.yaml`
 
 ```yaml
@@ -141,27 +157,31 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
-  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"
-  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"
-  static_path: null
-  seq_len: 6
-  stride: 1
+  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
+  lr_path: "data/raw/train/predictor_ACCESS-CM2_hist.nc"
+  hr_path: "data/raw/train/pr_ACCESS-CM2_hist.nc"
+  static_path: "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
+  zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
+  shard_dir: "data/raw/train/shards"  # Répertoire pour shards WebDataset
+  seq_len: 8  # Increased for 256 Go RAM
+  stride: 2  # Faster dataset iteration
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
-  target_transform: null
-  nan_fill_strategy: "zero"  # "zero", "mean", or "interpolate"
-  precipitation_delta: 0.01  # Delta pour log1p des précipitations
-  lr_variables: null
-  hr_variables: null
-  static_variables: null
+  target_transform: "log1p"  # ["log1p", "none"]
+  nan_fill_strategy: "mean"  # ["zero", "mean", "interpolate"]
+  precipitation_delta: 0.01  
+  lr_variables: ['u_850', 'u_500', 'u_250', 'v_850', 'v_500', 'v_250', 'w_850', 'w_500', 'w_250', 'q_850', 'q_500', 'q_250', 't_850', 't_500', 't_250']
+  hr_variables: ["pr"]
+  static_variables: ["orog", "he", "vegt"]
 
 # Graph Configuration
 graph:
   lr_shape: [23, 26]
   hr_shape: [172, 179]
   static_variables: []
-  include_mid_layer: false
+  # true = nœuds GP500/GP250 + arêtes verticales (cohérent avec encoder.metapaths)
+  include_mid_layer: true
 
 # Encoder Configuration
 encoder:
@@ -172,27 +192,27 @@ encoder:
       src: "GP850"
       relation: "spat_adj"
       target: "GP850"
-      pool: "mean"
+      pool: "max"
     - name: "GP850_to_GP500"
       src: "GP850"
       relation: "vert_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_spat_adj"
       src: "GP500"
       relation: "spat_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_to_GP250"
       src: "GP500"
       relation: "vert_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
     - name: "GP250_spat_adj"
       src: "GP250"
       relation: "spat_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
 
 # RCN Configuration
 rcn:
@@ -205,44 +225,55 @@ rcn:
 # Diffusion Decoder Configuration
 diffusion:
   in_channels: 3
-  conditioning_dim: 128
+  conditioning_dim: 128  # must match encoder.conditioning_dim
   height: 172
   width: 179
-  steps: 1000
+  steps: 20
   scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
-  use_gradient_checkpointing: false  # Phase C3: Gradient checkpointing
+  use_gradient_checkpointing: false
+  cfg_scale: 0.2
+  conditioning_dropout_prob: 0.1
+  conv_padding_mode: "zeros"
+  anti_checkerboard: false
 
 # Loss Configuration
 loss:
   lambda_gen: 1.0
-  beta_rec: 0.1
+  beta_rec: 0.05
   gamma_dag: 0.1
-  lambda_phy: 0.0  # Phase B2: Physical loss weight
-  dag_method: "dagma"  # "dagma" or "no_tears"
+  lambda_phy: 0.0
+  lambda_spectral: 0.0
+  use_spectral_loss: false
+  log_spectral_metric_each_epoch: true
+  dag_method: "dagma"
   dagma_s: 1.0
-  # Phase D1: Focal Loss
-  use_focal_loss: false
+  use_focal_loss: true
   focal_alpha: 1.0
   focal_gamma: 2.0
-  # Phase D2: Extreme Loss Weighting
-  extreme_weight_factor: 0.0
+  extreme_weight_factor: 2.0
   extreme_percentiles: [95.0, 99.0]
-  # Phase D3: DAG Stabilization
-  dag_l1_regularization: false
+  dag_l1_regularization: true
   dag_l1_weight: 0.01
-  # Phase D4: Reconstruction Loss Type
-  reconstruction_loss_type: "mse"  # "mse", "cosine", or "mse+cosine"
+  reconstruction_loss_type: "mse+cosine"
 
 # Training Configuration
 training:
-  device: "cpu"  # "cuda" or "cpu" - using CPU for local test
-  epochs: 1  # Only 1 epoch for local testing
-  lr: 0.00005  # Réduit pour éviter la divergence
-  gradient_clipping: 0.5  # Réduit pour stabiliser l'entraînement
-  log_every: 1
-  # Phase C1: Mixed Precision Training
-  use_amp: false  # Disable AMP for CPU
-  # Phase C2: Early Stopping and LR Scheduling
+  device: "cpu"  # "cuda" or "cpu" - use "cpu" if PyTorch not compiled with CUDA
+  epochs: 10  
+  batch_size: 16  # Reduce to 8-16 if OOM on CPU
+  num_workers: 10  # 0 = avoid shared memory (/dev/shm). Use 4-8 only if /dev/shm is large (CyVerse: use 0)
+  lr: 0.0002  # Increased for larger batch size
+  gradient_clipping: 1.0
+  log_every: 10
+  # CUDA: FP16 + GradScaler. CPU: bfloat16 autocast (no GradScaler) when supported; else FP32.
+  use_amp: true
+  
+  # Multi-GPU configuration (4 GPUs available)
+  multi_gpu:
+    enabled: false  # Disable when using CPU
+    strategy: "ddp"  # DistributedDataParallel (better than DataParallel)
+    gpus: [0, 1, 2, 3]  # Use all 4 GPUs
+    find_unused_parameters: true  # Required for PyG HeteroData graphs
   early_stopping:
     enabled: false
     patience: 7
@@ -251,17 +282,15 @@ training:
   lr_scheduler:
     enabled: false
     mode: "min"  # "min" or "max"
-    factor: 0.5  # LR reduction factor
-    patience: 3  # Patience for LR reduction
+    factor: 0.5 
+    patience: 3  
     min_lr: 1e-7
-  # Phase B2: Physical Loss Options
   physical_loss:
     use_predicted_output: false
     physical_sample_interval: 10
     physical_num_steps: 15
-  # Phase A3: torch.compile
   compile:
-    enabled: false  # Disable for local test
+    enabled: true  # torch.compile for performance (PyTorch 2.0+)
     rcn_mode: "reduce-overhead"
     diffusion_mode: "max-autotune"
     encoder_mode: "reduce-overhead"
@@ -270,20 +299,23 @@ training:
 checkpoint:
   enabled: true
   save_dir: "models"
-  save_every: 5  # Save every N epochs
-  save_best: true  # Save best model based on validation loss
-  max_checkpoints: 5  # Keep only last N checkpoints
+  save_every: 5  
+  save_best: true  
+  max_checkpoints: 5  
 
 # Evaluation Configuration
 evaluation:
   enabled: true
-  eval_every: 5  # Evaluate every N epochs
-  num_samples: 10  # Number of samples for evaluation metrics
+  eval_every: 5  
+  num_samples: 10
+  crps_max_ensemble_members: 32
   compute_f1_extremes: true
   f1_percentiles: [95.0, 99.0]
   save_visualizations: true
   output_dir: "results"
 ```
+
+---
 
 ### `config/training_config_vice.yaml`
 
@@ -311,6 +343,7 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower but persistent):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
+  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
   # Paths relative to project root (recommended for VICE after copying to local disk)
   # Replace these with your actual file paths
   lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"  # Low-resolution input data
@@ -321,12 +354,16 @@ data:
   # hr_path: "~/data-store/home/<username>/data/raw/pr_ACCESS-CM2_hist.nc"
   
   static_path: null  # Optional static fields (e.g., topography)
+  zarr_dir: "data/raw/train/zarr"  # Répertoire pour données Zarr préprocessées
+  shard_dir: "data/raw/train/shards"  # Répertoire pour shards WebDataset
   seq_len: 6  # Temporal sequence length
   stride: 1  # Stride for sliding window
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
-  target_transform: null
+  target_transform: "log1p"  # aligné sur training_config.yaml (v6)
+  nan_fill_strategy: "mean"
+  precipitation_delta: 0.01
   lr_variables: null  # Auto-detect if null
   hr_variables: null  # Auto-detect if null
   static_variables: null
@@ -336,7 +373,8 @@ graph:
   lr_shape: [23, 26]  # Low-resolution grid shape (lat, lon)
   hr_shape: [172, 179]  # High-resolution grid shape (lat, lon)
   static_variables: []
-  include_mid_layer: false
+  # true = nœuds GP500/GP250 + arêtes verticales (cohérent avec encoder.metapaths)
+  include_mid_layer: true
 
 # Encoder Configuration
 encoder:
@@ -347,27 +385,27 @@ encoder:
       src: "GP850"
       relation: "spat_adj"
       target: "GP850"
-      pool: "mean"
+      pool: "max"
     - name: "GP850_to_GP500"
       src: "GP850"
       relation: "vert_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_spat_adj"
       src: "GP500"
       relation: "spat_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_to_GP250"
       src: "GP500"
       relation: "vert_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
     - name: "GP250_spat_adj"
       src: "GP250"
       relation: "spat_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
 
 # RCN Configuration
 rcn:
@@ -383,26 +421,33 @@ diffusion:
   conditioning_dim: 128
   height: 172
   width: 179
-  steps: 1000
+  steps: 100
   scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
   use_gradient_checkpointing: false
+  cfg_scale: 0.2
+  conditioning_dropout_prob: 0.1
+  conv_padding_mode: "zeros"
+  anti_checkerboard: false
 
 # Loss Configuration
 loss:
   lambda_gen: 1.0
-  beta_rec: 0.1
+  beta_rec: 0.05
   gamma_dag: 0.1
   lambda_phy: 0.0
+  lambda_spectral: 0.0
+  use_spectral_loss: false
+  log_spectral_metric_each_epoch: true
   dag_method: "dagma"  # "dagma" or "no_tears"
   dagma_s: 1.0
-  use_focal_loss: false
+  use_focal_loss: true
   focal_alpha: 1.0
   focal_gamma: 2.0
-  extreme_weight_factor: 0.0
+  extreme_weight_factor: 2.0
   extreme_percentiles: [95.0, 99.0]
   dag_l1_regularization: false
   dag_l1_weight: 0.01
-  reconstruction_loss_type: "mse"  # "mse", "cosine", or "mse+cosine"
+  reconstruction_loss_type: "mse+cosine"  # "mse", "cosine", or "mse+cosine"
 
 # Training Configuration
 # 
@@ -410,11 +455,14 @@ loss:
 # - GPU availability depends on VICE configuration
 # - Check GPU availability: python -c "import torch; print(torch.cuda.is_available())"
 # - If GPU available, set device: "cuda" and enable mixed precision training
-# - If CPU only, keep device: "cpu" and use_amp: false
+# - If CPU only: use_amp true enables bfloat16 autocast when supported (see main training_config)
 training:
   # Device: "cuda" or "cpu"
   # In VICE, check GPU availability first before setting to "cuda"
   device: "cpu"  # Change to "cuda" if GPU available in your VICE session
+  
+  # CRITICAL for CyVerse: num_workers=0 to avoid "No space left on device" /dev/shm errors
+  num_workers: 0  # VICE has ~64MB /dev/shm - use 0, never 20+
   
   epochs: 100  # Adjust based on your needs
   lr: 0.0001
@@ -422,7 +470,7 @@ training:
   log_every: 10  # Log progress every N batches
   
   # Mixed Precision Training (recommended for GPU)
-  use_amp: false  # Enable if GPU available: set to true
+  use_amp: true  # GPU: FP16; CPU: BF16 autocast when supported
   
   # Early Stopping and LR Scheduling
   early_stopping:
@@ -466,6 +514,7 @@ evaluation:
   enabled: true
   eval_every: 5  # Evaluate every N epochs
   num_samples: 10  # Number of samples for evaluation metrics
+  crps_max_ensemble_members: 32
   compute_f1_extremes: true
   f1_percentiles: [95.0, 99.0]
   save_visualizations: true
@@ -476,6 +525,8 @@ evaluation:
   #     ~/climate_data/results/ \
   #     ~/data-store/home/<username>/st-cdgm/results/
 ```
+
+---
 
 ### `docker-compose.yml`
 
@@ -538,6 +589,8 @@ services:
     #       memory: 32G
 ```
 
+---
+
 ### `Dockerfile`
 
 ```dockerfile
@@ -565,6 +618,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Default command
 CMD ["/bin/bash"]
 ```
+
+---
 
 ### `environment.yml`
 
@@ -645,138 +700,90 @@ dependencies:
 # ============================================================================
 ```
 
+---
+
 ### `requirements.txt`
 
-```txt
-# ============================================================================
-# ST-CDGM Project - Complete Requirements
-# Spatio-Temporal Causal Diffusion Generative Model for Climate Downscaling
-# ============================================================================
+```text
+# =========================
+# Core scientific stack
+# =========================
+numpy
+pandas
+scipy
+scikit-learn
 
-# --------------------------------------------------------------------------
-# Core Scientific Libraries
-# --------------------------------------------------------------------------
-numpy>=1.21.0,<2.0.0
-pandas>=1.3.0
-xarray>=2023.1.0
-scipy>=1.7.0
+# =========================
+# Data formats & processing
+# =========================
+xarray
+netCDF4
+h5netcdf
+zarr
+dask[complete]
+webdataset  # For shard-based data format (high-performance sequential I/O)
 
-# --------------------------------------------------------------------------
-# PyTorch Ecosystem
-# --------------------------------------------------------------------------
-# Note: Pour CUDA, installez avec: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-torch>=2.0.0
-torchvision>=0.15.0
-
-# --------------------------------------------------------------------------
-# PyTorch Geometric (Graph Neural Networks)
-# --------------------------------------------------------------------------
-# Installation: pip install torch-geometric
-# Ou avec wheels: pip install torch-geometric torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
-torch-geometric>=2.3.0
-torch-scatter>=2.1.0
-torch-sparse>=0.6.17
-
-# --------------------------------------------------------------------------
-# Diffusion Models
-# --------------------------------------------------------------------------
-diffusers>=0.21.0
-accelerate>=0.20.0
-transformers>=4.30.0  # Requis par certains modèles diffusers
-
-# --------------------------------------------------------------------------
-# NetCDF and Climate Data Processing
-# --------------------------------------------------------------------------
-netcdf4>=1.6.0
-h5netcdf>=1.1.0
-xbatcher>=0.3.0  # Pour les batches temporels spatio-temporels
-dask[complete]>=2023.1.0  # Pour le traitement distribué
-zarr>=2.14.0  # Format de données optimisé pour ML (alternative à NetCDF)
-
-# --------------------------------------------------------------------------
+# =========================
 # Visualization
-# --------------------------------------------------------------------------
-matplotlib>=3.5.0
-seaborn>=0.12.0
+# =========================
+matplotlib
+seaborn
+plotly
 
-# --------------------------------------------------------------------------
-# Configuration Management
-# --------------------------------------------------------------------------
-hydra-core>=1.3.0
-omegaconf>=2.3.0
+# =========================
+# PyTorch (GPU support)
+# Install CPU version via: pip install -r requirements.txt
+# For CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# For CUDA 12.1: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# =========================
+torch>=2.1.0
+torchvision
+torchaudio
 
-# --------------------------------------------------------------------------
-# Testing
-# --------------------------------------------------------------------------
-pytest>=7.0.0
-pytest-cov>=4.0.0
+# PyTorch Geometric (GNNs for heterogeneous graphs)
+torch-geometric
+torch-scatter
+torch-sparse
 
-# --------------------------------------------------------------------------
-# Utilities
-# --------------------------------------------------------------------------
-tqdm>=4.64.0  # Barres de progression
-python-dateutil>=2.8.0
-pytz>=2022.1
+# =========================
+# Data batching and time
+# =========================
+xbatcher
+cftime
 
-# --------------------------------------------------------------------------
-# Optional: Jupyter and Interactive Analysis
-# --------------------------------------------------------------------------
-jupyter>=1.0.0
-jupyterlab>=3.5.0
-ipykernel>=6.15.0
-ipywidgets>=8.0.0
-notebook>=6.5.0
+# =========================
+# Deep Learning / Diffusion
+# =========================
+diffusers==0.36.0
+transformers==4.57.6
+accelerate==1.12.0
+huggingface-hub==0.36.0
+safetensors==0.7.0
 
-# --------------------------------------------------------------------------
-# Optional: Additional XAI and Visualization
-# --------------------------------------------------------------------------
-plotly>=5.10.0  # Visualisations interactives
-networkx>=2.8.0  # Visualisation de graphes causaux
+# =========================
+# Configuration & utilities
+# =========================
+hydra-core==1.3.2
+omegaconf==2.3.0
+pyyaml
+tqdm
+requests
 
-# --------------------------------------------------------------------------
-# Optional: Additional Data Formats and Optimizations
-# --------------------------------------------------------------------------
-webdataset>=0.2.0  # Alternative WebDataset format (optional, Phase 1.1)
-pyg-lib>=0.1.0  # Optimisations PyTorch Geometric (optional, Phase 2.4)
-k-diffusion>=1.0.0  # Pour EDM scheduler si diffusers ne supporte pas (optional, Phase 3.2)
+# =========================
+# Notebooks / interactive
+# =========================
+ipykernel
+ipywidgets
 
-# --------------------------------------------------------------------------
-# Development Tools (Optional)
-# --------------------------------------------------------------------------
-black>=23.0.0  # Code formatting
-flake8>=6.0.0  # Linting
-mypy>=1.0.0  # Type checking
-pre-commit>=3.0.0  # Git hooks
+# =========================
+# GPU monitoring (optional)
+# =========================
+nvidia-ml-py
 
-# --------------------------------------------------------------------------
-# Notes d'Installation
-# --------------------------------------------------------------------------
-# 
-# Installation complète (recommandée):
-#   pip install -r requirements.txt
-#
-# Installation minimale (sans Jupyter):
-#   pip install -r requirements.txt --no-deps
-#   puis installer manuellement les dépendances core
-#
-# Pour CUDA (GPU):
-#   1. Installer PyTorch avec CUDA:
-#      pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-#   2. Installer PyTorch Geometric avec CUDA:
-#      pip install torch-geometric torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
-#   3. Installer le reste:
-#      pip install -r requirements.txt
-#
-# Pour CPU uniquement:
-#   pip install -r requirements.txt
-#
-# Résolution de problèmes:
-#   - Si torch-geometric échoue: installer les wheels depuis https://data.pyg.org/whl/
-#   - Si netcdf4 échoue: conda install netcdf4
-#   - Si dask est lent: pip install dask[complete] --upgrade
-#
-# ============================================================================
+cartopy
 ```
+
+---
 
 ### `setup.py`
 
@@ -825,69 +832,2033 @@ setup(
 
 ---
 
-## 📄 Fichiers racine / outil
-
 ### `.gitignore`
 
-Fichiers et répertoires exclus du versionnement Git. Principaux motifs : Python (`__pycache__/`, `*.pyc`, `venv/`, `*.egg-info/`), IDE (`.idea/`, `.vscode/`), Jupyter (`.ipynb_checkpoints/`), tests (`.pytest_cache/`, `.coverage`), variables d'environnement (`.env`), logs et fichiers temporaires. Optionnel : `data/raw` pour éviter de versionner les gros fichiers NetCDF.
+```text
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+downscaling/
+data/raw
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment variables
+.env
+.env.local
+requirements-windows.txt
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Large data files (optional - uncomment if you want to ignore NetCDF files)
+# data/raw/*.nc
+# data/raw/*.zarr
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+desktop.ini
+```
+
+---
 
 ### `.dockerignore`
 
-Fichiers exclus du contexte de build Docker. Inclut : artefacts Python, environnements virtuels, IDE, Jupyter, `.git/`, Dockerfiles, `docs/` et la plupart des `*.md` (sauf `README.md`), logs, cache, résultats et images. Permet de garder l'image légère et d'éviter de copier données sensibles ou volumineuses.
+```text
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.dockerignore
+docker-compose.yml
+Dockerfile
+*.dockerfile
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Logs and temporary files
+*.log
+*.tmp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data (large files, mount as volume instead)
+# data/raw/*.nc  # Uncomment if you don't want to include NetCDF files in image
+# models/*.pt    # Uncomment if you don't want to include models in image
+
+# Results
+results/
+*.png
+*.jpg
+*.pdf
+
+# OS
+Thumbs.db
+```
+
+---
 
 ### `README.md`
 
-Vue d'ensemble du projet ST-CDGM pour utilisateurs et contributeurs. Contenu : description du downscaling climatique (LR→HR), installation locale et CyVerse VICE, quick start (préparation des données, entraînement, évaluation, pipeline complet), liens vers la documentation (`docs/`, CYVERSE_VICE_SETUP.md), structure du projet, dépendances principales, utilitaires VICE, tests et métriques d'évaluation (CRPS, FSS, Wasserstein, etc.).
+````markdown
+# ST-CDGM: Spatio-Temporal Causal Diffusion Generative Model
+
+**ST-CDGM** est un modèle d'intelligence artificielle avancé conçu pour le **downscaling climatique**. Il génère des champs climatiques haute résolution (HR) à partir de données basse résolution (LR) en respectant les contraintes physiques et la causalité temporelle.
+
+## 📋 Vue d'Ensemble
+
+**ST-CDGM** combine trois techniques avancées:
+- **Graph Neural Networks** (PyTorch Geometric) pour l'encodage spatial
+- **Réseaux Récurrents Causaux** (RCN) pour la dynamique temporelle
+- **Modèles de Diffusion** (HuggingFace Diffusers) pour la génération haute résolution
+
+**Cas d'usage**: Transformation de grilles climatiques de 23×26 points (LR) en grilles de 172×179 points (HR), avec un facteur d'amélioration de résolution d'environ **4-8x**.
+
+## 🚀 Installation Rapide
+
+### Installation Locale
+
+```bash
+# Cloner le repository
+git clone <repo-url> climate_data
+cd climate_data
+
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Installer le package
+pip install -e .
+
+# Vérifier l'installation
+python scripts/test_installation.py
+```
+
+### Installation dans CyVerse VICE
+
+Pour installer dans l'environnement CyVerse Discovery Environment (VICE), voir le guide complet:
+
+📖 **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** - Guide complet d'installation pour CyVerse VICE
+
+**Installation rapide VICE**:
+```bash
+# Dans le terminal Jupyter Lab de VICE
+cd ~/
+git clone <repo-url> climate_data
+cd climate_data
+pip install -r requirements.txt
+pip install -e .
+python scripts/test_installation.py
+```
+
+## 🎯 Quick Start
+
+### 1. Préparation des Données
+
+Les données doivent être au format NetCDF avec des coordonnées temporelles communes:
+
+```bash
+# Preprocessing (conversion NetCDF → Zarr pour meilleure performance)
+python scripts/run_preprocessing.py \
+    --lr_path data/raw/lr_data.nc \
+    --hr_path data/raw/hr_data.nc \
+    --output_dir data/processed \
+    --format zarr
+```
+
+### 2. Entraînement
+
+```bash
+# Training avec configuration par défaut
+python scripts/run_training.py \
+    --config config/training_config.yaml \
+    --checkpoint_dir models \
+    --save_every 5
+
+# Training avec configuration VICE (pour CyVerse)
+python scripts/run_training.py \
+    --config config/training_config_vice.yaml \
+    --checkpoint_dir models \
+    --save_every 5
+```
+
+### 3. Évaluation
+
+```bash
+# Evaluation du modèle
+python scripts/run_evaluation.py \
+    --lr_path data/raw/lr_data.nc \
+    --hr_path data/raw/hr_data.nc \
+    --checkpoint models/best_model.pt \
+    --output_dir results
+```
+
+### 4. Pipeline Complet
+
+```bash
+# Exécuter le pipeline complet (preprocessing + training + evaluation)
+python scripts/run_full_pipeline.py \
+    --lr_path data/raw/lr_data.nc \
+    --hr_path data/raw/hr_data.nc \
+    --config config/training_config.yaml \
+    --format zarr
+```
+
+## 📚 Documentation
+
+- **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** - Guide d'installation et utilisation pour CyVerse VICE
+- **[docs/st_cdgm_quickstart.md](docs/st_cdgm_quickstart.md)** - Guide de démarrage rapide
+- **[docs/ARCHITECTURE_MODEL.md](docs/ARCHITECTURE_MODEL.md)** - Architecture détaillée du modèle
+- **[docs/OPTIMISATION.md](docs/OPTIMISATION.md)** - Guide d'optimisation et de performance
+- **[ANALYSE_PROJET_COMPLETE.md](ANALYSE_PROJET_COMPLETE.md)** - Analyse complète du projet
+
+## 🛠️ Configuration
+
+### Configuration Locale
+
+La configuration par défaut se trouve dans `config/training_config.yaml`:
+
+```yaml
+data:
+  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"
+  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"
+  seq_len: 6
+  stride: 1
+
+training:
+  device: "cuda"  # ou "cpu"
+  epochs: 100
+  lr: 0.0001
+```
+
+### Configuration CyVerse VICE
+
+Pour CyVerse VICE, utilisez `config/training_config_vice.yaml` qui inclut:
+- Chemins adaptés pour Data Store
+- Configuration GPU/CPU automatique
+- Recommandations pour performance I/O
+
+## 📦 Structure du Projet
+
+```
+climate_data/
+├── src/st_cdgm/          # Code source principal
+│   ├── data/             # Pipeline de données
+│   ├── models/           # Modèles (GNN, RCN, Diffusion)
+│   ├── training/         # Boucle d'entraînement
+│   └── evaluation/       # Métriques d'évaluation
+├── scripts/              # Scripts d'exécution
+│   ├── run_training.py
+│   ├── run_evaluation.py
+│   ├── sync_datastore.py # Utilitaires CyVerse VICE
+│   └── vice_utils.py     # Détection VICE
+├── config/               # Fichiers de configuration
+│   ├── training_config.yaml
+│   └── training_config_vice.yaml
+├── docs/                 # Documentation technique
+├── tests/                # Tests unitaires
+└── README.md             # Ce fichier
+```
+
+## 🔧 Dépendances Principales
+
+- **PyTorch** (≥2.0.0) - Framework principal
+- **PyTorch Geometric** (≥2.3.0) - Graph Neural Networks
+- **HuggingFace Diffusers** (≥0.21.0) - Modèles de diffusion
+- **xarray** (≥2023.1.0) - Manipulation NetCDF
+- **Hydra** (≥1.3.0) - Gestion de configuration
+
+Voir `requirements.txt` pour la liste complète.
+
+## 🌐 CyVerse VICE
+
+Pour les utilisateurs **CyVerse Discovery Environment (VICE)**:
+
+### Utilitaires VICE
+
+- **`scripts/vice_utils.py`** - Détection automatique de l'environnement VICE
+- **`scripts/sync_datastore.py`** - Synchronisation données entre local et Data Store
+
+### Utilisation dans VICE
+
+```bash
+# Détecter l'environnement VICE
+python -c "from scripts.vice_utils import is_vice_environment; print(is_vice_environment())"
+
+# Copier des données depuis Data Store (pour performance)
+python scripts/sync_datastore.py --copy-from-datastore \
+    ~/data-store/home/<username>/data/raw/*.nc \
+    ~/climate_data/data/raw/
+
+# Sauvegarder des résultats dans Data Store
+python scripts/sync_datastore.py --save-to-datastore \
+    ~/climate_data/models/ \
+    ~/data-store/home/<username>/st-cdgm/models/
+```
+
+**Important**: Les containers VICE sont éphémères. Sauvegardez régulièrement vos résultats dans le Data Store!
+
+📖 Voir **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** pour plus de détails.
+
+## 🧪 Tests
+
+```bash
+# Test d'installation
+python scripts/test_installation.py
+
+# Tests unitaires (si pytest installé)
+pytest tests/
+
+# Smoke test du modèle
+pytest tests/test_st_cdgm_smoke.py
+```
+
+## 📊 Métriques d'Évaluation
+
+Le modèle supporte plusieurs métriques pour l'évaluation:
+
+- **CRPS** (Continuous Ranked Probability Score) - Métrique probabiliste standard
+- **FSS** (Fractional Skill Score) - Score de compétence fractionnel
+- **Wasserstein Distance** - Distance entre distributions
+- **Energy Score** - Score d'énergie pour cohérence multivariée
+- **SHD** (Structural Hamming Distance) - Distance pour graphes causaux
+
+## 🔬 Architecture
+
+Le pipeline de traitement suit cette séquence:
+
+```
+Données NetCDF (LR) 
+  ↓
+Normalisation & Séquençage temporel
+  ↓
+Construction Graphe Hétérogène (relations spatiales/verticales)
+  ↓
+Encodage Intelligible (GNN) → Variables latentes interprétables
+  ↓
+Dynamique Causale Récurrente (RCN) → Évolution temporelle
+  ↓
+Décodeur de Diffusion Conditionnel → Génération HR
+  ↓
+Reconstruction Physique + Contraintes
+  ↓
+Champ HR Final (172×179)
+```
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues! Veuillez ouvrir une issue ou une pull request pour proposer des améliorations.
+
+## 📝 Licence
+
+[À compléter selon votre licence]
+
+## 🙏 Remerciements
+
+- PyTorch Geometric pour les Graph Neural Networks
+- HuggingFace Diffusers pour les modèles de diffusion
+- CyVerse pour l'environnement VICE
+
+## 📧 Support
+
+Pour des questions ou du support:
+- Ouvrir une issue sur GitHub
+- Consulter la documentation dans `docs/`
+- Pour CyVerse VICE: voir [CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)
 
 ---
 
-## 📚 Documentation (`docs/`)
+**Version**: 0.1.0  
+**Dernière mise à jour**: 2026-01-16
+````
+
+---
 
 ### `docs/ARCHITECTURE_MODEL.md`
 
-Architecture technique et flux de données du modèle ST-CDGM. Décrit les trois modules (Encodeur GNN, RCN causal, Décodeur de diffusion), schémas Mermaid, équations et rôles des composants pour le downscaling climatique.
+*[Fichier absent : docs/ARCHITECTURE_MODEL.md]*
 
-### `docs/DOCKER_README.md`
-
-Guide Docker Compose pour exécuter ST-CDGM en container. Prérequis (Docker GPU, données dans `data/raw/`), configuration des volumes, commandes pour démarrer le container, accès shell, entraînement et bonnes pratiques.
+---
 
 ### `docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md`
 
-Guide pédagogique pour non-initiés. Explique le problème (cartes LR pixelisées → HR détaillées), les étapes (DATA, Graphe, Encodeur, RCN, Diffusion), avec analogies et exemples concrets (NorESM2, normalisation, métapaths).
+*[Fichier absent : docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md]*
+
+---
 
 ### `docs/OPTIMISATION.md`
 
-Optimisations proposées pour ST-CDGM : performance (pipeline, boucle d'entraînement, RCN, graphe, diffusion, encodeur) et accuracy/loss/métriques (pertes, F1 extremes, régularisation). Table des matières et solutions par fichier.
+*[Fichier absent : docs/OPTIMISATION.md]*
+
+---
 
 ### `docs/RAPPORT_TECHNIQUE_COMPLET.md`
 
-Référence technique : modèles climatiques sources (NorESM2-MM), variables (T, U, V, W, Q aux niveaux 850/500/250 hPa), flux de données, baselines (hr_smoothing, lr_interp), formule résiduelle et chaîne de traitement complète.
+*[Fichier absent : docs/RAPPORT_TECHNIQUE_COMPLET.md]*
+
+---
 
 ### `docs/SCRIPTS_README.md`
 
-Documentation des scripts d'exécution. Usage et options de `run_preprocessing.py`, `run_training.py`, `run_evaluation.py`, `run_full_pipeline.py` et autres scripts (chemins, config, checkpoint, format zarr/webdataset).
+*[Fichier absent : docs/SCRIPTS_README.md]*
+
+---
+
+### `docs/research_article_st_cdgm.md`
+
+*[Fichier absent : docs/research_article_st_cdgm.md]*
+
+---
 
 ### `docs/st_cdgm_quickstart.md`
 
-Quickstart en anglais : préparation de l'environnement (PyTorch, PyG, diffusers, Hydra, xbatcher), format des données d'entrée (LR/HR/static, time commun), invocation du driver Hydra `ops/train_st_cdgm.py` et groupes de configuration clés.
+*[Fichier absent : docs/st_cdgm_quickstart.md]*
 
 ---
 
-## 📂 Données et métadonnées (`data/metadata/`)
+### `stats.md`
 
-Fichiers de métadonnées exportés à partir de NetCDF via `NetCDFToDataFrame` (module `netcdf_utils`) : `export_metadata_to_json()` et `export_metadata_to_csv()`. Ils décrivent dimensions, coordonnées, variables, attributs et structure du fichier source.
+*[Fichier absent : stats.md]*
+
+---
 
 ### `data/metadata/NorESM2-MM_histupdated_compressed.metadata.json`
 
-Métadonnées JSON du fichier NorESM2-MM (historique, compressé). Contient `file_info`, `dimensions` (time, lat, lon avec tailles et plages), `data_variables` et attributs CF/NetCDF. Utilisable pour inspection sans charger le NetCDF complet.
-
-### `data/metadata/NorESM2-MM_histupdated_compressed.metadata.csv`
-
-Version tabulaire (CSV) des métadonnées des variables du même fichier NorESM2-MM, exportée par `export_metadata_to_csv()`. Pratique pour analyse ou comparaison de variables.
+```json
+{
+  "file_info": {
+    "filepath": "./NorESM2-MM_histupdated_compressed.nc",
+    "filename": "NorESM2-MM_histupdated_compressed.nc",
+    "file_size_bytes": 217310777,
+    "file_size_mb": 207.24,
+    "file_extension": ".nc",
+    "file_format": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc"
+  },
+  "dimensions": {
+    "time": {
+      "size": 7300,
+      "unlimited": true,
+      "has_coordinates": true,
+      "dtype": "object",
+      "shape": [
+        7300
+      ],
+      "attributes": {},
+      "min_value": "1986-01-01 00:00:00",
+      "max_value": "2005-12-31 00:00:00",
+      "mean_value": "1995-12-31 12:00:00",
+      "values_sample": [
+        "1986-01-01 00:00:00",
+        "1986-01-02 00:00:00",
+        "1986-01-03 00:00:00",
+        "1986-01-04 00:00:00",
+        "1986-01-05 00:00:00",
+        "1986-01-06 00:00:00",
+        "1986-01-07 00:00:00",
+        "1986-01-08 00:00:00",
+        "1986-01-09 00:00:00",
+        "1986-01-10 00:00:00"
+      ],
+      "netcdf4_id": "Dimension"
+    },
+    "lat": {
+      "size": 23,
+      "unlimited": false,
+      "has_coordinates": true,
+      "dtype": "float64",
+      "shape": [
+        23
+      ],
+      "attributes": {
+        "standard_name": "latitude",
+        "long_name": "latitude",
+        "units": "degrees_north",
+        "axis": "Y"
+      },
+      "min_value": -59.38,
+      "max_value": -26.380000000000003,
+      "mean_value": -42.88,
+      "values_sample": [
+        -59.38,
+        -57.88,
+        -56.38,
+        -54.88,
+        -53.38,
+        -51.88,
+        -50.38,
+        -48.88,
+        -47.38,
+        -45.88
+      ],
+      "netcdf4_id": "Dimension"
+    },
+    "lon": {
+      "size": 26,
+      "unlimited": false,
+      "has_coordinates": true,
+      "dtype": "float64",
+      "shape": [
+        26
+      ],
+      "attributes": {
+        "standard_name": "longitude",
+        "long_name": "longitude",
+        "units": "degrees_east",
+        "axis": "X"
+      },
+      "min_value": 150.6,
+      "max_value": 188.1,
+      "mean_value": 169.35000000000002,
+      "values_sample": [
+        150.6,
+        152.1,
+        153.6,
+        155.1,
+        156.6,
+        158.1,
+        159.6,
+        161.1,
+        162.6,
+        164.1
+      ],
+      "netcdf4_id": "Dimension"
+    }
+  },
+  "coordinates": {},
+  "data_variables": {
+    "t_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 251.9374237060547,
+        "max": 299.81768798828125,
+        "mean": 275.5995788574219,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 6.415265083312988,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "t_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 227.02061462402344,
+        "max": 275.2542419433594,
+        "mean": 253.26918029785156,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 7.3385396003723145,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "t_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 204.3632049560547,
+        "max": 239.75775146484375,
+        "mean": 222.84344482421875,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 5.005284786224365,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -37.91753005981445,
+        "max": 39.81140899658203,
+        "mean": 7.004383563995361,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 8.753339767456055,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -30.826129913330078,
+        "max": 62.41065216064453,
+        "mean": 14.587430000305176,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 10.458207130432129,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "u_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -40.83777618408203,
+        "max": 93.4031982421875,
+        "mean": 25.20738983154297,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 14.893157005310059,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -38.89788055419922,
+        "max": 42.43639373779297,
+        "mean": -0.8492357134819031,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 6.900809288024902,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -48.62022399902344,
+        "max": 49.010337829589844,
+        "mean": -0.906661868095398,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 9.331302642822266,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "v_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -65.61503601074219,
+        "max": 66.41313934326172,
+        "mean": -0.8343009352684021,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 13.10961627960205,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.2237137258052826,
+        "max": 0.26198911666870117,
+        "mean": -0.0002054092037724331,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.012605391442775726,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.38293278217315674,
+        "max": 0.48701292276382446,
+        "mean": -5.987402346363524e-06,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.02132747322320938,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "w_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": -0.2414090931415558,
+        "max": 0.5248967409133911,
+        "mean": 0.0004757193091791123,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.016292216256260872,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_850": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 5.875585884496104e-06,
+        "max": 0.017141252756118774,
+        "mean": 0.004244939424097538,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.00196230411529541,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_500": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 3.543378397807828e-06,
+        "max": 0.006711352150887251,
+        "mean": 0.0006539419409818947,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 0.0006003747694194317,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    },
+    "q_250": {
+      "dims": [
+        "time",
+        "lat",
+        "lon"
+      ],
+      "shape": [
+        7300,
+        23,
+        26
+      ],
+      "dtype": "float32",
+      "size": 4365400,
+      "nbytes": 17461600,
+      "attributes": {},
+      "encoding": {
+        "dtype": "float32",
+        "zlib": true,
+        "szip": false,
+        "zstd": false,
+        "bzip2": false,
+        "blosc": false,
+        "shuffle": true,
+        "complevel": 8,
+        "fletcher32": false,
+        "contiguous": false,
+        "chunksizes": [
+          1,
+          23,
+          26
+        ],
+        "preferred_chunks": {
+          "time": 1,
+          "lat": 23,
+          "lon": 26
+        },
+        "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc",
+        "original_shape": [
+          7300,
+          23,
+          26
+        ],
+        "_FillValue": NaN
+      },
+      "statistics": {
+        "min": 1.337454165195595e-07,
+        "max": 0.0007597199873998761,
+        "mean": 5.339308700058609e-05,
+        "min_raw": null,
+        "max_raw": null,
+        "mean_raw": null,
+        "std": 5.7975234085461125e-05,
+        "has_nan": false,
+        "nan_count": 0
+      },
+      "chunksizes": [
+        1,
+        23,
+        26
+      ],
+      "fill_value": NaN,
+      "netcdf4_info": {
+        "storage": [
+          1,
+          23,
+          26
+        ],
+        "endianness": "little",
+        "all_attributes": {
+          "_FillValue": NaN
+        },
+        "compression": {
+          "filters": {
+            "zlib": true,
+            "szip": false,
+            "zstd": false,
+            "bzip2": false,
+            "blosc": false,
+            "shuffle": true,
+            "complevel": 8,
+            "fletcher32": false
+          },
+          "is_compressed": true
+        },
+        "datatype": {
+          "name": "float32",
+          "is_compound": false,
+          "is_enum": false,
+          "is_vlen": false,
+          "is_opaque": false
+        }
+      }
+    }
+  },
+  "global_attributes": {},
+  "cf_standard_attributes": {},
+  "encoding": {
+    "unlimited_dims": "{'time'}",
+    "source": "C:\\Users\\reall\\Desktop\\climate_data\\NorESM2-MM_histupdated_compressed.nc"
+  },
+  "file_structure": {
+    "has_groups": false,
+    "number_of_dimensions": 3,
+    "number_of_coordinates": 3,
+    "number_of_data_variables": 15,
+    "total_variables": 18,
+    "unlimited_dimensions": [
+      "time"
+    ],
+    "root_path": "/"
+  },
+  "statistics": {},
+  "cf_conventions": {}
+}
+```
 
 ---
 
-## 📦 Code Source Principal (`src/st_cdgm/`)
+### `data/metadata/NorESM2-MM_histupdated_compressed.metadata.csv`
+
+```csv
+variable_name,dims,shape,dtype,size,nbytes,stat_min,stat_max,stat_mean,stat_min_raw,stat_max_raw,stat_mean_raw,stat_std,stat_has_nan,stat_nan_count,encoding_dtype,encoding_zlib,encoding_szip,encoding_zstd,encoding_bzip2,encoding_blosc,encoding_shuffle,encoding_complevel,encoding_fletcher32,encoding_contiguous,encoding_chunksizes,encoding_preferred_chunks,encoding_source,encoding_original_shape,encoding__FillValue,fill_value,chunksizes
+t_850,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,251.9374237060547,299.81768798828125,275.5995788574219,,,,6.415265083312988,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+t_500,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,227.02061462402344,275.2542419433594,253.26918029785156,,,,7.3385396003723145,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+t_250,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,204.3632049560547,239.75775146484375,222.84344482421875,,,,5.005284786224365,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+u_850,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-37.91753005981445,39.81140899658203,7.004383563995361,,,,8.753339767456055,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+u_500,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-30.826129913330078,62.41065216064453,14.587430000305176,,,,10.458207130432129,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+u_250,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-40.83777618408203,93.4031982421875,25.20738983154297,,,,14.893157005310059,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+v_850,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-38.89788055419922,42.43639373779297,-0.8492357134819031,,,,6.900809288024902,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+v_500,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-48.62022399902344,49.010337829589844,-0.906661868095398,,,,9.331302642822266,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+v_250,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-65.61503601074219,66.41313934326172,-0.8343009352684021,,,,13.10961627960205,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+w_850,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-0.2237137258052826,0.26198911666870117,-0.0002054092037724331,,,,0.012605391442775726,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+w_500,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-0.38293278217315674,0.48701292276382446,-5.987402346363524e-06,,,,0.02132747322320938,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+w_250,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,-0.2414090931415558,0.5248967409133911,0.0004757193091791123,,,,0.016292216256260872,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+q_850,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,5.875585884496104e-06,0.017141252756118774,0.004244939424097538,,,,0.00196230411529541,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+q_500,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,3.543378397807828e-06,0.006711352150887251,0.0006539419409818947,,,,0.0006003747694194317,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+q_250,"['time', 'lat', 'lon']","[7300, 23, 26]",float32,4365400,17461600,1.337454165195595e-07,0.0007597199873998761,5.339308700058609e-05,,,,5.7975234085461125e-05,False,0,float32,True,False,False,False,False,True,8,False,False,"(1, 23, 26)","{""time"": 1, ""lat"": 23, ""lon"": 26}",C:\Users\reall\Desktop\climate_data\NorESM2-MM_histupdated_compressed.nc,"(7300, 23, 26)",,,"(1, 23, 26)"
+```
+
+---
 
 ### `src/st_cdgm/__init__.py`
 
@@ -904,7 +2875,11 @@ from .models.intelligible_encoder import IntelligibleVariableEncoder, Intelligib
 from .models.graph_builder import HeteroGraphBuilder
 from .data.pipeline import NetCDFDataPipeline, ZarrDataPipeline, ResDiffIterableDataset
 from .data.netcdf_utils import NetCDFToDataFrame
-from .training.training_loop import train_epoch
+from .training.training_loop import (
+    train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
+)
 
 __all__ = [
     # Models
@@ -922,8 +2897,12 @@ __all__ = [
     "NetCDFToDataFrame",
     # Training
     "train_epoch",
+    "compute_rapsd_metric_from_batch",
+    "resolve_train_amp_mode",
 ]
 ```
+
+---
 
 ### `src/st_cdgm/data/__init__.py`
 
@@ -948,6 +2927,8 @@ __all__ = [
     "NetCDFToDataFrame",
 ]
 ```
+
+---
 
 ### `src/st_cdgm/data/pipeline.py`
 
@@ -1294,6 +3275,8 @@ class NetCDFDataPipeline:
         target_transform: Optional[TransformFn | str] = None,
         target_inverse_transform: Optional[TransformFn] = None,
         normalize: bool = False,
+        nan_fill_strategy: str = "zero",
+        precipitation_delta: float = 0.01,
         lr_variables: Optional[Sequence[str]] = None,
         hr_variables: Optional[Sequence[str]] = None,
         static_variables: Optional[Sequence[str]] = None,
@@ -1309,6 +3292,8 @@ class NetCDFDataPipeline:
         self.baseline_strategy = baseline_strategy
         self.baseline_factor = max(1, baseline_factor)
         self.normalize = normalize
+        self.nan_fill_strategy = nan_fill_strategy
+        self.precipitation_delta = precipitation_delta
         self.lr_path = Path(lr_path)
         self.hr_path = Path(hr_path)
         self.static_path = Path(static_path) if static_path else None
@@ -1355,11 +3340,20 @@ class NetCDFDataPipeline:
             hr_lat=_infer_dim(self.hr_dataset_raw, "lat"),
             hr_lon=_infer_dim(self.hr_dataset_raw, "lon"),
         )
+        self.grid_metadata = self.dims  # backward compatibility
 
         # Align datasets along the shared temporal axis
         self.lr_dataset_raw, self.hr_dataset_raw = self._align_time(self.lr_dataset_raw, self.hr_dataset_raw)
+        # Load into memory (chunked on failure for CyVerse Data Store / slow HDF reads)
+        self.lr_dataset_raw = self._load_dataset_robust(self.lr_dataset_raw, "LR", self.lr_path)
+        self.hr_dataset_raw = self._load_dataset_robust(self.hr_dataset_raw, "HR", self.hr_path)
+
+        # Clean NaN values from datasets
+        self.lr_dataset_raw = self._clean_nan_values(self.lr_dataset_raw, self.nan_fill_strategy)
+        self.hr_dataset_raw = self._clean_nan_values(self.hr_dataset_raw, self.nan_fill_strategy)
+        
         if self.static_dataset is not None:
-            self.static_dataset = self.static_dataset.load()
+            self.static_dataset = self._load_dataset_robust(self.static_dataset, "static", self.static_path)
 
         # Normalise LR predictors if requested
         if self.normalize:
@@ -1391,8 +3385,78 @@ class NetCDFDataPipeline:
             return None
         if not path.exists():
             raise FileNotFoundError(f"Dataset not found: {path}")
-        kwargs = {"chunks": self._chunks} if self._chunks else {}
-        return xr.open_dataset(path, **kwargs)
+        path_str = str(path)
+        # Try engines in order (fixes "did not find a match" on CyVerse/remote paths)
+        for engine in ("netcdf4", "scipy", "h5netcdf"):
+            try:
+                kwargs = {"chunks": self._chunks} if self._chunks and engine != "scipy" else {}
+                return xr.open_dataset(path_str, engine=engine, **kwargs)
+            except Exception as e:
+                if engine == "h5netcdf":
+                    raise
+                continue
+        raise RuntimeError(f"Could not open {path_str} with any NetCDF engine")
+
+    def _load_dataset_robust(
+        self, ds: xr.Dataset, name: str = "dataset", path: Optional[Path] = None
+    ) -> xr.Dataset:
+        """Load xarray dataset into memory. On HDF error (CyVerse Data Store), retry with alternate engines."""
+        src = path
+        if src is None and getattr(ds, "encoding", None):
+            src = ds.encoding.get("source") if isinstance(ds.encoding, dict) else None
+        if isinstance(src, list):
+            src = src[0] if len(src) == 1 else None
+        path = Path(src) if src else None
+        try:
+            return ds.load()
+        except RuntimeError as e:
+            err_str = str(e)
+            if "HDF" not in err_str and "netCDF" not in err_str.lower():
+                raise
+            if path is None:
+                raise RuntimeError(
+                    f"Failed to load {name}: {e}. Path unknown (multi-file?). "
+                    "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                    "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                ) from e
+            if not path.exists():
+                raise RuntimeError(
+                    f"Failed to load {name}: {e}. Path not found: {path}. "
+                    "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                    "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                ) from e
+            # Retry with alternate engines (h5netcdf often works better on remote/slow HDF)
+            try:
+                ds.close()
+            except Exception:
+                pass
+            path_str = str(path)
+            time_dim = self.dims.time if (self.dims and hasattr(self.dims, "time")) else "time"
+            for engine in ("h5netcdf", "scipy"):
+                ds_new = None
+                try:
+                    ds_new = xr.open_dataset(path_str, engine=engine)
+                    vars_in_ds = [v for v in ds.data_vars if v in ds_new]
+                    ds_new = ds_new[vars_in_ds]
+                    if time_dim in ds.dims and time_dim in ds_new.dims and ds.dims[time_dim] != ds_new.dims.get(time_dim, 0):
+                        ds_new = ds_new.reindex({time_dim: ds[time_dim]}, method="nearest")
+                    result = ds_new.load()
+                    ds_new.close()
+                    return result
+                except Exception as e2:
+                    if ds_new is not None:
+                        try:
+                            ds_new.close()
+                        except Exception:
+                            pass
+                    if engine == "scipy":
+                        raise RuntimeError(
+                            f"Failed to load {name}: {e}. Retry with h5netcdf/scipy also failed: {e2}. "
+                            "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
+                            "2) Use Zarr format (ops/preprocess_to_zarr.py)."
+                        ) from e2
+                    continue
+            raise
 
     def _convert_cftime_to_datetime(self, time_values):
         """
@@ -1454,15 +3518,52 @@ class NetCDFDataPipeline:
         
         return lr_aligned, hr_aligned
 
+    #TODO: recuperer strategy depuis config.yml
+    def _clean_nan_values(self, dataset: xr.Dataset, strategy: str = "zero") -> xr.Dataset:
+        """
+        Nettoie les valeurs NaN du dataset selon la stratégie spécifiée.
+        
+        Parameters
+        ----------
+        dataset : xr.Dataset
+            Dataset à nettoyer
+        strategy : str
+            Stratégie de nettoyage : "zero" (remplacer par 0), "mean" (moyenne spatiale),
+            ou "interpolate" (interpolation temporelle)
+        
+        Returns
+        -------
+        xr.Dataset
+            Dataset nettoyé
+        """
+        if strategy == "zero":
+            return dataset.fillna(0.0)
+        elif strategy == "mean":
+            # Remplacer par la moyenne spatiale (dimensions spatiales selon LR ou HR)
+            spatial_dims = [self.dims.hr_lat, self.dims.hr_lon] if self.dims.hr_lat in dataset.dims else [self.dims.lr_lat, self.dims.lr_lon]
+            return dataset.fillna(dataset.mean(dim=spatial_dims))
+        elif strategy == "interpolate":
+            return dataset.interpolate_na(dim=self.dims.time, method="linear")
+        else:
+            raise ValueError(f"Unknown nan_fill_strategy: {strategy}. Must be 'zero', 'mean', or 'interpolate'")
+
     def _normalise_lr_dataset(self, dataset: xr.Dataset) -> Tuple[xr.Dataset, Dict[str, xr.Dataset]]:
         if self.means_path and self.stds_path:
             means = xr.open_dataset(self.means_path)
             stds = xr.open_dataset(self.stds_path)
         else:
-            means = dataset.mean(dim=self.dims.time, keep_attrs=True)
-            stds = dataset.std(dim=self.dims.time, keep_attrs=True)
-        stds = stds.where(stds != 0.0, other=1.0)
+            # Utiliser skipna=True pour ignorer les NaN dans le calcul des statistiques
+            means = dataset.mean(dim=self.dims.time, skipna=True, keep_attrs=True)
+            stds = dataset.std(dim=self.dims.time, skipna=True, keep_attrs=True)
+        
+        # Protection contre division par zéro avec epsilon
+        epsilon = 1e-6
+        stds = stds.where(stds > epsilon, other=1.0)
         normalised = (dataset - means) / stds
+        
+        # Remplacer les NaN résiduels par 0 (après normalisation)
+        normalised = normalised.fillna(0.0)
+        
         return normalised, {"mean": means, "std": stds}
 
     def _compute_baseline(self) -> xr.Dataset:
@@ -1492,13 +3593,51 @@ class NetCDFDataPipeline:
 
         raise ValueError(f"Unsupported baseline_strategy '{self.baseline_strategy}'.")
 
+    def _detect_precipitation_vars(self, dataset: xr.Dataset) -> list[str]:
+        """
+        Détecte les variables de précipitation dans le dataset.
+        
+        Parameters
+        ----------
+        dataset : xr.Dataset
+            Dataset à analyser
+        
+        Returns
+        -------
+        list[str]
+            Liste des noms de variables de précipitation détectées
+        """
+        precip_keywords = ['pr', 'precip', 'precipitation', 'rain']
+        return [var for var in dataset.data_vars 
+                if any(kw in var.lower() for kw in precip_keywords)]
+
     def _apply_target_transform(self, dataset: xr.Dataset) -> xr.Dataset:
-        if self._target_transform is None:
-            return dataset
-        transformed = self._target_transform(dataset)
-        if not isinstance(transformed, xr.Dataset):
-            raise TypeError("target_transform must return an xarray.Dataset.")
-        return transformed
+        """
+        Applique la transformation cible avec détection automatique des précipitations.
+        
+        Si target_transform est None et que des variables de précipitation sont détectées,
+        applique automatiquement log1p avec precipitation_delta.
+        """
+        if self._target_transform is not None:
+            transformed = self._target_transform(dataset)
+            if not isinstance(transformed, xr.Dataset):
+                raise TypeError("target_transform must return an xarray.Dataset.")
+            return transformed
+        
+        # Auto-détection : si précipitations et pas de transform explicite, utiliser log1p
+        precip_vars = self._detect_precipitation_vars(dataset)
+        if precip_vars:
+            # Appliquer log1p uniquement aux variables de précipitation
+            result = dataset.copy()
+            for var in precip_vars:
+                result[var] = xr.apply_ufunc(
+                    lambda x: np.log1p(x + self.precipitation_delta),
+                    dataset[var],
+                    keep_attrs=True
+                )
+            return result
+        
+        return dataset
 
     def _prepare_static_tensor(self) -> Optional[np.ndarray]:
         if self.static_dataset is None:
@@ -1617,6 +3756,7 @@ class NetCDFDataPipeline:
             as_torch=as_torch,
         )
 
+
 class ResDiffIterableDataset(IterableDataset):
     """
     Streaming dataset yielding ResDiff-style batches for ST-CDGM training.
@@ -1626,6 +3766,7 @@ class ResDiffIterableDataset(IterableDataset):
         * ``baseline``  : (seq_len, channels_hr, lat_hr, lon_hr)
         * ``residual``  : (seq_len, channels_hr, lat_hr, lon_hr)
         * ``hr``        : (seq_len, channels_hr, lat_hr, lon_hr)
+        * ``valid_mask``: (seq_len, lat_hr, lon_hr) float32, 1.0 où HR/résidu sont finis (Phase 5.5)
         * ``static``    : (channels_static, lat_hr, lon_hr)  (optional)
         * ``time``      : sequence of timestamps
     """
@@ -1663,8 +3804,8 @@ class ResDiffIterableDataset(IterableDataset):
             preload_batch=False,
         )
         # Store original dataset shapes for potential reshaping if xbatcher flattens spatial dims
-        self.lr_spatial_shape = (lr_dataset.dims[dims.lr_lat], lr_dataset.dims[dims.lr_lon])
-        self.hr_spatial_shape = (hr_dataset.dims[dims.hr_lat], hr_dataset.dims[dims.hr_lon])
+        self.lr_spatial_shape = (lr_dataset.sizes[dims.lr_lat], lr_dataset.sizes[dims.lr_lon])
+        self.hr_spatial_shape = (hr_dataset.sizes[dims.hr_lat], hr_dataset.sizes[dims.hr_lon])
         
         self.lr_gen = xbatcher.BatchGenerator(lr_dataset, **batch_kwargs)
         self.baseline_gen = xbatcher.BatchGenerator(baseline_dataset, **batch_kwargs)
@@ -1684,7 +3825,7 @@ class ResDiffIterableDataset(IterableDataset):
     # Helper utilities
     # ------------------------------------------------------------------
     def _window_has_required_length(self, window: xr.Dataset) -> bool:
-        return window.dims.get(self.dims.time, 0) == self.seq_len
+        return window.sizes.get(self.dims.time, 0) == self.seq_len
 
     def _format_sample(
         self,
@@ -1709,6 +3850,9 @@ class ResDiffIterableDataset(IterableDataset):
             hr_window, self.dims.time, self.dims.hr_lat, self.dims.hr_lon,
             spatial_shape=self.hr_spatial_shape
         )
+        valid_np = (
+            np.isfinite(residual_np).all(axis=1) & np.isfinite(hr_np).all(axis=1)
+        ).astype(np.float32)
 
         if self.as_torch and torch is not None:
             sample = {
@@ -1716,6 +3860,7 @@ class ResDiffIterableDataset(IterableDataset):
                 "baseline": torch.from_numpy(baseline_np),
                 "residual": torch.from_numpy(residual_np),
                 "hr": torch.from_numpy(hr_np),
+                "valid_mask": torch.from_numpy(valid_np),
                 "time": lr_window[self.dims.time].values,
             }
             if self.static_tensor_torch is not None:
@@ -1726,6 +3871,7 @@ class ResDiffIterableDataset(IterableDataset):
                 "baseline": baseline_np,
                 "residual": residual_np,
                 "hr": hr_np,
+                "valid_mask": valid_np,
                 "time": lr_window[self.dims.time].values,
             }
             if self.static_tensor_np is not None:
@@ -1891,6 +4037,129 @@ class ZarrDataPipeline:
     def get_residual_dataset(self) -> xr.Dataset:
         """Return the residual dataset."""
         return self.residual_dataset
+    
+    def get_static_dataset(self) -> Optional[xr.Dataset]:
+        """Return the static dataset."""
+        return self.static_dataset
+
+
+class WebDatasetDataPipeline:
+    """
+    High-level data preparation pipeline for ST-CDGM training using pre-processed WebDataset shards.
+    
+    This class reads pre-processed TAR shards that have already been transformed
+    (normalized, baseline computed, residuals calculated) and creates IterableDatasets
+    for training with high I/O performance.
+    
+    Parameters
+    ----------
+    shard_dir :
+        Directory containing the pre-processed shard files (*.tar) and metadata.json.
+    shuffle :
+        Whether to shuffle shards and samples (default: False for deterministic training).
+    """
+    
+    def __init__(
+        self,
+        shard_dir: str | Path,
+        *,
+        shuffle: bool = False,
+        shardshuffle: int = 100,
+        shuffle_buffer_size: int = 1000,
+    ) -> None:
+        if not HAS_WEBDATASET:
+            raise ImportError(
+                "WebDataset support is not available. Install webdataset via `pip install webdataset`."
+            )
+        
+        shard_dir = Path(shard_dir)
+        if not shard_dir.exists():
+            raise ValueError(f"Shard directory does not exist: {shard_dir}")
+        
+        # Load metadata
+        metadata_path = shard_dir / "metadata.json"
+        if not metadata_path.exists():
+            raise ValueError(f"Metadata file not found: {metadata_path}")
+        
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        
+        self.shard_dir = shard_dir
+        self.seq_len = metadata.get("seq_len", 10)
+        self.shuffle = shuffle
+        self.shardshuffle = shardshuffle
+        self.shuffle_buffer_size = shuffle_buffer_size
+        
+        # Load dimension metadata
+        dims_dict = metadata.get("dims", {})
+        self.dims = GridMetadata(
+            time=dims_dict.get("time", "time"),
+            lr_lat=dims_dict.get("lr_lat", "lat"),
+            lr_lon=dims_dict.get("lr_lon", "lon"),
+            hr_lat=dims_dict.get("hr_lat", "lat"),
+            hr_lon=dims_dict.get("hr_lon", "lon"),
+        )
+        
+        # Shard pattern (all .tar files in the directory)
+        self.shard_pattern = str(shard_dir / "*.tar")
+        
+        # Static dataset is embedded in shards (not separate)
+        self.static_dataset = None
+    
+    def build_sequence_dataset(
+        self,
+        *,
+        seq_len: Optional[int] = None,
+        stride: int = 1,
+        drop_last: bool = True,
+        as_torch: bool = True,
+    ) -> "WebDatasetIterableDataset":
+        """
+        Build an IterableDataset for training from WebDataset shards.
+        
+        Parameters
+        ----------
+        seq_len :
+            Sequence length (ignored, read from metadata).
+        stride :
+            Stride (ignored, shards contain pre-generated sequences).
+        drop_last :
+            Whether to drop incomplete sequences (ignored, shards contain complete sequences).
+        as_torch :
+            Whether to return PyTorch tensors (always True for WebDataset).
+        
+        Returns
+        -------
+        WebDatasetIterableDataset
+            IterableDataset yielding ResDiff-style batches.
+        """
+        return WebDatasetIterableDataset(
+            shard_pattern=self.shard_pattern,
+            metadata_path=self.shard_dir / "metadata.json",
+            shuffle=self.shuffle,
+            shardshuffle=self.shardshuffle,
+            shuffle_buffer_size=self.shuffle_buffer_size,
+        )
+    
+    def get_lr_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_hr_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_baseline_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_residual_dataset(self) -> None:
+        """Not available for WebDataset (data is in shards)."""
+        return None
+    
+    def get_static_dataset(self) -> Optional[xr.Dataset]:
+        """Return None (static data is embedded in shards)."""
+        return None
 
 
 class WebDatasetIterableDataset(IterableDataset):
@@ -1989,6 +4258,8 @@ class WebDatasetIterableDataset(IterableDataset):
         """Iterate over samples in the WebDataset."""
         return iter(self.dataset)
 ```
+
+---
 
 ### `src/st_cdgm/data/netcdf_utils.py`
 
@@ -3080,6 +5351,8 @@ if __name__ == "__main__":
     print("Les données brutes ne sont plus exportées dans un CSV combiné.")
 ```
 
+---
+
 ### `src/st_cdgm/models/__init__.py`
 
 ```python
@@ -3103,16 +5376,18 @@ __all__ = [
 ]
 ```
 
+---
+
 ### `src/st_cdgm/models/causal_rcn.py`
 
 ```python
 """
-Module 4 – Réseau causal récurrent (RCN) pour l'architecture ST-CDGM.
+Module 4 – Réseau causal récurrent (RCN) pour l’architecture ST-CDGM.
 
 Ce module implémente la cellule RCN (`RCNCell`) et un utilitaire de déroulement
 séquentiel (`RCNSequenceRunner`). La cellule combine un cœur causal (matrice DAG
 apprenante + assignations structurelles) et une mise à jour récurrente via GRU,
-suivie d'une reconstruction optionnelle pour la perte L_rec.
+suivie d’une reconstruction optionnelle pour la perte L_rec.
 """
 
 from __future__ import annotations
@@ -3350,10 +5625,20 @@ class RCNCell(nn.Module):
         # Reconstruction facultative
         reconstruction = None
         if self.reconstruction_decoder is not None:
-            # Use the hidden state H_prev as reconstruction source
-            # H_prev has shape [num_vars, N, hidden_dim]
-            # Reshape to [N, num_vars * hidden_dim] for the decoder
-            recon_input = H_prev.permute(1, 0, 2).reshape(N, -1)
+            # Use provided reconstruction source or default to H_prev
+            source = reconstruction_source if reconstruction_source is not None else H_prev
+            
+            # Ensure source has shape [N, num_vars * hidden_dim]
+            # If source is [q, N, hidden_dim] (like H_prev), permute and reshape
+            if source.dim() == 3 and source.shape[0] == self.num_vars and source.shape[2] == self.hidden_dim:
+                recon_input = source.permute(1, 0, 2).reshape(N, -1)
+            elif source.dim() == 2:
+                # Assume already flattened or correct shape [N, features]
+                recon_input = source
+            else:
+                # Fallback reshape trying to preserve N
+                recon_input = source.reshape(N, -1)
+                
             reconstruction = self.reconstruction_decoder(recon_input)
 
         return H_next_tensor, reconstruction, A_masked
@@ -3491,6 +5776,8 @@ class RCNSequenceRunner:
         return RCNSequenceOutput(states=states, reconstructions=reconstructions, dag_matrices=dag_matrices)
 ```
 
+---
+
 ### `src/st_cdgm/models/diffusion_decoder.py`
 
 ```python
@@ -3527,6 +5814,32 @@ except ImportError:
     HAS_DPM_SOLVER = False
 
 
+def _replace_conv_transpose_with_resize(module: nn.Module) -> None:
+    """Remplace ConvTranspose2d par Upsample + Conv2d (réduit artefacts checkerboard)."""
+    for name, child in list(module.named_children()):
+        if isinstance(child, nn.ConvTranspose2d):
+            st = child.stride[0]
+            if st >= 2 and child.stride[0] == child.stride[1]:
+                repl = nn.Sequential(
+                    nn.Upsample(scale_factor=float(st), mode="nearest"),
+                    nn.Conv2d(
+                        child.in_channels,
+                        child.out_channels,
+                        kernel_size=3,
+                        padding=1,
+                        bias=child.bias is not None,
+                    ),
+                )
+                if child.bias is not None:
+                    nn.init.zeros_(repl[1].bias)
+                nn.init.kaiming_normal_(repl[1].weight, nonlinearity="relu")
+                setattr(module, name, repl)
+            else:
+                _replace_conv_transpose_with_resize(child)
+        else:
+            _replace_conv_transpose_with_resize(child)
+
+
 @dataclass
 class DiffusionOutput:
     """
@@ -3561,6 +5874,8 @@ class CausalDiffusionDecoder(nn.Module):
         unet_kwargs: Optional[dict] = None,
         scheduler_type: str = "ddpm",
         use_gradient_checkpointing: bool = False,
+        conv_padding_mode: str = "zeros",
+        anti_checkerboard: bool = False,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -3582,6 +5897,13 @@ class CausalDiffusionDecoder(nn.Module):
             **unet_kwargs,
         )
         self.scheduler = DDPMScheduler(num_train_timesteps=num_diffusion_steps)
+
+        if conv_padding_mode == "replicate":
+            for m in self.unet.modules():
+                if isinstance(m, nn.Conv2d):
+                    m.padding_mode = "replicate"
+        if anti_checkerboard:
+            _replace_conv_transpose_with_resize(self.unet)
         
         # Phase C3: Gradient checkpointing support
         # Reduces memory usage by ~50% but increases computation time by ~20-30%
@@ -3744,6 +6066,16 @@ class CausalDiffusionDecoder(nn.Module):
         
         return loss
 
+    def predict_x0_from_epsilon(
+        self,
+        noisy_sample: Tensor,
+        epsilon_pred: Tensor,
+        timesteps: Tensor,
+    ) -> Tensor:
+        """DDPM : estimation x0 depuis ε_θ (pour perte spectrale RAPSD)."""
+        a = self.scheduler.alphas_cumprod[timesteps].view(-1, 1, 1, 1)
+        return (noisy_sample - (1.0 - a).sqrt() * epsilon_pred) / a.sqrt().clamp(min=1e-8)
+
     @staticmethod
     def apply_physical_constraints(raw_output: Tensor, use_soft: bool = True) -> Tuple[Tensor, Tensor, Tensor]:
         """
@@ -3795,6 +6127,7 @@ class CausalDiffusionDecoder(nn.Module):
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
         scheduler_type: Optional[str] = None,
+        cfg_scale: float = 0.0,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
@@ -3839,6 +6172,10 @@ class CausalDiffusionDecoder(nn.Module):
         inference_steps = num_steps or getattr(scheduler, "num_inference_steps", None)
         if inference_steps is None:
             inference_steps = self.num_diffusion_steps
+        max_train = int(
+            getattr(scheduler.config, "num_train_timesteps", self.num_diffusion_steps)
+        )
+        inference_steps = max(1, min(int(inference_steps), max_train))
         scheduler.set_timesteps(inference_steps, device=conditioning.device)
 
         sample = torch.randn(
@@ -3851,11 +6188,21 @@ class CausalDiffusionDecoder(nn.Module):
         )
 
         for t in scheduler.timesteps:
-            model_output = self.unet(
+            noise_pred_cond = self.unet(
                 sample=sample,
                 timestep=t,
                 encoder_hidden_states=conditioning,
             ).sample
+            if cfg_scale and cfg_scale > 0.0:
+                null_c = torch.zeros_like(conditioning)
+                noise_pred_uncond = self.unet(
+                    sample=sample,
+                    timestep=t,
+                    encoder_hidden_states=null_c,
+                ).sample
+                model_output = noise_pred_uncond + cfg_scale * (noise_pred_cond - noise_pred_uncond)
+            else:
+                model_output = noise_pred_cond
             sample = scheduler.step(model_output, t, sample).prev_sample
 
         residual = sample
@@ -3883,6 +6230,10 @@ class CausalDiffusionDecoder(nn.Module):
                 )
         else:
             t_min = t_mean = t_max = composite[:, 0:1, :, :]
+        if residual.shape[-2:] != (self.height, self.width):
+            raise ValueError(
+                f"Sortie diffusion {tuple(residual.shape[-2:])} != ({self.height}, {self.width})"
+            )
         return DiffusionOutput(residual=residual, baseline=baseline, t_min=t_min, t_mean=t_mean, t_max=t_max)
 
     def _sample_edm_ode(
@@ -4125,11 +6476,13 @@ class CausalDiffusionDecoder(nn.Module):
         return conditioning
 ```
 
+---
+
 ### `src/st_cdgm/models/graph_builder.py`
 
 ```python
 """
-Module 2 – Construction du graphe hétérogène statique pour l'architecture ST-CDGM.
+Module 2 – Construction du graphe hétérogène statique pour l’architecture ST-CDGM.
 
 Ce module fournit une classe utilitaire `HeteroGraphBuilder` qui prépare un
 objet `torch_geometric.data.HeteroData` en codant les relations physiques
@@ -4608,6 +6961,8 @@ class HeteroGraphBuilder:
                 raise ValueError(f"Indice destination hors bornes pour {key}.")
 ```
 
+---
+
 ### `src/st_cdgm/models/intelligible_encoder.py`
 
 ```python
@@ -4894,6 +7249,8 @@ class IntelligibleVariableEncoder(nn.Module):
         raise ValueError(f"Pooling '{pool_type}' non pris en charge.")
 ```
 
+---
+
 ### `src/st_cdgm/training/__init__.py`
 
 ```python
@@ -4909,6 +7266,8 @@ __all__ = [
     "EarlyStopping",
 ]
 ```
+
+---
 
 ### `src/st_cdgm/training/callbacks.py`
 
@@ -5035,6 +7394,8 @@ class EarlyStopping:
         self.early_stop = False
 ```
 
+---
+
 ### `src/st_cdgm/training/training_loop.py`
 
 ```python
@@ -5048,17 +7409,45 @@ encodeur de variables intelligibles, RCN et décodeur de diffusion.
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+import math
 import time
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from ..models.causal_rcn import RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder
 from ..models.intelligible_encoder import IntelligibleVariableEncoder
+
+
+def _train_autocast(amp_mode: str):
+    """
+    Mixed precision context for train_epoch: CUDA FP16 (with GradScaler) or CPU BF16 (no scaler).
+    amp_mode: "none" | "cuda_fp16" | "cpu_bf16"
+    """
+    if amp_mode == "cuda_fp16":
+        return torch.cuda.amp.autocast()
+    if amp_mode == "cpu_bf16":
+        return torch.amp.autocast(device_type="cpu", dtype=torch.bfloat16)
+    return nullcontext()
+
+
+def resolve_train_amp_mode(device: torch.device, use_amp: bool) -> str:
+    """Même logique que le début de ``train_epoch`` (pour métrique RAPSD fin d’époque)."""
+    if not use_amp:
+        return "none"
+    if device.type == "cuda" and torch.cuda.is_available():
+        return "cuda_fp16"
+    if device.type == "cpu":
+        bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
+        if bf16_ok is not None and bf16_ok():
+            return "cpu_bf16"
+    return "none"
 
 
 def loss_reconstruction(
@@ -5127,6 +7516,206 @@ def loss_reconstruction(
     # Default: MSE loss
     else:  # loss_type == "mse"
         return nn.functional.mse_loss(pred, target)
+
+
+def compute_rapsd_loss(
+    pred: Tensor,
+    target: Tensor,
+    eps: float = 1e-8,
+) -> Tensor:
+    """
+    Perte spectrale radiale (RAPSD) — compare log-puissance entre prédiction et cible.
+    pred, target : [B, C, H, W]
+    """
+    if pred.shape != target.shape:
+        raise ValueError(f"RAPSD: shapes {pred.shape} vs {target.shape}")
+    if pred.dim() == 3:
+        pred = pred.unsqueeze(0)
+        target = target.unsqueeze(0)
+    B, C, H, W = pred.shape
+    losses: List[Tensor] = []
+    for b in range(B):
+        for c in range(C):
+            p = pred[b, c]
+            t = target[b, c]
+            fft_p = torch.fft.fftshift(torch.fft.fft2(p))
+            fft_t = torch.fft.fftshift(torch.fft.fft2(t))
+            psd_p = torch.abs(fft_p) ** 2
+            psd_t = torch.abs(fft_t) ** 2
+            cy, cx = H // 2, W // 2
+            y_idx = torch.arange(H, device=pred.device, dtype=torch.float32) - cy
+            x_idx = torch.arange(W, device=pred.device, dtype=torch.float32) - cx
+            yy, xx = torch.meshgrid(y_idx, x_idx, indexing="ij")
+            r = torch.sqrt(xx ** 2 + yy ** 2).long().clamp(min=0)
+            max_r = int(r.max().item()) + 1
+            rapsd_p = torch.zeros(max_r, device=pred.device)
+            rapsd_t = torch.zeros(max_r, device=pred.device)
+            counts = torch.zeros(max_r, device=pred.device)
+            rf = r.flatten()
+            rapsd_p.scatter_add_(0, rf, psd_p.flatten())
+            rapsd_t.scatter_add_(0, rf, psd_t.flatten())
+            counts.scatter_add_(0, rf, torch.ones_like(rf, dtype=torch.float32))
+            valid = counts > 0
+            rapsd_p[valid] /= counts[valid]
+            rapsd_t[valid] /= counts[valid]
+            log_ratio = torch.log(rapsd_p[valid] + eps) - torch.log(rapsd_t[valid] + eps)
+            losses.append((log_ratio ** 2).mean())
+    return torch.stack(losses).mean()
+
+
+@torch.no_grad()
+def compute_rapsd_spectral_value_no_grad(
+    diffusion_decoder: CausalDiffusionDecoder,
+    target: Tensor,
+    conditioning: Tensor,
+    *,
+    amp_mode: str = "none",
+) -> Tensor:
+    """
+    Une passe bruit → ε_θ → x̂₀ puis perte RAPSD, sans gradient.
+    Utilisé en fin d’époque (métrique) pour éviter FFT/scatter dans la boucle batch.
+    """
+    noise_sp = torch.randn_like(target)
+    bs = target.shape[0]
+    timesteps_sp = torch.randint(
+        0,
+        diffusion_decoder.scheduler.num_train_timesteps,
+        (bs,),
+        device=target.device,
+        dtype=torch.long,
+    )
+    noisy_sp = diffusion_decoder.scheduler.add_noise(target, noise_sp, timesteps_sp)
+    with _train_autocast(amp_mode):
+        noise_pred_sp = diffusion_decoder.forward(noisy_sp, timesteps_sp, conditioning)
+    pred_x0 = diffusion_decoder.predict_x0_from_epsilon(noisy_sp, noise_pred_sp, timesteps_sp)
+    return compute_rapsd_loss(pred_x0, target)
+
+
+def prepare_target_and_conditioning_for_metric(
+    batch: Dict[str, Any],
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    *,
+    device: torch.device,
+    residual_key: str = "residual",
+    batch_index_key: str = "batch_index",
+    conditioning_fn: Optional[Callable[[Tensor, Optional[Tensor]], Tensor]] = None,
+    amp_mode: str = "none",
+) -> Optional[Tuple[Tensor, Tensor]]:
+    """
+    Reproduit le chemin encodeur → RCN → conditioning et la cible HR du train_epoch,
+    pour un seul micro-batch (métrique RAPSD en fin d’époque).
+    """
+    lr_data: Tensor = batch["lr"].to(device)
+    target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)
+
+    if torch.isnan(target_data).any():
+        nan_fill = torch.nanmean(target_data).item()
+        if not math.isfinite(nan_fill):
+            nan_fill = 0.0
+        target_data = torch.nan_to_num(target_data, nan=nan_fill)
+    if torch.isinf(target_data).any():
+        valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if target_data.numel() > 0 else 0.0
+        target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
+    if torch.isnan(lr_data).any():
+        nan_fill = torch.nanmean(lr_data).item()
+        if not math.isfinite(nan_fill):
+            nan_fill = 0.0
+        lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
+
+    hetero_data = batch["hetero"]
+    with _train_autocast(amp_mode):
+        H_init = encoder.init_state(hetero_data).to(device)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    with _train_autocast(amp_mode):
+        seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+
+    H_condition = seq_output.states[-1]
+    batch_index = batch.get(batch_index_key)
+    if batch_index is not None:
+        batch_index = batch_index.to(device)
+    if conditioning_fn is None:
+        conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
+    else:
+        conditioning = conditioning_fn(H_condition, batch_index)
+    conditioning = conditioning.to(device)
+
+    if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+        return None
+
+    target = target_data[-1]
+    if target.dim() == 3:
+        target = target.unsqueeze(0)
+    elif target.dim() != 4:
+        return None
+
+    valid_mask_ts = batch.get("valid_mask")
+    if valid_mask_ts is not None:
+        vm = valid_mask_ts[-1].to(device=device)
+        if vm.dtype != torch.bool:
+            vm = vm > 0.5
+        while vm.dim() < target.dim():
+            vm = vm.unsqueeze(0)
+        vm = vm.expand_as(target)
+        target = target.clone().masked_fill(~vm, float("nan"))
+
+    return target, conditioning
+
+
+def compute_rapsd_metric_from_batch(
+    *,
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    diffusion_decoder: CausalDiffusionDecoder,
+    batch: Dict[str, Any],
+    device: torch.device,
+    residual_key: str = "residual",
+    batch_index_key: str = "batch_index",
+    conditioning_fn: Optional[Callable[[Tensor, Optional[Tensor]], Tensor]] = None,
+    amp_mode: str = "none",
+    verbose: bool = False,
+) -> Optional[float]:
+    """
+    Calcule la métrique RAPSD (scalaire) sur un batch, sans gradient.
+    À appeler une fois par époque après ``train_epoch`` (ex. premier batch du loader).
+    """
+    enc = encoder.module if isinstance(encoder, DDP) else encoder
+    rcn_cell = rcn_runner.cell.module if isinstance(rcn_runner.cell, DDP) else rcn_runner.cell
+    diff = diffusion_decoder.module if isinstance(diffusion_decoder, DDP) else diffusion_decoder
+
+    was_enc_train = enc.training
+    was_rcn_train = rcn_cell.training
+    was_diff_train = diff.training
+    enc.eval()
+    rcn_cell.eval()
+    diff.eval()
+    try:
+        prepared = prepare_target_and_conditioning_for_metric(
+            batch,
+            enc,
+            rcn_runner,
+            device=device,
+            residual_key=residual_key,
+            batch_index_key=batch_index_key,
+            conditioning_fn=conditioning_fn,
+            amp_mode=amp_mode,
+        )
+        if prepared is None:
+            return None
+        target, conditioning = prepared
+        if target.shape[1] != diff.in_channels:
+            if verbose:
+                print(f"[RAPSD metric] Channel mismatch: target {target.shape[1]} vs UNet {diff.in_channels}")
+            return None
+        val = compute_rapsd_spectral_value_no_grad(diff, target, conditioning, amp_mode=amp_mode)
+        return float(val.item())
+    finally:
+        if was_enc_train:
+            enc.train()
+        if was_rcn_train:
+            rcn_cell.train()
+        if was_diff_train:
+            diff.train()
 
 
 def loss_diffusion(
@@ -5451,7 +8040,7 @@ def train_epoch(
     use_predicted_output: bool = False,  # Phase B2: Use predictions for physical loss (expensive)
     physical_sample_interval: int = 10,  # Phase B2: Sample predictions every N batches
     physical_num_steps: int = 15,  # Phase B2: EDM sampling steps for physical loss
-    use_amp: bool = True,  # Phase C1: Mixed precision training (requires CUDA >= 11.0)
+    use_amp: bool = True,  # Phase C1: CUDA FP16+GradScaler, or CPU bfloat16 autocast if supported
     scheduler: Optional[torch.optim.lr_scheduler.ReduceLROnPlateau] = None,  # Phase C2: LR scheduler
     use_focal_loss: bool = False,  # Phase D1: Use focal loss for diffusion
     focal_alpha: float = 1.0,  # Phase D1: Focal loss alpha
@@ -5459,9 +8048,15 @@ def train_epoch(
     extreme_weight_factor: float = 0.0,  # Phase D2: Weight factor for extreme events (0 = disabled)
     extreme_percentiles: List[float] = None,  # Phase D2: Percentiles for extreme events
     reconstruction_loss_type: str = "mse",  # Phase D4: Loss type for reconstruction ("mse", "cosine", "mse+cosine")
+    use_spectral_loss: bool = False,
+    lambda_spectral: float = 0.0,
+    conditioning_dropout_prob: float = 0.0,
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
+
+    ``use_spectral_loss`` / ``lambda_spectral`` : conservés pour compatibilité ; la perte RAPSD
+    n'est plus appliquée dans la boucle batch (voir ``log_spectral_metric_each_epoch`` + ``compute_rapsd_metric_from_batch``).
     
     Parameters
     ----------
@@ -5474,16 +8069,23 @@ def train_epoch(
     rcn_runner.cell.train()
     diffusion_decoder.train()
     
-    # Phase C1: Mixed Precision - Initialize GradScaler if needed
+    # Phase C1: Mixed precision — CUDA FP16 + GradScaler, or CPU BF16 (no scaler)
     scaler = None
-    if use_amp and torch.cuda.is_available():
-        from torch.cuda.amp import GradScaler
-        scaler = GradScaler()
-    elif use_amp and not torch.cuda.is_available():
-        # Disable AMP if CUDA is not available
-        use_amp = False
-        if verbose:
-            print("[WARN] Mixed precision (AMP) disabled: CUDA not available")
+    amp_mode = "none"
+    if use_amp:
+        if device.type == "cuda" and torch.cuda.is_available():
+            from torch.cuda.amp import GradScaler
+
+            scaler = GradScaler()
+            amp_mode = "cuda_fp16"
+        elif device.type == "cpu":
+            bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
+            if bf16_ok is not None and bf16_ok():
+                amp_mode = "cpu_bf16"
+            elif verbose:
+                print("[WARN] CPU bfloat16 not supported; training in FP32")
+        elif verbose:
+            print(f"[WARN] AMP not used: device type {device.type}")
     
     # Phase D2: Initialize extreme percentiles if not provided
     if extreme_percentiles is None:
@@ -5504,6 +8106,7 @@ def train_epoch(
         print(f"{'='*80}")
         print("Config:")
         print(f"   - Device: {device}")
+        print(f"   - AMP mode: {amp_mode}")
         print(f"   - Lambda (gen): {lambda_gen}")
         print(f"   - Beta (rec): {beta_rec}")
         print(f"   - Gamma (DAG): {gamma_dag}")
@@ -5512,61 +8115,85 @@ def train_epoch(
         print(f"{'='*80}\n")
 
     for batch_idx, batch in enumerate(data_loader):
+        # Support batch_size > 1: batch can be a list of batch dicts (gradient accumulation)
+        batches = batch if isinstance(batch, list) else [batch]
         batch_start_time = time.time()
         
-        if verbose and batch_idx == 0:
-            print(f"Batch {batch_idx + 1}:")
-            print(f"   - Keys: {list(batch.keys())}")
-        
-        lr_data: Tensor = batch["lr"].to(device)      # [seq_len, N, features_lr]
-        target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
-        hetero_data = batch["hetero"]
-        
-        if verbose and batch_idx == 0:
-            print(f"   - LR data shape: {lr_data.shape}")
-            print(f"   - Target data shape: {target_data.shape}")
-            print(f"   - Sequence length: {lr_data.shape[0]}")
-
         optimizer.zero_grad()
+        step_loss_total = 0.0
+        step_loss_gen = 0.0
+        step_loss_rec = 0.0
+        step_loss_dag = 0.0
+        step_loss_phy = 0.0
+        
+        for micro_idx, batch in enumerate(batches):
+            if verbose and batch_idx == 0 and micro_idx == 0:
+                print(f"Batch {batch_idx + 1}" + (f" (n={len(batches)})" if len(batches) > 1 else "") + ":")
+                print(f"   - Keys: {list(batch.keys())}")
+            
+            lr_data: Tensor = batch["lr"].to(device)      # [seq_len, N, features_lr]
+            target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
+            hetero_data = batch["hetero"]
+        
+            # Vérifications de diagnostic avant forward pass
+            if torch.isnan(target_data).any():
+                nan_count = torch.isnan(target_data).sum().item()
+                nan_fill = torch.nanmean(target_data).item()
+                if not math.isfinite(nan_fill):
+                    nan_fill = 0.0
+                # print(f"[WARN] Target contains {nan_count} NaN values ({100*nan_count/target_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
+                target_data = torch.nan_to_num(target_data, nan=nan_fill)
+        
+            if torch.isinf(target_data).any():
+                inf_count = torch.isinf(target_data).sum().item()
+                valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if (target_data.numel() > inf_count) else 0.0
+                # print(f"[WARN] Target contains {inf_count} Inf values ({100*inf_count/target_data.numel():.2f}%) - replacing with mean ({valid_mean:.6f})")
+                target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
+        
+            if torch.isnan(lr_data).any():
+                nan_count = torch.isnan(lr_data).sum().item()
+                nan_fill = torch.nanmean(lr_data).item()
+                if not math.isfinite(nan_fill):
+                    nan_fill = 0.0
+                # print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
+                lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
 
-        # Phase C1: Mixed Precision - Use autocast for forward pass
-        # Encoder step
-        encoder_time = time.time()
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            if verbose and batch_idx == 0 and micro_idx == 0:
+                print(f"   - LR data shape: {lr_data.shape}")
+                print(f"   - Target data shape: {target_data.shape}")
+                print(f"   - Sequence length: {lr_data.shape[0]}")
+
+            # Phase C1: Mixed Precision - Use autocast for forward pass
+            # Encoder step
+            encoder_time = time.time()
+            with _train_autocast(amp_mode):
                 H_init = encoder.init_state(hetero_data).to(device)
-        else:
-            H_init = encoder.init_state(hetero_data).to(device)
-        encoder_time = time.time() - encoder_time
+            encoder_time = time.time() - encoder_time
         
-        if verbose and batch_idx == 0:
-            print(f"   - H_init shape: {H_init.shape}")
-            print(f"   - Encoder time: {encoder_time:.4f}s")
+            if verbose and batch_idx == 0:
+                print(f"   - H_init shape: {H_init.shape}")
+                print(f"   - Encoder time: {encoder_time:.4f}s")
 
-        # RCN step
-        rcn_time = time.time()
-        drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-        # reconstruction_sources is no longer needed - RCNCell uses hidden state internally
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # RCN step
+            rcn_time = time.time()
+            drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+            # reconstruction_sources is no longer needed - RCNCell uses hidden state internally
+            with _train_autocast(amp_mode):
                 seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-        else:
-            seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-        rcn_time = time.time() - rcn_time
+            rcn_time = time.time() - rcn_time
         
-        if verbose and batch_idx == 0:
-            print(f"   - Number of states: {len(seq_output.states)}")
-            print(f"   - Number of reconstructions: {len(seq_output.reconstructions)}")
-            print(f"   - Number of DAG matrices: {len(seq_output.dag_matrices)}")
-            print(f"   - RCN time: {rcn_time:.4f}s")
+            if verbose and batch_idx == 0:
+                print(f"   - Number of states: {len(seq_output.states)}")
+                print(f"   - Number of reconstructions: {len(seq_output.reconstructions)}")
+                print(f"   - Number of DAG matrices: {len(seq_output.dag_matrices)}")
+                print(f"   - RCN time: {rcn_time:.4f}s")
 
-        # Phase C1: Mixed Precision - Loss computation (reconstruction and DAG)
-        loss_time = time.time()
-        loss_rec_value = torch.tensor(0.0, device=device)
-        loss_dag_value = torch.tensor(0.0, device=device)
-        num_reconstructions = 0
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # Phase C1: Mixed Precision - Loss computation (reconstruction and DAG)
+            loss_time = time.time()
+            loss_rec_value = torch.tensor(0.0, device=device)
+            loss_dag_value = torch.tensor(0.0, device=device)
+            num_reconstructions = 0
+            with _train_autocast(amp_mode):
                 for recon, A_masked, driver_step in zip(
                     seq_output.reconstructions,
                     seq_output.dag_matrices,
@@ -5574,224 +8201,231 @@ def train_epoch(
                 ):
                     if recon is not None:
                         num_reconstructions += 1
-                        loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(recon, driver_step)
+                        loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(
+                            recon, driver_step, loss_type=reconstruction_loss_type
+                        )
                     # Phase 3.1: Use DAGMA by default (more stable than NO TEARS)
                     if dag_method == "dagma":
                         loss_dag_value = loss_dag_value + gamma_dag * loss_dagma(A_masked, s=dagma_s)
                     else:  # fallback to NO TEARS
                         loss_dag_value = loss_dag_value + gamma_dag * loss_no_tears(A_masked)
-        else:
-            for recon, A_masked, driver_step in zip(
-                seq_output.reconstructions,
-                seq_output.dag_matrices,
-                drivers,
-            ):
-                if recon is not None:
-                    num_reconstructions += 1
-                    loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(
-                        recon, driver_step, loss_type=reconstruction_loss_type
-                    )
-                # Phase 3.1: Use DAGMA by default (more stable than NO TEARS)
-                if dag_method == "dagma":
-                    loss_dag_value = loss_dag_value + gamma_dag * loss_dagma(A_masked, s=dagma_s)
-                else:  # fallback to NO TEARS
-                    loss_dag_value = loss_dag_value + gamma_dag * loss_no_tears(A_masked)
         
-        if verbose and batch_idx == 0:
-            print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
+            if verbose and batch_idx == 0:
+                print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
 
-        H_condition = seq_output.states[-1]
-        batch_index = batch.get(batch_index_key)
-        if batch_index is not None:
-            batch_index = batch_index.to(device)
-        if conditioning_fn is None:
-            conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
-        else:
-            conditioning = conditioning_fn(H_condition, batch_index)
-        conditioning = conditioning.to(device)
-        
-        if verbose and batch_idx == 0:
-            print(f"   - Conditioning shape: {conditioning.shape}")
+            H_condition = seq_output.states[-1]
+            batch_index = batch.get(batch_index_key)
+            if batch_index is not None:
+                batch_index = batch_index.to(device)
+            if conditioning_fn is None:
+                conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
+            else:
+                conditioning = conditioning_fn(H_condition, batch_index)
+            conditioning = conditioning.to(device)
 
-        target = target_data[-1]  # Should be [channels, H, W] or [H, W, channels]
-        # Ensure target has shape [batch, channels, H, W]
-        if target.dim() == 3:
-            # Check if it's [channels, H, W] or [H, W, channels]
-            # UNet expects [batch, channels, H, W]
-            # If first dim is very large, it might be [H*W, channels] or similar
-            # For now, assume [channels, H, W] and add batch dim
-            target = target.unsqueeze(0)
-        elif target.dim() == 4:
-            # Already has batch dimension, use as is
-            pass
-        else:
-            raise ValueError(f"Unexpected target shape: {target.shape}, expected [channels, H, W] or [batch, channels, H, W]")
+            if conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob:
+                conditioning = torch.zeros_like(conditioning)
         
-        if verbose and batch_idx == 0:
-            print(f"   - Target shape (after processing): {target.shape}")
+            if verbose and batch_idx == 0:
+                print(f"   - Conditioning shape: {conditioning.shape}")
+
+            target = target_data[-1]  # Should be [channels, H, W] or [H, W, channels]
+            # Ensure target has shape [batch, channels, H, W]
+            if target.dim() == 3:
+                # Check if it's [channels, H, W] or [H, W, channels]
+                # UNet expects [batch, channels, H, W]
+                # If first dim is very large, it might be [H*W, channels] or similar
+                # For now, assume [channels, H, W] and add batch dim
+                target = target.unsqueeze(0)
+            elif target.dim() == 4:
+                # Already has batch dimension, use as is
+                pass
+            else:
+                raise ValueError(f"Unexpected target shape: {target.shape}, expected [channels, H, W] or [batch, channels, H, W]")
         
-        # Verify channel count matches UNet expectations
-        if target.shape[1] != diffusion_decoder.in_channels:
-            raise ValueError(
-                f"Channel mismatch: target has {target.shape[1]} channels, "
-                f"but UNet expects {diffusion_decoder.in_channels} channels. "
-                f"Target shape: {target.shape}"
-            )
+            if verbose and batch_idx == 0:
+                print(f"   - Target shape (after processing): {target.shape}")
         
-        # Vérifications de diagnostic avant la diffusion
-        if verbose and batch_idx == 0:
-            print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
-            print(f"   - Target has NaN: {torch.isnan(target).any().item()}")
-            print(f"   - Target has Inf: {torch.isinf(target).any().item()}")
-            print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
-            print(f"   - Conditioning has NaN: {torch.isnan(conditioning).any().item()}")
-            print(f"   - Conditioning has Inf: {torch.isinf(conditioning).any().item()}")
+            # Verify channel count matches UNet expectations
+            if target.shape[1] != diffusion_decoder.in_channels:
+                raise ValueError(
+                    f"Channel mismatch: target has {target.shape[1]} channels, "
+                    f"but UNet expects {diffusion_decoder.in_channels} channels. "
+                    f"Target shape: {target.shape}"
+                )
+
+            valid_mask_ts = batch.get("valid_mask")
+            if valid_mask_ts is not None:
+                vm = valid_mask_ts[-1].to(device=device)
+                if vm.dtype != torch.bool:
+                    vm = vm > 0.5
+                while vm.dim() < target.dim():
+                    vm = vm.unsqueeze(0)
+                vm = vm.expand_as(target)
+                target = target.clone().masked_fill(~vm, float("nan"))
         
-        # Vérifier les valeurs extrêmes
-        target_abs_max = target.abs().max().item()
-        if target_abs_max > 1e6:
-            if verbose:
-                print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
-                print(f"   - This might cause numerical instability")
+            # Vérifications de diagnostic avant la diffusion
+            if verbose and batch_idx == 0:
+                print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
+                print(f"   - Target has NaN: {torch.isnan(target).any().item()}")
+                print(f"   - Target has Inf: {torch.isinf(target).any().item()}")
+                print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
+                print(f"   - Conditioning has NaN: {torch.isnan(conditioning).any().item()}")
+                print(f"   - Conditioning has Inf: {torch.isinf(conditioning).any().item()}")
         
-        # Vérifier les NaN dans le target (seront masqués dans compute_loss)
-        nan_mask = torch.isnan(target) | torch.isinf(target)
-        nan_count = nan_mask.sum().item()
-        nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
+            # Vérifier les valeurs extrêmes
+            target_abs_max = target.abs().max().item()
+            if target_abs_max > 1e6:
+                if verbose:
+                    print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
+                    print(f"   - This might cause numerical instability")
         
-        if nan_count > 0:
-            if verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
-                print(f"[INFO] Target contains {nan_count} NaN/Inf pixels ({nan_ratio:.2%}) - will be masked in loss")
+            # Vérifier les NaN dans le target (seront masqués dans compute_loss)
+            nan_mask = torch.isnan(target) | torch.isinf(target)
+            nan_count = nan_mask.sum().item()
+            nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
         
-        # Le conditioning ne doit PAS contenir de NaN/Inf (erreur critique)
-        if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
-            print(f"[ERROR] Conditioning contains NaN/Inf in batch {batch_idx + 1}")
-            print(f"   - NaN count: {torch.isnan(conditioning).sum().item()}")
-            print(f"   - Inf count: {torch.isinf(conditioning).sum().item()}")
-            print(f"   - This is a critical error, skipping batch")
-            continue
+            if nan_count > 0:
+                if verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
+                    print(f"[INFO] Target contains {nan_count} NaN/Inf pixels ({nan_ratio:.2%}) - will be masked in loss")
         
-        # Phase C1: Mixed Precision - Forward pass with autocast for entire forward
-        # Diffusion loss (gère automatiquement les NaN via masquage)
-        # Phase D1: Supports focal loss for focusing on hard pixels
-        diffusion_time = time.time()
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # Le conditioning ne doit PAS contenir de NaN/Inf (erreur critique)
+            if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+                print(f"[ERROR] Conditioning contains NaN/Inf in batch {batch_idx + 1}")
+                print(f"   - NaN count: {torch.isnan(conditioning).sum().item()}")
+                print(f"   - Inf count: {torch.isinf(conditioning).sum().item()}")
+                print(f"   - This is a critical error, skipping batch")
+                continue
+        
+            # Phase C1: Mixed Precision - Forward pass with autocast for entire forward
+            # Diffusion loss (gère automatiquement les NaN via masquage)
+            # Phase D1: Supports focal loss for focusing on hard pixels
+            diffusion_time = time.time()
+            with _train_autocast(amp_mode):
                 loss_gen_value = lambda_gen * loss_diffusion(
                     diffusion_decoder, target, conditioning,
                     use_focal_loss=use_focal_loss,
                     focal_alpha=focal_alpha,
                     focal_gamma=focal_gamma,
                 )
-        else:
-            loss_gen_value = lambda_gen * loss_diffusion(
-                diffusion_decoder, target, conditioning,
-                use_focal_loss=use_focal_loss,
-                focal_alpha=focal_alpha,
-                focal_gamma=focal_gamma,
-            )
-        
-        # Phase B2: Compute physical loss (divergence + vorticity)
-        # Improved version that compares predictions vs target (not just target)
-        loss_phy_value = torch.tensor(0.0, device=device)
-        if lambda_phy > 0.0:
-            # Phase B2: Option 3 (Hybrid) - Compute physical loss on predictions periodically
-            # For efficiency, we only sample predictions every N batches
-            # This reduces cost while still enforcing physical consistency on model outputs
-            compute_physical_on_predictions = (
-                use_predicted_output and
-                batch_idx % physical_sample_interval == 0
-            )
-            
-            if compute_physical_on_predictions:
-                # Sample a prediction from the model (expensive but accurate)
-                # Use EDM with few steps for efficiency (15-25 steps vs 1000 for DDPM)
-                with torch.no_grad():  # Don't backprop through sampling
-                    try:
-                        sampled_output = diffusion_decoder.sample(
-                            conditioning=conditioning,
-                            num_steps=physical_num_steps,
-                            scheduler_type="edm",  # Use EDM for fast sampling
-                            apply_constraints=True,
-                        )
-                        # sampled_output.residual is [batch, channels, H, W]
-                        pred_residual = sampled_output.residual
-                        
-                        # Compare physical constraints: pred vs target
-                        div_pred = compute_divergence(pred_residual, dx=dx, dy=dy)
-                        div_target = compute_divergence(target, dx=dx, dy=dy)
-                        vort_pred = compute_vorticity(pred_residual, dx=dx, dy=dy)
-                        vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                        
-                        # Physical loss: enforce that predictions have similar physical properties as target
-                        div_error = ((div_pred - div_target) ** 2).mean()
-                        vort_error = ((vort_pred - vort_target) ** 2).mean()
-                        loss_phy_value = lambda_phy * (div_error + 0.1 * vort_error)
-                        
-                        if verbose and batch_idx == 0:
-                            print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
-                    except Exception as e:
-                        # Fallback to target-only physical loss if sampling fails
-                        if verbose:
-                            print(f"[WARN] Physical loss sampling failed: {e}, falling back to target-only")
-                        div_target = compute_divergence(target, dx=dx, dy=dy)
-                        vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                        div_penalty = (div_target ** 2).mean()
-                        vort_penalty = (vort_target ** 2).mean()
-                        loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
-            else:
-                # Default: compute physical loss on target only (fast, acts as regularization)
-                # This ensures target satisfies physical laws
-                div_target = compute_divergence(target, dx=dx, dy=dy)
-                vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                # Penalize non-zero divergence (should be ~0 for mass conservation) and inconsistent vorticity
-                div_penalty = (div_target ** 2).mean()
-                vort_penalty = (vort_target ** 2).mean()
-                loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
-        
-        diffusion_time = time.time() - diffusion_time
-        
-        if verbose and batch_idx == 0:
-            print(f"   - Diffusion time: {diffusion_time:.4f}s")
-            if lambda_phy > 0.0:
-                print(f"   - Physical loss: {loss_phy_value.item():.6f}")
-            if nan_count > 0:
-                print(f"   - Loss computed on {target.numel() - nan_count}/{target.numel()} valid pixels ({1.0 - nan_ratio:.2%})")
 
-        # Phase C1: Mixed Precision - Compute total loss
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
-                loss_total = loss_gen_value + loss_rec_value + loss_dag_value + loss_phy_value
-        else:
-            loss_total = loss_gen_value + loss_rec_value + loss_dag_value + loss_phy_value
+            # RAPSD (FFT + scatter_add) : déplacé en fin d’époque — voir compute_rapsd_metric_from_batch.
+
+            # Phase B2: Compute physical loss (divergence + vorticity)
+            # Improved version that compares predictions vs target (not just target)
+            loss_phy_value = torch.tensor(0.0, device=device)
+            if lambda_phy > 0.0:
+                # Phase B2: Option 3 (Hybrid) - Compute physical loss on predictions periodically
+                # For efficiency, we only sample predictions every N batches
+                # This reduces cost while still enforcing physical consistency on model outputs
+                compute_physical_on_predictions = (
+                    use_predicted_output and
+                    batch_idx % physical_sample_interval == 0
+                )
+            
+                if compute_physical_on_predictions:
+                    # Sample a prediction from the model (expensive but accurate)
+                    # Use EDM with few steps for efficiency (15-25 steps vs 1000 for DDPM)
+                    with torch.no_grad():  # Don't backprop through sampling
+                        try:
+                            sampled_output = diffusion_decoder.sample(
+                                conditioning=conditioning,
+                                num_steps=physical_num_steps,
+                                scheduler_type="edm",  # Use EDM for fast sampling
+                                apply_constraints=True,
+                            )
+                            # sampled_output.residual is [batch, channels, H, W]
+                            pred_residual = sampled_output.residual
+                        
+                            # Compare physical constraints: pred vs target
+                            div_pred = compute_divergence(pred_residual, dx=dx, dy=dy)
+                            div_target = compute_divergence(target, dx=dx, dy=dy)
+                            vort_pred = compute_vorticity(pred_residual, dx=dx, dy=dy)
+                            vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                        
+                            # Physical loss: enforce that predictions have similar physical properties as target
+                            div_error = ((div_pred - div_target) ** 2).mean()
+                            vort_error = ((vort_pred - vort_target) ** 2).mean()
+                            loss_phy_value = lambda_phy * (div_error + 0.1 * vort_error)
+                        
+                            if verbose and batch_idx == 0:
+                                print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
+                        except Exception as e:
+                            # Fallback to target-only physical loss if sampling fails
+                            if verbose:
+                                print(f"[WARN] Physical loss sampling failed: {e}, falling back to target-only")
+                            div_target = compute_divergence(target, dx=dx, dy=dy)
+                            vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                            div_penalty = (div_target ** 2).mean()
+                            vort_penalty = (vort_target ** 2).mean()
+                            loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
+                else:
+                    # Default: compute physical loss on target only (fast, acts as regularization)
+                    # This ensures target satisfies physical laws
+                    div_target = compute_divergence(target, dx=dx, dy=dy)
+                    vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                    # Penalize non-zero divergence (should be ~0 for mass conservation) and inconsistent vorticity
+                    div_penalty = (div_target ** 2).mean()
+                    vort_penalty = (vort_target ** 2).mean()
+                    loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
         
-        # Check for NaN or Inf
-        if torch.isnan(loss_total) or torch.isinf(loss_total):
-            print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")
-            print(f"   - Loss total: {loss_total.item()}")
-            print(f"   - Loss gen: {loss_gen_value.item()}")
-            print(f"   - Loss rec: {loss_rec_value.item()}")
-            print(f"   - Loss DAG: {loss_dag_value.item()}")
-            if torch.isnan(loss_total):
-                print(f"   - Loss is NaN, skipping batch")
-                continue
-            elif torch.isinf(loss_total):
-                print(f"   - Loss is Inf, skipping batch")
-                continue
+            diffusion_time = time.time() - diffusion_time
         
-        loss_time = time.time() - loss_time
+            if verbose and batch_idx == 0:
+                print(f"   - Diffusion time: {diffusion_time:.4f}s")
+                if lambda_phy > 0.0:
+                    print(f"   - Physical loss: {loss_phy_value.item():.6f}")
+                if nan_count > 0:
+                    print(f"   - Loss computed on {target.numel() - nan_count}/{target.numel()} valid pixels ({1.0 - nan_ratio:.2%})")
+
+            # Phase C1: Mixed Precision - Compute total loss
+            with _train_autocast(amp_mode):
+                loss_total = (
+                    loss_gen_value
+                    + loss_rec_value
+                    + loss_dag_value
+                    + loss_phy_value
+                )
         
-        # Phase C1: Mixed Precision - Backward pass with scaler
-        backward_time = time.time()
-        if use_amp and scaler is not None:
-            scaler.scale(loss_total).backward()
-        else:
-            loss_total.backward()
-        backward_time = time.time() - backward_time
+            # Check for NaN or Inf
+            if torch.isnan(loss_total) or torch.isinf(loss_total):
+                print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")
+                print(f"   - Loss total: {loss_total.item()}")
+                print(f"   - Loss gen: {loss_gen_value.item()}")
+                print(f"   - Loss rec: {loss_rec_value.item()}")
+                print(f"   - Loss DAG: {loss_dag_value.item()}")
+                if torch.isnan(loss_total):
+                    print(f"   - Loss is NaN, skipping batch")
+                    continue
+                elif torch.isinf(loss_total):
+                    print(f"   - Loss is Inf, skipping batch")
+                    continue
+
+            # Accumulate for logging (average over micro-batches)
+            step_loss_total += loss_total.item()
+            step_loss_gen += loss_gen_value.item()
+            step_loss_rec += loss_rec_value.item()
+            step_loss_dag += loss_dag_value.item()
+            step_loss_phy += loss_phy_value.item()
+
+            # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
+            # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
+            backward_time = time.time()
+            scale = 1.0 / len(batches)  # Scale gradients for accumulation
+            is_last_micro = (micro_idx == len(batches) - 1)
+            ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
+            ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
+            ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
+            with ctx_enc, ctx_rcn, ctx_diff:
+                if amp_mode == "cuda_fp16":
+                    scaler.scale(loss_total * scale).backward()
+                else:
+                    (loss_total * scale).backward()
+            backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:
             clip_time = time.time()
-            if use_amp and scaler is not None:
+            if amp_mode == "cuda_fp16":
                 # Unscale gradients before clipping
                 scaler.unscale_(optimizer)
                 grad_norm_rcn = torch.nn.utils.clip_grad_norm_(rcn_runner.cell.parameters(), gradient_clipping)
@@ -5803,33 +8437,52 @@ def train_epoch(
                 grad_norm_enc = torch.nn.utils.clip_grad_norm_(encoder.parameters(), gradient_clipping)
             clip_time = time.time() - clip_time
             
+            # Vérifier les gradients après clipping pour détecter les NaN
+            nan_grads_found = False
+            for name, param in encoder.named_parameters():
+                if param.grad is not None and torch.isnan(param.grad).any():
+                    print(f"[ERROR] NaN gradient detected in encoder.{name}")
+                    nan_grads_found = True
+            for name, param in rcn_runner.cell.named_parameters():
+                if param.grad is not None and torch.isnan(param.grad).any():
+                    print(f"[ERROR] NaN gradient detected in rcn.{name}")
+                    nan_grads_found = True
+            for name, param in diffusion_decoder.named_parameters():
+                if param.grad is not None and torch.isnan(param.grad).any():
+                    print(f"[ERROR] NaN gradient detected in diffusion.{name}")
+                    nan_grads_found = True
+            
+            if nan_grads_found:
+                print(f"[WARN] NaN gradients detected after clipping - this may indicate model divergence")
+            
             if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
                 print(f"   - Gradient norms (clipped): RCN={grad_norm_rcn:.4f}, Diff={grad_norm_diff:.4f}, Enc={grad_norm_enc:.4f}")
 
-        # Phase C1: Mixed Precision - Optimizer step with scaler
-        if use_amp and scaler is not None:
+        # Phase C1: Mixed Precision - Optimizer step with scaler (CUDA only)
+        if amp_mode == "cuda_fp16":
             scaler.step(optimizer)
             scaler.update()
         else:
             optimizer.step()
         step_time = time.time() - batch_start_time
 
-        total_loss += loss_total.item()
-        total_gen += loss_gen_value.item()
-        total_rec += loss_rec_value.item()
-        total_dag += loss_dag_value.item()
-        total_phy += loss_phy_value.item()
+        n_micro = len(batches)
+        total_loss += step_loss_total
+        total_gen += step_loss_gen
+        total_rec += step_loss_rec
+        total_dag += step_loss_dag
+        total_phy += step_loss_phy
         num_batches += 1
         
-        # Logging
+        # Logging (show average loss over micro-batches when batch_size > 1)
         if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
-            print(f"\nBatch {batch_idx + 1}:")
-            print(f"   - Loss total: {loss_total.item():.6f}")
-            print(f"   - Loss gen: {loss_gen_value.item():.6f}")
-            print(f"   - Loss rec: {loss_rec_value.item():.6f}")
-            print(f"   - Loss DAG: {loss_dag_value.item():.6f}")
+            print(f"\nBatch {batch_idx + 1}" + (f" (n={n_micro})" if n_micro > 1 else "") + ":")
+            print(f"   - Loss total: {step_loss_total/n_micro:.6f}")
+            print(f"   - Loss gen: {step_loss_gen/n_micro:.6f}")
+            print(f"   - Loss rec: {step_loss_rec/n_micro:.6f}")
+            print(f"   - Loss DAG: {step_loss_dag/n_micro:.6f}")
             if lambda_phy > 0.0:
-                print(f"   - Loss phy: {loss_phy_value.item():.6f}")
+                print(f"   - Loss phy: {step_loss_phy/n_micro:.6f}")
             print(f"   - Batch time: {step_time:.4f}s")
             if batch_idx == 0:
                 print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
@@ -5878,22 +8531,208 @@ def train_epoch(
     return result
 ```
 
-**Fonctions principales:**
-- `train_epoch()`: Boucle d'entraînement complète
-- `loss_reconstruction()`: Perte de reconstruction (MSE, cosine, ou combiné)
-- `loss_diffusion()`: Perte de diffusion
-- `loss_dagma()`: Contrainte DAGMA (plus stable que NO TEARS)
-- `loss_physical()`: Perte physique (divergence + vorticité)
-- `compute_divergence()`: Calcul de la divergence
-- `compute_vorticity()`: Calcul de la vorticité
+---
 
-**Fonctionnalités:**
-- Mixed precision training (AMP)
-- Early stopping et LR scheduling
-- Gradient clipping
-- Support focal loss
-- Perte physique optionnelle
-- DAG stabilisation avec L1 regularization
+### `src/st_cdgm/training/multi_gpu.py`
+
+```python
+"""
+Multi-GPU training utilities for ST-CDGM.
+
+Provides functions for setting up and managing distributed training with
+DistributedDataParallel (DDP) across multiple GPUs.
+"""
+
+from __future__ import annotations
+
+import os
+import warnings
+from typing import Optional
+
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+
+def setup_ddp(rank: int, world_size: int, backend: str = "nccl") -> None:
+    """
+    Initialize the distributed process group for DDP.
+    
+    Parameters
+    ----------
+    rank : int
+        Rank of the current process (GPU ID).
+    world_size : int
+        Total number of processes (GPUs).
+    backend : str, optional
+        Backend for distributed communication ('nccl' for GPUs, 'gloo' for CPU).
+    """
+    os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", "localhost")
+    os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", "12355")
+    
+    if not dist.is_initialized():
+        dist.init_process_group(backend=backend, rank=rank, world_size=world_size)
+        print(f"[Rank {rank}] Initialized DDP process group (world_size={world_size})")
+
+
+def cleanup_ddp() -> None:
+    """
+    Clean up the distributed process group.
+    """
+    if dist.is_initialized():
+        dist.destroy_process_group()
+        print("Cleaned up DDP process group")
+
+
+def wrap_model_ddp(
+    model: torch.nn.Module,
+    device_ids: list[int],
+    find_unused_parameters: bool = False,
+) -> DDP:
+    """
+    Wrap a model with DistributedDataParallel.
+    
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model to wrap.
+    device_ids : list[int]
+        List of GPU IDs to use (typically [rank] for single GPU per process).
+    find_unused_parameters : bool, optional
+        Whether to find unused parameters (required for PyG HeteroData graphs).
+        
+    Returns
+    -------
+    DDP
+        Wrapped model ready for distributed training.
+    """
+    # Move model to the appropriate device
+    if len(device_ids) > 0:
+        model = model.to(device_ids[0])
+    
+    # Wrap with DDP
+    ddp_model = DDP(
+        model,
+        device_ids=device_ids,
+        output_device=device_ids[0] if len(device_ids) > 0 else None,
+        find_unused_parameters=find_unused_parameters,
+    )
+    
+    return ddp_model
+
+
+def get_rank() -> int:
+    """
+    Get the rank of the current process.
+    
+    Returns
+    -------
+    int
+        Rank of the current process (0 if not in DDP mode).
+    """
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank()
+    return 0
+
+
+def get_world_size() -> int:
+    """
+    Get the total number of processes (GPUs).
+    
+    Returns
+    -------
+    int
+        Total number of processes (1 if not in DDP mode).
+    """
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_world_size()
+    return 1
+
+
+def is_main_process() -> bool:
+    """
+    Check if the current process is the main process (rank 0).
+    
+    Returns
+    -------
+    bool
+        True if rank 0 or not in DDP mode.
+    """
+    return get_rank() == 0
+
+
+def setup_multi_gpu_notebook(config) -> tuple[bool, int, int]:
+    """
+    Setup multi-GPU configuration for notebook environment.
+    
+    This is a simplified version for Jupyter notebooks that doesn't use
+    torch.distributed.launch. Instead, it uses DataParallel for multi-GPU.
+    
+    For full DDP support, training should be launched via torch.distributed.launch
+    or torchrun with a separate Python script.
+    
+    Parameters
+    ----------
+    config : omegaconf.DictConfig
+        Configuration object with multi_gpu settings.
+        
+    Returns
+    -------
+    tuple[bool, int, int]
+        (use_multi_gpu, rank, world_size)
+    """
+    if not config.training.get("multi_gpu", {}).get("enabled", False):
+        return False, 0, 1
+    
+    # In notebook environment, we can't use full DDP without proper launch
+    # We'll use DataParallel instead (simpler but less efficient)
+    warnings.warn(
+        "Multi-GPU in notebook uses DataParallel, not DistributedDataParallel. "
+        "For full DDP performance, run training from a script with torchrun."
+    )
+    
+    gpus = config.training.multi_gpu.get("gpus", [0])
+    world_size = len(gpus)
+    
+    return True, 0, world_size  # Notebook always acts as rank 0
+
+
+def wrap_models_for_notebook(models: dict, config) -> dict:
+    """
+    Wrap models for multi-GPU training in notebook environment.
+    
+    Uses DataParallel for simplicity in notebooks. For full DDP, use a script.
+    
+    Parameters
+    ----------
+    models : dict
+        Dictionary of models to wrap (e.g., {'encoder': encoder, 'rcn': rcn, ...})
+    config : omegaconf.DictConfig
+        Configuration with multi_gpu settings.
+        
+    Returns
+    -------
+    dict
+        Dictionary of wrapped models.
+    """
+    if not config.training.get("multi_gpu", {}).get("enabled", False):
+        return models
+    
+    gpus = config.training.multi_gpu.get("gpus", [0])
+    
+    wrapped = {}
+    for name, model in models.items():
+        if model is not None:
+            # Use DataParallel for notebook multi-GPU
+            wrapped[name] = torch.nn.DataParallel(model, device_ids=gpus)
+            print(f"[MultiGPU] Wrapped {name} with DataParallel on GPUs {gpus}")
+        else:
+            wrapped[name] = None
+    
+    return wrapped
+```
+
+---
 
 ### `src/st_cdgm/evaluation/__init__.py`
 
@@ -5904,13 +8743,23 @@ Modules d'évaluation et XAI pour ST-CDGM.
 
 from .evaluation_xai import (
     autoregressive_inference,
+    convert_sample_to_batch,
+    extract_target_baseline_and_mask,
+    resize_diffusion_output_to_spatial,
+    resize_tensor_bicubic_nonneg,
+    run_st_cdgm_inference,
     evaluate_metrics,
     compute_crps,
+    compute_crps_pixel_map,
     compute_fss,
+    compute_f1_extremes,
+    compute_spectrum_distance,
+    compute_temporal_variance_metrics,
     compute_wasserstein_distance,
     compute_energy_score,
     compute_structural_hamming_distance,
     plot_dag_heatmap,
+    plot_probabilistic_dashboard_3x3,
     export_dag_to_csv,
     export_dag_to_json,
     MetricReport,
@@ -5919,13 +8768,23 @@ from .evaluation_xai import (
 
 __all__ = [
     "autoregressive_inference",
+    "convert_sample_to_batch",
+    "extract_target_baseline_and_mask",
+    "resize_diffusion_output_to_spatial",
+    "resize_tensor_bicubic_nonneg",
+    "run_st_cdgm_inference",
     "evaluate_metrics",
     "compute_crps",
+    "compute_crps_pixel_map",
     "compute_fss",
+    "compute_f1_extremes",
+    "compute_spectrum_distance",
+    "compute_temporal_variance_metrics",
     "compute_wasserstein_distance",
     "compute_energy_score",
     "compute_structural_hamming_distance",
     "plot_dag_heatmap",
+    "plot_probabilistic_dashboard_3x3",
     "export_dag_to_csv",
     "export_dag_to_json",
     "MetricReport",
@@ -5933,11 +8792,13 @@ __all__ = [
 ]
 ```
 
+---
+
 ### `src/st_cdgm/evaluation/evaluation_xai.py`
 
 ```python
 """
-Module 7 – Évaluation et interprétabilité (XAI) pour l'architecture ST-CDGM.
+Module 7 – Évaluation et interprétabilité (XAI) pour l’architecture ST-CDGM.
 
 Ce module propose des fonctions pour :
   * effectuer une inférence auto-régressive avec génération multi-échantillons,
@@ -5956,10 +8817,13 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
+from ..models.graph_builder import HeteroGraphBuilder
 from ..models.causal_rcn import RCNCell, RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
+from ..models.intelligible_encoder import IntelligibleVariableEncoder
 
 try:
     import seaborn as sns
@@ -5980,6 +8844,160 @@ class InferenceResult:
     generations: List[List[DiffusionOutput]]  # [time][sample]
     states: List[Tensor]
     dag_matrices: List[Tensor]
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 / 5 — Inférence centralisée (bicubique, masque NaN)
+# ---------------------------------------------------------------------------
+
+
+def resize_tensor_bicubic_nonneg(
+    x: Tensor,
+    size: Tuple[int, int],
+    *,
+    clamp_min: float = 0.0,
+) -> Tensor:
+    """
+    Redimensionnement spatial bicubique + clamp (précip / champs positifs).
+    Remplace l'interpolation bilinéaire (passe-bas) du pipeline legacy.
+    """
+    if x.dim() != 4:
+        raise ValueError(f"Attendu [B,C,H,W], obtenu {tuple(x.shape)}")
+    y = F.interpolate(x, size=size, mode="bicubic", align_corners=False)
+    return torch.clamp(y, min=clamp_min)
+
+
+def resize_diffusion_output_to_spatial(
+    out: DiffusionOutput,
+    spatial: Tuple[int, int],
+    *,
+    clamp_min: float = 0.0,
+) -> DiffusionOutput:
+    """Aligne t_min / t_mean / t_max / residual sur la grille cible."""
+    Ht, Wt = spatial
+
+    def _resize(t: Tensor) -> Tensor:
+        if t.dim() != 4:
+            return t
+        if t.shape[-2:] == (Ht, Wt):
+            return t
+        return resize_tensor_bicubic_nonneg(t, (Ht, Wt), clamp_min=clamp_min)
+
+    res = _resize(out.residual)
+    base = out.baseline
+    if base is not None and base.dim() == 4 and base.shape[-2:] != (Ht, Wt):
+        base = resize_tensor_bicubic_nonneg(base, (Ht, Wt), clamp_min=clamp_min)
+    return DiffusionOutput(
+        residual=res,
+        baseline=base,
+        t_min=_resize(out.t_min),
+        t_mean=_resize(out.t_mean),
+        t_max=_resize(out.t_max),
+    )
+
+
+def convert_sample_to_batch(
+    sample: dict,
+    builder: HeteroGraphBuilder,
+    device: torch.device,
+) -> dict:
+    """Construit lr, residual, baseline, hetero depuis un échantillon dataset."""
+    lr_seq = sample["lr"]
+    seq_len = lr_seq.shape[0]
+    lr_nodes_steps = [builder.lr_grid_to_nodes(lr_seq[t]) for t in range(seq_len)]
+    lr_tensor = torch.stack(lr_nodes_steps, dim=0)
+    dynamic_features = {node_type: lr_nodes_steps[0] for node_type in builder.dynamic_node_types}
+    hetero = builder.prepare_step_data(dynamic_features).to(device)
+    return {
+        "lr": lr_tensor,
+        "residual": sample["residual"],
+        "baseline": sample.get("baseline"),
+        "hetero": hetero,
+    }
+
+
+def extract_target_baseline_and_mask(
+    batch: dict,
+    device: torch.device,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    """
+    Cible HR, baseline et masque de validité (True = donnée observée).
+
+    Phase 5.1 : le masque est extrait **avant** nan_to_num.
+    """
+    target_residual = batch["residual"][-1].to(device)
+    baseline_tensor = (
+        batch["baseline"][-1]
+        if batch.get("baseline") is not None
+        else torch.zeros_like(target_residual)
+    )
+    baseline_tensor = baseline_tensor.to(device)
+    full_target = baseline_tensor + target_residual
+
+    valid_mask = ~torch.isnan(full_target)
+
+    baseline_tensor = torch.nan_to_num(baseline_tensor, nan=0.0, posinf=0.0, neginf=0.0)
+    full_target = torch.nan_to_num(full_target, nan=0.0, posinf=0.0, neginf=0.0)
+
+    b = baseline_tensor.unsqueeze(0) if baseline_tensor.dim() == 3 else baseline_tensor
+    t = full_target.unsqueeze(0) if full_target.dim() == 3 else full_target
+    m = valid_mask.unsqueeze(0) if valid_mask.dim() == 3 else valid_mask
+    return t, b, m
+
+
+@torch.no_grad()
+def run_st_cdgm_inference(
+    sample: dict,
+    *,
+    builder: HeteroGraphBuilder,
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    diffusion: CausalDiffusionDecoder,
+    device: torch.device,
+    num_samples: int,
+    num_steps: int,
+    scheduler_type: str = "ddpm",
+    apply_constraints: bool = False,
+    use_log1p_inverse: bool = False,
+    cfg_scale: float = 0.0,
+) -> Tuple[List[DiffusionOutput], Tensor, Tensor, Tensor, Tensor]:
+    """
+    Inférence complète encodeur → RCN → diffusion (multi-échantillons).
+
+    Retourne ``samples_out, target_batch, baseline_batch, dag_last, mask_batch``.
+    """
+    batch = convert_sample_to_batch(sample, builder, device)
+    lr_data = batch["lr"].to(device)
+    target_batch, baseline_batch, mask_batch = extract_target_baseline_and_mask(batch, device)
+
+    H_init = encoder.init_state(batch["hetero"]).to(device)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+    conditioning = encoder.project_state_tensor(seq_output.states[-1]).to(device)
+    dag_last = seq_output.dag_matrices[-1].detach().cpu()
+
+    samples_out: List[DiffusionOutput] = []
+    for _ in range(num_samples):
+        generated = diffusion.sample(
+            conditioning,
+            num_steps=num_steps,
+            scheduler_type=scheduler_type,
+            apply_constraints=apply_constraints,
+            baseline=baseline_batch,
+            cfg_scale=cfg_scale,
+        )
+        if generated.t_mean.shape != target_batch.shape:
+            generated = resize_diffusion_output_to_spatial(
+                generated,
+                (target_batch.shape[-2], target_batch.shape[-1]),
+                clamp_min=0.0,
+            )
+        generated.t_mean = torch.nan_to_num(generated.t_mean, nan=0.0, posinf=0.0, neginf=0.0)
+        if use_log1p_inverse:
+            generated.t_mean = torch.expm1(generated.t_mean)
+        samples_out.append(generated)
+
+    return samples_out, target_batch.cpu(), baseline_batch.cpu(), dag_last, mask_batch.cpu()
 
 
 def autoregressive_inference(
@@ -6029,12 +9047,26 @@ def autoregressive_inference(
 # Métriques de précision et de réalisme
 # ---------------------------------------------------------------------------
 
-def compute_mse(pred: Tensor, target: Tensor) -> float:
-    return torch.mean((pred - target) ** 2).item()
+def compute_mse(pred: Tensor, target: Tensor, mask: Optional[Tensor] = None) -> float:
+    """Calcule MSE avec gestion des NaN."""
+    if mask is None:
+        mask = ~torch.isnan(target) & ~torch.isnan(pred)
+    pred_valid = pred[mask]
+    target_valid = target[mask]
+    if pred_valid.numel() == 0:
+        return 0.0
+    return torch.mean((pred_valid - target_valid) ** 2).item()
 
 
-def compute_mae(pred: Tensor, target: Tensor) -> float:
-    return torch.mean(torch.abs(pred - target)).item()
+def compute_mae(pred: Tensor, target: Tensor, mask: Optional[Tensor] = None) -> float:
+    """Calcule MAE avec gestion des NaN."""
+    if mask is None:
+        mask = ~torch.isnan(target) & ~torch.isnan(pred)
+    pred_valid = pred[mask]
+    target_valid = target[mask]
+    if pred_valid.numel() == 0:
+        return 0.0
+    return torch.mean(torch.abs(pred_valid - target_valid)).item()
 
 
 def compute_histogram_distance(pred: Tensor, target: Tensor, bins: int = 50) -> float:
@@ -6049,14 +9081,68 @@ def compute_histogram_distance(pred: Tensor, target: Tensor, bins: int = 50) -> 
     return float(distance)
 
 
-def compute_crps(samples: Sequence[Tensor], target: Tensor) -> float:
+def compute_crps_pixel_map(pred_stack: Tensor, target: Tensor) -> Tensor:
+    """
+    Carte CRPS pixel (formule énergétique) : pred_stack [N,C,H,W], target [C,H,W] ou [1,C,H,W].
+    """
+    if target.dim() == 4:
+        target = target.squeeze(0)
+    tgt = target[0] if target.dim() == 3 else target
+    x = pred_stack[:, 0] if pred_stack.dim() == 4 and pred_stack.shape[1] >= 1 else pred_stack
+    n = x.shape[0]
+    if n < 1:
+        raise ValueError("Ensemble vide")
+    term1 = (x - tgt.unsqueeze(0)).abs().mean(dim=0)
+    if n < 2:
+        return term1
+    term2 = (x.unsqueeze(0) - x.unsqueeze(1)).abs().mean(dim=(0, 1)) * 0.5
+    return term1 - term2
+
+
+def compute_spread_skill_ratio(pred_std_map: np.ndarray, err_map: np.ndarray, valid_mask: np.ndarray) -> float:
+    """Ratio moyen spread / erreur sur pixels valides (objectif ~1 calibration)."""
+    m = valid_mask & np.isfinite(pred_std_map) & np.isfinite(err_map)
+    if not np.any(m):
+        return float("nan")
+    spread = pred_std_map[m].mean()
+    skill = err_map[m].mean()
+    if skill < 1e-12:
+        return float("nan")
+    return float(spread / skill)
+
+
+def compute_rapsd_numpy(field: np.ndarray) -> np.ndarray:
+    """RAPSD 2D (numpy) pour une carte [H,W]."""
+    fft2 = np.fft.fft2(field)
+    power = np.abs(np.fft.fftshift(fft2)) ** 2
+    h, w = power.shape
+    cy, cx = h // 2, w // 2
+    y_idx, x_idx = np.indices((h, w))
+    r = np.sqrt((x_idx - cx) ** 2 + (y_idx - cy) ** 2).astype(np.int64)
+    radial_sum = np.bincount(r.ravel(), power.ravel())
+    radial_cnt = np.bincount(r.ravel())
+    valid = radial_cnt > 0
+    out = np.zeros_like(radial_sum, dtype=np.float64)
+    out[valid] = radial_sum[valid] / radial_cnt[valid]
+    return out
+
+
+def compute_crps(
+    samples: Sequence[Tensor],
+    target: Tensor,
+    *,
+    max_ensemble_members: Optional[int] = None,
+) -> float:
     """
     Calcule le CRPS (Continuous Ranked Probability Score) pour un ensemble d'échantillons.
-    
+    Formule quadratique en la taille d'ensemble : plafonner ``max_ensemble_members`` (premiers membres) sur CPU.
+
     Phase 4.1: Improved CRPS implementation.
     """
     if len(samples) == 0:
         return float("nan")
+    if max_ensemble_members is not None and len(samples) > max_ensemble_members:
+        samples = list(samples)[:max_ensemble_members]
     stack = torch.stack(samples, dim=0)  # [ensemble, C, H, W]
     target = target.unsqueeze(0)
     term1 = torch.abs(stack - target).mean(dim=0)
@@ -6327,6 +9413,61 @@ def compute_spectrum_distance(pred: Tensor, target: Tensor) -> float:
     return torch.mean(torch.abs(pred_spec - target_spec)).item()
 
 
+def compute_temporal_variance_metrics(
+    predictions: Sequence[Tensor],
+    targets: Sequence[Tensor],
+) -> Dict[str, float]:
+    """
+    Compare la variabilité temporelle des prédictions et des cibles.
+
+    Calcule la variance le long de la dimension "temps" (échantillons ordonnés),
+    puis compare les champs de variance (RMSE et corrélation de Pearson).
+
+    Parameters
+    ----------
+    predictions : Sequence[Tensor]
+        Liste de tenseurs [C, H, W] ou [1, C, H, W] (un par pas de temps / échantillon).
+    targets : Sequence[Tensor]
+        Liste de tenseurs de même forme que predictions.
+
+    Returns
+    -------
+    Dict[str, float]
+        {"temporal_var_rmse": float, "temporal_var_corr": float}
+        Si N < 2, les valeurs sont float("nan").
+    """
+    nan_result = {"temporal_var_rmse": float("nan"), "temporal_var_corr": float("nan")}
+    if len(predictions) < 2 or len(targets) < 2 or len(predictions) != len(targets):
+        return nan_result
+
+    # Stack: ensure [N, C, H, W]
+    pred_list = [p.squeeze(0) if p.dim() == 4 else p for p in predictions]
+    tgt_list = [t.squeeze(0) if t.dim() == 4 else t for t in targets]
+    pred_stack = torch.stack(pred_list, dim=0)
+    target_stack = torch.stack(tgt_list, dim=0)
+
+    # Variance along dim=0 -> [C, H, W]
+    var_pred = pred_stack.var(dim=0)
+    var_target = target_stack.var(dim=0)
+
+    # Flatten for scalar metrics
+    vp = var_pred.flatten()
+    vt = var_target.flatten()
+
+    # RMSE between variance maps
+    rmse = torch.sqrt(torch.mean((vp - vt) ** 2)).item()
+
+    # Pearson correlation
+    vp_c = vp - vp.mean()
+    vt_c = vt - vt.mean()
+    eps = 1e-8
+    num = (vp_c * vt_c).sum()
+    denom = torch.sqrt((vp_c ** 2).sum()) * torch.sqrt((vt_c ** 2).sum()) + eps
+    corr = (num / denom).item() if denom.item() > eps else 0.0
+
+    return {"temporal_var_rmse": rmse, "temporal_var_corr": corr}
+
+
 @dataclass
 class MetricReport:
     mse: float
@@ -6342,6 +9483,15 @@ class MetricReport:
     energy_score: Optional[float] = None
     # Phase C4: F1 scores for extreme events
     f1_extremes: Optional[Dict[str, float]] = None
+    # Phase 1 / 8 — métriques probabilistes (membre unique + CRPS spatial)
+    mse_single_member: Optional[float] = None
+    mae_single_member: Optional[float] = None
+    corr_single_member: Optional[float] = None
+    crps_spatial_mean: Optional[float] = None
+    spectral_distance_rapsd: Optional[float] = None
+    spread_skill_ratio: Optional[float] = None
+    crps_p99: Optional[float] = None
+    primary_kpi: str = "crps"
 
 
 def evaluate_metrics(
@@ -6352,39 +9502,88 @@ def evaluate_metrics(
     compute_advanced: bool = True,
     fss_threshold: Optional[float] = None,
     fss_window_size: int = 9,
-    compute_f1_extremes: bool = True,  # Phase C4: Compute F1 for extreme events
-    f1_percentiles: Sequence[float] = [95.0, 99.0],  # Phase C4: Percentiles for F1
+    include_f1_extremes: bool = True,
+    f1_percentiles: Sequence[float] = [95.0, 99.0],
+    use_mean_aggregation: bool = False,
+    valid_mask: Optional[Tensor] = None,
+    crps_max_ensemble_members: Optional[int] = None,
 ) -> MetricReport:
     """
-    Calcule un ensemble de métriques à partir des échantillons générés.
-    
-    Phase 4.1: Now includes advanced metrics (FSS, Wasserstein, Energy Score).
-    
-    Parameters
-    ----------
-    samples : Sequence[DiffusionOutput]
-        Ensemble d'échantillons générés
-    target : Tensor
-        Cible [C, H, W] ou [H, W]
-    baseline : Optional[Tensor]
-        Baseline optionnel pour comparaison
-    compute_advanced : bool
-        Si True, calcule les métriques avancées (FSS, Wasserstein, Energy Score)
-    fss_threshold : Optional[float]
-        Seuil pour le calcul du FSS (si None, FSS n'est pas calculé)
-    fss_window_size : int
-        Taille de fenêtre pour le FSS (doit être impair)
+    Métriques à partir des échantillons. Par défaut : **membre unique** (Phase 1) pour MSE/MAE/spectre ;
+    CRPS et métriques d'ensemble utilisent tout l'ensemble. Option ``use_mean_aggregation=True`` : ancien comportement (moyenne).
+    ``valid_mask`` [H,W] bool True = pixel valide (Phase 5).
+    ``crps_max_ensemble_members`` : borne la taille d'ensemble pour CRPS / carte CRPS (coût O(n²)) ; None = pas de borne.
     """
     if len(samples) == 0:
         raise ValueError("La liste d'échantillons ne doit pas être vide.")
     stacked_means = torch.stack([sample.t_mean for sample in samples], dim=0)
-    pred_mean = stacked_means.mean(dim=0)
+    pred_ensemble_mean = stacked_means.mean(dim=0)
+    pred_primary = pred_ensemble_mean if use_mean_aggregation else stacked_means[0]
 
-    mse = compute_mse(pred_mean, target)
-    mae = compute_mae(pred_mean, target)
-    hist_distance = compute_histogram_distance(pred_mean, target)
-    crps = compute_crps([sample.t_mean for sample in samples], target)
-    spectrum = compute_spectrum_distance(pred_mean, target)
+    mask_t = valid_mask
+    if mask_t is not None and mask_t.dim() == 3:
+        mask_t = mask_t.squeeze(0)
+    if mask_t is not None and mask_t.dim() == 3:
+        mask_t = mask_t[0]
+
+    mse = compute_mse(pred_primary, target, mask=None)
+    mae = compute_mae(pred_primary, target, mask=None)
+    hist_distance = compute_histogram_distance(pred_primary, target)
+    if (
+        crps_max_ensemble_members is not None
+        and crps_max_ensemble_members > 0
+        and len(samples) > crps_max_ensemble_members
+    ):
+        samples_crps = list(samples)[: crps_max_ensemble_members]
+    else:
+        samples_crps = list(samples)
+    crps = compute_crps([sample.t_mean for sample in samples_crps], target)
+    spectrum = compute_spectrum_distance(pred_primary, target)
+
+    # --- Phase 1 / 8 : membre unique + CRPS spatial + RAPSD ---
+    pred_single = stacked_means[0]
+    mse_single = mae_single = corr_single = None
+    crps_spatial_mean = spectral_dist_rapsd = spread_skill = crps_p99 = None
+    try:
+        ps_full = stacked_means.detach().cpu()
+        ps = torch.stack([sample.t_mean for sample in samples_crps], dim=0).detach().cpu()
+        tg = target.detach().cpu()
+        if tg.dim() == 3:
+            tg = tg.unsqueeze(0)
+        crps_map = compute_crps_pixel_map(ps, tg)
+        crps_spatial_mean = float(crps_map.mean().item())
+        crps_p99 = float(torch.quantile(crps_map.flatten(), 0.99).item())
+
+        p0 = pred_single.detach().cpu().numpy()
+        t0 = tg.squeeze(0).numpy()
+        if p0.ndim == 3:
+            p0 = p0[0]
+        if t0.ndim == 3:
+            t0 = t0[0]
+        rp = compute_rapsd_numpy(p0)
+        rt = compute_rapsd_numpy(t0)
+        nbin = min(len(rp), len(rt))
+        spectral_dist_rapsd = float(np.mean((rp[:nbin] - rt[:nbin]) ** 2))
+
+        mse_single = float(compute_mse(pred_single, target, mask=None))
+        mae_single = float(compute_mae(pred_single, target, mask=None))
+        pf = p0.flatten()
+        tf = t0.flatten()
+        valid = np.isfinite(pf) & np.isfinite(tf)
+        if np.sum(valid) > 2:
+            corr_single = float(np.corrcoef(pf[valid], tf[valid])[0, 1])
+
+        if mask_t is not None:
+            m_np = mask_t.detach().cpu().numpy().astype(bool)
+            if m_np.ndim == 3:
+                m_np = m_np[0]
+            err_abs = np.abs(p0 - t0)
+            std_map = ps_full[:, 0].numpy().std(axis=0) if ps_full.shape[1] >= 1 else np.zeros_like(p0)
+            spread_skill = compute_spread_skill_ratio(std_map, err_abs, m_np)
+            mse = float(np.mean(((p0 - t0) ** 2)[m_np]))
+            mae = float(np.mean(err_abs[m_np]))
+    except Exception as ex:
+        warnings.warn(f"Métriques probabilistes étendues: {ex}")
 
     baseline_mse = baseline_mae = None
     baseline_tensor = baseline
@@ -6394,34 +9593,24 @@ def evaluate_metrics(
         baseline_mse = compute_mse(baseline_tensor, target)
         baseline_mae = compute_mae(baseline_tensor, target)
 
-    # Phase 4.1: Compute advanced metrics if requested
     fss_val = None
     wasserstein_val = None
     energy_score_val = None
-    
+
     if compute_advanced:
         try:
-            # Compute FSS if threshold is provided
             if fss_threshold is not None:
-                fss_val = compute_fss(pred_mean, target, threshold=fss_threshold, window_size=fss_window_size)
-            
-            # Compute Wasserstein distance
+                fss_val = compute_fss(pred_primary, target, threshold=fss_threshold, window_size=fss_window_size)
             wasserstein_val = compute_wasserstein_distance([sample.t_mean for sample in samples], target)
-            
-            # Compute Energy Score
             energy_score_val = compute_energy_score([sample.t_mean for sample in samples], target)
         except Exception as e:
-            # If advanced metrics fail, continue with basic metrics
-            import warnings
             warnings.warn(f"Failed to compute advanced metrics: {e}")
-    
-    # Phase C4: Compute F1 scores for extreme events
+
     f1_extremes_val = None
-    if compute_f1_extremes:
+    if include_f1_extremes:
         try:
-            f1_extremes_val = compute_f1_extremes(pred_mean, target, threshold_percentiles=f1_percentiles)
+            f1_extremes_val = compute_f1_extremes(pred_primary, target, threshold_percentiles=f1_percentiles)
         except Exception as e:
-            import warnings
             warnings.warn(f"Failed to compute F1 extremes: {e}")
 
     return MetricReport(
@@ -6436,7 +9625,97 @@ def evaluate_metrics(
         wasserstein_distance=wasserstein_val,
         energy_score=energy_score_val,
         f1_extremes=f1_extremes_val,
+        mse_single_member=mse_single,
+        mae_single_member=mae_single,
+        corr_single_member=corr_single,
+        crps_spatial_mean=crps_spatial_mean,
+        spectral_distance_rapsd=spectral_dist_rapsd,
+        spread_skill_ratio=spread_skill,
+        crps_p99=crps_p99,
+        primary_kpi="crps",
     )
+
+
+def plot_probabilistic_dashboard_3x3(
+    tgt_display: np.ndarray,
+    pred_single: np.ndarray,
+    err_display: np.ndarray,
+    pred_std: np.ndarray,
+    crps_map: np.ndarray,
+    mask_display: np.ndarray,
+    rapsd_pred: np.ndarray,
+    rapsd_tgt: np.ndarray,
+    spread_skill_ratio_val: float,
+    spearman_rho: float,
+    *,
+    title: str = "Dashboard probabiliste ST-CDGM",
+) -> plt.Figure:
+    """
+    Grille 3×3 : cible, prédiction, erreur masquée, écart-type, CRPS, masque, spread-skill, RAPSD, calibration.
+    """
+    fig, axes = plt.subplots(3, 3, figsize=(22, 18))
+    ax = axes.flatten()
+    im0 = ax[0].imshow(tgt_display, origin="lower", cmap="Blues")
+    ax[0].set_title("Cible HR (blanc = manquant)")
+    plt.colorbar(im0, ax=ax[0], fraction=0.046)
+    im1 = ax[1].imshow(pred_single, origin="lower", cmap="Blues")
+    ax[1].set_title("Prédiction (1 membre)")
+    plt.colorbar(im1, ax=ax[1], fraction=0.046)
+    im2 = ax[2].imshow(err_display, origin="lower", cmap="hot")
+    ax[2].set_title("|Erreur| masquée")
+    plt.colorbar(im2, ax=ax[2], fraction=0.046)
+    im3 = ax[3].imshow(pred_std, origin="lower", cmap="plasma")
+    ax[3].set_title("Écart-type intra-ensemble")
+    plt.colorbar(im3, ax=ax[3], fraction=0.046)
+    im4 = ax[4].imshow(crps_map, origin="lower", cmap="YlOrRd")
+    ax[4].set_title("CRPS pixel")
+    plt.colorbar(im4, ax=ax[4], fraction=0.046)
+    im5 = ax[5].imshow(mask_display.astype(float), origin="lower", cmap="gray_r", vmin=0, vmax=1)
+    ax[5].set_title("Masque valide")
+    plt.colorbar(im5, ax=ax[5], fraction=0.046)
+    ax[6].scatter(pred_std.flatten()[:: max(1, pred_std.size // 5000)], err_display.flatten()[:: max(1, err_display.size // 5000)], alpha=0.15, s=1, c="steelblue")
+    mx = float(np.nanmax([np.nanmax(pred_std), np.nanmax(err_display)]))
+    ax[6].plot([0, mx], [0, mx], "r--", label="1:1")
+    ax[6].set_xlabel("Spread")
+    ax[6].set_ylabel("|Erreur|")
+    ax[6].set_title("Spread–Skill")
+    ax[6].legend()
+    rad = np.arange(len(rapsd_pred))
+    ax[7].loglog(rad[1:], np.maximum(rapsd_pred[1:], 1e-20), label="Préd")
+    ax[7].loglog(rad[1:], np.maximum(rapsd_tgt[1:], 1e-20), label="Cible")
+    ax[7].set_title("RAPSD")
+    ax[7].legend()
+    ax[8].axis("off")
+    ax[8].text(
+        0.1,
+        0.7,
+        f"Spread/Skill ≈ {spread_skill_ratio_val:.3f}\nSpearman ρ (dispersion vs |y|) ≈ {spearman_rho:.3f}",
+        fontsize=12,
+        family="monospace",
+        transform=ax[8].transAxes,
+    )
+    fig.suptitle(title, fontsize=14)
+    plt.tight_layout()
+    return fig
+
+
+def spearman_dispersion_intensity(
+    pred_std: np.ndarray,
+    target_abs: np.ndarray,
+    valid_mask: np.ndarray,
+) -> float:
+    """Corrélation rang dispersion vs intensité observée (Phase 7.3), sans scipy."""
+    ps = pred_std[valid_mask].flatten()
+    ta = target_abs[valid_mask].flatten()
+    if ps.size < 10:
+        return float("nan")
+
+    def _rank(a: np.ndarray) -> np.ndarray:
+        return np.argsort(np.argsort(a))
+
+    rp = _rank(ps)
+    rt = _rank(ta)
+    return float(np.corrcoef(rp, rt)[0, 1])
 
 
 # ---------------------------------------------------------------------------
@@ -6575,7 +9854,45 @@ def compute_structural_hamming_distance(A_pred: Tensor, A_true: Tensor, threshol
 
 ---
 
-## 🔧 Scripts d'Opérations (`ops/`)
+### `src/st_cdgm/utils/__init__.py`
+
+```python
+"""Small utilities for ST-CDGM."""
+
+from .checkpoint import strip_torch_compile_prefix
+
+__all__ = ["strip_torch_compile_prefix"]
+```
+
+---
+
+### `src/st_cdgm/utils/checkpoint.py`
+
+```python
+"""Helpers for loading PyTorch checkpoints saved under different wrappers."""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+
+def strip_torch_compile_prefix(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Remove ``_orig_mod.`` key prefix produced by ``torch.compile`` when loading
+    into a non-compiled (eager) module.
+    """
+    if not state_dict:
+        return state_dict
+    keys = list(state_dict.keys())
+    if not any(str(k).startswith("_orig_mod.") for k in keys):
+        return state_dict
+    return {
+        (k[len("_orig_mod.") :] if str(k).startswith("_orig_mod.") else k): v
+        for k, v in state_dict.items()
+    }
+```
+
+---
 
 ### `ops/train_st_cdgm.py`
 
@@ -6615,6 +9932,8 @@ from st_cdgm import (
     RCNSequenceRunner,
     CausalDiffusionDecoder,
     train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
 )
 
 
@@ -6637,13 +9956,15 @@ class DataConfig:
     baseline_strategy: str = "hr_smoothing"
     baseline_factor: int = 4
     normalize: bool = True
+    nan_fill_strategy: str = "zero"  # "zero", "mean", or "interpolate"
+    precipitation_delta: float = 0.01  # Delta pour log1p des précipitations
 
 
 @dataclass
 class GraphConfig:
     lr_shape: Tuple[int, int] = (23, 26)
     hr_shape: Tuple[int, int] = (172, 179)
-    include_mid_layer: bool = False
+    include_mid_layer: bool = True
     static_variables: Optional[List[str]] = None
 
 
@@ -6692,17 +10013,18 @@ class TrainingConfig:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     gradient_clipping: Optional[float] = 1.0
     log_every: int = 1
+    num_workers: int = 0  # 0 avoids /dev/shm (CyVerse/Docker have ~64MB). Use 4-8 if shm is large
 
 
 @dataclass
 class STCDGMConfig:
-    data: DataConfig = DataConfig()
-    graph: GraphConfig = GraphConfig()
-    encoder: EncoderConfig = EncoderConfig()
-    rcn: RCNConfig = RCNConfig()
-    diffusion: DiffusionConfig = DiffusionConfig()
-    loss: LossConfig = LossConfig()
-    training: TrainingConfig = TrainingConfig()
+    data: DataConfig = field(default_factory=DataConfig)
+    graph: GraphConfig = field(default_factory=GraphConfig)
+    encoder: EncoderConfig = field(default_factory=EncoderConfig)
+    rcn: RCNConfig = field(default_factory=RCNConfig)
+    diffusion: DiffusionConfig = field(default_factory=DiffusionConfig)
+    loss: LossConfig = field(default_factory=LossConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
 
 
 cs = ConfigStore.instance()
@@ -6722,6 +10044,51 @@ def _build_encoder(cfg: EncoderConfig) -> IntelligibleVariableEncoder:
         configs=meta_configs,
         hidden_dim=cfg.hidden_dim,
         conditioning_dim=cfg.conditioning_dim,
+    )
+
+
+def build_encoder_for_graph(cfg_encoder, builder: HeteroGraphBuilder) -> IntelligibleVariableEncoder:
+    """
+    Construit l'encodeur en ne gardant que les méta-chemins dont src/cible existent dans le graphe.
+
+    Si ``graph.include_mid_layer`` est False, seuls GP850 (et SP_HR si données statiques) sont
+    présents : les chemins vers GP500/GP250 doivent être ignorés pour éviter KeyError après HeteroConv.
+    Aligné sur ``train_ddp.py`` et les notebooks d'inférence.
+    """
+    allowed_nodes = set(builder.dynamic_node_types) | set(builder.static_node_types)
+    meta_configs: List[IntelligibleVariableConfig] = []
+    for mp in cfg_encoder.metapaths:
+        if mp.src not in allowed_nodes or mp.target not in allowed_nodes:
+            continue
+        pool = getattr(mp, "pool", None) or "mean"
+        meta_configs.append(
+            IntelligibleVariableConfig(
+                name=mp.name,
+                meta_path=(mp.src, mp.relation, mp.target),
+                pool=pool,
+            )
+        )
+    static_key = ("SP_HR", "causes", "GP850")
+    if builder.static_dataset is not None and "SP_HR" in allowed_nodes:
+        if not any(c.meta_path == static_key for c in meta_configs):
+            meta_configs.append(
+                IntelligibleVariableConfig(
+                    name="static",
+                    meta_path=static_key,
+                    pool="mean",
+                )
+            )
+    if not meta_configs:
+        raise ValueError(
+            "Aucun méta-chemin compatible avec le graphe. "
+            f"Nœuds disponibles: {sorted(allowed_nodes)}. "
+            "Utilisez graph.include_mid_layer: true si vos méta-chemins utilisent GP500/GP250, "
+            "ou réduisez encoder.metapaths à la topologie présente (ex. GP850 uniquement)."
+        )
+    return IntelligibleVariableEncoder(
+        configs=meta_configs,
+        hidden_dim=cfg_encoder.hidden_dim,
+        conditioning_dim=cfg_encoder.conditioning_dim,
     )
 
 
@@ -6753,6 +10120,8 @@ def _convert_sample_to_batch(
         "baseline": sample.get("baseline"),
         "hetero": hetero,
     }
+    if "valid_mask" in sample:
+        batch["valid_mask"] = sample["valid_mask"]
     return batch
 
 
@@ -6780,20 +10149,23 @@ def main(cfg: DictConfig) -> None:
         baseline_strategy=cfg.data.baseline_strategy,
         baseline_factor=cfg.data.baseline_factor,
         normalize=cfg.data.normalize,
+        nan_fill_strategy=getattr(cfg.data, 'nan_fill_strategy', 'zero'),
+        precipitation_delta=getattr(cfg.data, 'precipitation_delta', 0.01),
     )
     dataset = pipeline.build_sequence_dataset(
         seq_len=cfg.data.seq_len,
         stride=cfg.data.stride,
         as_torch=True,
     )
-    # Optimized DataLoader with parallel workers and pinned memory
+    # DataLoader: num_workers=0 on CyVerse/Docker (limited /dev/shm)
+    num_workers = getattr(cfg.training, 'num_workers', 0)
     dataloader = DataLoader(
         dataset,
         batch_size=None,
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
-        prefetch_factor=2,
-        persistent_workers=True,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=num_workers > 0,
     )
 
     builder = HeteroGraphBuilder(
@@ -6804,9 +10176,9 @@ def main(cfg: DictConfig) -> None:
         include_mid_layer=cfg.graph.include_mid_layer,
     )
 
-    encoder = _build_encoder(cfg.encoder).to(device)
+    encoder = build_encoder_for_graph(cfg.encoder, builder).to(device)
     rcn_cell = RCNCell(
-        num_vars=len(cfg.encoder.metapaths),
+        num_vars=len(encoder.configs),
         hidden_dim=cfg.rcn.hidden_dim,
         driver_dim=cfg.rcn.driver_dim,
         reconstruction_dim=cfg.rcn.reconstruction_dim,
@@ -6820,6 +10192,10 @@ def main(cfg: DictConfig) -> None:
         height=cfg.diffusion.height,
         width=cfg.diffusion.width,
         num_diffusion_steps=cfg.diffusion.steps,
+        scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
+        use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=cfg.diffusion.get("anti_checkerboard", False),
     ).to(device)
     
     # Phase A3: Compile critical modules with torch.compile for performance
@@ -6899,7 +10275,35 @@ def main(cfg: DictConfig) -> None:
             conditioning_fn=None,
             device=device,
             gradient_clipping=cfg.training.gradient_clipping,
+            use_focal_loss=cfg.loss.get("use_focal_loss", False),
+            focal_alpha=cfg.loss.get("focal_alpha", 1.0),
+            focal_gamma=cfg.loss.get("focal_gamma", 2.0),
+            extreme_weight_factor=cfg.loss.get("extreme_weight_factor", 0.0),
+            extreme_percentiles=list(cfg.loss.get("extreme_percentiles", [95.0, 99.0])),
+            reconstruction_loss_type=cfg.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
+            lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
         )
+        if cfg.loss.get("log_spectral_metric_each_epoch", False):
+            amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
+            try:
+                biter = _iterate_batches(dataloader, builder, device)
+                batch0 = next(biter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as ex:
+                print(f"[WARN] RAPSD epoch metric: {ex}")
         if (epoch + 1) % cfg.training.log_every == 0:
             pretty = ", ".join(f"{k}: {v:.4f}" for k, v in metrics.items())
             print(f"[Epoch {epoch + 1}] {pretty}")
@@ -6908,6 +10312,8 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     main()
 ```
+
+---
 
 ### `ops/preprocess_to_zarr.py`
 
@@ -6932,9 +10338,17 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 import warnings
 from pathlib import Path
 from typing import Optional, Sequence
+
+# Ensure st_cdgm is importable when run as subprocess (e.g. from notebook)
+_script_dir = Path(__file__).resolve().parent
+_project_root = _script_dir.parent
+_src_path = _project_root / "src"
+if _src_path.exists() and str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
 
 import numpy as np
 import xarray as xr
@@ -7265,6 +10679,8 @@ if __name__ == "__main__":
     main()
 ```
 
+---
+
 ### `ops/preprocess_to_shards.py`
 
 ```python
@@ -7288,9 +10704,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import tarfile
 from pathlib import Path
 from typing import Dict, Optional
+
+# Ensure st_cdgm is importable when run as subprocess (e.g. from notebook)
+_script_dir = Path(__file__).resolve().parent
+_project_root = _script_dir.parent
+_src_path = _project_root / "src"
+if _src_path.exists() and str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
 
 import numpy as np
 import torch
@@ -7471,126 +10895,2979 @@ if __name__ == "__main__":
 
 ---
 
-## 🛠️ Scripts Utilitaires (`scripts/`)
-
-### `scripts/run_training.py`
-
-[Code complet - 417 lignes]
-
-**Fonctionnalités:**
-- Entraînement avec checkpointing automatique
-- Early stopping
-- LR scheduling
-- Sauvegarde des modèles
-- Logging structuré
-
-### `scripts/run_preprocessing.py`
-
-[Code complet - 196 lignes]
-
-**Fonctionnalités:**
-- Interface unifiée pour preprocessing
-- Support Zarr et WebDataset
-- Validation des fichiers d'entrée
-
-### `scripts/run_evaluation.py`
-
-[Code complet - 331 lignes]
-
-**Fonctionnalités:**
-- Évaluation de modèles entraînés
-- Calcul de métriques complètes
-- Génération de visualisations
-- Support F1 extremes
-
-### `scripts/run_full_pipeline.py`
-
-[Code complet - 190 lignes]
-
-**Fonctionnalités:**
-- Orchestration du pipeline complet
-- Preprocessing → Training → Evaluation
-- Options pour sauter des étapes
-
-### `scripts/load_model.py`
-
-[Code complet - 152 lignes]
-
-**Fonctionnalités:**
-- Chargement de checkpoints
-- Reconstruction des modèles depuis config
-- Support device (CPU/CUDA)
-
-### `scripts/save_model.py`
-
-[Code complet - 97 lignes]
-
-**Fonctionnalités:**
-- Sauvegarde de checkpoints combinés
-- Métadonnées JSON
-- Timestamp automatique
-
-### `scripts/test_pipeline.py`
-
-[Code complet - 160 lignes]
-
-**Fonctionnalités:**
-- Test end-to-end avec données synthétiques
-- Validation de tous les modules
-- Test de forward pass
-
-### `scripts/test_installation.py`
-
-[Code complet - 230 lignes]
-
-**Fonctionnalités:**
-- Vérification de l'installation
-- Test des dépendances
-- Détection GPU/CUDA
-- Détection environnement VICE
-
-### `scripts/validate_setup.py`
-
-[Code complet - 319 lignes]
-
-**Fonctionnalités:**
-- Validation complète du projet
-- Vérification syntaxe Python
-- Validation YAML
-- Vérification structure
-
-### `scripts/sync_datastore.py`
-
-[Code complet - 385 lignes]
-
-**Fonctionnalités:**
-- Synchronisation Data Store ↔ disque local
-- Copie de fichiers
-- Listing Data Store
-- Dry run support
-
-### `scripts/vice_utils.py`
-
-[Code complet - 238 lignes]
-
-**Fonctionnalités:**
-- Détection environnement VICE
-- Gestion chemins Data Store
-- Recommandations pour performance
-- Utilitaires de répertoires
-
 ### `scripts/cleanup_repeated_lines.py`
 
-[Code complet - 99 lignes]
+```python
+"""
+Script pour nettoyer les lignes répétées dans un notebook Jupyter.
+"""
+import json
+import sys
+from pathlib import Path
 
-**Fonctionnalités:**
-- Nettoyage de notebooks Jupyter
-- Suppression lignes répétées
-- Sauvegarde automatique
+def clean_repeated_lines(notebook_path: Path, max_repeats: int = 3):
+    """
+    Nettoie les lignes répétées consécutives dans un notebook.
+    
+    Parameters
+    ----------
+    notebook_path : Path
+        Chemin vers le notebook à nettoyer
+    max_repeats : int
+        Nombre maximum de répétitions consécutives autorisées
+    """
+    notebook_path = Path(notebook_path)
+    
+    if not notebook_path.exists():
+        print(f"Fichier non trouve: {notebook_path}")
+        return
+    
+    print(f"Lecture du notebook: {notebook_path}")
+    with open(notebook_path, 'r', encoding='utf-8') as f:
+        nb = json.load(f)
+    
+    total_removed = 0
+    cells_modified = 0
+    
+    for cell_idx, cell in enumerate(nb['cells']):
+        if 'source' not in cell:
+            continue
+        
+        source = cell['source']
+        if isinstance(source, str):
+            source = source.split('\n')
+            was_string = True
+        else:
+            was_string = False
+        
+        # Supprimer les lignes répétées consécutives
+        cleaned_source = []
+        prev_line = None
+        repeat_count = 0
+        
+        for line in source:
+            # Ignorer les lignes vides dans le comptage de répétitions
+            line_stripped = line.strip()
+            
+            if line_stripped == prev_line and line_stripped:  # Ignorer les lignes vides
+                repeat_count += 1
+                if repeat_count <= max_repeats:
+                    cleaned_source.append(line)
+                else:
+                    total_removed += 1
+            else:
+                repeat_count = 1
+                cleaned_source.append(line)
+                if line_stripped:
+                    prev_line = line_stripped
+        
+        # Restaurer le format original
+        if was_string:
+            cleaned_source = '\n'.join(cleaned_source)
+        else:
+            # Pour les listes, garder les nouvelles lignes dans les chaînes
+            cleaned_source = [line if line.endswith('\n') or i == len(cleaned_source) - 1 
+                             else line + '\n' if not line.endswith('\n') else line
+                             for i, line in enumerate(cleaned_source)]
+        
+        if cleaned_source != source:
+            cell['source'] = cleaned_source
+            cells_modified += 1
+            print(f"  Cellule {cell_idx}: {len(source) - len(cleaned_source)} lignes repetees supprimees")
+    
+    if cells_modified > 0:
+        # Créer une sauvegarde
+        backup_path = notebook_path.with_suffix('.ipynb.bak')
+        print(f"Sauvegarde creee: {backup_path}")
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            json.dump(nb, f, indent=1, ensure_ascii=False)
+        
+        # Sauvegarder le fichier nettoyé
+        print(f"Sauvegarde du fichier nettoye: {notebook_path}")
+        with open(notebook_path, 'w', encoding='utf-8') as f:
+            json.dump(nb, f, indent=1, ensure_ascii=False)
+        
+        print(f"\nNettoyage termine!")
+        print(f"   - {cells_modified} cellule(s) modifiee(s)")
+        print(f"   - {total_removed} ligne(s) repetee(s) supprimee(s)")
+    else:
+        print("\nAucune ligne repetee trouvee.")
+
+if __name__ == "__main__":
+    notebook_path = Path("../st_cdgm_training_evaluation.ipynb")
+    if len(sys.argv) > 1:
+        notebook_path = Path(sys.argv[1])
+    
+    clean_repeated_lines(notebook_path, max_repeats=1)  # Garder seulement 1 occurrence
+```
 
 ---
 
-## 🧪 Tests (`tests/`)
+### `scripts/load_model.py`
+
+```python
+"""
+Utility script to load a model checkpoint.
+
+This module provides functions to load ST-CDGM model checkpoints and restore
+the full training state (models, optimizer, config, etc.).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+import torch
+
+from st_cdgm import (
+    IntelligibleVariableEncoder,
+    IntelligibleVariableConfig,
+    RCNCell,
+    RCNSequenceRunner,
+    CausalDiffusionDecoder,
+)
+
+
+def load_checkpoint(
+    checkpoint_path: Path,
+    device: torch.device = torch.device("cpu"),
+    return_full_state: bool = False,
+) -> Dict[str, Any]:
+    """
+    Load a model checkpoint.
+    
+    Parameters
+    ----------
+    checkpoint_path : Path
+        Path to checkpoint file (.pt)
+    device : torch.device
+        Device to load models onto
+    return_full_state : bool
+        If True, return optimizer state and full config
+    
+    Returns
+    -------
+    Dict containing:
+        - encoder: IntelligibleVariableEncoder
+        - rcn_cell: RCNCell
+        - rcn_runner: RCNSequenceRunner
+        - diffusion_decoder: CausalDiffusionDecoder
+        - config: DictConfig (if available)
+        - metrics: dict (if available)
+        - optimizer_state_dict: dict (if return_full_state=True)
+    """
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    print(f"Loading checkpoint: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    
+    # Extract components
+    encoder_state = checkpoint["encoder_state_dict"]
+    rcn_state = checkpoint.get("rcn_state_dict") or checkpoint.get("rcn_cell_state_dict")
+    if rcn_state is None:
+        raise KeyError("Checkpoint missing rcn_state_dict or rcn_cell_state_dict")
+    diffusion_state = checkpoint["diffusion_state_dict"]
+    config = checkpoint.get("config", {})
+    metrics = checkpoint.get("metrics", {})
+    
+    # Reconstruct models from config
+    # This assumes config contains the necessary info to rebuild models
+    if not config:
+        raise ValueError("Checkpoint must contain config to reconstruct models")
+    
+    # Build encoder
+    encoder_cfg = config.get("encoder", {})
+    meta_configs = [
+        IntelligibleVariableConfig(
+            name=mp.get("name", ""),
+            meta_path=(mp["src"], mp["relation"], mp["target"]),
+            pool=mp.get("pool", "mean"),
+        )
+        for mp in encoder_cfg.get("metapaths", [])
+    ]
+    encoder = IntelligibleVariableEncoder(
+        configs=meta_configs,
+        hidden_dim=encoder_cfg.get("hidden_dim", 128),
+        conditioning_dim=encoder_cfg.get("conditioning_dim", 128),
+    )
+    encoder.load_state_dict(encoder_state)
+    encoder.to(device)
+    encoder.eval()
+    
+    # Build RCN
+    rcn_cfg = config.get("rcn", {})
+    rcn_cell = RCNCell(
+        num_vars=len(encoder_cfg.get("metapaths", [])),
+        hidden_dim=rcn_cfg.get("hidden_dim", 128),
+        driver_dim=rcn_cfg.get("driver_dim", 8),
+        reconstruction_dim=rcn_cfg.get("reconstruction_dim", 8),
+        dropout=rcn_cfg.get("dropout", 0.0),
+    )
+    rcn_cell.load_state_dict(rcn_state)
+    rcn_cell.to(device)
+    rcn_cell.eval()
+    rcn_runner = RCNSequenceRunner(
+        rcn_cell,
+        detach_interval=rcn_cfg.get("detach_interval", None),
+    )
+    
+    # Build diffusion decoder
+    diffusion_cfg = config.get("diffusion", {})
+    diffusion = CausalDiffusionDecoder(
+        in_channels=diffusion_cfg.get("in_channels", 3),
+        conditioning_dim=diffusion_cfg.get("conditioning_dim", 128),
+        height=diffusion_cfg.get("height", 172),
+        width=diffusion_cfg.get("width", 179),
+        num_diffusion_steps=diffusion_cfg.get("steps", 1000),
+        use_gradient_checkpointing=diffusion_cfg.get("use_gradient_checkpointing", False),
+        scheduler_type=diffusion_cfg.get("scheduler_type", "ddpm"),
+        conv_padding_mode=diffusion_cfg.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=diffusion_cfg.get("anti_checkerboard", False),
+    )
+    diffusion.load_state_dict(diffusion_state)
+    diffusion.to(device)
+    diffusion.eval()
+    
+    result = {
+        "encoder": encoder,
+        "rcn_cell": rcn_cell,
+        "rcn_runner": rcn_runner,
+        "diffusion_decoder": diffusion,
+        "config": config,
+        "metrics": metrics,
+    }
+    
+    if return_full_state and "optimizer_state_dict" in checkpoint:
+        result["optimizer_state_dict"] = checkpoint["optimizer_state_dict"]
+    
+    print("✓ Checkpoint loaded successfully")
+    return result
+
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Load and verify model checkpoint")
+    parser.add_argument("checkpoint", type=Path, help="Path to checkpoint file")
+    parser.add_argument("--device", type=str, default="cpu", help="Device (cuda/cpu)")
+    
+    args = parser.parse_args()
+    
+    device = torch.device(args.device)
+    checkpoint = load_checkpoint(args.checkpoint, device=device)
+    
+    print("\nCheckpoint Summary:")
+    print(f"  Config: {checkpoint['config'] is not None}")
+    print(f"  Metrics: {list(checkpoint['metrics'].keys())}")
+    print(f"  Models loaded on: {device}")
+```
+
+---
+
+### `scripts/run_evaluation.py`
+
+```python
+"""
+Script d'évaluation pour tester un modèle entraîné ST-CDGM.
+
+Ce script charge un modèle sauvegardé, exécute l'inférence et calcule les métriques
+d'évaluation (MSE, MAE, CRPS, FSS, F1 extremes, etc.).
+
+Usage:
+    # Avec Docker:
+    docker-compose exec st-cdgm-training python scripts/run_evaluation.py \
+        --checkpoint models/best_model.pt \
+        --data_dir data/processed \
+        --output_dir results/evaluation
+
+    # Directement:
+    python scripts/run_evaluation.py \
+        --checkpoint models/best_model.pt \
+        --lr_path data/raw/lr.nc \
+        --hr_path data/raw/hr.nc
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Optional, Sequence
+
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Add workspace to path for imports
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path) not in sys.path:
+    sys.path.insert(0, str(workspace_path))
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+
+from st_cdgm import (
+    NetCDFDataPipeline,
+    HeteroGraphBuilder,
+    IntelligibleVariableConfig,
+    IntelligibleVariableEncoder,
+    RCNCell,
+    RCNSequenceRunner,
+    CausalDiffusionDecoder,
+)
+from st_cdgm.evaluation import (
+    evaluate_metrics,
+    MetricReport,
+    run_st_cdgm_inference,
+)
+# Note: load_model will be imported if needed
+
+
+def run_evaluation(
+    checkpoint_path: Path,
+    lr_path: Path,
+    hr_path: Path,
+    output_dir: Path,
+    *,
+    static_path: Optional[Path] = None,
+    num_samples: int = 10,
+    num_inference_steps: int = 25,
+    scheduler_type: str = "edm",
+    seq_len: int = 6,
+    device: str = "cuda",
+    compute_f1_extremes: bool = True,
+    f1_percentiles: Sequence[float] = [95.0, 99.0],
+    save_visualizations: bool = True,
+) -> None:
+    """Run evaluation on a trained model."""
+    
+    print("=" * 80)
+    print("ST-CDGM Model Evaluation")
+    print("=" * 80)
+    print(f"Checkpoint: {checkpoint_path}")
+    print(f"LR Path: {lr_path}")
+    print(f"HR Path: {hr_path}")
+    print(f"Output Dir: {output_dir}")
+    print(f"Device: {device}")
+    print("=" * 80)
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    device_obj = torch.device(device)
+    
+    # Load model
+    print("\nLoading model...")
+    from scripts.load_model import load_checkpoint
+    checkpoint_data = load_checkpoint(checkpoint_path, device=device_obj)
+    
+    # Setup data pipeline
+    print("\nSetting up data pipeline...")
+    pipeline = NetCDFDataPipeline(
+        lr_path=str(lr_path),
+        hr_path=str(hr_path),
+        static_path=str(static_path) if static_path else None,
+        seq_len=seq_len,
+        normalize=True,
+    )
+    
+    # Get test data (last sequence)
+    dataset = pipeline.build_sequence_dataset(seq_len=seq_len, stride=1, as_torch=True)
+    # Get a test sample (could be extended to use validation set)
+    test_sample = next(iter(dataset))
+    
+    encoder = checkpoint_data["encoder"]
+    rcn_runner = checkpoint_data["rcn_runner"]
+    diffusion_decoder = checkpoint_data["diffusion_decoder"]
+    config = checkpoint_data["config"]
+    
+    # Setup graph builder
+    graph_cfg = config.get("graph", {})
+    builder = HeteroGraphBuilder(
+        lr_shape=tuple(graph_cfg.get("lr_shape", [23, 26])),
+        hr_shape=tuple(graph_cfg.get("hr_shape", [172, 179])),
+        static_dataset=pipeline.get_static_dataset(),
+        static_variables=graph_cfg.get("static_variables", []),
+        include_mid_layer=graph_cfg.get("include_mid_layer", True),
+    )
+    
+    # Run inference
+    print(f"\nRunning inference ({num_samples} samples, {num_inference_steps} steps, {scheduler_type} scheduler)...")
+    
+    # Prepare input data
+    lr_seq = test_sample["lr"]  # [seq_len, channels, lat, lon]
+    target = test_sample["hr"][-1]  # Last timestep [channels, H, W]
+    baseline = test_sample.get("baseline", None)
+    
+    diff_cfg = config.get("diffusion", {}) if isinstance(config, dict) else {}
+    cfg_scale = float(diff_cfg.get("cfg_scale", 0.0))
+    eval_cfg = config.get("evaluation", {}) if isinstance(config, dict) else {}
+    crps_cap = eval_cfg.get("crps_max_ensemble_members")
+
+    samples_out, target_batch, baseline_batch, dag_last, mask_batch = run_st_cdgm_inference(
+        test_sample,
+        builder=builder,
+        encoder=encoder,
+        rcn_runner=rcn_runner,
+        diffusion=diffusion_decoder,
+        device=device_obj,
+        num_samples=num_samples,
+        num_steps=num_inference_steps,
+        scheduler_type=scheduler_type,
+        cfg_scale=cfg_scale,
+    )
+
+    print("\nComputing metrics...")
+    target_tensor = target_batch.to(device_obj)
+    baseline_tensor = baseline_batch.to(device_obj) if baseline_batch is not None else None
+    vm = mask_batch.to(device_obj)
+    while vm.dim() > 2:
+        vm = vm[0]
+    if vm.dim() == 3:
+        vm = vm[0]
+
+    metrics = evaluate_metrics(
+        samples=samples_out,
+        target=target_tensor,
+        baseline=baseline_tensor,
+        compute_advanced=True,
+        include_f1_extremes=compute_f1_extremes,
+        f1_percentiles=list(f1_percentiles),
+        valid_mask=vm,
+        crps_max_ensemble_members=crps_cap,
+    )
+    
+    # Save results
+    results_path = output_dir / "evaluation_results.json"
+    results_dict = {
+        "mse": metrics.mse,
+        "mae": metrics.mae,
+        "hist_distance": metrics.hist_distance,
+        "crps": metrics.crps,
+        "spectrum_distance": metrics.spectrum_distance,
+        "fss": metrics.fss,
+        "wasserstein_distance": metrics.wasserstein_distance,
+        "energy_score": metrics.energy_score,
+        "f1_extremes": metrics.f1_extremes,
+        "baseline_mse": metrics.baseline_mse,
+        "baseline_mae": metrics.baseline_mae,
+        "crps_spatial_mean": metrics.crps_spatial_mean,
+        "spectral_distance_rapsd": metrics.spectral_distance_rapsd,
+        "spread_skill_ratio": metrics.spread_skill_ratio,
+        "crps_p99": metrics.crps_p99,
+        "primary_kpi": metrics.primary_kpi,
+    }
+    
+    with open(results_path, "w") as f:
+        json.dump(results_dict, f, indent=2)
+    
+    print(f"\n✓ Results saved: {results_path}")
+    
+    # Print summary
+    print("\n" + "=" * 80)
+    print("Evaluation Results Summary")
+    print("=" * 80)
+    print(f"MSE: {metrics.mse:.6f}")
+    print(f"MAE: {metrics.mae:.6f}")
+    print(f"CRPS: {metrics.crps:.6f}")
+    if metrics.fss is not None:
+        print(f"FSS: {metrics.fss:.6f}")
+    if metrics.f1_extremes is not None:
+        print(f"F1 Extremes:")
+        for threshold, f1_score in metrics.f1_extremes.items():
+            print(f"  {threshold}: {f1_score:.4f}")
+    print("=" * 80)
+    
+    # Save visualizations if requested
+    if save_visualizations:
+        print("\nGenerating visualizations...")
+        vis_dir = output_dir / "visualizations"
+        vis_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Plot sample predictions
+        pred_mean = samples_out[0].t_mean.cpu().numpy()
+        
+        # Simple visualization (can be extended)
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        axes[0].imshow(target[0], cmap='viridis')
+        axes[0].set_title("Target")
+        axes[1].imshow(pred_mean[0], cmap='viridis')
+        axes[1].set_title("Prediction (Mean)")
+        axes[2].imshow(np.abs(target[0] - pred_mean[0]), cmap='hot')
+        axes[2].set_title("Absolute Error")
+        
+        vis_path = vis_dir / "prediction_comparison.png"
+        plt.savefig(vis_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        print(f"✓ Visualizations saved: {vis_dir}")
+    
+    print("\n" + "=" * 80)
+    print("Evaluation completed!")
+    print("=" * 80)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Evaluate a trained ST-CDGM model",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        required=True,
+        help="Path to model checkpoint",
+    )
+    parser.add_argument(
+        "--lr_path",
+        type=Path,
+        required=True,
+        help="Path to low-resolution NetCDF file",
+    )
+    parser.add_argument(
+        "--hr_path",
+        type=Path,
+        required=True,
+        help="Path to high-resolution NetCDF file",
+    )
+    parser.add_argument(
+        "--static_path",
+        type=Path,
+        default=None,
+        help="Path to static NetCDF file (optional)",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=Path,
+        default="results/evaluation",
+        help="Output directory for evaluation results",
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=10,
+        help="Number of samples for evaluation",
+    )
+    parser.add_argument(
+        "--num_inference_steps",
+        type=int,
+        default=25,
+        help="Number of diffusion steps for inference",
+    )
+    parser.add_argument(
+        "--scheduler_type",
+        type=str,
+        choices=["ddpm", "edm", "dpm_solver++"],
+        default="edm",
+        help="Diffusion scheduler type",
+    )
+    parser.add_argument(
+        "--seq_len",
+        type=int,
+        default=6,
+        help="Sequence length",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help="Device (cuda/cpu)",
+    )
+    parser.add_argument(
+        "--no_f1_extremes",
+        action="store_true",
+        help="Disable F1 extremes computation",
+    )
+    parser.add_argument(
+        "--no_visualizations",
+        action="store_true",
+        help="Disable visualization generation",
+    )
+    
+    args = parser.parse_args()
+    
+    run_evaluation(
+        checkpoint_path=args.checkpoint,
+        lr_path=args.lr_path,
+        hr_path=args.hr_path,
+        output_dir=args.output_dir,
+        static_path=args.static_path,
+        num_samples=args.num_samples,
+        num_inference_steps=args.num_inference_steps,
+        scheduler_type=args.scheduler_type,
+        seq_len=args.seq_len,
+        device=args.device,
+        compute_f1_extremes=not args.no_f1_extremes,
+        save_visualizations=not args.no_visualizations,
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### `scripts/run_full_pipeline.py`
+
+```python
+"""
+Script orchestrateur pour exécuter le pipeline complet ST-CDGM.
+
+Ce script exécute dans l'ordre:
+1. Preprocessing (NetCDF → Zarr/WebDataset)
+2. Training (avec checkpointing)
+3. Evaluation (sur le modèle entraîné)
+
+Usage:
+    python scripts/run_full_pipeline.py \
+        --lr_path data/raw/lr.nc \
+        --hr_path data/raw/hr.nc \
+        --config config/training_config.yaml \
+        --format zarr
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+# Add workspace to path
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path) not in sys.path:
+    sys.path.insert(0, str(workspace_path))
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+
+from scripts.run_preprocessing import main as preprocess_main
+from scripts.run_training import run_training_with_checkpoints
+from scripts.run_evaluation import run_evaluation
+from omegaconf import OmegaConf
+
+
+def run_full_pipeline(
+    lr_path: Path,
+    hr_path: Path,
+    config_path: Path,
+    *,
+    static_path: Path | None = None,
+    format: str = "zarr",
+    checkpoint_dir: Path = Path("models"),
+    results_dir: Path = Path("results"),
+    skip_preprocessing: bool = False,
+    skip_training: bool = False,
+    skip_evaluation: bool = False,
+) -> None:
+    """Run the complete ST-CDGM pipeline."""
+    
+    print("=" * 80)
+    print("ST-CDGM Full Pipeline")
+    print("=" * 80)
+    print(f"LR Path: {lr_path}")
+    print(f"HR Path: {hr_path}")
+    print(f"Config: {config_path}")
+    print(f"Format: {format}")
+    print("=" * 80)
+    
+    # Load config
+    cfg = OmegaConf.load(config_path)
+    
+    # Step 1: Preprocessing
+    processed_dir = Path("data/processed")
+    if not skip_preprocessing:
+        print("\n" + "=" * 80)
+        print("STEP 1: Preprocessing")
+        print("=" * 80)
+        
+        # Prepare preprocessing arguments
+        preprocess_args = [
+            "--lr_path", str(lr_path),
+            "--hr_path", str(hr_path),
+            "--format", format,
+            "--output_dir", str(processed_dir),
+            "--seq_len", str(cfg.data.get("seq_len", 10)),
+            "--baseline_strategy", cfg.data.get("baseline_strategy", "hr_smoothing"),
+        ]
+        
+        if static_path:
+            preprocess_args.extend(["--static_path", str(static_path)])
+        if cfg.data.get("normalize", False):
+            preprocess_args.append("--normalize")
+        
+        # Run preprocessing (we'll need to modify to accept args)
+        # For now, call the main function directly
+        import subprocess
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).parent / "run_preprocessing.py")] + preprocess_args,
+            check=True,
+        )
+        print("✓ Preprocessing completed")
+    else:
+        print("\n⏭ Skipping preprocessing (using existing data)")
+    
+    # Step 2: Training
+    if not skip_training:
+        print("\n" + "=" * 80)
+        print("STEP 2: Training")
+        print("=" * 80)
+        
+        run_training_with_checkpoints(
+            cfg,
+            checkpoint_dir=checkpoint_dir,
+            save_every=cfg.checkpoint.get("save_every", 5),
+            max_checkpoints=cfg.checkpoint.get("max_checkpoints", 5),
+        )
+        print("✓ Training completed")
+    else:
+        print("\n⏭ Skipping training")
+    
+    # Step 3: Evaluation
+    if not skip_evaluation:
+        print("\n" + "=" * 80)
+        print("STEP 3: Evaluation")
+        print("=" * 80)
+        
+        # Find best model checkpoint
+        best_checkpoint = checkpoint_dir / "best_model.pt"
+        if not best_checkpoint.exists():
+            # Find latest checkpoint
+            checkpoints = sorted(checkpoint_dir.glob("checkpoint_epoch_*.pt"))
+            if checkpoints:
+                best_checkpoint = checkpoints[-1]
+            else:
+                print("⚠ No checkpoint found, skipping evaluation")
+                return
+        
+        run_evaluation(
+            checkpoint_path=best_checkpoint,
+            lr_path=lr_path,
+            hr_path=hr_path,
+            output_dir=results_dir / "evaluation",
+            static_path=static_path,
+            num_samples=cfg.evaluation.get("num_samples", 10),
+            num_inference_steps=25,
+            scheduler_type=cfg.diffusion.get("scheduler_type", "edm"),
+            seq_len=cfg.data.get("seq_len", 6),
+            device=cfg.training.get("device", "cuda"),
+            compute_f1_extremes=cfg.evaluation.get("compute_f1_extremes", True),
+            save_visualizations=cfg.evaluation.get("save_visualizations", True),
+        )
+        print("✓ Evaluation completed")
+    else:
+        print("\n⏭ Skipping evaluation")
+    
+    print("\n" + "=" * 80)
+    print("✓ Full pipeline completed successfully!")
+    print("=" * 80)
+    print(f"Checkpoints: {checkpoint_dir}")
+    print(f"Results: {results_dir}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run complete ST-CDGM pipeline",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    
+    parser.add_argument("--lr_path", type=Path, required=True)
+    parser.add_argument("--hr_path", type=Path, required=True)
+    parser.add_argument("--static_path", type=Path, default=None)
+    parser.add_argument("--config", type=Path, default="config/training_config.yaml")
+    parser.add_argument("--format", type=str, choices=["zarr", "webdataset"], default="zarr")
+    parser.add_argument("--checkpoint_dir", type=Path, default="models")
+    parser.add_argument("--results_dir", type=Path, default="results")
+    parser.add_argument("--skip_preprocessing", action="store_true")
+    parser.add_argument("--skip_training", action="store_true")
+    parser.add_argument("--skip_evaluation", action="store_true")
+    
+    args = parser.parse_args()
+    
+    run_full_pipeline(
+        lr_path=args.lr_path,
+        hr_path=args.hr_path,
+        config_path=args.config,
+        static_path=args.static_path,
+        format=args.format,
+        checkpoint_dir=args.checkpoint_dir,
+        results_dir=args.results_dir,
+        skip_preprocessing=args.skip_preprocessing,
+        skip_training=args.skip_training,
+        skip_evaluation=args.skip_evaluation,
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### `scripts/run_preprocessing.py`
+
+```python
+"""
+Script d'exécution pour le preprocessing NetCDF → Zarr/WebDataset.
+
+Ce script permet de convertir des données NetCDF en format optimisé pour l'entraînement,
+soit en Zarr (accès aléatoire) soit en WebDataset (lecture séquentielle).
+
+Usage:
+    # Avec Docker:
+    docker-compose exec st-cdgm-training python scripts/run_preprocessing.py \
+        --lr_path data/raw/lr.nc \
+        --hr_path data/raw/hr.nc \
+        --format zarr \
+        --output_dir data/processed
+
+    # Directement:
+    python scripts/run_preprocessing.py \
+        --lr_path data/raw/lr.nc \
+        --hr_path data/raw/hr.nc \
+        --format webdataset \
+        --output_dir data/processed
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+# Add workspace to path for imports
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path) not in sys.path:
+    sys.path.insert(0, str(workspace_path))
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+
+from ops.preprocess_to_zarr import convert_netcdf_to_zarr
+from ops.preprocess_to_shards import main as preprocess_to_shards_main
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Preprocess NetCDF data to Zarr or WebDataset format",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    
+    # Input data
+    parser.add_argument(
+        "--lr_path",
+        type=Path,
+        required=True,
+        help="Path to low-resolution NetCDF file",
+    )
+    parser.add_argument(
+        "--hr_path",
+        type=Path,
+        required=True,
+        help="Path to high-resolution NetCDF file",
+    )
+    parser.add_argument(
+        "--static_path",
+        type=Path,
+        default=None,
+        help="Path to static high-resolution NetCDF file (optional)",
+    )
+    
+    # Output format
+    parser.add_argument(
+        "--format",
+        type=str,
+        choices=["zarr", "webdataset"],
+        default="zarr",
+        help="Output format: 'zarr' for random access, 'webdataset' for sequential",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=Path,
+        required=True,
+        help="Output directory for processed data",
+    )
+    
+    # Processing options
+    parser.add_argument(
+        "--seq_len",
+        type=int,
+        default=10,
+        help="Sequence length for temporal windows",
+    )
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=1,
+        help="Stride for sliding window",
+    )
+    parser.add_argument(
+        "--baseline_strategy",
+        type=str,
+        choices=["hr_smoothing", "lr_interp"],
+        default="hr_smoothing",
+        help="Baseline computation strategy",
+    )
+    parser.add_argument(
+        "--baseline_factor",
+        type=int,
+        default=4,
+        help="Smoothing factor for baseline",
+    )
+    parser.add_argument(
+        "--normalize",
+        action="store_true",
+        help="Enable normalization of LR data",
+    )
+    
+    # WebDataset specific
+    parser.add_argument(
+        "--shard_size",
+        type=int,
+        default=1000,
+        help="Number of samples per shard (WebDataset only)",
+    )
+    
+    args = parser.parse_args()
+    
+    # Validate input files
+    if not args.lr_path.exists():
+        raise FileNotFoundError(f"LR file not found: {args.lr_path}")
+    if not args.hr_path.exists():
+        raise FileNotFoundError(f"HR file not found: {args.hr_path}")
+    if args.static_path is not None and not args.static_path.exists():
+        raise FileNotFoundError(f"Static file not found: {args.static_path}")
+    
+    # Create output directory
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    print("=" * 80)
+    print("ST-CDGM Preprocessing")
+    print("=" * 80)
+    print(f"Format: {args.format}")
+    print(f"LR Path: {args.lr_path}")
+    print(f"HR Path: {args.hr_path}")
+    print(f"Output Dir: {args.output_dir}")
+    print(f"Sequence Length: {args.seq_len}")
+    print("=" * 80)
+    
+    # Convert based on format
+    if args.format == "zarr":
+        print("\nConverting to Zarr format...")
+        convert_netcdf_to_zarr(
+            lr_path=args.lr_path,
+            hr_path=args.hr_path,
+            output_dir=args.output_dir,
+            static_path=args.static_path,
+            seq_len=args.seq_len,
+            stride=args.stride,
+            baseline_strategy=args.baseline_strategy,
+            baseline_factor=args.baseline_factor,
+            normalize=args.normalize,
+        )
+        print(f"\n✓ Zarr conversion complete! Output: {args.output_dir}")
+        
+    elif args.format == "webdataset":
+        print("\nConverting to WebDataset format...")
+        # Create arguments for preprocess_to_shards
+        shard_args = [
+            "--lr_path", str(args.lr_path),
+            "--hr_path", str(args.hr_path),
+            "--output_dir", str(args.output_dir),
+            "--seq_len", str(args.seq_len),
+            "--stride", str(args.stride),
+            "--shard_size", str(args.shard_size),
+            "--baseline_strategy", args.baseline_strategy,
+            "--baseline_factor", str(args.baseline_factor),
+        ]
+        if args.static_path is not None:
+            shard_args.extend(["--static_path", str(args.static_path)])
+        if args.normalize:
+            shard_args.append("--normalize")
+        
+        # Modify sys.argv for preprocess_to_shards
+        original_argv = sys.argv
+        sys.argv = ["preprocess_to_shards.py"] + shard_args
+        try:
+            preprocess_to_shards_main()
+        finally:
+            sys.argv = original_argv
+        
+        print(f"\n✓ WebDataset conversion complete! Output: {args.output_dir}")
+    
+    print("\n" + "=" * 80)
+    print("Preprocessing completed successfully!")
+    print("=" * 80)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### `scripts/run_training.py`
+
+```python
+"""
+Script d'exécution pour l'entraînement ST-CDGM avec checkpointing et callbacks.
+
+Ce script lance l'entraînement complet avec support pour:
+- Checkpointing automatique
+- Early Stopping
+- LR Scheduling
+- Sauvegarde des modèles
+- Logging structuré
+
+Usage:
+    # Avec Docker:
+    docker-compose exec st-cdgm-training python scripts/run_training.py \
+        --config config/training_config.yaml
+
+    # Directement:
+    python scripts/run_training.py \
+        --config config/training_config.yaml \
+        --checkpoint_dir models \
+        --save_every 5
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import torch
+import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+# Add workspace to path for imports
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path) not in sys.path:
+    sys.path.insert(0, str(workspace_path))
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+
+from ops.train_st_cdgm import main as train_main
+from st_cdgm import (
+    NetCDFDataPipeline,
+    HeteroGraphBuilder,
+    IntelligibleVariableConfig,
+    IntelligibleVariableEncoder,
+    RCNCell,
+    RCNSequenceRunner,
+    CausalDiffusionDecoder,
+    train_epoch,
+)
+from st_cdgm.training import EarlyStopping
+
+import hydra
+from hydra.core.config_store import ConfigStore
+from omegaconf import DictConfig, OmegaConf
+
+
+def save_checkpoint(
+    encoder: IntelligibleVariableEncoder,
+    rcn_cell: RCNCell,
+    diffusion_decoder: CausalDiffusionDecoder,
+    optimizer: optim.Optimizer,
+    epoch: int,
+    metrics: dict,
+    checkpoint_dir: Path,
+    is_best: bool = False,
+) -> Path:
+    """Save model checkpoint with metadata."""
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if is_best:
+        checkpoint_path = checkpoint_dir / "best_model.pt"
+    else:
+        checkpoint_path = checkpoint_dir / f"checkpoint_epoch_{epoch:04d}_{timestamp}.pt"
+    
+    checkpoint = {
+        "epoch": epoch,
+        "encoder_state_dict": encoder.state_dict(),
+        "rcn_state_dict": rcn_cell.state_dict(),
+        "diffusion_state_dict": diffusion_decoder.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "metrics": metrics,
+        "timestamp": timestamp,
+    }
+    
+    torch.save(checkpoint, checkpoint_path)
+    
+    # Save metadata as JSON
+    metadata_path = checkpoint_path.with_suffix(".json")
+    with open(metadata_path, "w") as f:
+        json.dump({
+            "epoch": epoch,
+            "metrics": {k: float(v) for k, v in metrics.items()},
+            "timestamp": timestamp,
+            "is_best": is_best,
+        }, f, indent=2)
+    
+    print(f"✓ Checkpoint saved: {checkpoint_path}")
+    return checkpoint_path
+
+
+def load_checkpoint(
+    checkpoint_path: Path,
+    encoder: IntelligibleVariableEncoder,
+    rcn_cell: RCNCell,
+    diffusion_decoder: CausalDiffusionDecoder,
+    optimizer: Optional[optim.Optimizer] = None,
+) -> tuple[int, dict]:
+    """Load model checkpoint."""
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    
+    encoder.load_state_dict(checkpoint["encoder_state_dict"])
+    rcn_cell.load_state_dict(checkpoint["rcn_state_dict"])
+    diffusion_decoder.load_state_dict(checkpoint["diffusion_state_dict"])
+    
+    if optimizer is not None and "optimizer_state_dict" in checkpoint:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    
+    epoch = checkpoint.get("epoch", 0)
+    metrics = checkpoint.get("metrics", {})
+    
+    print(f"✓ Checkpoint loaded: {checkpoint_path} (epoch {epoch})")
+    return epoch, metrics
+
+
+def run_training_with_checkpoints(
+    cfg: DictConfig,
+    checkpoint_dir: Path,
+    save_every: int = 5,
+    max_checkpoints: int = 5,
+    resume_from: Optional[Path] = None,
+) -> None:
+    """Run training with checkpointing and callbacks."""
+    
+    print("=" * 80)
+    print("ST-CDGM Training with Checkpointing")
+    print("=" * 80)
+    print(f"Checkpoint Dir: {checkpoint_dir}")
+    print(f"Save Every: {save_every} epochs")
+    print(f"Max Checkpoints: {max_checkpoints}")
+    print("=" * 80)
+    
+    # Import training setup from train_st_cdgm
+    # We'll need to refactor train_st_cdgm to expose setup functions
+    # For now, we'll call the main function but with checkpointing logic
+    
+    # This is a simplified version - in production, we'd refactor train_st_cdgm
+    # to separate setup from training loop
+    
+    device = torch.device(cfg.training.device)
+    
+    # Setup models (same as train_st_cdgm)
+    from ops.train_st_cdgm import build_encoder_for_graph, _iterate_batches
+    
+    pipeline = NetCDFDataPipeline(
+        lr_path=cfg.data.lr_path,
+        hr_path=cfg.data.hr_path,
+        static_path=cfg.data.static_path,
+        seq_len=cfg.data.seq_len,
+        baseline_strategy=cfg.data.baseline_strategy,
+        baseline_factor=cfg.data.baseline_factor,
+        normalize=cfg.data.normalize,
+    )
+    
+    from torch.utils.data import DataLoader
+    dataset = pipeline.build_sequence_dataset(
+        seq_len=cfg.data.seq_len,
+        stride=cfg.data.stride,
+        as_torch=True,
+    )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=None,
+        num_workers=4,
+        pin_memory=torch.cuda.is_available(),
+        prefetch_factor=2,
+        persistent_workers=True,
+    )
+    
+    builder = HeteroGraphBuilder(
+        lr_shape=tuple(cfg.graph.lr_shape),
+        hr_shape=tuple(cfg.graph.hr_shape),
+        static_dataset=pipeline.get_static_dataset(),
+        static_variables=cfg.graph.static_variables,
+        include_mid_layer=cfg.graph.include_mid_layer,
+    )
+    
+    encoder = build_encoder_for_graph(cfg.encoder, builder).to(device)
+    rcn_cell = RCNCell(
+        num_vars=len(encoder.configs),
+        hidden_dim=cfg.rcn.hidden_dim,
+        driver_dim=cfg.rcn.driver_dim,
+        reconstruction_dim=cfg.rcn.reconstruction_dim,
+        dropout=cfg.rcn.dropout,
+    ).to(device)
+    rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
+    
+    diffusion = CausalDiffusionDecoder(
+        in_channels=cfg.diffusion.in_channels,
+        conditioning_dim=cfg.diffusion.conditioning_dim,
+        height=cfg.diffusion.height,
+        width=cfg.diffusion.width,
+        num_diffusion_steps=cfg.diffusion.steps,
+        scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
+        use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=cfg.diffusion.get("anti_checkerboard", False),
+    ).to(device)
+    
+    # Compile models if enabled
+    if cfg.training.compile.get("enabled", False):
+        if hasattr(torch, 'compile'):
+            compile_mode_rcn = cfg.training.compile.get("rcn_mode", "reduce-overhead")
+            compile_mode_diffusion = cfg.training.compile.get("diffusion_mode", "max-autotune")
+            compile_mode_encoder = cfg.training.compile.get("encoder_mode", "reduce-overhead")
+            
+            try:
+                rcn_cell = torch.compile(rcn_cell, mode=compile_mode_rcn)
+                rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
+                print(f"✓ RCN cell compiled with torch.compile (mode: {compile_mode_rcn})")
+            except Exception as e:
+                print(f"⚠ torch.compile for RCN cell failed: {e}")
+            
+            try:
+                diffusion = torch.compile(diffusion, mode=compile_mode_diffusion)
+                print(f"✓ Diffusion decoder compiled with torch.compile (mode: {compile_mode_diffusion})")
+            except Exception as e:
+                print(f"⚠ torch.compile for diffusion decoder failed: {e}")
+            
+            try:
+                encoder = torch.compile(encoder, mode=compile_mode_encoder, fullgraph=False)
+                print(f"✓ Encoder compiled with torch.compile (mode: {compile_mode_encoder})")
+            except Exception as e:
+                print(f"⚠ torch.compile for encoder failed: {e}")
+    
+    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    optimizer = optim.Adam(params, lr=cfg.training.lr)
+    
+    # Setup LR scheduler
+    scheduler = None
+    if cfg.training.lr_scheduler.get("enabled", False):
+        scheduler = ReduceLROnPlateau(
+            optimizer,
+            mode=cfg.training.lr_scheduler.get("mode", "min"),
+            factor=cfg.training.lr_scheduler.get("factor", 0.5),
+            patience=cfg.training.lr_scheduler.get("patience", 3),
+            min_lr=cfg.training.lr_scheduler.get("min_lr", 1e-7),
+        )
+        print("✓ LR Scheduler enabled")
+    
+    # Setup Early Stopping
+    early_stopping = None
+    if cfg.training.early_stopping.get("enabled", False):
+        early_stopping = EarlyStopping(
+            patience=cfg.training.early_stopping.get("patience", 7),
+            min_delta=cfg.training.early_stopping.get("min_delta", 0.0),
+            restore_best=cfg.training.early_stopping.get("restore_best", True),
+            verbose=True,
+        )
+        print("✓ Early Stopping enabled")
+    
+    # Resume from checkpoint if specified
+    start_epoch = 0
+    best_loss = float('inf')
+    if resume_from is not None:
+        start_epoch, metrics = load_checkpoint(
+            resume_from, encoder, rcn_cell, diffusion, optimizer
+        )
+        best_loss = metrics.get("loss", float('inf'))
+        print(f"Resuming from epoch {start_epoch}")
+    
+    # Training loop with checkpointing
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    
+    for epoch in range(start_epoch, cfg.training.epochs):
+        print(f"\n{'='*80}")
+        print(f"Epoch {epoch + 1}/{cfg.training.epochs}")
+        print(f"{'='*80}")
+        
+        batch_iter = _iterate_batches(dataloader, builder, device)
+        
+        # Get training configuration for train_epoch
+        metrics = train_epoch(
+            encoder=encoder,
+            rcn_runner=rcn_runner,
+            diffusion_decoder=diffusion,
+            optimizer=optimizer,
+            data_loader=batch_iter,
+            lambda_gen=cfg.loss.lambda_gen,
+            beta_rec=cfg.loss.beta_rec,
+            gamma_dag=cfg.loss.gamma_dag,
+            conditioning_fn=None,
+            device=device,
+            gradient_clipping=cfg.training.gradient_clipping,
+            dag_method=cfg.loss.get("dag_method", "dagma"),
+            dagma_s=cfg.loss.get("dagma_s", 1.0),
+            lambda_phy=cfg.loss.get("lambda_phy", 0.0),
+            use_predicted_output=cfg.training.physical_loss.get("use_predicted_output", False),
+            physical_sample_interval=cfg.training.physical_loss.get("physical_sample_interval", 10),
+            physical_num_steps=cfg.training.physical_loss.get("physical_num_steps", 15),
+            use_amp=cfg.training.get("use_amp", True),
+            scheduler=scheduler,
+            use_focal_loss=cfg.loss.get("use_focal_loss", False),
+            focal_alpha=cfg.loss.get("focal_alpha", 1.0),
+            focal_gamma=cfg.loss.get("focal_gamma", 2.0),
+            extreme_weight_factor=cfg.loss.get("extreme_weight_factor", 0.0),
+            extreme_percentiles=cfg.loss.get("extreme_percentiles", [95.0, 99.0]),
+            reconstruction_loss_type=cfg.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
+            lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
+        )
+
+        if cfg.loss.get("log_spectral_metric_each_epoch", False):
+            from st_cdgm.training.training_loop import (
+                compute_rapsd_metric_from_batch,
+                resolve_train_amp_mode,
+            )
+
+            amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
+            try:
+                metric_iter = _iterate_batches(dataloader, builder, device)
+                batch0 = next(metric_iter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as e:
+                print(f"[WARN] RAPSD epoch metric failed: {e}")
+        
+        current_loss = metrics["loss"]
+        
+        # Update LR scheduler
+        if scheduler is not None:
+            scheduler.step(current_loss)
+        
+        # Early stopping check
+        if early_stopping is not None:
+            # For early stopping, we'd need validation loss
+            # For now, use training loss (not ideal, but functional)
+            if early_stopping(current_loss, rcn_cell):  # Use rcn_cell as model proxy
+                print("Early stopping triggered!")
+                break
+        
+        # Save checkpoint
+        is_best = current_loss < best_loss
+        if is_best:
+            best_loss = current_loss
+        
+        if (epoch + 1) % save_every == 0 or is_best:
+            checkpoint_path = save_checkpoint(
+                encoder, rcn_cell, diffusion, optimizer,
+                epoch + 1, metrics, checkpoint_dir, is_best=is_best
+            )
+            
+            # Clean up old checkpoints (keep only last N)
+            if not is_best:  # Don't delete best model
+                checkpoints = sorted(checkpoint_dir.glob("checkpoint_epoch_*.pt"))
+                if len(checkpoints) > max_checkpoints:
+                    for old_checkpoint in checkpoints[:-max_checkpoints]:
+                        old_checkpoint.unlink()
+                        old_checkpoint.with_suffix(".json").unlink(missing_ok=True)
+                        print(f"  Deleted old checkpoint: {old_checkpoint.name}")
+    
+    print("\n" + "=" * 80)
+    print("Training completed!")
+    print(f"Best loss: {best_loss:.6f}")
+    print(f"Checkpoints saved in: {checkpoint_dir}")
+    print("=" * 80)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Train ST-CDGM model with checkpointing and callbacks",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default="config/training_config.yaml",
+        help="Path to Hydra config file",
+    )
+    parser.add_argument(
+        "--checkpoint_dir",
+        type=Path,
+        default="models",
+        help="Directory to save checkpoints",
+    )
+    parser.add_argument(
+        "--save_every",
+        type=int,
+        default=5,
+        help="Save checkpoint every N epochs",
+    )
+    parser.add_argument(
+        "--max_checkpoints",
+        type=int,
+        default=5,
+        help="Maximum number of checkpoints to keep",
+    )
+    parser.add_argument(
+        "--resume_from",
+        type=Path,
+        default=None,
+        help="Path to checkpoint to resume from",
+    )
+    
+    args = parser.parse_args()
+    
+    # Load Hydra config
+    if not args.config.exists():
+        raise FileNotFoundError(f"Config file not found: {args.config}")
+    
+    # Use Hydra to load config
+    # Since we're calling from outside Hydra, we need to use OmegaConf directly
+    cfg = OmegaConf.load(args.config)
+    
+    # Convert to DictConfig for compatibility
+    cfg = OmegaConf.structured(cfg) if OmegaConf.is_config(cfg) else cfg
+    
+    run_training_with_checkpoints(
+        cfg,
+        checkpoint_dir=args.checkpoint_dir,
+        save_every=args.save_every,
+        max_checkpoints=args.max_checkpoints,
+        resume_from=args.resume_from,
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### `scripts/save_model.py`
+
+```python
+"""
+Utility script to save a model checkpoint with metadata.
+
+Usage:
+    python scripts/save_model.py \
+        --encoder model_encoder.pt \
+        --rcn model_rcn.pt \
+        --diffusion model_diffusion.pt \
+        --output models/checkpoint.pt \
+        --config config/training_config.yaml
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+
+import torch
+from omegaconf import OmegaConf
+
+
+def save_model_checkpoint(
+    encoder_path: Path,
+    rcn_path: Path,
+    diffusion_path: Path,
+    output_path: Path,
+    config_path: Optional[Path] = None,
+    metrics: Optional[dict] = None,
+) -> None:
+    """Save a combined model checkpoint with metadata."""
+    
+    # Load model states
+    encoder_state = torch.load(encoder_path, map_location="cpu")
+    rcn_state = torch.load(rcn_path, map_location="cpu")
+    diffusion_state = torch.load(diffusion_path, map_location="cpu")
+    
+    # Load config if provided
+    config = None
+    if config_path and config_path.exists():
+        config = OmegaConf.load(config_path)
+        config = OmegaConf.to_container(config, resolve=True)
+    
+    # Create checkpoint
+    checkpoint = {
+        "encoder_state_dict": encoder_state,
+        "rcn_state_dict": rcn_state,
+        "diffusion_state_dict": diffusion_state,
+        "config": config,
+        "metrics": metrics or {},
+        "timestamp": datetime.now().isoformat(),
+    }
+    
+    # Save checkpoint
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(checkpoint, output_path)
+    
+    # Save metadata as JSON
+    metadata_path = output_path.with_suffix(".json")
+    metadata = {
+        "encoder_path": str(encoder_path),
+        "rcn_path": str(rcn_path),
+        "diffusion_path": str(diffusion_path),
+        "config_path": str(config_path) if config_path else None,
+        "metrics": metrics,
+        "timestamp": checkpoint["timestamp"],
+    }
+    
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+    
+    print(f"✓ Checkpoint saved: {output_path}")
+    print(f"✓ Metadata saved: {metadata_path}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Save model checkpoint")
+    parser.add_argument("--encoder", type=Path, required=True)
+    parser.add_argument("--rcn", type=Path, required=True)
+    parser.add_argument("--diffusion", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--metrics", type=Path, default=None, help="JSON file with metrics")
+    
+    args = parser.parse_args()
+    
+    metrics = None
+    if args.metrics and args.metrics.exists():
+        with open(args.metrics) as f:
+            metrics = json.load(f)
+    
+    save_model_checkpoint(
+        args.encoder, args.rcn, args.diffusion,
+        args.output, args.config, metrics
+    )
+```
+
+---
+
+### `scripts/sync_datastore.py`
+
+```python
+"""
+Script for synchronizing data between local disk and CyVerse Data Store.
+
+This script provides utilities to:
+- Copy data from Data Store to local disk (for better I/O performance)
+- Save results from local disk to Data Store (for persistence)
+- List files in Data Store
+- Check disk space
+
+Usage:
+    # Copy from Data Store to local
+    python scripts/sync_datastore.py --copy-from-datastore \
+        ~/data-store/home/username/data/raw/*.nc \
+        ~/climate_data/data/raw/
+    
+    # Save to Data Store from local
+    python scripts/sync_datastore.py --save-to-datastore \
+        ~/climate_data/models/*.pt \
+        ~/data-store/home/username/st-cdgm/models/
+    
+    # List files in Data Store
+    python scripts/sync_datastore.py --list-datastore \
+        ~/data-store/home/username/data/
+    
+    # Dry run (simulate without copying)
+    python scripts/sync_datastore.py --copy-from-datastore \
+        --dry-run ~/data-store/home/username/data/raw/*.nc ~/climate_data/data/raw/
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import sys
+from pathlib import Path
+from typing import List, Optional
+
+# Add project to path
+project_root = Path(__file__).parent.parent
+if str(project_root / "src") not in sys.path:
+    sys.path.insert(0, str(project_root / "src"))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from scripts.vice_utils import (
+    get_datastore_path,
+    is_vice_environment,
+    recommend_local_copy,
+)
+
+
+def format_size(size_bytes: int) -> str:
+    """Format file size in human-readable format."""
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.2f} PB"
+
+
+def get_disk_usage(path: Path) -> dict:
+    """Get disk usage statistics for a path."""
+    try:
+        stat = shutil.disk_usage(path)
+        return {
+            "total": stat.total,
+            "used": stat.used,
+            "free": stat.free,
+            "percent_used": (stat.used / stat.total) * 100,
+        }
+    except OSError:
+        return None
+
+
+def copy_files(
+    source: Path | str,
+    destination: Path | str,
+    dry_run: bool = False,
+    verbose: bool = True,
+) -> int:
+    """
+    Copy files from source to destination.
+    
+    Args:
+        source: Source path (file or directory).
+        destination: Destination path (file or directory).
+        dry_run: If True, simulate without copying.
+        verbose: If True, print progress.
+    
+    Returns:
+        Number of files copied.
+    """
+    source = Path(source).expanduser().resolve()
+    destination = Path(destination).expanduser().resolve()
+    
+    if not source.exists():
+        print(f"Error: Source path does not exist: {source}")
+        return 0
+    
+    # Ensure destination directory exists
+    if source.is_file():
+        destination.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        destination.mkdir(parents=True, exist_ok=True)
+    
+    copied_count = 0
+    
+    if source.is_file():
+        # Copy single file
+        if dry_run:
+            if verbose:
+                size = source.stat().st_size
+                print(f"[DRY RUN] Would copy: {source} -> {destination} ({format_size(size)})")
+            copied_count = 1
+        else:
+            if verbose:
+                size = source.stat().st_size
+                print(f"Copying: {source.name} ({format_size(size)})...")
+            shutil.copy2(source, destination)
+            copied_count = 1
+            if verbose:
+                print(f"  ✓ Copied to: {destination}")
+    
+    elif source.is_dir():
+        # Copy directory tree
+        if dry_run:
+            if verbose:
+                print(f"[DRY RUN] Would copy directory: {source} -> {destination}")
+            # Count files recursively
+            for file_path in source.rglob("*"):
+                if file_path.is_file():
+                    copied_count += 1
+                    if verbose:
+                        size = file_path.stat().st_size
+                        rel_path = file_path.relative_to(source)
+                        print(f"  Would copy: {rel_path} ({format_size(size)})")
+        else:
+            if verbose:
+                print(f"Copying directory: {source} -> {destination}")
+            
+            for file_path in source.rglob("*"):
+                if file_path.is_file():
+                    rel_path = file_path.relative_to(source)
+                    dest_path = destination / rel_path
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    if verbose:
+                        size = file_path.stat().st_size
+                        print(f"  Copying: {rel_path} ({format_size(size)})...")
+                    
+                    shutil.copy2(file_path, dest_path)
+                    copied_count += 1
+            
+            if verbose:
+                print(f"  ✓ Copied {copied_count} files")
+    
+    return copied_count
+
+
+def list_datastore(path: Path | str, recursive: bool = False) -> None:
+    """List files in Data Store directory."""
+    path = Path(path).expanduser().resolve()
+    
+    if not path.exists():
+        print(f"Error: Path does not exist: {path}")
+        return
+    
+    if not path.is_dir():
+        print(f"Error: Path is not a directory: {path}")
+        return
+    
+    print(f"Listing files in: {path}")
+    print("=" * 80)
+    
+    if recursive:
+        files = list(path.rglob("*"))
+    else:
+        files = list(path.iterdir())
+    
+    # Separate files and directories
+    dirs = [f for f in files if f.is_dir()]
+    files_only = [f for f in files if f.is_file()]
+    
+    # Print directories first
+    if dirs:
+        print("\nDirectories:")
+        for d in sorted(dirs):
+            rel_path = d.relative_to(path)
+            print(f"  📁 {rel_path}/")
+    
+    # Print files
+    if files_only:
+        print("\nFiles:")
+        total_size = 0
+        for f in sorted(files_only):
+            rel_path = f.relative_to(path)
+            size = f.stat().st_size
+            total_size += size
+            print(f"  📄 {rel_path} ({format_size(size)})")
+        
+        print(f"\nTotal: {len(files_only)} files, {format_size(total_size)}")
+
+
+def copy_from_datastore(
+    source_pattern: str,
+    destination: str,
+    dry_run: bool = False,
+    verbose: bool = True,
+) -> None:
+    """Copy files from Data Store to local disk."""
+    if not is_vice_environment():
+        print("Warning: Not running in VICE environment. Data Store may not be available.")
+    
+    # Expand user paths
+    source = Path(source_pattern).expanduser()
+    destination = Path(destination).expanduser()
+    
+    # Check if source exists
+    if not source.exists():
+        print(f"Error: Source does not exist: {source}")
+        print("\nTip: Check that your Data Store path is correct.")
+        print(f"     Example: ~/data-store/home/<username>/data/raw/")
+        return
+    
+    # Check disk space
+    dest_usage = get_disk_usage(destination.parent if destination.is_file() else destination)
+    if dest_usage and verbose:
+        print(f"Destination disk usage: {dest_usage['percent_used']:.1f}% used")
+        print(f"  Free space: {format_size(dest_usage['free'])}")
+    
+    # Recommend local copy
+    if verbose and recommend_local_copy():
+        print("\nℹ️  Recommendation: Copying to local disk for better I/O performance.")
+        print("   Data Store access is slower for large files.\n")
+    
+    # Copy files
+    count = copy_files(source, destination, dry_run=dry_run, verbose=verbose)
+    
+    if verbose:
+        if dry_run:
+            print(f"\n[DRY RUN] Would copy {count} file(s)")
+        else:
+            print(f"\n✓ Successfully copied {count} file(s)")
+
+
+def save_to_datastore(
+    source: str,
+    destination_pattern: str,
+    dry_run: bool = False,
+    verbose: bool = True,
+) -> None:
+    """Save files from local disk to Data Store."""
+    if not is_vice_environment():
+        print("Warning: Not running in VICE environment. Data Store may not be available.")
+    
+    # Expand user paths
+    source = Path(source).expanduser()
+    destination = Path(destination_pattern).expanduser()
+    
+    # Check if source exists
+    if not source.exists():
+        print(f"Error: Source does not exist: {source}")
+        return
+    
+    # Check disk space in Data Store
+    dest_usage = get_disk_usage(destination.parent if destination.is_file() else destination)
+    if dest_usage and verbose:
+        print(f"Data Store disk usage: {dest_usage['percent_used']:.1f}% used")
+        print(f"  Free space: {format_size(dest_usage['free'])}")
+    
+    if verbose:
+        print("\nℹ️  Saving to Data Store for persistence.")
+        print("   Files in Data Store persist after VICE session ends.\n")
+    
+    # Copy files
+    count = copy_files(source, destination, dry_run=dry_run, verbose=verbose)
+    
+    if verbose:
+        if dry_run:
+            print(f"\n[DRY RUN] Would save {count} file(s) to Data Store")
+        else:
+            print(f"\n✓ Successfully saved {count} file(s) to Data Store")
+
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="Synchronize data between local disk and CyVerse Data Store",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Copy data from Data Store to local
+  python scripts/sync_datastore.py --copy-from-datastore \\
+      ~/data-store/home/username/data/raw/*.nc \\
+      ~/climate_data/data/raw/
+  
+  # Save results to Data Store
+  python scripts/sync_datastore.py --save-to-datastore \\
+      ~/climate_data/models/*.pt \\
+      ~/data-store/home/username/st-cdgm/models/
+  
+  # List files in Data Store
+  python scripts/sync_datastore.py --list-datastore \\
+      ~/data-store/home/username/data/
+  
+  # Dry run (simulate)
+  python scripts/sync_datastore.py --copy-from-datastore --dry-run \\
+      ~/data-store/home/username/data/raw/*.nc \\
+      ~/climate_data/data/raw/
+        """,
+    )
+    
+    parser.add_argument(
+        "--copy-from-datastore",
+        nargs=2,
+        metavar=("SOURCE", "DEST"),
+        help="Copy files from Data Store to local disk",
+    )
+    parser.add_argument(
+        "--save-to-datastore",
+        nargs=2,
+        metavar=("SOURCE", "DEST"),
+        help="Save files from local disk to Data Store",
+    )
+    parser.add_argument(
+        "--list-datastore",
+        nargs=1,
+        metavar="PATH",
+        help="List files in Data Store directory",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulate operations without copying files",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress output",
+    )
+    parser.add_argument(
+        "--recursive",
+        action="store_true",
+        help="List files recursively (with --list-datastore)",
+    )
+    
+    args = parser.parse_args()
+    
+    verbose = not args.quiet
+    
+    # Check if any action is specified
+    if not any([args.copy_from_datastore, args.save_to_datastore, args.list_datastore]):
+        parser.print_help()
+        return 1
+    
+    # Handle list datastore
+    if args.list_datastore:
+        list_datastore(args.list_datastore[0], recursive=args.recursive)
+        return 0
+    
+    # Handle copy from datastore
+    if args.copy_from_datastore:
+        copy_from_datastore(
+            args.copy_from_datastore[0],
+            args.copy_from_datastore[1],
+            dry_run=args.dry_run,
+            verbose=verbose,
+        )
+        return 0
+    
+    # Handle save to datastore
+    if args.save_to_datastore:
+        save_to_datastore(
+            args.save_to_datastore[0],
+            args.save_to_datastore[1],
+            dry_run=args.dry_run,
+            verbose=verbose,
+        )
+        return 0
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+---
+
+### `scripts/test_installation.py`
+
+```python
+"""
+Test script to verify ST-CDGM installation and dependencies.
+
+This script checks:
+- Python version
+- PyTorch installation and CUDA availability
+- Required dependencies
+- Module imports
+- GPU availability and basic operations
+- VICE environment detection (if in CyVerse)
+- Data Store access (if in VICE)
+
+Usage:
+    python scripts/test_installation.py
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Add workspace to path
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+if str(workspace_path) not in sys.path:
+    sys.path.insert(0, str(workspace_path))
+
+# Import VICE utilities if available
+try:
+    from scripts.vice_utils import (
+        get_datastore_path,
+        is_vice_environment,
+        recommend_local_copy,
+    )
+    HAS_VICE_UTILS = True
+except ImportError:
+    HAS_VICE_UTILS = False
+
+
+def test_python_version():
+    """Test Python version."""
+    print("Testing Python version...")
+    version = sys.version_info
+    if version.major < 3 or (version.major == 3 and version.minor < 8):
+        print(f"  [FAIL] Python {version.major}.{version.minor} (requires >= 3.8)")
+        return False
+    print(f"  [OK] Python {version.major}.{version.minor}.{version.micro}")
+    return True
+
+
+def test_pytorch():
+    """Test PyTorch installation and CUDA."""
+    print("\nTesting PyTorch...")
+    try:
+        import torch
+        print(f"  [OK] PyTorch {torch.__version__}")
+        
+        if torch.cuda.is_available():
+            print(f"  [OK] CUDA available: {torch.version.cuda}")
+            print(f"  [OK] GPU devices: {torch.cuda.device_count()}")
+            for i in range(torch.cuda.device_count()):
+                print(f"    - Device {i}: {torch.cuda.get_device_name(i)}")
+            
+            # Test basic GPU operation
+            x = torch.randn(10, 10).cuda()
+            y = torch.matmul(x, x)
+            print(f"  [OK] GPU computation test passed")
+        else:
+            print(f"  [WARN] CUDA not available (CPU mode only)")
+        
+        return True
+    except ImportError as e:
+        print(f"  [FAIL] PyTorch not installed: {e}")
+        return False
+
+
+def test_dependencies():
+    """Test required dependencies."""
+    print("\nTesting dependencies...")
+    dependencies = [
+        ("numpy", "numpy"),
+        ("pandas", "pandas"),
+        ("xarray", "xarray"),
+        ("torch_geometric", "torch_geometric"),
+        ("diffusers", "diffusers"),
+        ("hydra", "hydra.core"),
+        ("omegaconf", "omegaconf"),
+        ("zarr", "zarr"),
+        ("matplotlib", "matplotlib"),
+    ]
+    
+    all_ok = True
+    for name, module in dependencies:
+        try:
+            __import__(module)
+            print(f"  [OK] {name}")
+        except ImportError:
+            print(f"  [FAIL] {name} not installed")
+            all_ok = False
+    
+    return all_ok
+
+
+def test_st_cdgm_imports():
+    """Test ST-CDGM module imports."""
+    print("\nTesting ST-CDGM module imports...")
+    try:
+        from st_cdgm import (
+            NetCDFDataPipeline,
+            HeteroGraphBuilder,
+            IntelligibleVariableEncoder,
+            RCNCell,
+            RCNSequenceRunner,
+            CausalDiffusionDecoder,
+        )
+        print("  [OK] All core modules imported successfully")
+        return True
+    except ImportError as e:
+        print(f"  [FAIL] Import error: {e}")
+        return False
+
+
+def test_basic_operations():
+    """Test basic PyTorch operations."""
+    print("\nTesting basic operations...")
+    try:
+        import torch
+        from st_cdgm import RCNCell
+        
+        # Test RCNCell creation
+        rcn = RCNCell(
+            num_vars=3,
+            hidden_dim=64,
+            driver_dim=8,
+            reconstruction_dim=8,
+        )
+        print("  [OK] RCNCell creation successful")
+        
+        # Test forward pass (if GPU available)
+        if torch.cuda.is_available():
+            rcn = rcn.cuda()
+            H = torch.randn(3, 10, 64).cuda()
+            driver = torch.randn(10, 8).cuda()
+            H_next, _, _ = rcn(H, driver)
+            print(f"  [OK] GPU forward pass successful (output shape: {H_next.shape})")
+        else:
+            H = torch.randn(3, 10, 64)
+            driver = torch.randn(10, 8)
+            H_next, _, _ = rcn(H, driver)
+            print(f"  [OK] CPU forward pass successful (output shape: {H_next.shape})")
+        
+        return True
+    except Exception as e:
+        print(f"  [FAIL] Operation test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_vice_environment():
+    """Test VICE environment detection and Data Store access."""
+    print("\nTesting VICE environment...")
+    
+    if not HAS_VICE_UTILS:
+        print("  [SKIP] VICE utilities not available (scripts/vice_utils.py not found)")
+        return True  # Not a failure, just not available
+    
+    try:
+        # Check if running in VICE
+        is_vice = is_vice_environment()
+        
+        if is_vice:
+            print("  [INFO] Running in CyVerse VICE environment")
+            
+            # Check Data Store access
+            datastore_path = get_datastore_path()
+            if datastore_path:
+                print(f"  [OK] Data Store accessible: {datastore_path}")
+                
+                # Check if Data Store is writable
+                try:
+                    test_file = datastore_path / ".test_write"
+                    test_file.touch()
+                    test_file.unlink()
+                    print("  [OK] Data Store is writable")
+                except (OSError, PermissionError):
+                    print("  [WARN] Data Store may not be writable (read-only access)")
+            else:
+                print("  [WARN] Data Store path not found")
+            
+            # Recommendation for local copy
+            if recommend_local_copy():
+                print("  [INFO] Recommendation: Copy data to local disk (~/) for better I/O performance")
+                print("         Use: python scripts/sync_datastore.py --copy-from-datastore ...")
+            
+        else:
+            print("  [INFO] Not running in VICE environment (local execution)")
+        
+        return True  # Always pass, this is informational
+        
+    except Exception as e:
+        print(f"  [WARN] VICE detection failed: {e}")
+        return True  # Not a critical failure
+
+
+def main():
+    """Run all tests."""
+    print("=" * 80)
+    print("ST-CDGM Installation Test")
+    print("=" * 80)
+    
+    tests = [
+        ("Python Version", test_python_version),
+        ("PyTorch", test_pytorch),
+        ("Dependencies", test_dependencies),
+        ("ST-CDGM Imports", test_st_cdgm_imports),
+        ("Basic Operations", test_basic_operations),
+        ("VICE Environment", test_vice_environment),
+    ]
+    
+    results = []
+    for name, test_func in tests:
+        try:
+            result = test_func()
+            results.append((name, result))
+        except Exception as e:
+            print(f"\n  [FAIL] {name} test crashed: {e}")
+            results.append((name, False))
+    
+    # Summary
+    print("\n" + "=" * 80)
+    print("Test Summary")
+    print("=" * 80)
+    all_passed = True
+    for name, result in results:
+        status = "[PASS]" if result else "[FAIL]"
+        print(f"  {status}: {name}")
+        if not result:
+            all_passed = False
+    
+    print("=" * 80)
+    if all_passed:
+        print("[SUCCESS] All tests passed!")
+        return 0
+    else:
+        print("[FAIL] Some tests failed. Please check the output above.")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+---
+
+### `scripts/test_pipeline.py`
+
+```python
+"""
+End-to-end pipeline test with synthetic data.
+
+This script creates synthetic data and tests the complete pipeline:
+- Preprocessing
+- Training (short run)
+- Evaluation
+
+Usage:
+    python scripts/test_pipeline.py
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+import numpy as np
+import xarray as xr
+
+# Add workspace to path
+workspace_path = Path(__file__).parent.parent
+if str(workspace_path / "src") not in sys.path:
+    sys.path.insert(0, str(workspace_path / "src"))
+
+
+def create_synthetic_data(
+    output_dir: Path,
+    num_timesteps: int = 100,
+    lr_shape: tuple[int, int] = (23, 26),
+    hr_shape: tuple[int, int] = (172, 179),
+) -> tuple[Path, Path]:
+    """Create synthetic NetCDF files for testing."""
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Create time coordinates
+    time = np.arange(num_timesteps)
+    
+    # Create LR data
+    lr_lat = np.linspace(-59, -26, lr_shape[0])
+    lr_lon = np.linspace(150, 188, lr_shape[1])
+    lr_data = np.random.randn(num_timesteps, 8, lr_shape[0], lr_shape[1])
+    
+    lr_ds = xr.Dataset(
+        {
+            "temperature": (["time", "level", "lat", "lon"], lr_data),
+        },
+        coords={
+            "time": time,
+            "level": np.arange(8),
+            "lat": lr_lat,
+            "lon": lr_lon,
+        },
+    )
+    
+    lr_path = output_dir / "synthetic_lr.nc"
+    lr_ds.to_netcdf(lr_path)
+    print(f"✓ Created synthetic LR data: {lr_path}")
+    
+    # Create HR data
+    hr_lat = np.linspace(-59, -26, hr_shape[0])
+    hr_lon = np.linspace(150, 188, hr_shape[1])
+    hr_data = np.random.randn(num_timesteps, 3, hr_shape[0], hr_shape[1])
+    
+    hr_ds = xr.Dataset(
+        {
+            "temperature": (["time", "channel", "lat", "lon"], hr_data),
+        },
+        coords={
+            "time": time,
+            "channel": np.arange(3),
+            "lat": hr_lat,
+            "lon": hr_lon,
+        },
+    )
+    
+    hr_path = output_dir / "synthetic_hr.nc"
+    hr_ds.to_netcdf(hr_path)
+    print(f"✓ Created synthetic HR data: {hr_path}")
+    
+    return lr_path, hr_path
+
+
+def test_pipeline():
+    """Run end-to-end pipeline test."""
+    
+    print("=" * 80)
+    print("ST-CDGM Pipeline Test (Synthetic Data)")
+    print("=" * 80)
+    
+    # Create test data
+    test_data_dir = Path("data/test")
+    print("\n1. Creating synthetic test data...")
+    lr_path, hr_path = create_synthetic_data(test_data_dir, num_timesteps=50)
+    
+    # Test preprocessing
+    print("\n2. Testing preprocessing...")
+    try:
+        from scripts.run_preprocessing import main as preprocess_main
+        # This would need to be adapted to call the function directly
+        print("  ⏭ Skipping preprocessing test (requires refactoring)")
+    except Exception as e:
+        print(f"  ⚠ Preprocessing test skipped: {e}")
+    
+    # Test training (minimal)
+    print("\n3. Testing model creation...")
+    try:
+        import torch
+        from st_cdgm import RCNCell, IntelligibleVariableEncoder, CausalDiffusionDecoder
+        
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Create minimal models
+        encoder = IntelligibleVariableEncoder(
+            configs=[],
+            hidden_dim=64,
+            conditioning_dim=64,
+        ).to(device)
+        
+        rcn = RCNCell(
+            num_vars=3,
+            hidden_dim=64,
+            driver_dim=8,
+        ).to(device)
+        
+        diffusion = CausalDiffusionDecoder(
+            in_channels=3,
+            conditioning_dim=64,
+            height=32,
+            width=32,
+            num_diffusion_steps=100,
+        ).to(device)
+        
+        print("  ✓ Models created successfully")
+        
+        # Test forward pass
+        H = torch.randn(3, 10, 64).to(device)
+        driver = torch.randn(10, 8).to(device)
+        H_next, _, _ = rcn(H, driver)
+        print(f"  ✓ Forward pass successful (RCN output: {H_next.shape})")
+        
+    except Exception as e:
+        print(f"  ❌ Model test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    print("\n" + "=" * 80)
+    print("✓ Pipeline test completed successfully!")
+    print("=" * 80)
+    print(f"Test data: {test_data_dir}")
+    print("\nNote: Full training/evaluation tests require real data and take longer.")
+    
+    return True
+
+
+if __name__ == "__main__":
+    success = test_pipeline()
+    sys.exit(0 if success else 1)
+```
+
+---
+
+### `scripts/validate_setup.py`
+
+```python
+"""
+Script de validation complète pour vérifier que tout est prêt avant déploiement.
+
+Ce script vérifie:
+- Syntaxe Python de tous les fichiers
+- Structure des fichiers et répertoires
+- Configuration YAML valide
+- Imports (sans exécuter le code nécessitant torch)
+- Présence de tous les fichiers nécessaires
+"""
+
+from __future__ import annotations
+
+import ast
+import sys
+from pathlib import Path
+from typing import List, Tuple
+
+# Couleurs pour Windows (compatible)
+GREEN = "[OK]"
+RED = "[FAIL]"
+YELLOW = "[WARN]"
+
+
+def check_syntax(file_path: Path) -> Tuple[bool, str]:
+    """Vérifie la syntaxe Python d'un fichier."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            ast.parse(f.read(), filename=str(file_path))
+        return True, ""
+    except SyntaxError as e:
+        return False, f"Syntax error at line {e.lineno}: {e.msg}"
+    except Exception as e:
+        return False, str(e)
+
+
+def check_imports_safe(file_path: Path) -> Tuple[bool, str]:
+    """Vérifie les imports sans exécuter le code."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read(), filename=str(file_path))
+        
+        # Vérifier les imports
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    # Vérifier que les imports locaux existent
+                    if not alias.name.startswith('.'):
+                        continue
+                    # Imports relatifs - on vérifie juste la syntaxe
+                    pass
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and not node.module.startswith('.'):
+                    # Import externe - OK
+                    pass
+        
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+def check_yaml_config(file_path: Path) -> Tuple[bool, str]:
+    """Vérifie qu'un fichier YAML est valide."""
+    try:
+        import yaml
+        with open(file_path, 'r', encoding='utf-8') as f:
+            yaml.safe_load(f)
+        return True, ""
+    except ImportError:
+        return False, "yaml module not available"
+    except Exception as e:
+        return False, str(e)
+
+
+def validate_project_structure() -> List[Tuple[str, bool, str]]:
+    """Valide la structure complète du projet."""
+    results = []
+    
+    # Fichiers essentiels
+    essential_files = [
+        "docker-compose.yml",
+        "Dockerfile",
+        ".dockerignore",
+        "setup.py",
+        "requirements.txt",
+        "config/docker.env",
+        "config/training_config.yaml",
+    ]
+    
+    print("\n" + "=" * 80)
+    print("Validation de la Structure du Projet")
+    print("=" * 80)
+    
+    for file_path in essential_files:
+        path = Path(file_path)
+        exists = path.exists()
+        results.append((f"Fichier: {file_path}", exists, "" if exists else "Fichier manquant"))
+        status = GREEN if exists else RED
+        print(f"  {status} {file_path}")
+    
+    # Répertoires essentiels
+    essential_dirs = [
+        "src/st_cdgm",
+        "src/st_cdgm/models",
+        "src/st_cdgm/data",
+        "src/st_cdgm/training",
+        "src/st_cdgm/evaluation",
+        "scripts",
+        "ops",
+        "config",
+        "docs",
+    ]
+    
+    print("\nRépertoires:")
+    for dir_path in essential_dirs:
+        path = Path(dir_path)
+        exists = path.exists() and path.is_dir()
+        results.append((f"Répertoire: {dir_path}", exists, "" if exists else "Répertoire manquant"))
+        status = GREEN if exists else RED
+        print(f"  {status} {dir_path}")
+    
+    return results
+
+
+def validate_python_files() -> List[Tuple[str, bool, str]]:
+    """Valide tous les fichiers Python."""
+    results = []
+    
+    print("\n" + "=" * 80)
+    print("Validation des Fichiers Python")
+    print("=" * 80)
+    
+    # Fichiers à vérifier
+    python_files = []
+    
+    # Scripts
+    scripts_dir = Path("scripts")
+    if scripts_dir.exists():
+        python_files.extend(scripts_dir.glob("*.py"))
+    
+    # Ops
+    ops_dir = Path("ops")
+    if ops_dir.exists():
+        python_files.extend(ops_dir.glob("*.py"))
+    
+    # Source
+    src_dir = Path("src/st_cdgm")
+    if src_dir.exists():
+        python_files.extend(src_dir.rglob("*.py"))
+    
+    for py_file in python_files:
+        # Ignorer __pycache__
+        if "__pycache__" in str(py_file):
+            continue
+        
+        # Vérifier syntaxe
+        syntax_ok, syntax_msg = check_syntax(py_file)
+        results.append((f"Syntaxe: {py_file}", syntax_ok, syntax_msg))
+        
+        status = GREEN if syntax_ok else RED
+        if syntax_ok:
+            print(f"  {status} {py_file.name}")
+        else:
+            print(f"  {status} {py_file.name}: {syntax_msg}")
+    
+    return results
+
+
+def validate_configs() -> List[Tuple[str, bool, str]]:
+    """Valide les fichiers de configuration."""
+    results = []
+    
+    print("\n" + "=" * 80)
+    print("Validation des Configurations")
+    print("=" * 80)
+    
+    config_files = [
+        "config/training_config.yaml",
+    ]
+    
+    for config_file in config_files:
+        path = Path(config_file)
+        if not path.exists():
+            results.append((f"Config: {config_file}", False, "Fichier manquant"))
+            print(f"  {RED} {config_file}: Fichier manquant")
+            continue
+        
+        yaml_ok, yaml_msg = check_yaml_config(path)
+        results.append((f"Config: {config_file}", yaml_ok, yaml_msg))
+        status = GREEN if yaml_ok else RED
+        print(f"  {status} {config_file}")
+        if not yaml_ok:
+            print(f"      Erreur: {yaml_msg}")
+    
+    return results
+
+
+def validate_docker_files() -> List[Tuple[str, bool, str]]:
+    """Valide les fichiers Docker."""
+    results = []
+    
+    print("\n" + "=" * 80)
+    print("Validation des Fichiers Docker")
+    print("=" * 80)
+    
+    docker_files = [
+        "docker-compose.yml",
+        "Dockerfile",
+        ".dockerignore",
+    ]
+    
+    for docker_file in docker_files:
+        path = Path(docker_file)
+        exists = path.exists()
+        results.append((f"Docker: {docker_file}", exists, "" if exists else "Fichier manquant"))
+        status = GREEN if exists else RED
+        print(f"  {status} {docker_file}")
+        
+        if exists and docker_file.endswith('.yml'):
+            # Vérifier que docker-compose.yml est valide (basique)
+            try:
+                with open(path, 'r') as f:
+                    content = f.read()
+                    # Vérifications basiques
+                    if 'services:' in content or 'version:' in content:
+                        print(f"      Structure docker-compose valide")
+            except Exception as e:
+                results.append((f"Docker: {docker_file} (structure)", False, str(e)))
+                print(f"      {RED} Erreur structure: {e}")
+    
+    return results
+
+
+def validate_imports_structure() -> List[Tuple[str, bool, str]]:
+    """Vérifie la structure des imports sans exécuter."""
+    results = []
+    
+    print("\n" + "=" * 80)
+    print("Validation de la Structure des Imports")
+    print("=" * 80)
+    
+    # Vérifier que les modules __init__.py existent
+    init_files = [
+        "src/st_cdgm/__init__.py",
+        "src/st_cdgm/models/__init__.py",
+        "src/st_cdgm/data/__init__.py",
+        "src/st_cdgm/training/__init__.py",
+        "src/st_cdgm/evaluation/__init__.py",
+    ]
+    
+    for init_file in init_files:
+        path = Path(init_file)
+        exists = path.exists()
+        results.append((f"__init__: {init_file}", exists, "" if exists else "Fichier manquant"))
+        status = GREEN if exists else RED
+        print(f"  {status} {init_file}")
+    
+    return results
+
+
+def main():
+    """Exécute toutes les validations."""
+    print("=" * 80)
+    print("Validation Complète du Projet ST-CDGM")
+    print("=" * 80)
+    
+    all_results = []
+    
+    # Structure du projet
+    all_results.extend(validate_project_structure())
+    
+    # Fichiers Python
+    all_results.extend(validate_python_files())
+    
+    # Configurations
+    all_results.extend(validate_configs())
+    
+    # Docker
+    all_results.extend(validate_docker_files())
+    
+    # Imports
+    all_results.extend(validate_imports_structure())
+    
+    # Résumé
+    print("\n" + "=" * 80)
+    print("Résumé de la Validation")
+    print("=" * 80)
+    
+    passed = sum(1 for _, ok, _ in all_results if ok)
+    total = len(all_results)
+    failed = total - passed
+    
+    for name, ok, msg in all_results:
+        if not ok:
+            status = RED
+            print(f"  {status} {name}")
+            if msg:
+                print(f"      {msg}")
+    
+    print(f"\nTotal: {total} | Réussis: {passed} | Échoués: {failed}")
+    
+    if failed == 0:
+        print(f"\n{GREEN} Toutes les validations ont réussi!")
+        return 0
+    else:
+        print(f"\n{RED} {failed} validation(s) ont échoué. Veuillez corriger les erreurs ci-dessus.")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+---
+
+### `scripts/validate_antismoothing.py`
+
+```python
+#!/usr/bin/env python3
+"""
+Validation rapide des garde-fous anti-lissage (prompt v6, Phase 4).
+Exécute les tests unitaires dédiés sans lancer un entraînement complet.
+"""
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main() -> int:
+    tests = ROOT / "tests" / "test_corrections_antilissage.py"
+    cmd = [sys.executable, "-m", "pytest", str(tests), "-q", "--tb=short"]
+    print("Running:", " ".join(cmd))
+    return subprocess.call(cmd, cwd=str(ROOT))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+---
+
+### `scripts/vice_utils.py`
+
+```python
+"""
+Utility functions for CyVerse Discovery Environment (VICE) support.
+
+This module provides functions to detect if code is running in a VICE environment
+and manage paths to the CyVerse Data Store.
+
+Usage:
+    from scripts.vice_utils import is_vice_environment, get_datastore_path, resolve_data_path
+    
+    if is_vice_environment():
+        datastore_path = get_datastore_path()
+        data_path = resolve_data_path("data/raw/lr.nc")
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Optional
+
+
+def is_vice_environment() -> bool:
+    """
+    Detect if code is running in a CyVerse VICE environment.
+    
+    VICE environments typically have:
+    - A ~/data-store/ directory mounted via CSI Driver
+    - Environment variables indicating VICE/DE
+    - Jupyter Lab or other VICE apps running
+    
+    Returns:
+        True if running in VICE, False otherwise.
+    """
+    # Check for data-store directory (primary indicator)
+    home = Path.home()
+    data_store_dir = home / "data-store"
+    
+    if data_store_dir.exists() and data_store_dir.is_dir():
+        # Additional check: verify structure
+        home_subdir = data_store_dir / "home"
+        if home_subdir.exists():
+            return True
+    
+    # Check for VICE-related environment variables
+    vice_env_vars = [
+        "VICE_APP_NAME",
+        "CYVERSE_USERNAME",
+        "DE_APP_NAME",
+        "VICE_USER",
+    ]
+    
+    if any(os.environ.get(var) for var in vice_env_vars):
+        return True
+    
+    # Check for Jupyter Lab in typical VICE location
+    jupyter_config = home / ".jupyter" / "jupyter_lab_config.py"
+    if jupyter_config.exists():
+        # Additional check: look for VICE-specific paths in env
+        python_path = os.environ.get("PYTHONPATH", "")
+        if "vice" in python_path.lower() or "cyverse" in python_path.lower():
+            return True
+    
+    return False
+
+
+def get_datastore_path(username: Optional[str] = None) -> Optional[Path]:
+    """
+    Get the path to the CyVerse Data Store for the current user.
+    
+    Args:
+        username: Optional username. If not provided, attempts to detect from
+                  environment variables or uses 'USER' or 'USERNAME'.
+    
+    Returns:
+        Path to ~/data-store/home/<username>/ if in VICE, None otherwise.
+    """
+    if not is_vice_environment():
+        return None
+    
+    # Get username
+    if username is None:
+        # Try environment variables first
+        username = (
+            os.environ.get("CYVERSE_USERNAME") or
+            os.environ.get("VICE_USER") or
+            os.environ.get("USER") or
+            os.environ.get("USERNAME") or
+            "default"
+        )
+    
+    home = Path.home()
+    datastore_path = home / "data-store" / "home" / username
+    
+    return datastore_path if datastore_path.exists() else None
+
+
+def resolve_data_path(
+    relative_path: str | Path,
+    prefer_local: bool = True,
+    username: Optional[str] = None,
+) -> Path:
+    """
+    Resolve a relative data path according to the environment.
+    
+    In VICE:
+    - If prefer_local=True: Resolves to ~/climate_data/<relative_path> (fast local disk)
+    - If prefer_local=False: Resolves to ~/data-store/home/<username>/<relative_path> (persistent but slow)
+    
+    Outside VICE:
+    - Always resolves relative to current working directory or project root.
+    
+    Args:
+        relative_path: Relative path to data file/directory.
+        prefer_local: If True (default), prefer local disk in VICE for performance.
+                     If False, use Data Store (slower but persistent).
+        username: Optional username for Data Store. Auto-detected if not provided.
+    
+    Returns:
+        Resolved absolute Path.
+    """
+    relative_path = Path(relative_path)
+    
+    # If already absolute, return as-is
+    if relative_path.is_absolute():
+        return relative_path
+    
+    if is_vice_environment() and prefer_local:
+        # In VICE, prefer local disk (~/) for better I/O performance
+        home = Path.home()
+        # Try to detect project root (look for climate_data or similar)
+        project_root = home / "climate_data"
+        if not project_root.exists():
+            # Fallback to current directory
+            project_root = Path.cwd()
+        
+        resolved = project_root / relative_path
+        return resolved
+    
+    elif is_vice_environment() and not prefer_local:
+        # In VICE, use Data Store (persistent but slower)
+        datastore_path = get_datastore_path(username)
+        if datastore_path is None:
+            # Fallback to local if Data Store not available
+            home = Path.home()
+            project_root = home / "climate_data"
+            if not project_root.exists():
+                project_root = Path.cwd()
+            return project_root / relative_path
+        
+        # Resolve relative to Data Store
+        resolved = datastore_path / relative_path
+        return resolved
+    
+    else:
+        # Outside VICE, resolve relative to current working directory
+        # Try to find project root (look for src/ or config/ directories)
+        current = Path.cwd()
+        
+        # Check if we're in project root or subdirectory
+        if (current / "src").exists() or (current / "config").exists():
+            return current / relative_path
+        
+        # Walk up to find project root
+        for parent in current.parents:
+            if (parent / "src").exists() or (parent / "config").exists():
+                return parent / relative_path
+        
+        # Fallback to current directory
+        return current / relative_path
+
+
+def recommend_local_copy(file_size_mb: Optional[float] = None) -> bool:
+    """
+    Recommend whether to copy data locally in VICE based on file size.
+    
+    In VICE, files accessed via CSI Driver (~/data-store/) are slow for large files.
+    This function recommends copying to local disk (~/) if beneficial.
+    
+    Args:
+        file_size_mb: Size of file in MB. If None, always recommends True in VICE.
+    
+    Returns:
+        True if local copy is recommended, False otherwise.
+    """
+    if not is_vice_environment():
+        return False  # Not applicable outside VICE
+    
+    # For large files (>100MB), local copy is strongly recommended
+    if file_size_mb is not None and file_size_mb > 100:
+        return True
+    
+    # For smaller files or unknown size, still recommend local copy
+    # as it's generally faster and doesn't hurt
+    return True
+
+
+def get_project_root() -> Path:
+    """
+    Get the project root directory.
+    
+    Returns:
+        Path to project root (directory containing src/ or config/).
+    """
+    current = Path.cwd()
+    
+    # Check if we're in project root
+    if (current / "src").exists() or (current / "config").exists():
+        return current
+    
+    # Walk up to find project root
+    for parent in current.parents:
+        if (parent / "src").exists() or (parent / "config").exists():
+            return parent
+    
+    # Fallback to current directory
+    return current
+
+
+def ensure_directory(path: Path, create_if_missing: bool = True) -> Path:
+    """
+    Ensure a directory exists, creating it if necessary.
+    
+    Args:
+        path: Path to directory.
+        create_if_missing: If True, create directory if it doesn't exist.
+    
+    Returns:
+        Path object (same as input).
+    
+    Raises:
+        OSError: If directory creation fails.
+    """
+    if create_if_missing and not path.exists():
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+```
+
+---
 
 ### `tests/__init__.py`
 
@@ -7600,242 +13877,1092 @@ Tests unitaires pour ST-CDGM.
 """
 ```
 
-### `tests/test_st_cdgm_smoke.py`
-
-[Code complet - 151 lignes]
-
-**Fonctionnalités:**
-- Test smoke avec données synthétiques
-- Validation pipeline complet
-- Test forward pass
+---
 
 ### `tests/test_installation.py`
 
-[Code complet - 137 lignes]
+```python
+#!/usr/bin/env python
+"""
+Script de vérification de l'installation ST-CDGM.
+Teste que toutes les dépendances critiques sont installées correctement.
+"""
 
-**Fonctionnalités:**
-- Vérification installation
-- Test packages
-- Test imports
+import sys
+from typing import List, Tuple
+
+def check_package(package_name: str, import_name: str = None) -> Tuple[bool, str]:
+    """
+    Vérifie si un package est installé et retourne sa version.
+    
+    Args:
+        package_name: Nom du package à afficher
+        import_name: Nom pour l'import (si différent)
+    
+    Returns:
+        (success, version_string)
+    """
+    if import_name is None:
+        import_name = package_name.replace("-", "_")
+    
+    try:
+        module = __import__(import_name)
+        version = getattr(module, "__version__", "unknown")
+        return True, version
+    except ImportError as e:
+        return False, str(e)
+
+def main():
+    print("=" * 80)
+    print("🔍 ST-CDGM Installation Verification")
+    print("=" * 80)
+    print()
+    
+    # Python version
+    print(f"🐍 Python: {sys.version}")
+    print(f"   Executable: {sys.executable}")
+    print()
+    
+    # Liste des packages à vérifier
+    packages = [
+        ("numpy", None),
+        ("pandas", None),
+        ("xarray", None),
+        ("torch", None),
+        ("torchvision", None),
+        ("torch_geometric", None),
+        ("torch_scatter", None),
+        ("torch_sparse", None),
+        ("diffusers", None),
+        ("accelerate", None),
+        ("netCDF4", "netCDF4"),
+        ("h5netcdf", None),
+        ("xbatcher", None),
+        ("dask", None),
+        ("matplotlib", None),
+        ("seaborn", None),
+        ("hydra", None),
+        ("omegaconf", None),
+        ("pytest", None),
+    ]
+    
+    results = []
+    max_name_len = max(len(p[0]) for p in packages)
+    
+    print("📦 Checking Packages:")
+    print("-" * 80)
+    
+    for package_name, import_name in packages:
+        success, info = check_package(package_name, import_name)
+        results.append((package_name, success, info))
+        
+        status = "✅" if success else "❌"
+        padding = " " * (max_name_len - len(package_name))
+        
+        if success:
+            print(f"{status} {package_name}{padding} : {info}")
+        else:
+            print(f"{status} {package_name}{padding} : NOT INSTALLED")
+    
+    print()
+    
+    # PyTorch specific checks
+    print("🔥 PyTorch Configuration:")
+    print("-" * 80)
+    try:
+        import torch
+        print(f"   PyTorch Version: {torch.__version__}")
+        print(f"   CUDA Available: {torch.cuda.is_available()}")
+        
+        if torch.cuda.is_available():
+            print(f"   CUDA Version: {torch.version.cuda}")
+            print(f"   cuDNN Version: {torch.backends.cudnn.version()}")
+            print(f"   Number of GPUs: {torch.cuda.device_count()}")
+            for i in range(torch.cuda.device_count()):
+                print(f"   GPU {i}: {torch.cuda.get_device_name(i)}")
+                props = torch.cuda.get_device_properties(i)
+                print(f"           Memory: {props.total_memory / 1024**3:.1f} GB")
+        else:
+            print("   ⚠️  Running on CPU only")
+    except Exception as e:
+        print(f"   ❌ Error checking PyTorch: {e}")
+    
+    print()
+    
+    # Summary
+    print("=" * 80)
+    successful = sum(1 for _, success, _ in results if success)
+    total = len(results)
+    
+    if successful == total:
+        print(f"✅ SUCCESS: All {total} packages installed correctly!")
+        print()
+        print("🚀 You're ready to use ST-CDGM!")
+        print("   Next steps:")
+        print("   1. Open the notebook: jupyter notebook st_cdgm_training_evaluation.ipynb")
+        print("   2. Or run the training script: python ops/train_st_cdgm.py")
+        return 0
+    else:
+        print(f"⚠️  WARNING: {successful}/{total} packages installed")
+        print()
+        print("Missing packages:")
+        for name, success, info in results:
+            if not success:
+                print(f"   ❌ {name}")
+        print()
+        print("📝 Installation instructions:")
+        print("   pip install -r requirements.txt")
+        print()
+        print("   Or see INSTALLATION.md for detailed instructions")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
 
 ---
 
-## 📓 Notebook d'Entraînement et d'Évaluation
+### `tests/test_corrections_antilissage.py`
+
+```python
+"""
+Tests de non-régression — corrections anti-lissage / prompt v6 (Phases 4 et 6.2).
+"""
+
+import numpy as np
+import pytest
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+def _rapsd_loss_minimal(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Copie minimale pour test gradient (évite import diffusers)."""
+    B, C, H, W = pred.shape
+    losses = []
+    for b in range(B):
+        for c in range(C):
+            p = pred[b, c]
+            t = target[b, c]
+            fp = torch.fft.fftshift(torch.fft.fft2(p))
+            ft = torch.fft.fftshift(torch.fft.fft2(t))
+            psd_p = torch.abs(fp) ** 2
+            psd_t = torch.abs(ft) ** 2
+            cy, cx = H // 2, W // 2
+            y_idx = torch.arange(H, device=pred.device, dtype=torch.float32) - cy
+            x_idx = torch.arange(W, device=pred.device, dtype=torch.float32) - cx
+            yy, xx = torch.meshgrid(y_idx, x_idx, indexing="ij")
+            r = torch.sqrt(xx ** 2 + yy ** 2).long().clamp(min=0)
+            max_r = int(r.max().item()) + 1
+            rapsd_p = torch.zeros(max_r, device=pred.device)
+            rapsd_t = torch.zeros(max_r, device=pred.device)
+            counts = torch.zeros(max_r, device=pred.device)
+            rf = r.flatten()
+            rapsd_p.scatter_add_(0, rf, psd_p.flatten())
+            rapsd_t.scatter_add_(0, rf, psd_t.flatten())
+            counts.scatter_add_(0, rf, torch.ones_like(rf, dtype=torch.float32))
+            valid = counts > 0
+            log_ratio = torch.log(rapsd_p[valid] + 1e-8) - torch.log(rapsd_t[valid] + 1e-8)
+            losses.append((log_ratio ** 2).mean())
+    return torch.stack(losses).mean()
+
+
+def test_bicubic_preserves_peak_vs_bilinear():
+    field = torch.zeros(1, 1, 50, 50)
+    field[0, 0, 25, 25] = 100.0
+    field[0, 0, 24, 25] = 80.0
+    field[0, 0, 26, 25] = 80.0
+    target_size = (172, 179)
+    upsampled_bilinear = F.interpolate(field, size=target_size, mode="bilinear", align_corners=False)
+    upsampled_bicubic = F.interpolate(field, size=target_size, mode="bicubic", align_corners=False).clamp(
+        min=0.0
+    )
+    assert upsampled_bicubic.max().item() >= upsampled_bilinear.max().item() - 1e-3
+
+
+def test_ensemble_mean_reduces_variance_vs_single_member():
+    N_members = 10
+    H, W = 100, 100
+    base = torch.ones(H, W) * 0.5
+    members = []
+    rng = np.random.default_rng(42)
+    for _ in range(N_members):
+        member = base.clone()
+        px = int(rng.integers(10, H - 10))
+        py = int(rng.integers(10, W - 10))
+        member[px, py] = 5.0
+        members.append(member)
+    stack = torch.stack(members, dim=0)
+    ensemble_mean = stack.mean(dim=0)
+    single_member = stack[0]
+    assert single_member.var().item() > ensemble_mean.var().item() * 2.0
+
+
+def test_bicubic_can_overshoot_negative_then_clamp():
+    field = torch.zeros(1, 1, 20, 20)
+    field[0, 0, 10, 10] = 50.0
+    upsampled = F.interpolate(field, size=(172, 179), mode="bicubic", align_corners=False)
+    clamped = upsampled.clamp(min=0.0)
+    assert (clamped >= 0).all()
+
+
+def test_rapsd_loss_is_differentiable():
+    pred = torch.randn(2, 1, 32, 32, requires_grad=True)
+    target = torch.randn(2, 1, 32, 32)
+    loss = _rapsd_loss_minimal(pred, target)
+    loss.backward()
+    assert pred.grad is not None
+    assert not torch.isnan(pred.grad).any()
+
+
+def _replace_conv_transpose_with_resize_minimal(module: nn.Module) -> None:
+    """Même logique que `diffusion_decoder._replace_conv_transpose_with_resize` (sans import diffusers)."""
+    for name, child in list(module.named_children()):
+        if isinstance(child, nn.ConvTranspose2d):
+            st = child.stride[0]
+            if st >= 2 and child.stride[0] == child.stride[1]:
+                repl = nn.Sequential(
+                    nn.Upsample(scale_factor=float(st), mode="nearest"),
+                    nn.Conv2d(
+                        child.in_channels,
+                        child.out_channels,
+                        kernel_size=3,
+                        padding=1,
+                        bias=child.bias is not None,
+                    ),
+                )
+                if child.bias is not None:
+                    nn.init.zeros_(repl[1].bias)
+                nn.init.kaiming_normal_(repl[1].weight, nonlinearity="relu")
+                setattr(module, name, repl)
+            else:
+                _replace_conv_transpose_with_resize_minimal(child)
+        else:
+            _replace_conv_transpose_with_resize_minimal(child)
+
+
+def test_resizeconv_replacement_preserves_shape_and_removes_transpose():
+    """Anti-checkerboard: Upsample+Conv remplace ConvTranspose2d avec même taille spatiale de sortie."""
+
+    class Tiny(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.up = nn.ConvTranspose2d(8, 4, kernel_size=2, stride=2)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.up(x)
+
+    m = Tiny()
+    x = torch.randn(1, 8, 16, 16)
+    with torch.no_grad():
+        y_ct = m(x)
+    assert any(isinstance(c, nn.ConvTranspose2d) for c in m.modules())
+
+    _replace_conv_transpose_with_resize_minimal(m)
+    assert not any(isinstance(c, nn.ConvTranspose2d) for c in m.modules())
+    assert isinstance(m.up, nn.Sequential)
+    assert isinstance(m.up[0], nn.Upsample) and isinstance(m.up[1], nn.Conv2d)
+
+    with torch.no_grad():
+        y_rc = m(x)
+    assert y_ct.shape == y_rc.shape
+```
+
+---
+
+### `tests/test_st_cdgm_smoke.py`
+
+```python
+import itertools
+from pathlib import Path
+
+import pytest
+import numpy as np
+import pandas as pd
+import torch
+import xarray as xr
+
+from st_cdgm import (
+    RCNCell,
+    RCNSequenceRunner,
+    NetCDFDataPipeline,
+    CausalDiffusionDecoder,
+    HeteroGraphBuilder,
+    IntelligibleVariableConfig,
+    IntelligibleVariableEncoder,
+    train_epoch,
+)
+
+
+def _create_synthetic_dataset(time_steps: int, lr_shape: tuple[int, int], hr_shape: tuple[int, int]) -> tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
+    times = pd.date_range("2000-01-01", periods=time_steps, freq="D")
+    lr_lat = np.linspace(-10, 10, lr_shape[0])
+    lr_lon = np.linspace(0, 20, lr_shape[1])
+    hr_lat = np.linspace(-10, 10, hr_shape[0])
+    hr_lon = np.linspace(0, 20, hr_shape[1])
+
+    lr_data = np.random.randn(time_steps, lr_shape[0], lr_shape[1]).astype(np.float32)
+    hr_data = np.random.randn(time_steps, hr_shape[0], hr_shape[1]).astype(np.float32)
+    static_data = np.random.rand(hr_shape[0], hr_shape[1]).astype(np.float32)
+
+    lr_ds = xr.Dataset(
+        {"q_850": (("time", "lat", "lon"), lr_data)},
+        coords={"time": times, "lat": lr_lat, "lon": lr_lon},
+    )
+    hr_ds = xr.Dataset(
+        {"tas": (("time", "lat", "lon"), hr_data)},
+        coords={"time": times, "lat": hr_lat, "lon": hr_lon},
+    )
+    static_ds = xr.Dataset(
+        {"orog": (("lat", "lon"), static_data)},
+        coords={"lat": hr_lat, "lon": hr_lon},
+    )
+    return lr_ds, hr_ds, static_ds
+
+
+def _convert_sample(sample: dict, builder: HeteroGraphBuilder, device: torch.device) -> dict:
+    seq_len = sample["lr"].shape[0]
+    lr_nodes_steps = []
+    for step in range(seq_len):
+        lr_nodes_steps.append(builder.lr_grid_to_nodes(sample["lr"][step]))
+    lr_tensor = torch.stack(lr_nodes_steps, dim=0)
+
+    dynamic_feats = {node_type: lr_nodes_steps[0] for node_type in builder.dynamic_node_types}
+    hetero = builder.prepare_step_data(dynamic_feats).to(device)
+
+    batch = {
+        "lr": lr_tensor,
+        "residual": sample["residual"],
+        "baseline": sample.get("baseline"),
+        "hetero": hetero,
+    }
+    if "valid_mask" in sample:
+        batch["valid_mask"] = sample["valid_mask"]
+    return batch
+
+
+def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
+    lr_ds, hr_ds, static_ds = _create_synthetic_dataset(time_steps=6, lr_shape=(2, 3), hr_shape=(4, 6))
+
+    lr_path = tmp_path / "lr.nc"
+    hr_path = tmp_path / "hr.nc"
+    static_path = tmp_path / "static.nc"
+    lr_ds.to_netcdf(lr_path)
+    hr_ds.to_netcdf(hr_path)
+    static_ds.to_netcdf(static_path)
+
+    pipeline = NetCDFDataPipeline(
+        lr_path=lr_path,
+        hr_path=hr_path,
+        static_path=static_path,
+        seq_len=3,
+        baseline_strategy="hr_smoothing",
+        baseline_factor=1,
+        normalize=False,
+    )
+    dataset = pipeline.build_sequence_dataset(seq_len=3, as_torch=True)
+    sample = next(iter(dataset))
+
+    device = torch.device("cpu")
+
+    builder = HeteroGraphBuilder(
+        lr_shape=(2, 3),
+        hr_shape=(4, 6),
+        static_dataset=pipeline.get_static_dataset(),
+        include_mid_layer=False,
+    )
+
+    driver_nodes = builder.lr_grid_to_nodes(sample["lr"][0])
+    driver_dim = driver_nodes.shape[1]
+
+    encoder = IntelligibleVariableEncoder(
+        configs=[
+            IntelligibleVariableConfig(
+                name="surface",
+                meta_path=("GP850", "spat_adj", "GP850"),
+            ),
+            IntelligibleVariableConfig(
+                name="static",
+                meta_path=("SP_HR", "causes", "GP850"),
+            ),
+        ],
+        hidden_dim=32,
+        conditioning_dim=32,
+    ).to(device)
+
+    rcn_cell = RCNCell(
+        num_vars=2,
+        hidden_dim=32,
+        driver_dim=driver_dim,
+        reconstruction_dim=driver_dim,
+        dropout=0.0,
+    ).to(device)
+    rcn_runner = RCNSequenceRunner(rcn_cell)
+
+    diffusion = CausalDiffusionDecoder(
+        in_channels=3,
+        conditioning_dim=32,
+        height=sample["residual"].shape[-2],
+        width=sample["residual"].shape[-1],
+        num_diffusion_steps=50,
+    ).to(device)
+
+    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    optimizer = torch.optim.Adam(params, lr=1e-4)
+
+    batch = _convert_sample(sample, builder, device)
+    metrics = train_epoch(
+        encoder=encoder,
+        rcn_runner=rcn_runner,
+        diffusion_decoder=diffusion,
+        optimizer=optimizer,
+        data_loader=itertools.repeat(batch, 1),
+        lambda_gen=1.0,
+        beta_rec=0.1,
+        gamma_dag=0.1,
+        conditioning_fn=None,
+        device=device,
+        gradient_clipping=1.0,
+        use_amp=use_amp,
+    )
+    return metrics
+
+
+def test_st_cdgm_smoke(tmp_path: Path):
+    metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
+    assert "loss" in metrics and np.isfinite(metrics["loss"])
+
+
+def test_train_epoch_cpu_bf16_amp_when_supported(tmp_path: Path):
+    """Exercises train_epoch with use_amp=True on CPU when BF16 is available (no GradScaler)."""
+    bf16 = getattr(torch.cpu, "is_bf16_supported", None)
+    if bf16 is None or not bf16():
+        pytest.skip("CPU bfloat16 not supported on this host")
+    metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
+    assert "loss" in metrics and np.isfinite(metrics["loss"])
+```
+
+---
+
+### `train_ddp.py`
+
+```python
+"""
+ST-CDGM training script with DistributedDataParallel (DDP).
+
+Launch with torchrun to use all GPUs (e.g. 4 GPUs):
+    torchrun --nproc_per_node=4 train_ddp.py
+
+Requires: config/training_config.yaml, data pipeline (Zarr or NetCDF) set up.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+# Project root and path setup (must be before other imports)
+PROJECT_ROOT = Path(__file__).resolve().parent
+os.chdir(PROJECT_ROOT)
+if str(PROJECT_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, IterableDataset
+
+from omegaconf import OmegaConf
+
+from st_cdgm import (
+    HeteroGraphBuilder,
+    IntelligibleVariableEncoder,
+    RCNCell,
+    RCNSequenceRunner,
+    CausalDiffusionDecoder,
+    train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
+)
+from st_cdgm.models.intelligible_encoder import IntelligibleVariableConfig
+from st_cdgm.training.multi_gpu import setup_ddp, cleanup_ddp, wrap_model_ddp, get_rank
+
+
+class ShardedIterableDataset(IterableDataset):
+    """Wraps an IterableDataset so each DDP rank only sees 1/world_size of the data."""
+
+    def __init__(self, dataset: IterableDataset, rank: int, world_size: int) -> None:
+        self.dataset = dataset
+        self.rank = rank
+        self.world_size = world_size
+
+    def __iter__(self):
+        for i, sample in enumerate(self.dataset):
+            if i % self.world_size == self.rank:
+                yield sample
+
+
+def _convert_sample_to_batch(sample, builder, device):
+    """Convert a pipeline sample to the batch dict expected by train_epoch."""
+    import torch
+    lr_seq = sample["lr"]
+    seq_len = lr_seq.shape[0]
+    lr_nodes_steps = [builder.lr_grid_to_nodes(lr_seq[t]) for t in range(seq_len)]
+    lr_tensor = torch.stack(lr_nodes_steps, dim=0)
+    dynamic_features = {nt: lr_nodes_steps[0] for nt in builder.dynamic_node_types}
+    hetero = builder.prepare_step_data(dynamic_features).to(device)
+    out = {
+        "lr": lr_tensor,
+        "residual": sample["residual"],
+        "baseline": sample.get("baseline"),
+        "hetero": hetero,
+    }
+    if "valid_mask" in sample:
+        out["valid_mask"] = sample["valid_mask"]
+    return out
+
+
+def iterate_batches(dataloader, builder, device):
+    """Yield lists of batch dicts (one list per DataLoader batch)."""
+    for batch_list in dataloader:
+        if not isinstance(batch_list, list):
+            batch_list = [batch_list]
+        converted = [_convert_sample_to_batch(s, builder, device) for s in batch_list]
+        yield converted
+
+
+def main():
+    # Distributed setup (torchrun sets these)
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    rank = int(os.environ.get("RANK", 0))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+
+    if world_size > 1:
+        setup_ddp(rank=rank, world_size=world_size, backend="nccl")
+    torch.cuda.set_device(local_rank)
+    device = torch.device(f"cuda:{local_rank}")
+
+    # Load config
+    cfg = OmegaConf.load(PROJECT_ROOT / "config" / "training_config.yaml")
+    CONFIG = cfg
+
+    # Data paths (relative to project root)
+    lr_path = Path(CONFIG.data.lr_path)
+    hr_path = Path(CONFIG.data.hr_path)
+    static_path = Path(CONFIG.data.static_path) if CONFIG.data.get("static_path") else None
+    seq_len = CONFIG.data.seq_len
+    stride = CONFIG.data.get("stride", 1)
+    
+    # Validate that data files exist (for netcdf mode)
+    if rank == 0:
+        if not lr_path.exists():
+            raise FileNotFoundError(f"LR data file not found: {lr_path}")
+        if not hr_path.exists():
+            raise FileNotFoundError(f"HR data file not found: {hr_path}")
+        if static_path and not static_path.exists():
+            raise FileNotFoundError(f"Static data file not found: {static_path}")
+    
+    # Lire le format de données depuis la configuration
+    dataset_format = CONFIG.data.get("dataset_format", "zarr").lower()
+    zarr_dir = Path(CONFIG.data.get("zarr_dir", "data/raw/train/zarr"))
+    shard_dir = Path(CONFIG.data.get("shard_dir", "data/raw/train/shards"))
+    
+    if rank == 0:
+        print(f"📋 Format de données configuré: {dataset_format}")
+    
+    # Fonctions de vérification
+    def check_zarr_exists():
+        return (zarr_dir / "lr.zarr").exists() and (zarr_dir / "hr.zarr").exists()
+    
+    def check_shards_exist():
+        return shard_dir.exists() and (shard_dir / "metadata.json").exists() and len(list(shard_dir.glob("*.tar"))) > 0
+    
+    # Fonctions de préprocessing (rank 0 seulement)
+    def preprocess_to_zarr():
+        if rank != 0:
+            return
+        import subprocess
+        print("🔄 Conversion NetCDF → Zarr...")
+        cmd = [
+            sys.executable, "-m", "ops.preprocess_to_zarr",
+            "--lr_path", str(lr_path),
+            "--hr_path", str(hr_path),
+            "--output_dir", str(zarr_dir),
+            "--seq_len", str(seq_len),
+            "--baseline_strategy", CONFIG.data.baseline_strategy,
+            "--baseline_factor", str(CONFIG.data.get("baseline_factor", 4)),
+            "--chunk_size_time", "100",
+            "--chunk_size_lat", "64",
+            "--chunk_size_lon", "64",
+        ]
+        if CONFIG.data.get("normalize", False):
+            cmd.append("--normalize")
+        if static_path:
+            cmd.extend(["--static_path", str(static_path)])
+        if CONFIG.data.get("lr_variables"):
+            cmd.extend(["--lr_variables"] + list(CONFIG.data.lr_variables))
+        if CONFIG.data.get("hr_variables"):
+            cmd.extend(["--hr_variables"] + list(CONFIG.data.hr_variables))
+        if CONFIG.data.get("static_variables"):
+            cmd.extend(["--static_variables"] + list(CONFIG.data.static_variables))
+        
+        try:
+            subprocess.run(cmd, check=True)
+            print(f"✅ Conversion Zarr terminée!")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Erreur lors de la conversion Zarr: {e}")
+            print(f"   Commande: {' '.join(cmd)}")
+            if world_size > 1:
+                cleanup_ddp()
+            sys.exit(1)
+    
+    def preprocess_to_shards():
+        if rank != 0:
+            return
+        import subprocess
+        print("🔄 Conversion NetCDF → WebDataset Shards...")
+        cmd = [
+            sys.executable, "-m", "ops.preprocess_to_shards",
+            "--lr_path", str(lr_path),
+            "--hr_path", str(hr_path),
+            "--output_dir", str(shard_dir),
+            "--seq_len", str(seq_len),
+            "--baseline_strategy", CONFIG.data.baseline_strategy,
+            "--baseline_factor", str(CONFIG.data.get("baseline_factor", 4)),
+            "--samples_per_shard", "100",
+        ]
+        if CONFIG.data.get("normalize", False):
+            cmd.append("--normalize")
+        if static_path:
+            cmd.extend(["--static_path", str(static_path)])
+        if CONFIG.data.get("lr_variables"):
+            cmd.extend(["--lr_variables"] + list(CONFIG.data.lr_variables))
+        if CONFIG.data.get("hr_variables"):
+            cmd.extend(["--hr_variables"] + list(CONFIG.data.hr_variables))
+        if CONFIG.data.get("static_variables"):
+            cmd.extend(["--static_variables"] + list(CONFIG.data.static_variables))
+        
+        try:
+            subprocess.run(cmd, check=True)
+            print(f"✅ Conversion Shards terminée!")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Erreur lors de la conversion Shards: {e}")
+            print(f"   Commande: {' '.join(cmd)}")
+            if world_size > 1:
+                cleanup_ddp()
+            sys.exit(1)
+    
+    # Logique de sélection et de génération automatique
+    if dataset_format == "netcdf":
+        if rank == 0:
+            print("✅ Mode NetCDF: Lecture directe des fichiers .nc")
+        from st_cdgm.data.pipeline import NetCDFDataPipeline
+        pipeline = NetCDFDataPipeline(
+            lr_path=str(lr_path),
+            hr_path=str(hr_path),
+            static_path=str(static_path) if static_path else None,
+            seq_len=seq_len,
+            baseline_strategy=CONFIG.data.baseline_strategy,
+            baseline_factor=CONFIG.data.get("baseline_factor", 4),
+            normalize=CONFIG.data.get("normalize", False),
+            target_transform=CONFIG.data.get("target_transform"),
+            nan_fill_strategy=CONFIG.data.get("nan_fill_strategy", "mean"),
+            precipitation_delta=CONFIG.data.get("precipitation_delta", 0.01),
+            lr_variables=list(CONFIG.data.get("lr_variables", [])),
+            hr_variables=list(CONFIG.data.get("hr_variables", [])),
+            static_variables=list(CONFIG.data.get("static_variables", [])) if static_path else None,
+        )
+        
+    elif dataset_format == "zarr":
+        if not check_zarr_exists():
+            if rank == 0:
+                print(f"⚠️  Données Zarr non trouvées dans: {zarr_dir}")
+                print("   Génération automatique...")
+            preprocess_to_zarr()
+            if world_size > 1:
+                dist.barrier()  # Attendre que rank 0 finisse
+        else:
+            if rank == 0:
+                print(f"✅ Données Zarr déjà présentes dans: {zarr_dir}")
+        
+        from st_cdgm.data.pipeline import ZarrDataPipeline
+        pipeline = ZarrDataPipeline(zarr_dir=str(zarr_dir), seq_len=seq_len, stride=stride)
+        
+    elif dataset_format == "shard":
+        if not check_shards_exist():
+            if rank == 0:
+                print(f"⚠️  Shards non trouvés dans: {shard_dir}")
+                print("   Génération automatique...")
+            preprocess_to_shards()
+            if world_size > 1:
+                dist.barrier()  # Attendre que rank 0 finisse
+        else:
+            if rank == 0:
+                print(f"✅ Shards WebDataset déjà présents dans: {shard_dir}")
+        
+        from st_cdgm.data.pipeline import WebDatasetDataPipeline
+        pipeline = WebDatasetDataPipeline(
+            shard_dir=str(shard_dir),
+            shuffle=CONFIG.data.get("shuffle", False),
+            shardshuffle=100,
+            shuffle_buffer_size=1000,
+        )
+        
+    else:
+        raise ValueError(f"Format de données non reconnu: {dataset_format}. Utilisez 'netcdf', 'zarr', ou 'shard'.")
+
+    # Build dataset (before sharding for DDP, get one sample for shapes)
+    base_dataset = pipeline.build_sequence_dataset(seq_len=seq_len, stride=stride, as_torch=True)
+    
+    # Get one sample for shapes before DDP sharding
+    sample_for_shapes = next(iter(base_dataset))
+    lr_shape = tuple(CONFIG.graph.lr_shape)
+    hr_shape = tuple(CONFIG.graph.hr_shape)
+    rcn_driver_dim = sample_for_shapes["lr"].shape[1]
+    hr_channels = sample_for_shapes["residual"].shape[1]
+    
+    # Now create a fresh dataset for training and shard for DDP
+    dataset = pipeline.build_sequence_dataset(seq_len=seq_len, stride=stride, as_torch=True)
+    if world_size > 1:
+        dataset = ShardedIterableDataset(dataset, rank, world_size)
+
+    # Graph builder
+    builder = HeteroGraphBuilder(
+        lr_shape=lr_shape,
+        hr_shape=hr_shape,
+        static_dataset=pipeline.get_static_dataset(),
+        include_mid_layer=CONFIG.graph.get("include_mid_layer", True),
+    )
+
+    # Encoder configs (only metapaths whose nodes exist in the graph)
+    allowed_nodes = set(builder.dynamic_node_types) | set(builder.static_node_types)
+    encoder_configs = [
+        IntelligibleVariableConfig(name=mp.name, meta_path=(mp.src, mp.relation, mp.target), pool=mp.get("pool", "mean"))
+        for mp in CONFIG.encoder.metapaths
+        if mp.src in allowed_nodes and mp.target in allowed_nodes
+    ]
+    if pipeline.get_static_dataset() is not None:
+        encoder_configs.append(
+            IntelligibleVariableConfig(name="static", meta_path=("SP_HR", "causes", "GP850"), pool="mean")
+        )
+
+    # Models (on device)
+    encoder = IntelligibleVariableEncoder(
+        configs=encoder_configs,
+        hidden_dim=CONFIG.encoder.hidden_dim,
+        conditioning_dim=CONFIG.encoder.conditioning_dim,
+    ).to(device)
+
+    num_vars = len(encoder_configs)
+    rcn_cell = RCNCell(
+        num_vars=num_vars,
+        hidden_dim=CONFIG.rcn.hidden_dim,
+        driver_dim=rcn_driver_dim,
+        reconstruction_dim=rcn_driver_dim,
+        dropout=CONFIG.rcn.get("dropout", 0.0),
+    ).to(device)
+
+    unet_kwargs = dict(
+        layers_per_block=1,
+        block_out_channels=(32,),
+        down_block_types=("DownBlock2D",),
+        up_block_types=("UpBlock2D",),
+        norm_num_groups=8,
+    )
+    diffusion = CausalDiffusionDecoder(
+        in_channels=hr_channels,
+        conditioning_dim=CONFIG.diffusion.conditioning_dim,
+        height=CONFIG.diffusion.height,
+        width=CONFIG.diffusion.width,
+        num_diffusion_steps=CONFIG.diffusion.steps,
+        unet_kwargs=unet_kwargs,
+        scheduler_type=CONFIG.diffusion.get("scheduler_type", "ddpm"),
+        use_gradient_checkpointing=CONFIG.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=CONFIG.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=CONFIG.diffusion.get("anti_checkerboard", False),
+    ).to(device)
+
+    # Apply torch.compile if enabled (before DDP wrapping)
+    if CONFIG.training.get("compile", {}).get("enabled", False):
+        if rank == 0:
+            print("🔧 Compiling models with torch.compile...")
+        compile_cfg = CONFIG.training.compile
+        encoder = torch.compile(encoder, mode=compile_cfg.get("encoder_mode", "default"))
+        rcn_cell = torch.compile(rcn_cell, mode=compile_cfg.get("rcn_mode", "default"))
+        diffusion = torch.compile(diffusion, mode=compile_cfg.get("diffusion_mode", "default"))
+        if rank == 0:
+            print("✅ Models compiled successfully")
+    
+    # Wrap with DDP
+    find_unused = CONFIG.training.get("multi_gpu", {}).get("find_unused_parameters", True)
+    if world_size > 1:
+        encoder = wrap_model_ddp(encoder, device_ids=[local_rank], find_unused_parameters=find_unused)
+        rcn_cell = wrap_model_ddp(rcn_cell, device_ids=[local_rank], find_unused_parameters=find_unused)
+        diffusion = wrap_model_ddp(diffusion, device_ids=[local_rank], find_unused_parameters=find_unused)
+
+    rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=CONFIG.rcn.get("detach_interval"))
+
+    optimizer = torch.optim.Adam(
+        list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters()),
+        lr=CONFIG.training.lr,
+    )
+
+    batch_size = CONFIG.training.get("batch_size", 1)
+    num_workers = CONFIG.training.get("num_workers", 0)  # 0 on CyVerse (limited /dev/shm)
+    train_loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available(),
+        prefetch_factor=4 if num_workers > 0 else None,
+        persistent_workers=num_workers > 0,
+        collate_fn=lambda x: x,
+    )
+
+    history = {"loss": [], "loss_gen": [], "loss_rec": [], "loss_dag": []}
+
+    for epoch in range(CONFIG.training.epochs):
+        # Reuse the same DataLoader (no need to recreate with persistent_workers)
+        data_loader = iterate_batches(train_loader, builder, device)
+        metrics = train_epoch(
+            encoder=encoder,
+            rcn_runner=rcn_runner,
+            diffusion_decoder=diffusion,
+            optimizer=optimizer,
+            data_loader=data_loader,
+            lambda_gen=CONFIG.loss.lambda_gen,
+            beta_rec=CONFIG.loss.beta_rec,
+            gamma_dag=CONFIG.loss.gamma_dag,
+            device=device,
+            gradient_clipping=CONFIG.training.get("gradient_clipping"),
+            log_interval=CONFIG.training.get("log_every", 10),
+            verbose=(get_rank() == 0),
+            use_amp=CONFIG.training.get("use_amp", True),
+            dag_method=CONFIG.loss.get("dag_method", "dagma"),
+            dagma_s=CONFIG.loss.get("dagma_s", 1.0),
+            use_focal_loss=CONFIG.loss.get("use_focal_loss", False),
+            focal_alpha=CONFIG.loss.get("focal_alpha", 1.0),
+            focal_gamma=CONFIG.loss.get("focal_gamma", 2.0),
+            extreme_weight_factor=CONFIG.loss.get("extreme_weight_factor", 0.0),
+            extreme_percentiles=list(CONFIG.loss.get("extreme_percentiles", [95.0, 99.0])),
+            reconstruction_loss_type=CONFIG.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=CONFIG.loss.get("use_spectral_loss", False),
+            lambda_spectral=CONFIG.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=CONFIG.diffusion.get("conditioning_dropout_prob", 0.0),
+        )
+        if get_rank() == 0 and CONFIG.loss.get("log_spectral_metric_each_epoch", False):
+            amp_m = resolve_train_amp_mode(device, CONFIG.training.get("use_amp", True))
+            try:
+                metric_iter = iterate_batches(train_loader, builder, device)
+                batch0 = next(metric_iter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as ex:
+                print(f"[WARN] RAPSD epoch metric: {ex}")
+        for k in history:
+            if k in metrics:
+                history[k].append(metrics[k])
+
+        if get_rank() == 0:
+            save_dir = Path(CONFIG.checkpoint.get("save_dir", "models"))
+            save_dir.mkdir(parents=True, exist_ok=True)
+            ckpt = save_dir / "st_cdgm_checkpoint.pth"
+            enc = encoder.module if hasattr(encoder, "module") else encoder
+            rcn = rcn_cell.module if hasattr(rcn_cell, "module") else rcn_cell
+            diff = diffusion.module if hasattr(diffusion, "module") else diffusion
+            torch.save({
+                "epoch": epoch + 1,
+                "encoder_state_dict": enc.state_dict(),
+                "rcn_cell_state_dict": rcn.state_dict(),
+                "diffusion_state_dict": diff.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "history": history,
+                "config": OmegaConf.to_container(CONFIG, resolve=True),
+            }, ckpt)
+            print(f"Checkpoint saved: {ckpt}")
+
+    if world_size > 1:
+        cleanup_ddp()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Notebooks
 
 ### `st_cdgm_training_evaluation.ipynb`
 
-Le notebook complet contient 54 cellules organisées en sections:
+**Contenu non embarqué** (JSON volumineux). Le notebook compte **50** cellules (code: 31, markdown: 19).
 
-#### **Section 1: Installation et Imports**
-- Configuration de l'environnement
-- Imports des modules ST-CDGM
-- Vérifications système
+Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
 
-#### **Section 2: Exploration des Données**
-- Configuration des chemins
-- Chargement et inspection des datasets
-- Visualisation des données
-- Création du pipeline de données
-- Création du dataset iterable
+---
+### `st_cdgm_validation_inference.ipynb`
 
-#### **Section 3: Construction du Modèle**
-- Configuration du modèle
-- Construction du graph builder
-- Initialisation des modules (Encoder, RCN, Diffusion)
+**Contenu non embarqué** (JSON volumineux). Le notebook compte **8** cellules (code: 7, markdown: 1).
 
-#### **Section 4: Entraînement du Modèle**
-- Fonction helper pour conversion des batches
-- Boucle d'entraînement
-- Visualisation de l'entraînement
-- Sauvegarde du modèle
+Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
 
-#### **Section 5: Évaluation et Tests**
-- Fonction d'inférence
-- Génération de prédictions
-- Calcul des métriques
+---
+### `st_cdgm_publication_figures.ipynb`
 
-#### **Section 6: Visualisation des Résultats**
-- Comparaison visuelle: Baseline vs Prédiction vs Ground Truth
-- Sauvegarde des métriques
+**Contenu non embarqué** (JSON volumineux). Le notebook compte **8** cellules (code: 5, markdown: 3).
 
-#### **Section 7: Résumé et Conclusions**
-- Résumé de l'expérience
-- Notes et prochaines étapes
+Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
 
-**Contenu détaillé des cellules:**
+---
+### `st_cdgm_results_presentation.ipynb`
 
-```python
-# Cellule 0: Introduction
-# 🌍 ST-CDGM Training & Evaluation Notebook
-## Spatio-Temporal Causal Diffusion Generative Model
+**Contenu non embarqué** (JSON volumineux). Le notebook compte **31** cellules (code: 18, markdown: 13).
 
-# Cellule 1: Motivation
-## 🎯 Motivation et Idée Centrale
-# Concept clé: remplacer bruit statistique par signal physique causal
-
-# Cellule 2-4: Installation
-# Configuration complète pour exécution locale
-# Auto-reload des modules
-# Imports scientifiques et PyTorch
-
-# Cellule 5-16: Exploration données
-# Configuration chemins LR/HR
-# Chargement datasets bruts
-# Visualisation
-# Création pipeline
-# Dataset iterable
-
-# Cellule 17-22: Construction modèle
-# Configuration dimensions
-# Graph builder
-# Initialisation modules (Encoder, RCN, Diffusion)
-
-# Cellule 23-30: Entraînement
-# Helper conversion batches
-# Boucle overfit
-# Visualisation courbes
-# Sauvegarde checkpoint
-
-# Cellule 31-41: Évaluation
-# Fonction inférence
-# Génération prédictions
-# Calcul métriques (MSE, RMSE, MAE, Correlation)
-# Sauvegarde CSV
-
-# Cellule 42-44: Résumé
-# Résumé expérience
-# Notes et prochaines étapes
-```
+Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
 
 ---
 
-## 🏗️ Hiérarchie du Code
+---
 
-### Architecture Modulaire
+## Hierarchie du Code
+
+### Architecture modulaire
 
 ```
 ST-CDGM
-│
-├── Data Layer (src/st_cdgm/data/)
-│   ├── pipeline.py          → NetCDFDataPipeline, ZarrDataPipeline
-│   └── netcdf_utils.py       → NetCDFToDataFrame, métadonnées
-│
-├── Graph Layer (src/st_cdgm/models/graph_builder.py)
-│   └── HeteroGraphBuilder   → Construction graphe hétérogène
-│
-├── Encoding Layer (src/st_cdgm/models/intelligible_encoder.py)
-│   └── IntelligibleVariableEncoder → Variables intelligibles H(0)
-│
-├── Causal Layer (src/st_cdgm/models/causal_rcn.py)
-│   ├── RCNCell              → Cellule récurrente causale
-│   └── RCNSequenceRunner    → Déroulement séquentiel
-│
-├── Generation Layer (src/st_cdgm/models/diffusion_decoder.py)
-│   └── CausalDiffusionDecoder → Génération HR par diffusion
-│
-├── Training Layer (src/st_cdgm/training/)
-│   ├── training_loop.py     → train_epoch, pertes
-│   └── callbacks.py         → EarlyStopping
-│
-└── Evaluation Layer (src/st_cdgm/evaluation/)
-    └── evaluation_xai.py    → Métriques, visualisation DAG
+|
++-- Data Layer (src/st_cdgm/data/)
+|   +-- pipeline.py          -> NetCDFDataPipeline, ZarrDataPipeline
+|   +-- netcdf_utils.py      -> utilitaires NetCDF / metadonnees
+|
++-- Graph Layer (src/st_cdgm/models/graph_builder.py)
+|   +-- HeteroGraphBuilder   -> Construction graphe heterogene
+|
++-- Encoding Layer (src/st_cdgm/models/intelligible_encoder.py)
+|   +-- IntelligibleVariableEncoder -> Variables latentes H(0)
+|
++-- Causal Layer (src/st_cdgm/models/causal_rcn.py)
+|   +-- RCNCell              -> Cellule recurrente causale
+|   +-- RCNSequenceRunner    -> Deroulement sequentiel
+|
++-- Generation Layer (src/st_cdgm/models/diffusion_decoder.py)
+|   +-- CausalDiffusionDecoder -> Generation HR par diffusion
+|
++-- Training Layer (src/st_cdgm/training/)
+|   +-- training_loop.py     -> train_epoch, pertes
+|   +-- callbacks.py
+|   +-- multi_gpu.py         -> entrainement multi-GPU (DDP)
+|
++-- Utils (src/st_cdgm/utils/)
+|   +-- checkpoint.py        -> chargement / fusion de checkpoints
+|
++-- Evaluation Layer (src/st_cdgm/evaluation/)
+    +-- evaluation_xai.py    -> Metriques, inference autoregressive, DAG
 ```
 
-### Flux de Données
+### Flux de donnees
 
 ```
-NetCDF Files
-    ↓
+NetCDF / Zarr
+    |
 NetCDFDataPipeline
-    ├── Alignement temporel
-    ├── Normalisation
-    ├── Baseline computation
-    └── Residual calculation
-    ↓
-ResDiffIterableDataset
-    ↓
+    +-- Alignement temporel
+    +-- Normalisation
+    +-- Baseline computation
+    +-- Residual calculation
+    |
+IterableDataset / batches
+    |
 HeteroGraphBuilder
-    └── Construction graphe statique
-    ↓
+    +-- Construction graphe statique
+    |
 IntelligibleVariableEncoder
-    └── H(0) initial state
-    ↓
+    +-- H(0) initial state
+    |
 RCNSequenceRunner
-    ├── RCNCell (séquence)
-    └── H(t) causal states
-    ↓
+    +-- RCNCell (sequence)
+    +-- H(t) causal states
+    |
 CausalDiffusionDecoder
-    ├── Conditioning from H(t)
-    └── HR generation (diffusion)
-    ↓
+    +-- Conditioning from H(t)
+    +-- HR generation (diffusion)
+    |
 Loss Computation
-    ├── L_gen (diffusion)
-    ├── L_rec (reconstruction)
-    └── L_dag (DAG constraint)
-    ↓
+    +-- L_gen (diffusion)
+    +-- L_rec (reconstruction)
+    +-- L_dag (DAG constraint)
+    |
 Optimization
-    └── Backpropagation
+    +-- Backpropagation
 ```
 
-### Dépendances entre Modules
+### Dependances entre modules (schema)
 
 ```
 setup.py
-    ↓
+    |
 src/st_cdgm/__init__.py
-    ├── models/
-    │   ├── causal_rcn.py
-    │   ├── diffusion_decoder.py
-    │   ├── graph_builder.py
-    │   └── intelligible_encoder.py
-    ├── data/
-    │   ├── pipeline.py
-    │   └── netcdf_utils.py
-    ├── training/
-    │   ├── training_loop.py
-    │   └── callbacks.py
-    └── evaluation/
-        └── evaluation_xai.py
+    +-- models/
+    |   +-- causal_rcn.py
+    |   +-- diffusion_decoder.py
+    |   +-- graph_builder.py
+    |   +-- intelligible_encoder.py
+    +-- data/
+    |   +-- pipeline.py
+    |   +-- netcdf_utils.py
+    +-- training/
+    |   +-- training_loop.py
+    |   +-- callbacks.py
+    |   +-- multi_gpu.py
+    +-- evaluation/
+    |   +-- evaluation_xai.py
+    +-- utils/
+        +-- checkpoint.py
 ```
 
 ---
 
-## 📊 Résumé des Fichiers
+## Resume des fichiers
 
-### Statistiques
+### Statistiques (approximatif, genere)
 
-- **Fichiers Python**: 33 fichiers (src/st_cdgm 14, ops 3, scripts 12, tests 3, setup 1)
-- **Fichiers de configuration**: 5 fichiers (YAML, ENV, YML, TXT)
-- **Scripts utilitaires**: 12 scripts
-- **Modules principaux**: 8 modules (data 2, models 4, training 2, evaluation 1)
-- **Tests**: 3 fichiers de test
-- **Notebook**: 1 notebook complet (54 cellules)
-- **Documentation**: 7 fichiers .md dans `docs/`
-- **Fichiers racine**: .gitignore, .dockerignore, README.md
-- **Données métadonnées**: 2 fichiers dans `data/metadata/` (CSV, JSON)
+- **Fichiers Python (estimation)** : ~40 fichiers, ~12222 lignes (src + ops + scripts + tests + racine).
+- **Configuration** : `config/*.yaml`, `docker.env`, `requirements.txt`, `environment.yml`.
+- **Documentation** : `docs/*.md`, `README.md`, `stats.md`.
+- **Notebooks** : entrainement/evaluation, validation/inference, figures publication.
 
-### Lignes de Code (approximatif)
+### Lignes de code (modules cles)
 
-- `pipeline.py`: ~1119 lignes
-- `netcdf_utils.py`: ~1087 lignes
-- `causal_rcn.py`: ~386 lignes
-- `diffusion_decoder.py`: ~631 lignes
-- `graph_builder.py`: ~481 lignes
-- `intelligible_encoder.py`: ~283 lignes
-- `training_loop.py`: ~874 lignes
-- `evaluation_xai.py`: ~654 lignes
-- **Total estimé**: ~8500+ lignes de code Python (src + ops + scripts + tests)
+- `src/st_cdgm/data/pipeline.py`: ~1324 lignes
+- `src/st_cdgm/data/netcdf_utils.py`: ~1086 lignes
+- `src/st_cdgm/models/causal_rcn.py`: ~395 lignes
+- `src/st_cdgm/models/diffusion_decoder.py`: ~694 lignes
+- `src/st_cdgm/models/graph_builder.py`: ~480 lignes
+- `src/st_cdgm/models/intelligible_encoder.py`: ~283 lignes
+- `src/st_cdgm/training/training_loop.py`: ~1131 lignes
+- `src/st_cdgm/evaluation/evaluation_xai.py`: ~1054 lignes
 
 ---
 
-## 🎯 Points Clés de l'Architecture
+## Points cles de l'architecture
 
-1. **Modularité**: Chaque composant est indépendant et réutilisable
-2. **Extensibilité**: Facile d'ajouter de nouveaux modules
-3. **Configuration**: Hydra pour configuration flexible
-4. **Performance**: Optimisations Phase A, B, C, D, E
-5. **Robustesse**: Gestion d'erreurs, validation, tests
+1. **Modularite** : composants independants et reutilisables.
+2. **Extensibilite** : nouveaux modules (p.ex. planificateurs de diffusion).
+3. **Configuration** : Hydra / YAML.
+4. **Performance** : optimisations documentees dans `docs/OPTIMISATION.md`.
+5. **Robustesse** : tests, validation, checkpoints (`utils/checkpoint.py`).
 
 ---
 
-**Fin de la Documentation Complète du Projet ST-CDGM**
+**Fin de la documentation complete du projet ST-CDGM** *(genere)*

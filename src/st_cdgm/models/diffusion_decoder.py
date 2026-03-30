@@ -31,6 +31,32 @@ except ImportError:
     HAS_DPM_SOLVER = False
 
 
+def _replace_conv_transpose_with_resize(module: nn.Module) -> None:
+    """Remplace ConvTranspose2d par Upsample + Conv2d (réduit artefacts checkerboard)."""
+    for name, child in list(module.named_children()):
+        if isinstance(child, nn.ConvTranspose2d):
+            st = child.stride[0]
+            if st >= 2 and child.stride[0] == child.stride[1]:
+                repl = nn.Sequential(
+                    nn.Upsample(scale_factor=float(st), mode="nearest"),
+                    nn.Conv2d(
+                        child.in_channels,
+                        child.out_channels,
+                        kernel_size=3,
+                        padding=1,
+                        bias=child.bias is not None,
+                    ),
+                )
+                if child.bias is not None:
+                    nn.init.zeros_(repl[1].bias)
+                nn.init.kaiming_normal_(repl[1].weight, nonlinearity="relu")
+                setattr(module, name, repl)
+            else:
+                _replace_conv_transpose_with_resize(child)
+        else:
+            _replace_conv_transpose_with_resize(child)
+
+
 @dataclass
 class DiffusionOutput:
     """
@@ -65,6 +91,8 @@ class CausalDiffusionDecoder(nn.Module):
         unet_kwargs: Optional[dict] = None,
         scheduler_type: str = "ddpm",
         use_gradient_checkpointing: bool = False,
+        conv_padding_mode: str = "zeros",
+        anti_checkerboard: bool = False,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -86,6 +114,13 @@ class CausalDiffusionDecoder(nn.Module):
             **unet_kwargs,
         )
         self.scheduler = DDPMScheduler(num_train_timesteps=num_diffusion_steps)
+
+        if conv_padding_mode == "replicate":
+            for m in self.unet.modules():
+                if isinstance(m, nn.Conv2d):
+                    m.padding_mode = "replicate"
+        if anti_checkerboard:
+            _replace_conv_transpose_with_resize(self.unet)
         
         # Phase C3: Gradient checkpointing support
         # Reduces memory usage by ~50% but increases computation time by ~20-30%
@@ -124,7 +159,7 @@ class CausalDiffusionDecoder(nn.Module):
         Gère les NaN dans le target en utilisant un masque (standard pour données climatiques).
         """
         # Vérifier le conditioning (ne doit pas contenir de NaN/Inf)
-        if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+        if not torch.isfinite(conditioning).all():
             raise ValueError(
                 f"Conditioning contains NaN/Inf: NaN={torch.isnan(conditioning).sum().item()}, "
                 f"Inf={torch.isinf(conditioning).sum().item()}, "
@@ -134,7 +169,7 @@ class CausalDiffusionDecoder(nn.Module):
         
         # Créer un masque pour les valeurs valides dans le target
         # Les NaN peuvent représenter des masques géographiques (océan, etc.)
-        valid_mask = ~torch.isnan(target) & ~torch.isinf(target)
+        valid_mask = torch.isfinite(target)
         nan_count = (~valid_mask).sum().item()
         total_pixels = target.numel()
         
@@ -166,7 +201,7 @@ class CausalDiffusionDecoder(nn.Module):
         noise_pred = self.forward(noisy_sample, timesteps, conditioning)
         
         # Vérifier que noise_pred ne contient pas de NaN/Inf (problème du modèle)
-        if torch.isnan(noise_pred).any() or torch.isinf(noise_pred).any():
+        if not torch.isfinite(noise_pred).all():
             raise ValueError(
                 f"noise_pred contains NaN/Inf after UNet forward: "
                 f"NaN={torch.isnan(noise_pred).sum().item()}, "
@@ -239,7 +274,7 @@ class CausalDiffusionDecoder(nn.Module):
                 loss = mse_error.mean()
         
         # Vérifier la loss finale
-        if torch.isnan(loss) or torch.isinf(loss):
+        if not torch.isfinite(loss):
             raise ValueError(
                 f"Loss is NaN/Inf: loss={loss.item()}, "
                 f"valid_pixels={valid_mask.sum().item()}/{total_pixels}, "
@@ -247,6 +282,16 @@ class CausalDiffusionDecoder(nn.Module):
             )
         
         return loss
+
+    def predict_x0_from_epsilon(
+        self,
+        noisy_sample: Tensor,
+        epsilon_pred: Tensor,
+        timesteps: Tensor,
+    ) -> Tensor:
+        """DDPM : estimation x0 depuis ε_θ (pour perte spectrale RAPSD)."""
+        a = self.scheduler.alphas_cumprod[timesteps].view(-1, 1, 1, 1)
+        return (noisy_sample - (1.0 - a).sqrt() * epsilon_pred) / a.sqrt().clamp(min=1e-8)
 
     @staticmethod
     def apply_physical_constraints(raw_output: Tensor, use_soft: bool = True) -> Tuple[Tensor, Tensor, Tensor]:
@@ -299,6 +344,7 @@ class CausalDiffusionDecoder(nn.Module):
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
         scheduler_type: Optional[str] = None,
+        cfg_scale: float = 0.0,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
@@ -343,6 +389,10 @@ class CausalDiffusionDecoder(nn.Module):
         inference_steps = num_steps or getattr(scheduler, "num_inference_steps", None)
         if inference_steps is None:
             inference_steps = self.num_diffusion_steps
+        max_train = int(
+            getattr(scheduler.config, "num_train_timesteps", self.num_diffusion_steps)
+        )
+        inference_steps = max(1, min(int(inference_steps), max_train))
         scheduler.set_timesteps(inference_steps, device=conditioning.device)
 
         sample = torch.randn(
@@ -355,11 +405,21 @@ class CausalDiffusionDecoder(nn.Module):
         )
 
         for t in scheduler.timesteps:
-            model_output = self.unet(
+            noise_pred_cond = self.unet(
                 sample=sample,
                 timestep=t,
                 encoder_hidden_states=conditioning,
             ).sample
+            if cfg_scale and cfg_scale > 0.0:
+                null_c = torch.zeros_like(conditioning)
+                noise_pred_uncond = self.unet(
+                    sample=sample,
+                    timestep=t,
+                    encoder_hidden_states=null_c,
+                ).sample
+                model_output = noise_pred_uncond + cfg_scale * (noise_pred_cond - noise_pred_uncond)
+            else:
+                model_output = noise_pred_cond
             sample = scheduler.step(model_output, t, sample).prev_sample
 
         residual = sample
@@ -387,6 +447,10 @@ class CausalDiffusionDecoder(nn.Module):
                 )
         else:
             t_min = t_mean = t_max = composite[:, 0:1, :, :]
+        if residual.shape[-2:] != (self.height, self.width):
+            raise ValueError(
+                f"Sortie diffusion {tuple(residual.shape[-2:])} != ({self.height}, {self.width})"
+            )
         return DiffusionOutput(residual=residual, baseline=baseline, t_min=t_min, t_mean=t_mean, t_max=t_max)
 
     def _sample_edm_ode(

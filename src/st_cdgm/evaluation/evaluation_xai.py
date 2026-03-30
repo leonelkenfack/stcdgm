@@ -18,10 +18,13 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
+from ..models.graph_builder import HeteroGraphBuilder
 from ..models.causal_rcn import RCNCell, RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
+from ..models.intelligible_encoder import IntelligibleVariableEncoder
 
 try:
     import seaborn as sns
@@ -42,6 +45,160 @@ class InferenceResult:
     generations: List[List[DiffusionOutput]]  # [time][sample]
     states: List[Tensor]
     dag_matrices: List[Tensor]
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 / 5 — Inférence centralisée (bicubique, masque NaN)
+# ---------------------------------------------------------------------------
+
+
+def resize_tensor_bicubic_nonneg(
+    x: Tensor,
+    size: Tuple[int, int],
+    *,
+    clamp_min: float = 0.0,
+) -> Tensor:
+    """
+    Redimensionnement spatial bicubique + clamp (précip / champs positifs).
+    Remplace l'interpolation bilinéaire (passe-bas) du pipeline legacy.
+    """
+    if x.dim() != 4:
+        raise ValueError(f"Attendu [B,C,H,W], obtenu {tuple(x.shape)}")
+    y = F.interpolate(x, size=size, mode="bicubic", align_corners=False)
+    return torch.clamp(y, min=clamp_min)
+
+
+def resize_diffusion_output_to_spatial(
+    out: DiffusionOutput,
+    spatial: Tuple[int, int],
+    *,
+    clamp_min: float = 0.0,
+) -> DiffusionOutput:
+    """Aligne t_min / t_mean / t_max / residual sur la grille cible."""
+    Ht, Wt = spatial
+
+    def _resize(t: Tensor) -> Tensor:
+        if t.dim() != 4:
+            return t
+        if t.shape[-2:] == (Ht, Wt):
+            return t
+        return resize_tensor_bicubic_nonneg(t, (Ht, Wt), clamp_min=clamp_min)
+
+    res = _resize(out.residual)
+    base = out.baseline
+    if base is not None and base.dim() == 4 and base.shape[-2:] != (Ht, Wt):
+        base = resize_tensor_bicubic_nonneg(base, (Ht, Wt), clamp_min=clamp_min)
+    return DiffusionOutput(
+        residual=res,
+        baseline=base,
+        t_min=_resize(out.t_min),
+        t_mean=_resize(out.t_mean),
+        t_max=_resize(out.t_max),
+    )
+
+
+def convert_sample_to_batch(
+    sample: dict,
+    builder: HeteroGraphBuilder,
+    device: torch.device,
+) -> dict:
+    """Construit lr, residual, baseline, hetero depuis un échantillon dataset."""
+    lr_seq = sample["lr"]
+    seq_len = lr_seq.shape[0]
+    lr_nodes_steps = [builder.lr_grid_to_nodes(lr_seq[t]) for t in range(seq_len)]
+    lr_tensor = torch.stack(lr_nodes_steps, dim=0)
+    dynamic_features = {node_type: lr_nodes_steps[0] for node_type in builder.dynamic_node_types}
+    hetero = builder.prepare_step_data(dynamic_features).to(device)
+    return {
+        "lr": lr_tensor,
+        "residual": sample["residual"],
+        "baseline": sample.get("baseline"),
+        "hetero": hetero,
+    }
+
+
+def extract_target_baseline_and_mask(
+    batch: dict,
+    device: torch.device,
+) -> Tuple[Tensor, Tensor, Tensor]:
+    """
+    Cible HR, baseline et masque de validité (True = donnée observée).
+
+    Phase 5.1 : le masque est extrait **avant** nan_to_num.
+    """
+    target_residual = batch["residual"][-1].to(device)
+    baseline_tensor = (
+        batch["baseline"][-1]
+        if batch.get("baseline") is not None
+        else torch.zeros_like(target_residual)
+    )
+    baseline_tensor = baseline_tensor.to(device)
+    full_target = baseline_tensor + target_residual
+
+    valid_mask = ~torch.isnan(full_target)
+
+    baseline_tensor = torch.nan_to_num(baseline_tensor, nan=0.0, posinf=0.0, neginf=0.0)
+    full_target = torch.nan_to_num(full_target, nan=0.0, posinf=0.0, neginf=0.0)
+
+    b = baseline_tensor.unsqueeze(0) if baseline_tensor.dim() == 3 else baseline_tensor
+    t = full_target.unsqueeze(0) if full_target.dim() == 3 else full_target
+    m = valid_mask.unsqueeze(0) if valid_mask.dim() == 3 else valid_mask
+    return t, b, m
+
+
+@torch.no_grad()
+def run_st_cdgm_inference(
+    sample: dict,
+    *,
+    builder: HeteroGraphBuilder,
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    diffusion: CausalDiffusionDecoder,
+    device: torch.device,
+    num_samples: int,
+    num_steps: int,
+    scheduler_type: str = "ddpm",
+    apply_constraints: bool = False,
+    use_log1p_inverse: bool = False,
+    cfg_scale: float = 0.0,
+) -> Tuple[List[DiffusionOutput], Tensor, Tensor, Tensor, Tensor]:
+    """
+    Inférence complète encodeur → RCN → diffusion (multi-échantillons).
+
+    Retourne ``samples_out, target_batch, baseline_batch, dag_last, mask_batch``.
+    """
+    batch = convert_sample_to_batch(sample, builder, device)
+    lr_data = batch["lr"].to(device)
+    target_batch, baseline_batch, mask_batch = extract_target_baseline_and_mask(batch, device)
+
+    H_init = encoder.init_state(batch["hetero"]).to(device)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+    conditioning = encoder.project_state_tensor(seq_output.states[-1]).to(device)
+    dag_last = seq_output.dag_matrices[-1].detach().cpu()
+
+    samples_out: List[DiffusionOutput] = []
+    for _ in range(num_samples):
+        generated = diffusion.sample(
+            conditioning,
+            num_steps=num_steps,
+            scheduler_type=scheduler_type,
+            apply_constraints=apply_constraints,
+            baseline=baseline_batch,
+            cfg_scale=cfg_scale,
+        )
+        if generated.t_mean.shape != target_batch.shape:
+            generated = resize_diffusion_output_to_spatial(
+                generated,
+                (target_batch.shape[-2], target_batch.shape[-1]),
+                clamp_min=0.0,
+            )
+        generated.t_mean = torch.nan_to_num(generated.t_mean, nan=0.0, posinf=0.0, neginf=0.0)
+        if use_log1p_inverse:
+            generated.t_mean = torch.expm1(generated.t_mean)
+        samples_out.append(generated)
+
+    return samples_out, target_batch.cpu(), baseline_batch.cpu(), dag_last, mask_batch.cpu()
 
 
 def autoregressive_inference(
@@ -125,14 +282,68 @@ def compute_histogram_distance(pred: Tensor, target: Tensor, bins: int = 50) -> 
     return float(distance)
 
 
-def compute_crps(samples: Sequence[Tensor], target: Tensor) -> float:
+def compute_crps_pixel_map(pred_stack: Tensor, target: Tensor) -> Tensor:
+    """
+    Carte CRPS pixel (formule énergétique) : pred_stack [N,C,H,W], target [C,H,W] ou [1,C,H,W].
+    """
+    if target.dim() == 4:
+        target = target.squeeze(0)
+    tgt = target[0] if target.dim() == 3 else target
+    x = pred_stack[:, 0] if pred_stack.dim() == 4 and pred_stack.shape[1] >= 1 else pred_stack
+    n = x.shape[0]
+    if n < 1:
+        raise ValueError("Ensemble vide")
+    term1 = (x - tgt.unsqueeze(0)).abs().mean(dim=0)
+    if n < 2:
+        return term1
+    term2 = (x.unsqueeze(0) - x.unsqueeze(1)).abs().mean(dim=(0, 1)) * 0.5
+    return term1 - term2
+
+
+def compute_spread_skill_ratio(pred_std_map: np.ndarray, err_map: np.ndarray, valid_mask: np.ndarray) -> float:
+    """Ratio moyen spread / erreur sur pixels valides (objectif ~1 calibration)."""
+    m = valid_mask & np.isfinite(pred_std_map) & np.isfinite(err_map)
+    if not np.any(m):
+        return float("nan")
+    spread = pred_std_map[m].mean()
+    skill = err_map[m].mean()
+    if skill < 1e-12:
+        return float("nan")
+    return float(spread / skill)
+
+
+def compute_rapsd_numpy(field: np.ndarray) -> np.ndarray:
+    """RAPSD 2D (numpy) pour une carte [H,W]."""
+    fft2 = np.fft.fft2(field)
+    power = np.abs(np.fft.fftshift(fft2)) ** 2
+    h, w = power.shape
+    cy, cx = h // 2, w // 2
+    y_idx, x_idx = np.indices((h, w))
+    r = np.sqrt((x_idx - cx) ** 2 + (y_idx - cy) ** 2).astype(np.int64)
+    radial_sum = np.bincount(r.ravel(), power.ravel())
+    radial_cnt = np.bincount(r.ravel())
+    valid = radial_cnt > 0
+    out = np.zeros_like(radial_sum, dtype=np.float64)
+    out[valid] = radial_sum[valid] / radial_cnt[valid]
+    return out
+
+
+def compute_crps(
+    samples: Sequence[Tensor],
+    target: Tensor,
+    *,
+    max_ensemble_members: Optional[int] = None,
+) -> float:
     """
     Calcule le CRPS (Continuous Ranked Probability Score) pour un ensemble d'échantillons.
-    
+    Formule quadratique en la taille d'ensemble : plafonner ``max_ensemble_members`` (premiers membres) sur CPU.
+
     Phase 4.1: Improved CRPS implementation.
     """
     if len(samples) == 0:
         return float("nan")
+    if max_ensemble_members is not None and len(samples) > max_ensemble_members:
+        samples = list(samples)[:max_ensemble_members]
     stack = torch.stack(samples, dim=0)  # [ensemble, C, H, W]
     target = target.unsqueeze(0)
     term1 = torch.abs(stack - target).mean(dim=0)
@@ -473,6 +684,15 @@ class MetricReport:
     energy_score: Optional[float] = None
     # Phase C4: F1 scores for extreme events
     f1_extremes: Optional[Dict[str, float]] = None
+    # Phase 1 / 8 — métriques probabilistes (membre unique + CRPS spatial)
+    mse_single_member: Optional[float] = None
+    mae_single_member: Optional[float] = None
+    corr_single_member: Optional[float] = None
+    crps_spatial_mean: Optional[float] = None
+    spectral_distance_rapsd: Optional[float] = None
+    spread_skill_ratio: Optional[float] = None
+    crps_p99: Optional[float] = None
+    primary_kpi: str = "crps"
 
 
 def evaluate_metrics(
@@ -483,39 +703,88 @@ def evaluate_metrics(
     compute_advanced: bool = True,
     fss_threshold: Optional[float] = None,
     fss_window_size: int = 9,
-    compute_f1_extremes: bool = True,  # Phase C4: Compute F1 for extreme events
-    f1_percentiles: Sequence[float] = [95.0, 99.0],  # Phase C4: Percentiles for F1
+    include_f1_extremes: bool = True,
+    f1_percentiles: Sequence[float] = [95.0, 99.0],
+    use_mean_aggregation: bool = False,
+    valid_mask: Optional[Tensor] = None,
+    crps_max_ensemble_members: Optional[int] = None,
 ) -> MetricReport:
     """
-    Calcule un ensemble de métriques à partir des échantillons générés.
-    
-    Phase 4.1: Now includes advanced metrics (FSS, Wasserstein, Energy Score).
-    
-    Parameters
-    ----------
-    samples : Sequence[DiffusionOutput]
-        Ensemble d'échantillons générés
-    target : Tensor
-        Cible [C, H, W] ou [H, W]
-    baseline : Optional[Tensor]
-        Baseline optionnel pour comparaison
-    compute_advanced : bool
-        Si True, calcule les métriques avancées (FSS, Wasserstein, Energy Score)
-    fss_threshold : Optional[float]
-        Seuil pour le calcul du FSS (si None, FSS n'est pas calculé)
-    fss_window_size : int
-        Taille de fenêtre pour le FSS (doit être impair)
+    Métriques à partir des échantillons. Par défaut : **membre unique** (Phase 1) pour MSE/MAE/spectre ;
+    CRPS et métriques d'ensemble utilisent tout l'ensemble. Option ``use_mean_aggregation=True`` : ancien comportement (moyenne).
+    ``valid_mask`` [H,W] bool True = pixel valide (Phase 5).
+    ``crps_max_ensemble_members`` : borne la taille d'ensemble pour CRPS / carte CRPS (coût O(n²)) ; None = pas de borne.
     """
     if len(samples) == 0:
         raise ValueError("La liste d'échantillons ne doit pas être vide.")
     stacked_means = torch.stack([sample.t_mean for sample in samples], dim=0)
-    pred_mean = stacked_means.mean(dim=0)
+    pred_ensemble_mean = stacked_means.mean(dim=0)
+    pred_primary = pred_ensemble_mean if use_mean_aggregation else stacked_means[0]
 
-    mse = compute_mse(pred_mean, target)
-    mae = compute_mae(pred_mean, target)
-    hist_distance = compute_histogram_distance(pred_mean, target)
-    crps = compute_crps([sample.t_mean for sample in samples], target)
-    spectrum = compute_spectrum_distance(pred_mean, target)
+    mask_t = valid_mask
+    if mask_t is not None and mask_t.dim() == 3:
+        mask_t = mask_t.squeeze(0)
+    if mask_t is not None and mask_t.dim() == 3:
+        mask_t = mask_t[0]
+
+    mse = compute_mse(pred_primary, target, mask=None)
+    mae = compute_mae(pred_primary, target, mask=None)
+    hist_distance = compute_histogram_distance(pred_primary, target)
+    if (
+        crps_max_ensemble_members is not None
+        and crps_max_ensemble_members > 0
+        and len(samples) > crps_max_ensemble_members
+    ):
+        samples_crps = list(samples)[: crps_max_ensemble_members]
+    else:
+        samples_crps = list(samples)
+    crps = compute_crps([sample.t_mean for sample in samples_crps], target)
+    spectrum = compute_spectrum_distance(pred_primary, target)
+
+    # --- Phase 1 / 8 : membre unique + CRPS spatial + RAPSD ---
+    pred_single = stacked_means[0]
+    mse_single = mae_single = corr_single = None
+    crps_spatial_mean = spectral_dist_rapsd = spread_skill = crps_p99 = None
+    try:
+        ps_full = stacked_means.detach().cpu()
+        ps = torch.stack([sample.t_mean for sample in samples_crps], dim=0).detach().cpu()
+        tg = target.detach().cpu()
+        if tg.dim() == 3:
+            tg = tg.unsqueeze(0)
+        crps_map = compute_crps_pixel_map(ps, tg)
+        crps_spatial_mean = float(crps_map.mean().item())
+        crps_p99 = float(torch.quantile(crps_map.flatten(), 0.99).item())
+
+        p0 = pred_single.detach().cpu().numpy()
+        t0 = tg.squeeze(0).numpy()
+        if p0.ndim == 3:
+            p0 = p0[0]
+        if t0.ndim == 3:
+            t0 = t0[0]
+        rp = compute_rapsd_numpy(p0)
+        rt = compute_rapsd_numpy(t0)
+        nbin = min(len(rp), len(rt))
+        spectral_dist_rapsd = float(np.mean((rp[:nbin] - rt[:nbin]) ** 2))
+
+        mse_single = float(compute_mse(pred_single, target, mask=None))
+        mae_single = float(compute_mae(pred_single, target, mask=None))
+        pf = p0.flatten()
+        tf = t0.flatten()
+        valid = np.isfinite(pf) & np.isfinite(tf)
+        if np.sum(valid) > 2:
+            corr_single = float(np.corrcoef(pf[valid], tf[valid])[0, 1])
+
+        if mask_t is not None:
+            m_np = mask_t.detach().cpu().numpy().astype(bool)
+            if m_np.ndim == 3:
+                m_np = m_np[0]
+            err_abs = np.abs(p0 - t0)
+            std_map = ps_full[:, 0].numpy().std(axis=0) if ps_full.shape[1] >= 1 else np.zeros_like(p0)
+            spread_skill = compute_spread_skill_ratio(std_map, err_abs, m_np)
+            mse = float(np.mean(((p0 - t0) ** 2)[m_np]))
+            mae = float(np.mean(err_abs[m_np]))
+    except Exception as ex:
+        warnings.warn(f"Métriques probabilistes étendues: {ex}")
 
     baseline_mse = baseline_mae = None
     baseline_tensor = baseline
@@ -525,34 +794,24 @@ def evaluate_metrics(
         baseline_mse = compute_mse(baseline_tensor, target)
         baseline_mae = compute_mae(baseline_tensor, target)
 
-    # Phase 4.1: Compute advanced metrics if requested
     fss_val = None
     wasserstein_val = None
     energy_score_val = None
-    
+
     if compute_advanced:
         try:
-            # Compute FSS if threshold is provided
             if fss_threshold is not None:
-                fss_val = compute_fss(pred_mean, target, threshold=fss_threshold, window_size=fss_window_size)
-            
-            # Compute Wasserstein distance
+                fss_val = compute_fss(pred_primary, target, threshold=fss_threshold, window_size=fss_window_size)
             wasserstein_val = compute_wasserstein_distance([sample.t_mean for sample in samples], target)
-            
-            # Compute Energy Score
             energy_score_val = compute_energy_score([sample.t_mean for sample in samples], target)
         except Exception as e:
-            # If advanced metrics fail, continue with basic metrics
-            import warnings
             warnings.warn(f"Failed to compute advanced metrics: {e}")
-    
-    # Phase C4: Compute F1 scores for extreme events
+
     f1_extremes_val = None
-    if compute_f1_extremes:
+    if include_f1_extremes:
         try:
-            f1_extremes_val = compute_f1_extremes(pred_mean, target, threshold_percentiles=f1_percentiles)
+            f1_extremes_val = compute_f1_extremes(pred_primary, target, threshold_percentiles=f1_percentiles)
         except Exception as e:
-            import warnings
             warnings.warn(f"Failed to compute F1 extremes: {e}")
 
     return MetricReport(
@@ -567,7 +826,97 @@ def evaluate_metrics(
         wasserstein_distance=wasserstein_val,
         energy_score=energy_score_val,
         f1_extremes=f1_extremes_val,
+        mse_single_member=mse_single,
+        mae_single_member=mae_single,
+        corr_single_member=corr_single,
+        crps_spatial_mean=crps_spatial_mean,
+        spectral_distance_rapsd=spectral_dist_rapsd,
+        spread_skill_ratio=spread_skill,
+        crps_p99=crps_p99,
+        primary_kpi="crps",
     )
+
+
+def plot_probabilistic_dashboard_3x3(
+    tgt_display: np.ndarray,
+    pred_single: np.ndarray,
+    err_display: np.ndarray,
+    pred_std: np.ndarray,
+    crps_map: np.ndarray,
+    mask_display: np.ndarray,
+    rapsd_pred: np.ndarray,
+    rapsd_tgt: np.ndarray,
+    spread_skill_ratio_val: float,
+    spearman_rho: float,
+    *,
+    title: str = "Dashboard probabiliste ST-CDGM",
+) -> plt.Figure:
+    """
+    Grille 3×3 : cible, prédiction, erreur masquée, écart-type, CRPS, masque, spread-skill, RAPSD, calibration.
+    """
+    fig, axes = plt.subplots(3, 3, figsize=(22, 18))
+    ax = axes.flatten()
+    im0 = ax[0].imshow(tgt_display, origin="lower", cmap="Blues")
+    ax[0].set_title("Cible HR (blanc = manquant)")
+    plt.colorbar(im0, ax=ax[0], fraction=0.046)
+    im1 = ax[1].imshow(pred_single, origin="lower", cmap="Blues")
+    ax[1].set_title("Prédiction (1 membre)")
+    plt.colorbar(im1, ax=ax[1], fraction=0.046)
+    im2 = ax[2].imshow(err_display, origin="lower", cmap="hot")
+    ax[2].set_title("|Erreur| masquée")
+    plt.colorbar(im2, ax=ax[2], fraction=0.046)
+    im3 = ax[3].imshow(pred_std, origin="lower", cmap="plasma")
+    ax[3].set_title("Écart-type intra-ensemble")
+    plt.colorbar(im3, ax=ax[3], fraction=0.046)
+    im4 = ax[4].imshow(crps_map, origin="lower", cmap="YlOrRd")
+    ax[4].set_title("CRPS pixel")
+    plt.colorbar(im4, ax=ax[4], fraction=0.046)
+    im5 = ax[5].imshow(mask_display.astype(float), origin="lower", cmap="gray_r", vmin=0, vmax=1)
+    ax[5].set_title("Masque valide")
+    plt.colorbar(im5, ax=ax[5], fraction=0.046)
+    ax[6].scatter(pred_std.flatten()[:: max(1, pred_std.size // 5000)], err_display.flatten()[:: max(1, err_display.size // 5000)], alpha=0.15, s=1, c="steelblue")
+    mx = float(np.nanmax([np.nanmax(pred_std), np.nanmax(err_display)]))
+    ax[6].plot([0, mx], [0, mx], "r--", label="1:1")
+    ax[6].set_xlabel("Spread")
+    ax[6].set_ylabel("|Erreur|")
+    ax[6].set_title("Spread–Skill")
+    ax[6].legend()
+    rad = np.arange(len(rapsd_pred))
+    ax[7].loglog(rad[1:], np.maximum(rapsd_pred[1:], 1e-20), label="Préd")
+    ax[7].loglog(rad[1:], np.maximum(rapsd_tgt[1:], 1e-20), label="Cible")
+    ax[7].set_title("RAPSD")
+    ax[7].legend()
+    ax[8].axis("off")
+    ax[8].text(
+        0.1,
+        0.7,
+        f"Spread/Skill ≈ {spread_skill_ratio_val:.3f}\nSpearman ρ (dispersion vs |y|) ≈ {spearman_rho:.3f}",
+        fontsize=12,
+        family="monospace",
+        transform=ax[8].transAxes,
+    )
+    fig.suptitle(title, fontsize=14)
+    plt.tight_layout()
+    return fig
+
+
+def spearman_dispersion_intensity(
+    pred_std: np.ndarray,
+    target_abs: np.ndarray,
+    valid_mask: np.ndarray,
+) -> float:
+    """Corrélation rang dispersion vs intensité observée (Phase 7.3), sans scipy."""
+    ps = pred_std[valid_mask].flatten()
+    ta = target_abs[valid_mask].flatten()
+    if ps.size < 10:
+        return float("nan")
+
+    def _rank(a: np.ndarray) -> np.ndarray:
+        return np.argsort(np.argsort(a))
+
+    rp = _rank(ps)
+    rt = _rank(ta)
+    return float(np.corrcoef(rp, rt)[0, 1])
 
 
 # ---------------------------------------------------------------------------
@@ -702,7 +1051,4 @@ def compute_structural_hamming_distance(A_pred: Tensor, A_true: Tensor, threshol
     shd = len(additions) + len(deletions) + reversals
     
     return int(shd)
-
-    df = pd.DataFrame(edges)
-    df.to_json(output_path, orient="records", indent=2)
 

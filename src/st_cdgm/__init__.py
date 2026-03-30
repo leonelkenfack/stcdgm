@@ -10,7 +10,11 @@ from .models.intelligible_encoder import IntelligibleVariableEncoder, Intelligib
 from .models.graph_builder import HeteroGraphBuilder
 from .data.pipeline import NetCDFDataPipeline, ZarrDataPipeline, ResDiffIterableDataset
 from .data.netcdf_utils import NetCDFToDataFrame
-from .training.training_loop import train_epoch
+from .training.training_loop import (
+    train_epoch,
+    compute_rapsd_metric_from_batch,
+    resolve_train_amp_mode,
+)
 
 __all__ = [
     # Models
@@ -28,5 +32,7 @@ __all__ = [
     "NetCDFToDataFrame",
     # Training
     "train_epoch",
+    "compute_rapsd_metric_from_batch",
+    "resolve_train_amp_mode",
 ]
 

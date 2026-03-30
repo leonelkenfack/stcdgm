@@ -1,6 +1,7 @@
 import itertools
 from pathlib import Path
 
+import pytest
 import numpy as np
 import pandas as pd
 import torch
@@ -60,10 +61,12 @@ def _convert_sample(sample: dict, builder: HeteroGraphBuilder, device: torch.dev
         "baseline": sample.get("baseline"),
         "hetero": hetero,
     }
+    if "valid_mask" in sample:
+        batch["valid_mask"] = sample["valid_mask"]
     return batch
 
 
-def test_st_cdgm_smoke(tmp_path: Path):
+def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
     lr_ds, hr_ds, static_ds = _create_synthetic_dataset(time_steps=6, lr_shape=(2, 3), hr_shape=(4, 6))
 
     lr_path = tmp_path / "lr.nc"
@@ -122,11 +125,19 @@ def test_st_cdgm_smoke(tmp_path: Path):
     rcn_runner = RCNSequenceRunner(rcn_cell)
 
     diffusion = CausalDiffusionDecoder(
-        in_channels=3,
+        in_channels=1,
         conditioning_dim=32,
         height=sample["residual"].shape[-2],
         width=sample["residual"].shape[-1],
         num_diffusion_steps=50,
+        unet_kwargs=dict(
+            layers_per_block=1,
+            block_out_channels=(32,),
+            down_block_types=("DownBlock2D",),
+            up_block_types=("UpBlock2D",),
+            mid_block_type="UNetMidBlock2D",
+            norm_num_groups=8,
+        ),
     ).to(device)
 
     params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
@@ -145,7 +156,21 @@ def test_st_cdgm_smoke(tmp_path: Path):
         conditioning_fn=None,
         device=device,
         gradient_clipping=1.0,
+        use_amp=use_amp,
     )
+    return metrics
 
+
+def test_st_cdgm_smoke(tmp_path: Path):
+    metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
+    assert "loss" in metrics and np.isfinite(metrics["loss"])
+
+
+def test_train_epoch_cpu_bf16_amp_when_supported(tmp_path: Path):
+    """Exercises train_epoch with use_amp=True on CPU when BF16 is available (no GradScaler)."""
+    bf16 = getattr(torch.cpu, "is_bf16_supported", None)
+    if bf16 is None or not bf16():
+        pytest.skip("CPU bfloat16 not supported on this host")
+    metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
     assert "loss" in metrics and np.isfinite(metrics["loss"])
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 import math
 import time
 
@@ -22,6 +22,31 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from ..models.causal_rcn import RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder
 from ..models.intelligible_encoder import IntelligibleVariableEncoder
+
+
+def _train_autocast(amp_mode: str):
+    """
+    Mixed precision context for train_epoch: CUDA FP16 (with GradScaler) or CPU BF16 (no scaler).
+    amp_mode: "none" | "cuda_fp16" | "cpu_bf16"
+    """
+    if amp_mode == "cuda_fp16":
+        return torch.cuda.amp.autocast()
+    if amp_mode == "cpu_bf16":
+        return torch.amp.autocast(device_type="cpu", dtype=torch.bfloat16)
+    return nullcontext()
+
+
+def resolve_train_amp_mode(device: torch.device, use_amp: bool) -> str:
+    """Même logique que le début de ``train_epoch`` (pour métrique RAPSD fin d’époque)."""
+    if not use_amp:
+        return "none"
+    if device.type == "cuda" and torch.cuda.is_available():
+        return "cuda_fp16"
+    if device.type == "cpu":
+        bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
+        if bf16_ok is not None and bf16_ok():
+            return "cpu_bf16"
+    return "none"
 
 
 def loss_reconstruction(
@@ -90,6 +115,206 @@ def loss_reconstruction(
     # Default: MSE loss
     else:  # loss_type == "mse"
         return nn.functional.mse_loss(pred, target)
+
+
+def compute_rapsd_loss(
+    pred: Tensor,
+    target: Tensor,
+    eps: float = 1e-8,
+) -> Tensor:
+    """
+    Perte spectrale radiale (RAPSD) — compare log-puissance entre prédiction et cible.
+    pred, target : [B, C, H, W]
+    """
+    if pred.shape != target.shape:
+        raise ValueError(f"RAPSD: shapes {pred.shape} vs {target.shape}")
+    if pred.dim() == 3:
+        pred = pred.unsqueeze(0)
+        target = target.unsqueeze(0)
+    B, C, H, W = pred.shape
+    losses: List[Tensor] = []
+    for b in range(B):
+        for c in range(C):
+            p = pred[b, c]
+            t = target[b, c]
+            fft_p = torch.fft.fftshift(torch.fft.fft2(p))
+            fft_t = torch.fft.fftshift(torch.fft.fft2(t))
+            psd_p = torch.abs(fft_p) ** 2
+            psd_t = torch.abs(fft_t) ** 2
+            cy, cx = H // 2, W // 2
+            y_idx = torch.arange(H, device=pred.device, dtype=torch.float32) - cy
+            x_idx = torch.arange(W, device=pred.device, dtype=torch.float32) - cx
+            yy, xx = torch.meshgrid(y_idx, x_idx, indexing="ij")
+            r = torch.sqrt(xx ** 2 + yy ** 2).long().clamp(min=0)
+            max_r = int(r.max().item()) + 1
+            rapsd_p = torch.zeros(max_r, device=pred.device)
+            rapsd_t = torch.zeros(max_r, device=pred.device)
+            counts = torch.zeros(max_r, device=pred.device)
+            rf = r.flatten()
+            rapsd_p.scatter_add_(0, rf, psd_p.flatten())
+            rapsd_t.scatter_add_(0, rf, psd_t.flatten())
+            counts.scatter_add_(0, rf, torch.ones_like(rf, dtype=torch.float32))
+            valid = counts > 0
+            rapsd_p[valid] /= counts[valid]
+            rapsd_t[valid] /= counts[valid]
+            log_ratio = torch.log(rapsd_p[valid] + eps) - torch.log(rapsd_t[valid] + eps)
+            losses.append((log_ratio ** 2).mean())
+    return torch.stack(losses).mean()
+
+
+@torch.no_grad()
+def compute_rapsd_spectral_value_no_grad(
+    diffusion_decoder: CausalDiffusionDecoder,
+    target: Tensor,
+    conditioning: Tensor,
+    *,
+    amp_mode: str = "none",
+) -> Tensor:
+    """
+    Une passe bruit → ε_θ → x̂₀ puis perte RAPSD, sans gradient.
+    Utilisé en fin d’époque (métrique) pour éviter FFT/scatter dans la boucle batch.
+    """
+    noise_sp = torch.randn_like(target)
+    bs = target.shape[0]
+    timesteps_sp = torch.randint(
+        0,
+        diffusion_decoder.scheduler.num_train_timesteps,
+        (bs,),
+        device=target.device,
+        dtype=torch.long,
+    )
+    noisy_sp = diffusion_decoder.scheduler.add_noise(target, noise_sp, timesteps_sp)
+    with _train_autocast(amp_mode):
+        noise_pred_sp = diffusion_decoder.forward(noisy_sp, timesteps_sp, conditioning)
+    pred_x0 = diffusion_decoder.predict_x0_from_epsilon(noisy_sp, noise_pred_sp, timesteps_sp)
+    return compute_rapsd_loss(pred_x0, target)
+
+
+def prepare_target_and_conditioning_for_metric(
+    batch: Dict[str, Any],
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    *,
+    device: torch.device,
+    residual_key: str = "residual",
+    batch_index_key: str = "batch_index",
+    conditioning_fn: Optional[Callable[[Tensor, Optional[Tensor]], Tensor]] = None,
+    amp_mode: str = "none",
+) -> Optional[Tuple[Tensor, Tensor]]:
+    """
+    Reproduit le chemin encodeur → RCN → conditioning et la cible HR du train_epoch,
+    pour un seul micro-batch (métrique RAPSD en fin d’époque).
+    """
+    lr_data: Tensor = batch["lr"].to(device)
+    target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)
+
+    if torch.isnan(target_data).any():
+        nan_fill = torch.nanmean(target_data).item()
+        if not math.isfinite(nan_fill):
+            nan_fill = 0.0
+        target_data = torch.nan_to_num(target_data, nan=nan_fill)
+    if torch.isinf(target_data).any():
+        valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if target_data.numel() > 0 else 0.0
+        target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
+    if torch.isnan(lr_data).any():
+        nan_fill = torch.nanmean(lr_data).item()
+        if not math.isfinite(nan_fill):
+            nan_fill = 0.0
+        lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
+
+    hetero_data = batch["hetero"]
+    with _train_autocast(amp_mode):
+        H_init = encoder.init_state(hetero_data).to(device)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    with _train_autocast(amp_mode):
+        seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+
+    H_condition = seq_output.states[-1]
+    batch_index = batch.get(batch_index_key)
+    if batch_index is not None:
+        batch_index = batch_index.to(device)
+    if conditioning_fn is None:
+        conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
+    else:
+        conditioning = conditioning_fn(H_condition, batch_index)
+    conditioning = conditioning.to(device)
+
+    if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+        return None
+
+    target = target_data[-1]
+    if target.dim() == 3:
+        target = target.unsqueeze(0)
+    elif target.dim() != 4:
+        return None
+
+    valid_mask_ts = batch.get("valid_mask")
+    if valid_mask_ts is not None:
+        vm = valid_mask_ts[-1].to(device=device)
+        if vm.dtype != torch.bool:
+            vm = vm > 0.5
+        while vm.dim() < target.dim():
+            vm = vm.unsqueeze(0)
+        vm = vm.expand_as(target)
+        target = target.clone().masked_fill(~vm, float("nan"))
+
+    return target, conditioning
+
+
+def compute_rapsd_metric_from_batch(
+    *,
+    encoder: IntelligibleVariableEncoder,
+    rcn_runner: RCNSequenceRunner,
+    diffusion_decoder: CausalDiffusionDecoder,
+    batch: Dict[str, Any],
+    device: torch.device,
+    residual_key: str = "residual",
+    batch_index_key: str = "batch_index",
+    conditioning_fn: Optional[Callable[[Tensor, Optional[Tensor]], Tensor]] = None,
+    amp_mode: str = "none",
+    verbose: bool = False,
+) -> Optional[float]:
+    """
+    Calcule la métrique RAPSD (scalaire) sur un batch, sans gradient.
+    À appeler une fois par époque après ``train_epoch`` (ex. premier batch du loader).
+    """
+    enc = encoder.module if isinstance(encoder, DDP) else encoder
+    rcn_cell = rcn_runner.cell.module if isinstance(rcn_runner.cell, DDP) else rcn_runner.cell
+    diff = diffusion_decoder.module if isinstance(diffusion_decoder, DDP) else diffusion_decoder
+
+    was_enc_train = enc.training
+    was_rcn_train = rcn_cell.training
+    was_diff_train = diff.training
+    enc.eval()
+    rcn_cell.eval()
+    diff.eval()
+    try:
+        prepared = prepare_target_and_conditioning_for_metric(
+            batch,
+            enc,
+            rcn_runner,
+            device=device,
+            residual_key=residual_key,
+            batch_index_key=batch_index_key,
+            conditioning_fn=conditioning_fn,
+            amp_mode=amp_mode,
+        )
+        if prepared is None:
+            return None
+        target, conditioning = prepared
+        if target.shape[1] != diff.in_channels:
+            if verbose:
+                print(f"[RAPSD metric] Channel mismatch: target {target.shape[1]} vs UNet {diff.in_channels}")
+            return None
+        val = compute_rapsd_spectral_value_no_grad(diff, target, conditioning, amp_mode=amp_mode)
+        return float(val.item())
+    finally:
+        if was_enc_train:
+            enc.train()
+        if was_rcn_train:
+            rcn_cell.train()
+        if was_diff_train:
+            diff.train()
 
 
 def loss_diffusion(
@@ -301,78 +526,40 @@ def loss_dagma(
     device = A_masked.device
     dtype = A_masked.dtype
     
-    # Phase D3: Clip values of A_masked to prevent extreme values before computation
-    # This improves numerical stability
     A_clipped = torch.clamp(A_masked, min=-10.0, max=10.0)
     
-    # Calculer W∘W (Hadamard product, élément par élément)
+    # W∘W (Hadamard square, element-wise)
     W_squared = torch.mul(A_clipped, A_clipped)  # [q, q]
     
-    # Phase D3: Ensure s is large enough for numerical stability
-    # s must be > max eigenvalue of W_squared
-    max_val = W_squared.abs().max().item()
-    s_safe = max(s, max_val + 0.1)  # Add small margin
+    # s must exceed the spectral radius of W_squared for M to be positive-definite.
+    # Gershgorin bound: rho(W²) <= max row-sum of |W²|.  This is tight and O(q²).
+    gershgorin_bound = W_squared.abs().sum(dim=1).max().item()
+    s_safe = max(s, gershgorin_bound + 0.1)
     
-    # Calculer sI - W∘W où I est la matrice identité
+    # M = sI - W∘W  (M-matrix, positive-definite when s > rho(W²))
     sI = s_safe * torch.eye(q, device=device, dtype=dtype)
     M = sI - W_squared  # [q, q]
     
-    # Phase D3: Enhanced numerical stability for logdet computation
-    # Add small epsilon to diagonal for numerical stability
-    eps = torch.tensor(1e-7, device=device, dtype=dtype)
+    eps = 1e-7
     M = M + eps * torch.eye(q, device=device, dtype=dtype)
     
-    # Calculer le log-déterminant de M
-    # Utiliser logdet pour la stabilité numérique
     try:
-        # Phase D3: Check condition number before logdet
-        # If matrix is ill-conditioned, add more regularization
-        eigenvalues = torch.linalg.eigvals(M).real
-        min_eigenvalue = eigenvalues.min().item()
-        max_eigenvalue = eigenvalues.max().item()
-        
-        if min_eigenvalue <= 1e-6:
-            # Matrix is not positive definite or very close to singular
-            # Add more regularization and retry
-            M = M + (1e-6 - min_eigenvalue + 1e-7) * torch.eye(q, device=device, dtype=dtype)
-            min_eigenvalue = (torch.linalg.eigvals(M).real).min().item()
-        
-        if min_eigenvalue <= 0:
-            # Still not positive definite - return large penalty
-            return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
-        
         log_det_M = torch.logdet(M)
-        
-        # Phase D3: Check for NaN/Inf in logdet result
-        if torch.isnan(log_det_M) or torch.isinf(log_det_M):
-            # Fallback to eigenvalue-based computation if logdet fails
-            log_eigenvalues = torch.log(eigenvalues + 1e-8)
-            log_det_M = log_eigenvalues.sum()
-            
-    except (RuntimeError, ValueError) as e:
-        # Fallback: compute logdet via eigenvalues
-        try:
-            eigenvalues = torch.linalg.eigvals(M).real
-            min_eigenvalue = eigenvalues.min().item()
-            if min_eigenvalue <= 0:
-                return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
-            log_eigenvalues = torch.log(eigenvalues + 1e-8)
-            log_det_M = log_eigenvalues.sum()
-        except Exception:
-            # Ultimate fallback: return large penalty
-            return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
+        if not torch.isfinite(log_det_M):
+            M = M + 1e-5 * torch.eye(q, device=device, dtype=dtype)
+            log_det_M = torch.logdet(M)
+    except RuntimeError:
+        return torch.tensor(float(q), device=device, dtype=dtype, requires_grad=True)
     
-    # Calculer h(W) = -log det(sI - W∘W) + d log s
-    h_W = -log_det_M + q * torch.log(torch.tensor(s_safe, device=device, dtype=dtype) + eps)
+    # h(W) = -log det(sI - W∘W) + d log s
+    h_W = -log_det_M + q * math.log(s_safe + eps)
     
-    # Phase D3: Add L1 regularization for sparsity if requested
     if add_l1_regularization:
         l1_term = l1_weight * A_masked.abs().sum()
         h_W = h_W + l1_term
     
-    # Phase D3: Final check for invalid values
-    if torch.isnan(h_W) or torch.isinf(h_W):
-        return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
+    if not torch.isfinite(h_W):
+        return torch.tensor(float(q), device=device, dtype=dtype, requires_grad=True)
     
     return h_W
 
@@ -414,7 +601,7 @@ def train_epoch(
     use_predicted_output: bool = False,  # Phase B2: Use predictions for physical loss (expensive)
     physical_sample_interval: int = 10,  # Phase B2: Sample predictions every N batches
     physical_num_steps: int = 15,  # Phase B2: EDM sampling steps for physical loss
-    use_amp: bool = True,  # Phase C1: Mixed precision training (requires CUDA >= 11.0)
+    use_amp: bool = True,  # Phase C1: CUDA FP16+GradScaler, or CPU bfloat16 autocast if supported
     scheduler: Optional[torch.optim.lr_scheduler.ReduceLROnPlateau] = None,  # Phase C2: LR scheduler
     use_focal_loss: bool = False,  # Phase D1: Use focal loss for diffusion
     focal_alpha: float = 1.0,  # Phase D1: Focal loss alpha
@@ -422,9 +609,15 @@ def train_epoch(
     extreme_weight_factor: float = 0.0,  # Phase D2: Weight factor for extreme events (0 = disabled)
     extreme_percentiles: List[float] = None,  # Phase D2: Percentiles for extreme events
     reconstruction_loss_type: str = "mse",  # Phase D4: Loss type for reconstruction ("mse", "cosine", "mse+cosine")
+    use_spectral_loss: bool = False,
+    lambda_spectral: float = 0.0,
+    conditioning_dropout_prob: float = 0.0,
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
+
+    ``use_spectral_loss`` / ``lambda_spectral`` : conservés pour compatibilité ; la perte RAPSD
+    n'est plus appliquée dans la boucle batch (voir ``log_spectral_metric_each_epoch`` + ``compute_rapsd_metric_from_batch``).
     
     Parameters
     ----------
@@ -437,16 +630,23 @@ def train_epoch(
     rcn_runner.cell.train()
     diffusion_decoder.train()
     
-    # Phase C1: Mixed Precision - Initialize GradScaler if needed
+    # Phase C1: Mixed precision — CUDA FP16 + GradScaler, or CPU BF16 (no scaler)
     scaler = None
-    if use_amp and torch.cuda.is_available():
-        from torch.cuda.amp import GradScaler
-        scaler = GradScaler()
-    elif use_amp and not torch.cuda.is_available():
-        # Disable AMP if CUDA is not available
-        use_amp = False
-        if verbose:
-            print("[WARN] Mixed precision (AMP) disabled: CUDA not available")
+    amp_mode = "none"
+    if use_amp:
+        if device.type == "cuda" and torch.cuda.is_available():
+            from torch.cuda.amp import GradScaler
+
+            scaler = GradScaler()
+            amp_mode = "cuda_fp16"
+        elif device.type == "cpu":
+            bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
+            if bf16_ok is not None and bf16_ok():
+                amp_mode = "cpu_bf16"
+            elif verbose:
+                print("[WARN] CPU bfloat16 not supported; training in FP32")
+        elif verbose:
+            print(f"[WARN] AMP not used: device type {device.type}")
     
     # Phase D2: Initialize extreme percentiles if not provided
     if extreme_percentiles is None:
@@ -467,6 +667,7 @@ def train_epoch(
         print(f"{'='*80}")
         print("Config:")
         print(f"   - Device: {device}")
+        print(f"   - AMP mode: {amp_mode}")
         print(f"   - Lambda (gen): {lambda_gen}")
         print(f"   - Beta (rec): {beta_rec}")
         print(f"   - Gamma (DAG): {gamma_dag}")
@@ -487,7 +688,9 @@ def train_epoch(
         step_loss_phy = 0.0
         
         for micro_idx, batch in enumerate(batches):
-            if verbose and batch_idx == 0 and micro_idx == 0:
+            _do_timing = verbose and batch_idx == 0 and micro_idx == 0
+
+            if _do_timing:
                 print(f"Batch {batch_idx + 1}" + (f" (n={len(batches)})" if len(batches) > 1 else "") + ":")
                 print(f"   - Keys: {list(batch.keys())}")
             
@@ -495,309 +698,307 @@ def train_epoch(
             target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
             hetero_data = batch["hetero"]
         
-        # Vérifications de diagnostic avant forward pass
-        if torch.isnan(target_data).any():
-            nan_count = torch.isnan(target_data).sum().item()
-            nan_fill = torch.nanmean(target_data).item()
-            if not math.isfinite(nan_fill):
-                nan_fill = 0.0
-            # print(f"[WARN] Target contains {nan_count} NaN values ({100*nan_count/target_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
-            target_data = torch.nan_to_num(target_data, nan=nan_fill)
-        
-        if torch.isinf(target_data).any():
-            inf_count = torch.isinf(target_data).sum().item()
-            valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if (target_data.numel() > inf_count) else 0.0
-            # print(f"[WARN] Target contains {inf_count} Inf values ({100*inf_count/target_data.numel():.2f}%) - replacing with mean ({valid_mean:.6f})")
-            target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
-        
-        if torch.isnan(lr_data).any():
-            nan_count = torch.isnan(lr_data).sum().item()
-            nan_fill = torch.nanmean(lr_data).item()
-            if not math.isfinite(nan_fill):
-                nan_fill = 0.0
-            # print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
-            lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
-        
-            if verbose and batch_idx == 0 and micro_idx == 0:
+            # NaN/Inf input sanitization (cadenced to first micro-batch of every 20th optimizer step)
+            if batch_idx % 20 == 0 and micro_idx == 0:
+                _tensors_to_check = {
+                    "target_data": target_data,
+                    "lr_data": lr_data,
+                }
+                for _name, _t in _tensors_to_check.items():
+                    if not torch.isfinite(_t).all():
+                        if _name == "target_data":
+                            _nan_mask = torch.isnan(target_data)
+                            if _nan_mask.any():
+                                nan_fill = torch.nanmean(target_data).item()
+                                if not math.isfinite(nan_fill):
+                                    nan_fill = 0.0
+                                target_data = torch.nan_to_num(target_data, nan=nan_fill)
+                            _inf_mask = torch.isinf(target_data)
+                            if _inf_mask.any():
+                                _valid_mask = torch.isfinite(target_data)
+                                valid_mean = target_data[_valid_mask].mean().item() if _valid_mask.any() else 0.0
+                                target_data = torch.nan_to_num(
+                                    target_data,
+                                    nan=valid_mean,
+                                    posinf=valid_mean,
+                                    neginf=valid_mean,
+                                )
+                        elif _name == "lr_data":
+                            _nan_mask = torch.isnan(lr_data)
+                            if _nan_mask.any():
+                                nan_fill = torch.nanmean(lr_data).item()
+                                if not math.isfinite(nan_fill):
+                                    nan_fill = 0.0
+                                lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
+
+            if _do_timing:
                 print(f"   - LR data shape: {lr_data.shape}")
                 print(f"   - Target data shape: {target_data.shape}")
                 print(f"   - Sequence length: {lr_data.shape[0]}")
 
-        # Phase C1: Mixed Precision - Use autocast for forward pass
-        # Encoder step
-        encoder_time = time.time()
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # Encoder step
+            if _do_timing:
+                encoder_time = time.time()
+            with _train_autocast(amp_mode):
                 H_init = encoder.init_state(hetero_data).to(device)
-        else:
-            H_init = encoder.init_state(hetero_data).to(device)
-        encoder_time = time.time() - encoder_time
-        
-        if verbose and batch_idx == 0:
-            print(f"   - H_init shape: {H_init.shape}")
-            print(f"   - Encoder time: {encoder_time:.4f}s")
+            if _do_timing:
+                encoder_time = time.time() - encoder_time
+                print(f"   - H_init shape: {H_init.shape}")
+                print(f"   - Encoder time: {encoder_time:.4f}s")
 
-        # RCN step
-        rcn_time = time.time()
-        drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-        # reconstruction_sources is no longer needed - RCNCell uses hidden state internally
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # RCN step
+            if _do_timing:
+                rcn_time = time.time()
+            drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+            with _train_autocast(amp_mode):
                 seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-        else:
-            seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-        rcn_time = time.time() - rcn_time
-        
-        if verbose and batch_idx == 0:
-            print(f"   - Number of states: {len(seq_output.states)}")
-            print(f"   - Number of reconstructions: {len(seq_output.reconstructions)}")
-            print(f"   - Number of DAG matrices: {len(seq_output.dag_matrices)}")
-            print(f"   - RCN time: {rcn_time:.4f}s")
+            if _do_timing:
+                rcn_time = time.time() - rcn_time
+                print(f"   - Number of states: {len(seq_output.states)}")
+                print(f"   - Number of reconstructions: {len(seq_output.reconstructions)}")
+                print(f"   - Number of DAG matrices: {len(seq_output.dag_matrices)}")
+                print(f"   - RCN time: {rcn_time:.4f}s")
 
-        # Phase C1: Mixed Precision - Loss computation (reconstruction and DAG)
-        loss_time = time.time()
-        loss_rec_value = torch.tensor(0.0, device=device)
-        loss_dag_value = torch.tensor(0.0, device=device)
-        num_reconstructions = 0
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
-                for recon, A_masked, driver_step in zip(
+            # Loss computation (reconstruction and DAG)
+            loss_rec_value = torch.tensor(0.0, device=device)
+            loss_dag_value = torch.tensor(0.0, device=device)
+            num_reconstructions = 0
+            with _train_autocast(amp_mode):
+                for recon, driver_step in zip(
                     seq_output.reconstructions,
-                    seq_output.dag_matrices,
                     drivers,
                 ):
                     if recon is not None:
                         num_reconstructions += 1
-                        loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(recon, driver_step)
-                    # Phase 3.1: Use DAGMA by default (more stable than NO TEARS)
-                    if dag_method == "dagma":
-                        loss_dag_value = loss_dag_value + gamma_dag * loss_dagma(A_masked, s=dagma_s)
-                    else:  # fallback to NO TEARS
-                        loss_dag_value = loss_dag_value + gamma_dag * loss_no_tears(A_masked)
-        else:
-            for recon, A_masked, driver_step in zip(
-                seq_output.reconstructions,
-                seq_output.dag_matrices,
-                drivers,
-            ):
-                if recon is not None:
-                    num_reconstructions += 1
-                    loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(
-                        recon, driver_step, loss_type=reconstruction_loss_type
-                    )
-                # Phase 3.1: Use DAGMA by default (more stable than NO TEARS)
+                        loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(
+                            recon, driver_step, loss_type=reconstruction_loss_type
+                        )
+
+                # A_masked is the same learned adjacency at every timestep;
+                # compute the DAG penalty once and scale by the number of steps.
+                A_masked_0 = seq_output.dag_matrices[0]
+                n_dag_steps = len(seq_output.dag_matrices)
                 if dag_method == "dagma":
-                    loss_dag_value = loss_dag_value + gamma_dag * loss_dagma(A_masked, s=dagma_s)
-                else:  # fallback to NO TEARS
-                    loss_dag_value = loss_dag_value + gamma_dag * loss_no_tears(A_masked)
+                    loss_dag_value = gamma_dag * n_dag_steps * loss_dagma(A_masked_0, s=dagma_s)
+                else:
+                    loss_dag_value = gamma_dag * n_dag_steps * loss_no_tears(A_masked_0)
         
-        if verbose and batch_idx == 0:
-            print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
+            if _do_timing:
+                print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
 
-        H_condition = seq_output.states[-1]
-        batch_index = batch.get(batch_index_key)
-        if batch_index is not None:
-            batch_index = batch_index.to(device)
-        if conditioning_fn is None:
-            conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
-        else:
-            conditioning = conditioning_fn(H_condition, batch_index)
-        conditioning = conditioning.to(device)
-        
-        if verbose and batch_idx == 0:
-            print(f"   - Conditioning shape: {conditioning.shape}")
+            H_condition = seq_output.states[-1]
+            batch_index = batch.get(batch_index_key)
+            if batch_index is not None:
+                batch_index = batch_index.to(device)
+            if conditioning_fn is None:
+                conditioning = encoder.project_state_tensor(H_condition, batch_index=batch_index)
+            else:
+                conditioning = conditioning_fn(H_condition, batch_index)
+            conditioning = conditioning.to(device)
 
-        target = target_data[-1]  # Should be [channels, H, W] or [H, W, channels]
-        # Ensure target has shape [batch, channels, H, W]
-        if target.dim() == 3:
-            # Check if it's [channels, H, W] or [H, W, channels]
-            # UNet expects [batch, channels, H, W]
-            # If first dim is very large, it might be [H*W, channels] or similar
-            # For now, assume [channels, H, W] and add batch dim
-            target = target.unsqueeze(0)
-        elif target.dim() == 4:
-            # Already has batch dimension, use as is
-            pass
-        else:
-            raise ValueError(f"Unexpected target shape: {target.shape}, expected [channels, H, W] or [batch, channels, H, W]")
+            if conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob:
+                conditioning = torch.zeros_like(conditioning)
         
-        if verbose and batch_idx == 0:
-            print(f"   - Target shape (after processing): {target.shape}")
+            if _do_timing:
+                print(f"   - Conditioning shape: {conditioning.shape}")
+
+            target = target_data[-1]  # Should be [channels, H, W] or [H, W, channels]
+            # Ensure target has shape [batch, channels, H, W]
+            if target.dim() == 3:
+                # Check if it's [channels, H, W] or [H, W, channels]
+                # UNet expects [batch, channels, H, W]
+                # If first dim is very large, it might be [H*W, channels] or similar
+                # For now, assume [channels, H, W] and add batch dim
+                target = target.unsqueeze(0)
+            elif target.dim() == 4:
+                # Already has batch dimension, use as is
+                pass
+            else:
+                raise ValueError(f"Unexpected target shape: {target.shape}, expected [channels, H, W] or [batch, channels, H, W]")
         
-        # Verify channel count matches UNet expectations
-        if target.shape[1] != diffusion_decoder.in_channels:
-            raise ValueError(
-                f"Channel mismatch: target has {target.shape[1]} channels, "
-                f"but UNet expects {diffusion_decoder.in_channels} channels. "
-                f"Target shape: {target.shape}"
-            )
+            if _do_timing:
+                print(f"   - Target shape (after processing): {target.shape}")
         
-        # Vérifications de diagnostic avant la diffusion
-        if verbose and batch_idx == 0:
-            print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
-            print(f"   - Target has NaN: {torch.isnan(target).any().item()}")
-            print(f"   - Target has Inf: {torch.isinf(target).any().item()}")
-            print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
-            print(f"   - Conditioning has NaN: {torch.isnan(conditioning).any().item()}")
-            print(f"   - Conditioning has Inf: {torch.isinf(conditioning).any().item()}")
+            # Verify channel count matches UNet expectations
+            if target.shape[1] != diffusion_decoder.in_channels:
+                raise ValueError(
+                    f"Channel mismatch: target has {target.shape[1]} channels, "
+                    f"but UNet expects {diffusion_decoder.in_channels} channels. "
+                    f"Target shape: {target.shape}"
+                )
+
+            valid_mask_ts = batch.get("valid_mask")
+            if valid_mask_ts is not None:
+                vm = valid_mask_ts[-1].to(device=device)
+                if vm.dtype != torch.bool:
+                    vm = vm > 0.5
+                while vm.dim() < target.dim():
+                    vm = vm.unsqueeze(0)
+                vm = vm.expand_as(target)
+                target = target.clone().masked_fill(~vm, float("nan"))
         
-        # Vérifier les valeurs extrêmes
-        target_abs_max = target.abs().max().item()
-        if target_abs_max > 1e6:
-            if verbose:
-                print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
-                print(f"   - This might cause numerical instability")
+            # Expensive per-micro-batch diagnostics: only on first micro-batch
+            nan_count = 0
+            nan_ratio = 0.0
+            if micro_idx == 0:
+                if _do_timing:
+                    print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
+                    _target_isfinite = torch.isfinite(target).all().item()
+                    print(f"   - Target has NaN/Inf: {not _target_isfinite}")
+                    print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
+                    _cond_isfinite = torch.isfinite(conditioning).all().item()
+                    print(f"   - Conditioning has NaN/Inf: {not _cond_isfinite}")
+
+                target_abs_max = target.abs().max().item()
+                if target_abs_max > 1e6:
+                    if verbose:
+                        print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
+
+                nan_mask = ~torch.isfinite(target)
+                nan_count = nan_mask.sum().item()
+                nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
+                if nan_count > 0 and verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
+                    print(f"[INFO] Target contains {nan_count} NaN/Inf pixels ({nan_ratio:.2%}) - will be masked in loss")
+
+            # Conditioning must NEVER contain NaN/Inf (critical safety check on every micro-batch)
+            if not torch.isfinite(conditioning).all():
+                print(f"[ERROR] Conditioning contains NaN/Inf in batch {batch_idx + 1}")
+                print(f"   - NaN count: {torch.isnan(conditioning).sum().item()}")
+                print(f"   - Inf count: {torch.isinf(conditioning).sum().item()}")
+                print(f"   - This is a critical error, skipping batch")
+                continue
         
-        # Vérifier les NaN dans le target (seront masqués dans compute_loss)
-        nan_mask = torch.isnan(target) | torch.isinf(target)
-        nan_count = nan_mask.sum().item()
-        nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
-        
-        if nan_count > 0:
-            if verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
-                print(f"[INFO] Target contains {nan_count} NaN/Inf pixels ({nan_ratio:.2%}) - will be masked in loss")
-        
-        # Le conditioning ne doit PAS contenir de NaN/Inf (erreur critique)
-        if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
-            print(f"[ERROR] Conditioning contains NaN/Inf in batch {batch_idx + 1}")
-            print(f"   - NaN count: {torch.isnan(conditioning).sum().item()}")
-            print(f"   - Inf count: {torch.isinf(conditioning).sum().item()}")
-            print(f"   - This is a critical error, skipping batch")
-            continue
-        
-        # Phase C1: Mixed Precision - Forward pass with autocast for entire forward
-        # Diffusion loss (gère automatiquement les NaN via masquage)
-        # Phase D1: Supports focal loss for focusing on hard pixels
-        diffusion_time = time.time()
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
+            # Phase C1: Mixed Precision - Forward pass with autocast for entire forward
+            # Diffusion loss (gère automatiquement les NaN via masquage)
+            # Phase D1: Supports focal loss for focusing on hard pixels
+            if _do_timing:
+                diffusion_time = time.time()
+            with _train_autocast(amp_mode):
                 loss_gen_value = lambda_gen * loss_diffusion(
                     diffusion_decoder, target, conditioning,
                     use_focal_loss=use_focal_loss,
                     focal_alpha=focal_alpha,
                     focal_gamma=focal_gamma,
                 )
-        else:
-            loss_gen_value = lambda_gen * loss_diffusion(
-                diffusion_decoder, target, conditioning,
-                use_focal_loss=use_focal_loss,
-                focal_alpha=focal_alpha,
-                focal_gamma=focal_gamma,
-            )
-        
-        # Phase B2: Compute physical loss (divergence + vorticity)
-        # Improved version that compares predictions vs target (not just target)
-        loss_phy_value = torch.tensor(0.0, device=device)
-        if lambda_phy > 0.0:
-            # Phase B2: Option 3 (Hybrid) - Compute physical loss on predictions periodically
-            # For efficiency, we only sample predictions every N batches
-            # This reduces cost while still enforcing physical consistency on model outputs
-            compute_physical_on_predictions = (
-                use_predicted_output and
-                batch_idx % physical_sample_interval == 0
-            )
-            
-            if compute_physical_on_predictions:
-                # Sample a prediction from the model (expensive but accurate)
-                # Use EDM with few steps for efficiency (15-25 steps vs 1000 for DDPM)
-                with torch.no_grad():  # Don't backprop through sampling
-                    try:
-                        sampled_output = diffusion_decoder.sample(
-                            conditioning=conditioning,
-                            num_steps=physical_num_steps,
-                            scheduler_type="edm",  # Use EDM for fast sampling
-                            apply_constraints=True,
-                        )
-                        # sampled_output.residual is [batch, channels, H, W]
-                        pred_residual = sampled_output.residual
-                        
-                        # Compare physical constraints: pred vs target
-                        div_pred = compute_divergence(pred_residual, dx=dx, dy=dy)
-                        div_target = compute_divergence(target, dx=dx, dy=dy)
-                        vort_pred = compute_vorticity(pred_residual, dx=dx, dy=dy)
-                        vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                        
-                        # Physical loss: enforce that predictions have similar physical properties as target
-                        div_error = ((div_pred - div_target) ** 2).mean()
-                        vort_error = ((vort_pred - vort_target) ** 2).mean()
-                        loss_phy_value = lambda_phy * (div_error + 0.1 * vort_error)
-                        
-                        if verbose and batch_idx == 0:
-                            print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
-                    except Exception as e:
-                        # Fallback to target-only physical loss if sampling fails
-                        if verbose:
-                            print(f"[WARN] Physical loss sampling failed: {e}, falling back to target-only")
-                        div_target = compute_divergence(target, dx=dx, dy=dy)
-                        vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                        div_penalty = (div_target ** 2).mean()
-                        vort_penalty = (vort_target ** 2).mean()
-                        loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
-            else:
-                # Default: compute physical loss on target only (fast, acts as regularization)
-                # This ensures target satisfies physical laws
-                div_target = compute_divergence(target, dx=dx, dy=dy)
-                vort_target = compute_vorticity(target, dx=dx, dy=dy)
-                # Penalize non-zero divergence (should be ~0 for mass conservation) and inconsistent vorticity
-                div_penalty = (div_target ** 2).mean()
-                vort_penalty = (vort_target ** 2).mean()
-                loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
-        
-        diffusion_time = time.time() - diffusion_time
-        
-        if verbose and batch_idx == 0:
-            print(f"   - Diffusion time: {diffusion_time:.4f}s")
+
+            # RAPSD (FFT + scatter_add) : déplacé en fin d’époque — voir compute_rapsd_metric_from_batch.
+
+            # Phase B2: Compute physical loss (divergence + vorticity)
+            # Improved version that compares predictions vs target (not just target)
+            loss_phy_value = torch.tensor(0.0, device=device)
             if lambda_phy > 0.0:
-                print(f"   - Physical loss: {loss_phy_value.item():.6f}")
-            if nan_count > 0:
-                print(f"   - Loss computed on {target.numel() - nan_count}/{target.numel()} valid pixels ({1.0 - nan_ratio:.2%})")
-
-        # Phase C1: Mixed Precision - Compute total loss
-        if use_amp and scaler is not None:
-            with torch.cuda.amp.autocast():
-                loss_total = loss_gen_value + loss_rec_value + loss_dag_value + loss_phy_value
-        else:
-            loss_total = loss_gen_value + loss_rec_value + loss_dag_value + loss_phy_value
+                # Phase B2: Option 3 (Hybrid) - Compute physical loss on predictions periodically
+                # For efficiency, we only sample predictions every N batches
+                # This reduces cost while still enforcing physical consistency on model outputs
+                compute_physical_on_predictions = (
+                    use_predicted_output and
+                    batch_idx % physical_sample_interval == 0
+                )
+            
+                if compute_physical_on_predictions:
+                    # Sample a prediction from the model (expensive but accurate)
+                    # Use EDM with few steps for efficiency (15-25 steps vs 1000 for DDPM)
+                    with torch.no_grad():  # Don't backprop through sampling
+                        try:
+                            sampled_output = diffusion_decoder.sample(
+                                conditioning=conditioning,
+                                num_steps=physical_num_steps,
+                                scheduler_type="edm",  # Use EDM for fast sampling
+                                apply_constraints=True,
+                            )
+                            # sampled_output.residual is [batch, channels, H, W]
+                            pred_residual = sampled_output.residual
+                        
+                            # Compare physical constraints: pred vs target
+                            div_pred = compute_divergence(pred_residual, dx=dx, dy=dy)
+                            div_target = compute_divergence(target, dx=dx, dy=dy)
+                            vort_pred = compute_vorticity(pred_residual, dx=dx, dy=dy)
+                            vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                        
+                            # Physical loss: enforce that predictions have similar physical properties as target
+                            div_error = ((div_pred - div_target) ** 2).mean()
+                            vort_error = ((vort_pred - vort_target) ** 2).mean()
+                            loss_phy_value = lambda_phy * (div_error + 0.1 * vort_error)
+                        
+                            if _do_timing:
+                                print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
+                        except Exception as e:
+                            # Fallback to target-only physical loss if sampling fails
+                            if verbose:
+                                print(f"[WARN] Physical loss sampling failed: {e}, falling back to target-only")
+                            div_target = compute_divergence(target, dx=dx, dy=dy)
+                            vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                            div_penalty = (div_target ** 2).mean()
+                            vort_penalty = (vort_target ** 2).mean()
+                            loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
+                else:
+                    # Default: compute physical loss on target only (fast, acts as regularization)
+                    # This ensures target satisfies physical laws
+                    div_target = compute_divergence(target, dx=dx, dy=dy)
+                    vort_target = compute_vorticity(target, dx=dx, dy=dy)
+                    # Penalize non-zero divergence (should be ~0 for mass conservation) and inconsistent vorticity
+                    div_penalty = (div_target ** 2).mean()
+                    vort_penalty = (vort_target ** 2).mean()
+                    loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
         
-        # Check for NaN or Inf
-        if torch.isnan(loss_total) or torch.isinf(loss_total):
-            print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")
-            print(f"   - Loss total: {loss_total.item()}")
-            print(f"   - Loss gen: {loss_gen_value.item()}")
-            print(f"   - Loss rec: {loss_rec_value.item()}")
-            print(f"   - Loss DAG: {loss_dag_value.item()}")
-            if torch.isnan(loss_total):
-                print(f"   - Loss is NaN, skipping batch")
-                continue
-            elif torch.isinf(loss_total):
-                print(f"   - Loss is Inf, skipping batch")
-                continue
+            if _do_timing:
+                diffusion_time = time.time() - diffusion_time
+                print(f"   - Diffusion time: {diffusion_time:.4f}s")
+                if lambda_phy > 0.0:
+                    print(f"   - Physical loss: {loss_phy_value.item():.6f}")
+                if nan_count > 0:
+                    print(f"   - Loss computed on {target.numel() - nan_count}/{target.numel()} valid pixels ({1.0 - nan_ratio:.2%})")
 
-        # Accumulate for logging (average over micro-batches)
-        step_loss_total += loss_total.item()
-        step_loss_gen += loss_gen_value.item()
-        step_loss_rec += loss_rec_value.item()
-        step_loss_dag += loss_dag_value.item()
-        step_loss_phy += loss_phy_value.item()
+            # Phase C1: Mixed Precision - Compute total loss
+            with _train_autocast(amp_mode):
+                loss_total = (
+                    loss_gen_value
+                    + loss_rec_value
+                    + loss_dag_value
+                    + loss_phy_value
+                )
+        
+            # Check for NaN or Inf
+            if not torch.isfinite(loss_total):
+                print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")
+                print(f"   - Loss total: {loss_total.item()}")
+                print(f"   - Loss gen: {loss_gen_value.item()}")
+                print(f"   - Loss rec: {loss_rec_value.item()}")
+                print(f"   - Loss DAG: {loss_dag_value.item()}")
+                if torch.isnan(loss_total):
+                    print(f"   - Loss is NaN, skipping batch")
+                    continue
+                elif torch.isinf(loss_total):
+                    print(f"   - Loss is Inf, skipping batch")
+                    continue
 
-        # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
-        # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
-        backward_time = time.time()
-        scale = 1.0 / len(batches)  # Scale gradients for accumulation
-        is_last_micro = (micro_idx == len(batches) - 1)
-        ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
-        ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
-        ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
-        with ctx_enc, ctx_rcn, ctx_diff:
-            if use_amp and scaler is not None:
-                scaler.scale(loss_total * scale).backward()
-            else:
-                (loss_total * scale).backward()
-        backward_time = time.time() - backward_time
+            # Accumulate for logging (average over micro-batches)
+            step_loss_total += loss_total.item()
+            step_loss_gen += loss_gen_value.item()
+            step_loss_rec += loss_rec_value.item()
+            step_loss_dag += loss_dag_value.item()
+            step_loss_phy += loss_phy_value.item()
+
+            # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
+            # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
+            if _do_timing:
+                backward_time = time.time()
+            scale = 1.0 / len(batches)  # Scale gradients for accumulation
+            is_last_micro = (micro_idx == len(batches) - 1)
+            ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
+            ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
+            ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
+            with ctx_enc, ctx_rcn, ctx_diff:
+                if amp_mode == "cuda_fp16":
+                    scaler.scale(loss_total * scale).backward()
+                else:
+                    (loss_total * scale).backward()
+            if _do_timing:
+                backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:
             clip_time = time.time()
-            if use_amp and scaler is not None:
+            if amp_mode == "cuda_fp16":
                 # Unscale gradients before clipping
                 scaler.unscale_(optimizer)
                 grad_norm_rcn = torch.nn.utils.clip_grad_norm_(rcn_runner.cell.parameters(), gradient_clipping)
@@ -811,18 +1012,19 @@ def train_epoch(
             
             # Vérifier les gradients après clipping pour détecter les NaN
             nan_grads_found = False
-            for name, param in encoder.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in encoder.{name}")
-                    nan_grads_found = True
-            for name, param in rcn_runner.cell.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in rcn.{name}")
-                    nan_grads_found = True
-            for name, param in diffusion_decoder.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in diffusion.{name}")
-                    nan_grads_found = True
+            if batch_idx % 50 == 0:
+                for name, param in encoder.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in encoder.{name}")
+                        nan_grads_found = True
+                for name, param in rcn_runner.cell.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in rcn.{name}")
+                        nan_grads_found = True
+                for name, param in diffusion_decoder.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in diffusion.{name}")
+                        nan_grads_found = True
             
             if nan_grads_found:
                 print(f"[WARN] NaN gradients detected after clipping - this may indicate model divergence")
@@ -830,8 +1032,8 @@ def train_epoch(
             if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
                 print(f"   - Gradient norms (clipped): RCN={grad_norm_rcn:.4f}, Diff={grad_norm_diff:.4f}, Enc={grad_norm_enc:.4f}")
 
-        # Phase C1: Mixed Precision - Optimizer step with scaler
-        if use_amp and scaler is not None:
+        # Phase C1: Mixed Precision - Optimizer step with scaler (CUDA only)
+        if amp_mode == "cuda_fp16":
             scaler.step(optimizer)
             scaler.update()
         else:
@@ -857,10 +1059,13 @@ def train_epoch(
                 print(f"   - Loss phy: {step_loss_phy/n_micro:.6f}")
             print(f"   - Batch time: {step_time:.4f}s")
             if batch_idx == 0:
-                print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
-                      f"Diff={diffusion_time:.3f}s, Backward={backward_time:.3f}s")
-                if gradient_clipping is not None:
-                    print(f"   - Clip time: {clip_time:.3f}s")
+                try:
+                    print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
+                          f"Diff={diffusion_time:.3f}s, Backward={backward_time:.3f}s")
+                    if gradient_clipping is not None:
+                        print(f"   - Clip time: {clip_time:.3f}s")
+                except NameError:
+                    pass
 
     epoch_time = time.time() - epoch_start_time
     

@@ -39,7 +39,9 @@ data:
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
-  target_transform: null
+  target_transform: "log1p"  # aligné sur training_config.yaml (v6)
+  nan_fill_strategy: "mean"
+  precipitation_delta: 0.01
   lr_variables: null  # Auto-detect if null
   hr_variables: null  # Auto-detect if null
   static_variables: null
@@ -49,7 +51,8 @@ graph:
   lr_shape: [23, 26]  # Low-resolution grid shape (lat, lon)
   hr_shape: [172, 179]  # High-resolution grid shape (lat, lon)
   static_variables: []
-  include_mid_layer: false
+  # true = nœuds GP500/GP250 + arêtes verticales (cohérent avec encoder.metapaths)
+  include_mid_layer: true
 
 # Encoder Configuration
 encoder:
@@ -60,62 +63,76 @@ encoder:
       src: "GP850"
       relation: "spat_adj"
       target: "GP850"
-      pool: "mean"
+      pool: "max"
     - name: "GP850_to_GP500"
       src: "GP850"
       relation: "vert_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_spat_adj"
       src: "GP500"
       relation: "spat_adj"
       target: "GP500"
-      pool: "mean"
+      pool: "max"
     - name: "GP500_to_GP250"
       src: "GP500"
       relation: "vert_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
     - name: "GP250_spat_adj"
       src: "GP250"
       relation: "spat_adj"
       target: "GP250"
-      pool: "mean"
+      pool: "max"
 
 # RCN Configuration
 rcn:
   hidden_dim: 128
-  driver_dim: 8
-  reconstruction_dim: 8
+  driver_dim: 15      # overridden at runtime by data sample shape
+  reconstruction_dim: 15  # overridden at runtime by data sample shape
   dropout: 0.0
-  detach_interval: null
+  detach_interval: 4  # truncated BPTT: gradient flows back 4 steps instead of seq_len
 
 # Diffusion Decoder Configuration
 diffusion:
-  in_channels: 3
+  in_channels: 1      # overridden at runtime by data sample shape
   conditioning_dim: 128
   height: 172
   width: 179
-  steps: 1000
+  steps: 100
   scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
   use_gradient_checkpointing: false
+  cfg_scale: 0.2
+  conditioning_dropout_prob: 0.1
+  conv_padding_mode: "zeros"
+  anti_checkerboard: false
+  unet_kwargs:
+    layers_per_block: 1
+    block_out_channels: [32]
+    down_block_types: ["DownBlock2D"]
+    up_block_types: ["UpBlock2D"]
+    mid_block_type: "UNetMidBlock2D"
+    norm_num_groups: 8
 
 # Loss Configuration
 loss:
   lambda_gen: 1.0
-  beta_rec: 0.1
+  beta_rec: 0.05
   gamma_dag: 0.1
   lambda_phy: 0.0
+  lambda_spectral: 0.0
+  use_spectral_loss: false
+  log_spectral_metric_each_epoch: true
   dag_method: "dagma"  # "dagma" or "no_tears"
   dagma_s: 1.0
-  use_focal_loss: false
+  use_focal_loss: true
   focal_alpha: 1.0
   focal_gamma: 2.0
-  extreme_weight_factor: 0.0
+  extreme_weight_factor: 2.0
   extreme_percentiles: [95.0, 99.0]
   dag_l1_regularization: false
   dag_l1_weight: 0.01
-  reconstruction_loss_type: "mse"  # "mse", "cosine", or "mse+cosine"
+  reconstruction_loss_type: "mse+cosine"  # "mse", "cosine", or "mse+cosine"
 
 # Training Configuration
 # 
@@ -123,7 +140,7 @@ loss:
 # - GPU availability depends on VICE configuration
 # - Check GPU availability: python -c "import torch; print(torch.cuda.is_available())"
 # - If GPU available, set device: "cuda" and enable mixed precision training
-# - If CPU only, keep device: "cpu" and use_amp: false
+# - If CPU only: use_amp true enables bfloat16 autocast when supported (see main training_config)
 training:
   # Device: "cuda" or "cpu"
   # In VICE, check GPU availability first before setting to "cuda"
@@ -138,7 +155,7 @@ training:
   log_every: 10  # Log progress every N batches
   
   # Mixed Precision Training (recommended for GPU)
-  use_amp: false  # Enable if GPU available: set to true
+  use_amp: true  # GPU: FP16; CPU: BF16 autocast when supported
   
   # Early Stopping and LR Scheduling
   early_stopping:
@@ -182,6 +199,7 @@ evaluation:
   enabled: true
   eval_every: 5  # Evaluate every N epochs
   num_samples: 10  # Number of samples for evaluation metrics
+  crps_max_ensemble_members: 32
   compute_f1_extremes: true
   f1_percentiles: [95.0, 99.0]
   save_visualizations: true

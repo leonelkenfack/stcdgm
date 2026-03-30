@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+.cursor/
 *.py[cod]
 *$py.class
 *.so
@@ -9,6 +10,7 @@ develop-eggs/
 dist/
 downloads/
 downscaling/
+docs/
 data/raw
 eggs/
 .eggs/
@@ -68,3 +70,5 @@ logs/
 Thumbs.db
 desktop.ini
 
+!README.md
+*.md

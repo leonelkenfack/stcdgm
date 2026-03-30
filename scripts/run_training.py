@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -154,10 +155,14 @@ def run_training_with_checkpoints(
     # This is a simplified version - in production, we'd refactor train_st_cdgm
     # to separate setup from training loop
     
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    print(f"[PERF] torch.set_num_threads({n_threads})")
+
     device = torch.device(cfg.training.device)
     
     # Setup models (same as train_st_cdgm)
-    from ops.train_st_cdgm import _build_encoder, _iterate_batches
+    from ops.train_st_cdgm import build_encoder_for_graph, _iterate_batches
     
     pipeline = NetCDFDataPipeline(
         lr_path=cfg.data.lr_path,
@@ -175,13 +180,25 @@ def run_training_with_checkpoints(
         stride=cfg.data.stride,
         as_torch=True,
     )
+
+    sample_for_shapes = next(iter(dataset))
+    rcn_driver_dim = sample_for_shapes["lr"].shape[1]
+    hr_channels = sample_for_shapes["residual"].shape[1]
+    print(f"[DIM] Inferred from data: rcn_driver_dim={rcn_driver_dim}, hr_channels={hr_channels}")
+
+    dataset = pipeline.build_sequence_dataset(
+        seq_len=cfg.data.seq_len,
+        stride=cfg.data.stride,
+        as_torch=True,
+    )
+    num_workers = int(cfg.training.get("num_workers", 0))
     dataloader = DataLoader(
         dataset,
         batch_size=None,
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
-        prefetch_factor=2,
-        persistent_workers=True,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=num_workers > 0,
     )
     
     builder = HeteroGraphBuilder(
@@ -192,23 +209,35 @@ def run_training_with_checkpoints(
         include_mid_layer=cfg.graph.include_mid_layer,
     )
     
-    encoder = _build_encoder(cfg.encoder).to(device)
+    encoder = build_encoder_for_graph(cfg.encoder, builder).to(device)
     rcn_cell = RCNCell(
-        num_vars=len(cfg.encoder.metapaths),
+        num_vars=len(encoder.configs),
         hidden_dim=cfg.rcn.hidden_dim,
-        driver_dim=cfg.rcn.driver_dim,
-        reconstruction_dim=cfg.rcn.reconstruction_dim,
+        driver_dim=rcn_driver_dim,
+        reconstruction_dim=rcn_driver_dim,
         dropout=cfg.rcn.dropout,
     ).to(device)
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
     
+    unet_kwargs = dict(cfg.diffusion.unet_kwargs) if cfg.diffusion.get("unet_kwargs") else dict(
+        layers_per_block=1,
+        block_out_channels=(32,),
+        down_block_types=("DownBlock2D",),
+        up_block_types=("UpBlock2D",),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=cfg.diffusion.in_channels,
+        in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
         height=cfg.diffusion.height,
         width=cfg.diffusion.width,
         num_diffusion_steps=cfg.diffusion.steps,
+        unet_kwargs=unet_kwargs,
+        scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
         use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
+        conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
+        anti_checkerboard=cfg.diffusion.get("anti_checkerboard", False),
     ).to(device)
     
     # Compile models if enabled
@@ -310,7 +339,35 @@ def run_training_with_checkpoints(
             extreme_weight_factor=cfg.loss.get("extreme_weight_factor", 0.0),
             extreme_percentiles=cfg.loss.get("extreme_percentiles", [95.0, 99.0]),
             reconstruction_loss_type=cfg.loss.get("reconstruction_loss_type", "mse"),
+            use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
+            lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
+            conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
         )
+
+        if cfg.loss.get("log_spectral_metric_each_epoch", False):
+            from st_cdgm.training.training_loop import (
+                compute_rapsd_metric_from_batch,
+                resolve_train_amp_mode,
+            )
+
+            amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
+            try:
+                metric_iter = _iterate_batches(dataloader, builder, device)
+                batch0 = next(metric_iter)
+                rapsd_v = compute_rapsd_metric_from_batch(
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    diffusion_decoder=diffusion,
+                    batch=batch0,
+                    device=device,
+                    amp_mode=amp_m,
+                )
+                if rapsd_v is not None:
+                    print(f"[Epoch {epoch + 1}] RAPSD metric (epoch end): {rapsd_v:.6f}")
+            except StopIteration:
+                pass
+            except Exception as e:
+                print(f"[WARN] RAPSD epoch metric failed: {e}")
         
         current_loss = metrics["loss"]
         

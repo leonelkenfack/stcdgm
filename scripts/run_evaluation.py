@@ -47,9 +47,9 @@ from st_cdgm import (
     CausalDiffusionDecoder,
 )
 from st_cdgm.evaluation import (
-    autoregressive_inference,
     evaluate_metrics,
     MetricReport,
+    run_st_cdgm_inference,
 )
 # Note: load_model will be imported if needed
 
@@ -117,7 +117,7 @@ def run_evaluation(
         hr_shape=tuple(graph_cfg.get("hr_shape", [172, 179])),
         static_dataset=pipeline.get_static_dataset(),
         static_variables=graph_cfg.get("static_variables", []),
-        include_mid_layer=graph_cfg.get("include_mid_layer", False),
+        include_mid_layer=graph_cfg.get("include_mid_layer", True),
     )
     
     # Run inference
@@ -128,41 +128,42 @@ def run_evaluation(
     target = test_sample["hr"][-1]  # Last timestep [channels, H, W]
     baseline = test_sample.get("baseline", None)
     
-    # Convert to batch format
-    from ops.train_st_cdgm import _convert_sample_to_batch
-    batch = _convert_sample_to_batch(
-        test_sample, builder, device_obj
-    )
-    
-    # Run autoregressive inference
-    inference_results = autoregressive_inference(
+    diff_cfg = config.get("diffusion", {}) if isinstance(config, dict) else {}
+    cfg_scale = float(diff_cfg.get("cfg_scale", 0.0))
+    eval_cfg = config.get("evaluation", {}) if isinstance(config, dict) else {}
+    crps_cap = eval_cfg.get("crps_max_ensemble_members")
+
+    samples_out, target_batch, baseline_batch, dag_last, mask_batch = run_st_cdgm_inference(
+        test_sample,
+        builder=builder,
         encoder=encoder,
         rcn_runner=rcn_runner,
-        diffusion_decoder=diffusion_decoder,
-        lr_sequence=batch["lr"],
-        hetero_graph=batch["hetero"],
+        diffusion=diffusion_decoder,
+        device=device_obj,
         num_samples=num_samples,
         num_steps=num_inference_steps,
         scheduler_type=scheduler_type,
-        baseline=baseline,
-        device=device_obj,
+        cfg_scale=cfg_scale,
     )
-    
-    # Compute metrics
+
     print("\nComputing metrics...")
-    target_tensor = torch.from_numpy(target).unsqueeze(0).to(device_obj)  # [1, C, H, W]
-    if baseline is not None:
-        baseline_tensor = torch.from_numpy(baseline).unsqueeze(0).to(device_obj)
-    else:
-        baseline_tensor = None
-    
+    target_tensor = target_batch.to(device_obj)
+    baseline_tensor = baseline_batch.to(device_obj) if baseline_batch is not None else None
+    vm = mask_batch.to(device_obj)
+    while vm.dim() > 2:
+        vm = vm[0]
+    if vm.dim() == 3:
+        vm = vm[0]
+
     metrics = evaluate_metrics(
-        samples=inference_results.samples,
+        samples=samples_out,
         target=target_tensor,
         baseline=baseline_tensor,
         compute_advanced=True,
-        compute_f1_extremes=compute_f1_extremes,
+        include_f1_extremes=compute_f1_extremes,
         f1_percentiles=list(f1_percentiles),
+        valid_mask=vm,
+        crps_max_ensemble_members=crps_cap,
     )
     
     # Save results
@@ -179,6 +180,11 @@ def run_evaluation(
         "f1_extremes": metrics.f1_extremes,
         "baseline_mse": metrics.baseline_mse,
         "baseline_mae": metrics.baseline_mae,
+        "crps_spatial_mean": metrics.crps_spatial_mean,
+        "spectral_distance_rapsd": metrics.spectral_distance_rapsd,
+        "spread_skill_ratio": metrics.spread_skill_ratio,
+        "crps_p99": metrics.crps_p99,
+        "primary_kpi": metrics.primary_kpi,
     }
     
     with open(results_path, "w") as f:
@@ -208,7 +214,7 @@ def run_evaluation(
         vis_dir.mkdir(parents=True, exist_ok=True)
         
         # Plot sample predictions
-        pred_mean = inference_results.samples[0].t_mean.cpu().numpy()
+        pred_mean = samples_out[0].t_mean.cpu().numpy()
         
         # Simple visualization (can be extended)
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
