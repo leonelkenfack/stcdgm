@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK_PATHS = (
     "st_cdgm_training_evaluation.ipynb",
     "st_cdgm_validation_inference.ipynb",
+    "resume_training_from_checkpoint.ipynb",
     "st_cdgm_publication_figures.ipynb",
     "st_cdgm_results_presentation.ipynb",
 )
@@ -28,15 +29,6 @@ EMBEDDED_PATHS: tuple[str, ...] = (
     "setup.py",
     ".gitignore",
     ".dockerignore",
-    "README.md",
-    "docs/ARCHITECTURE_MODEL.md",
-    "docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md",
-    "docs/OPTIMISATION.md",
-    "docs/RAPPORT_TECHNIQUE_COMPLET.md",
-    "docs/SCRIPTS_README.md",
-    "docs/research_article_st_cdgm.md",
-    "docs/st_cdgm_quickstart.md",
-    "stats.md",
     "data/metadata/NorESM2-MM_histupdated_compressed.metadata.json",
     "data/metadata/NorESM2-MM_histupdated_compressed.metadata.csv",
     "src/st_cdgm/__init__.py",

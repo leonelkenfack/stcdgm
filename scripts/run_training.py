@@ -50,6 +50,7 @@ from st_cdgm import (
     RCNCell,
     RCNSequenceRunner,
     CausalDiffusionDecoder,
+    SpatialConditioningProjector,
     train_epoch,
 )
 from st_cdgm.training import EarlyStopping
@@ -221,11 +222,16 @@ def run_training_with_checkpoints(
     
     unet_kwargs = dict(cfg.diffusion.unet_kwargs) if cfg.diffusion.get("unet_kwargs") else dict(
         layers_per_block=1,
-        block_out_channels=(32,),
-        down_block_types=("DownBlock2D",),
-        up_block_types=("UpBlock2D",),
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
         mid_block_type="UNetMidBlock2D",
         norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
     )
     diffusion = CausalDiffusionDecoder(
         in_channels=hr_channels,
@@ -266,7 +272,18 @@ def run_training_with_checkpoints(
             except Exception as e:
                 print(f"⚠ torch.compile for encoder failed: {e}")
     
-    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=len(encoder.configs),
+        hidden_dim=cfg.rcn.hidden_dim,
+        conditioning_dim=cfg.diffusion.conditioning_dim,
+        lr_shape=tuple(cfg.graph.lr_shape),
+        target_shape=tuple(cfg.diffusion.get("spatial_target_shape", [6, 7])),
+    ).to(device)
+
+    params = (
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    )
     optimizer = optim.Adam(params, lr=cfg.training.lr)
     
     # Setup LR scheduler
@@ -342,6 +359,9 @@ def run_training_with_checkpoints(
             use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
             lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
             conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
+            lambda_dag_prior=cfg.loss.get("lambda_dag_prior", 0.0),
+            dag_prior=torch.tensor(cfg.loss.dag_prior, dtype=torch.float32) if cfg.loss.get("dag_prior") else None,
+            spatial_projector=spatial_projector,
         )
 
         if cfg.loss.get("log_spectral_metric_each_epoch", False):

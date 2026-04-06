@@ -3,7 +3,7 @@
 ## Spatio-Temporal Causal Diffusion Generative Model
 
 Ce document est genere automatiquement par `scripts/gen_project_complet_st_cdgm.py`.
-Derniere generation : **2026-03-30 14:32 UTC**.
+Derniere generation : **2026-04-01 06:09 UTC**.
 
 Les **notebooks** (.ipynb) ne sont pas embarques en integralite : seul un resume (nombre de cellules) est fourni.
 
@@ -15,16 +15,22 @@ Les **notebooks** (.ipynb) ne sont pas embarques en integralite : seul un resume
 climate_data/
 ├── .dockerignore
 ├── .gitignore
+├── copywritting.md
 ├── docker-compose.yml
 ├── Dockerfile
 ├── environment.yml
+├── explicabilite.md
+├── PROMPT_IMPLEMENTATION_ST_CDGM.md
 ├── README.md
+├── report_gemini.md
 ├── requirements.txt
+├── resume_training_from_checkpoint.ipynb
 ├── setup.py
 ├── st_cdgm_publication_figures.ipynb
 ├── st_cdgm_results_presentation.ipynb
 ├── st_cdgm_training_evaluation.ipynb
 ├── st_cdgm_validation_inference.ipynb
+├── stats.md
 ├── train_ddp.py
 ├── config/
 │   ├── docker.env
@@ -35,6 +41,18 @@ climate_data/
 │   │   ├── NorESM2-MM_histupdated_compressed.metadata.csv
 │   │   └── NorESM2-MM_histupdated_compressed.metadata.json
 │   └── raw/
+├── docs/
+│   ├── ARCHITECTURE_MODEL.md
+│   ├── DOCKER_README.md
+│   ├── GUIDE_PEDAGOGIQUE_ST-CDGM.md
+│   ├── OPTIMISATION.md
+│   ├── rapport_avantages_st_cdgm.md
+│   ├── rapport_flux_scm_gru_unet.md
+│   ├── rapport_optimisation_unet.md
+│   ├── RAPPORT_TECHNIQUE_COMPLET.md
+│   ├── research_article_st_cdgm.md
+│   ├── SCRIPTS_README.md
+│   └── st_cdgm_quickstart.md
 ├── models/
 │   └── *.pth (checkpoints)
 ├── ops/
@@ -157,7 +175,9 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
-  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
+  # netcdf = lecture directe des .nc (notebooks, resume_training_from_checkpoint).
+  # zarr / shard = pipelines train_ddp avec repertoires preprocesse (voir train_ddp.py).
+  dataset_format: "netcdf"
   lr_path: "data/raw/train/predictor_ACCESS-CM2_hist.nc"
   hr_path: "data/raw/train/pr_ACCESS-CM2_hist.nc"
   static_path: "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
@@ -217,14 +237,14 @@ encoder:
 # RCN Configuration
 rcn:
   hidden_dim: 128
-  driver_dim: 8
-  reconstruction_dim: 8
+  driver_dim: 15      # overridden at runtime by data sample shape
+  reconstruction_dim: 15  # overridden at runtime by data sample shape
   dropout: 0.0
-  detach_interval: null
+  detach_interval: 4  # truncated BPTT: gradient flows back 4 steps instead of seq_len
 
 # Diffusion Decoder Configuration
 diffusion:
-  in_channels: 3
+  in_channels: 1      # overridden at runtime by data sample shape
   conditioning_dim: 128  # must match encoder.conditioning_dim
   height: 172
   width: 179
@@ -235,6 +255,18 @@ diffusion:
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: false
+  unet_kwargs:
+    layers_per_block: 1
+    block_out_channels: [32, 64]
+    down_block_types: ["DownBlock2D", "CrossAttnDownBlock2D"]
+    up_block_types: ["CrossAttnUpBlock2D", "UpBlock2D"]
+    mid_block_type: "UNetMidBlock2D"
+    norm_num_groups: 8
+    class_embed_type: "projection"
+    projection_class_embeddings_input_dim: 640
+    resnet_time_scale_shift: "scale_shift"
+    attention_head_dim: 32
+    only_cross_attention: [false, true]
 
 # Loss Configuration
 loss:
@@ -255,13 +287,24 @@ loss:
   dag_l1_regularization: true
   dag_l1_weight: 0.01
   reconstruction_loss_type: "mse+cosine"
+  # Soft prior on DAG: encourages physically plausible edges.
+  # Rows = target variable, Cols = source variable.
+  # Variables: 0=GP850_spat, 1=GP850→GP500, 2=GP500_spat, 3=GP500→GP250, 4=GP250_spat
+  # Positive values encourage an edge; 0 = no preference.
+  lambda_dag_prior: 0.01
+  dag_prior:
+    - [0.0, 0.3, 0.0, 0.0, 0.0]
+    - [0.3, 0.0, 0.3, 0.0, 0.0]
+    - [0.0, 0.3, 0.0, 0.3, 0.0]
+    - [0.0, 0.0, 0.3, 0.0, 0.3]
+    - [0.0, 0.0, 0.0, 0.3, 0.0]
 
 # Training Configuration
 training:
   device: "cpu"  # "cuda" or "cpu" - use "cpu" if PyTorch not compiled with CUDA
   epochs: 10  
-  batch_size: 16  # Reduce to 8-16 if OOM on CPU
-  num_workers: 10  # 0 = avoid shared memory (/dev/shm). Use 4-8 only if /dev/shm is large (CyVerse: use 0)
+  batch_size: 48  # Reduce to 8-16 if OOM on CPU
+  num_workers: 0  # 0 = avoid shared memory (/dev/shm). CyVerse/Docker have ~64MB shm, use 0.
   lr: 0.0002  # Increased for larger batch size
   gradient_clipping: 1.0
   log_every: 10
@@ -290,7 +333,7 @@ training:
     physical_sample_interval: 10
     physical_num_steps: 15
   compile:
-    enabled: true  # torch.compile for performance (PyTorch 2.0+)
+    enabled: false  # disabled on CPU (overhead > benefit); enable on CUDA
     rcn_mode: "reduce-overhead"
     diffusion_mode: "max-autotune"
     encoder_mode: "reduce-overhead"
@@ -343,7 +386,8 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower but persistent):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
-  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
+  # netcdf = lecture directe des .nc ; zarr = train_ddp avec lr.zarr / hr.zarr preprocesse
+  dataset_format: "netcdf"
   # Paths relative to project root (recommended for VICE after copying to local disk)
   # Replace these with your actual file paths
   lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"  # Low-resolution input data
@@ -410,14 +454,14 @@ encoder:
 # RCN Configuration
 rcn:
   hidden_dim: 128
-  driver_dim: 8
-  reconstruction_dim: 8
+  driver_dim: 15      # overridden at runtime by data sample shape
+  reconstruction_dim: 15  # overridden at runtime by data sample shape
   dropout: 0.0
-  detach_interval: null
+  detach_interval: 4  # truncated BPTT: gradient flows back 4 steps instead of seq_len
 
 # Diffusion Decoder Configuration
 diffusion:
-  in_channels: 3
+  in_channels: 1      # overridden at runtime by data sample shape
   conditioning_dim: 128
   height: 172
   width: 179
@@ -428,6 +472,18 @@ diffusion:
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: false
+  unet_kwargs:
+    layers_per_block: 1
+    block_out_channels: [32, 64]
+    down_block_types: ["DownBlock2D", "CrossAttnDownBlock2D"]
+    up_block_types: ["CrossAttnUpBlock2D", "UpBlock2D"]
+    mid_block_type: "UNetMidBlock2D"
+    norm_num_groups: 8
+    class_embed_type: "projection"
+    projection_class_embeddings_input_dim: 640
+    resnet_time_scale_shift: "scale_shift"
+    attention_head_dim: 32
+    only_cross_attention: [false, true]
 
 # Loss Configuration
 loss:
@@ -448,6 +504,13 @@ loss:
   dag_l1_regularization: false
   dag_l1_weight: 0.01
   reconstruction_loss_type: "mse+cosine"  # "mse", "cosine", or "mse+cosine"
+  lambda_dag_prior: 0.01
+  dag_prior:
+    - [0.0, 0.3, 0.0, 0.0, 0.0]
+    - [0.3, 0.0, 0.3, 0.0, 0.0]
+    - [0.0, 0.3, 0.0, 0.3, 0.0]
+    - [0.0, 0.0, 0.3, 0.0, 0.3]
+    - [0.0, 0.0, 0.0, 0.3, 0.0]
 
 # Training Configuration
 # 
@@ -837,6 +900,7 @@ setup(
 ```text
 # Python
 __pycache__/
+.cursor/
 *.py[cod]
 *$py.class
 *.so
@@ -846,6 +910,7 @@ develop-eggs/
 dist/
 downloads/
 downscaling/
+docs/
 data/raw
 eggs/
 .eggs/
@@ -904,6 +969,9 @@ logs/
 # OS
 Thumbs.db
 desktop.ini
+
+!README.md
+*.md
 ```
 
 ---
@@ -987,329 +1055,6 @@ results/
 # OS
 Thumbs.db
 ```
-
----
-
-### `README.md`
-
-````markdown
-# ST-CDGM: Spatio-Temporal Causal Diffusion Generative Model
-
-**ST-CDGM** est un modèle d'intelligence artificielle avancé conçu pour le **downscaling climatique**. Il génère des champs climatiques haute résolution (HR) à partir de données basse résolution (LR) en respectant les contraintes physiques et la causalité temporelle.
-
-## 📋 Vue d'Ensemble
-
-**ST-CDGM** combine trois techniques avancées:
-- **Graph Neural Networks** (PyTorch Geometric) pour l'encodage spatial
-- **Réseaux Récurrents Causaux** (RCN) pour la dynamique temporelle
-- **Modèles de Diffusion** (HuggingFace Diffusers) pour la génération haute résolution
-
-**Cas d'usage**: Transformation de grilles climatiques de 23×26 points (LR) en grilles de 172×179 points (HR), avec un facteur d'amélioration de résolution d'environ **4-8x**.
-
-## 🚀 Installation Rapide
-
-### Installation Locale
-
-```bash
-# Cloner le repository
-git clone <repo-url> climate_data
-cd climate_data
-
-# Installer les dépendances
-pip install -r requirements.txt
-
-# Installer le package
-pip install -e .
-
-# Vérifier l'installation
-python scripts/test_installation.py
-```
-
-### Installation dans CyVerse VICE
-
-Pour installer dans l'environnement CyVerse Discovery Environment (VICE), voir le guide complet:
-
-📖 **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** - Guide complet d'installation pour CyVerse VICE
-
-**Installation rapide VICE**:
-```bash
-# Dans le terminal Jupyter Lab de VICE
-cd ~/
-git clone <repo-url> climate_data
-cd climate_data
-pip install -r requirements.txt
-pip install -e .
-python scripts/test_installation.py
-```
-
-## 🎯 Quick Start
-
-### 1. Préparation des Données
-
-Les données doivent être au format NetCDF avec des coordonnées temporelles communes:
-
-```bash
-# Preprocessing (conversion NetCDF → Zarr pour meilleure performance)
-python scripts/run_preprocessing.py \
-    --lr_path data/raw/lr_data.nc \
-    --hr_path data/raw/hr_data.nc \
-    --output_dir data/processed \
-    --format zarr
-```
-
-### 2. Entraînement
-
-```bash
-# Training avec configuration par défaut
-python scripts/run_training.py \
-    --config config/training_config.yaml \
-    --checkpoint_dir models \
-    --save_every 5
-
-# Training avec configuration VICE (pour CyVerse)
-python scripts/run_training.py \
-    --config config/training_config_vice.yaml \
-    --checkpoint_dir models \
-    --save_every 5
-```
-
-### 3. Évaluation
-
-```bash
-# Evaluation du modèle
-python scripts/run_evaluation.py \
-    --lr_path data/raw/lr_data.nc \
-    --hr_path data/raw/hr_data.nc \
-    --checkpoint models/best_model.pt \
-    --output_dir results
-```
-
-### 4. Pipeline Complet
-
-```bash
-# Exécuter le pipeline complet (preprocessing + training + evaluation)
-python scripts/run_full_pipeline.py \
-    --lr_path data/raw/lr_data.nc \
-    --hr_path data/raw/hr_data.nc \
-    --config config/training_config.yaml \
-    --format zarr
-```
-
-## 📚 Documentation
-
-- **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** - Guide d'installation et utilisation pour CyVerse VICE
-- **[docs/st_cdgm_quickstart.md](docs/st_cdgm_quickstart.md)** - Guide de démarrage rapide
-- **[docs/ARCHITECTURE_MODEL.md](docs/ARCHITECTURE_MODEL.md)** - Architecture détaillée du modèle
-- **[docs/OPTIMISATION.md](docs/OPTIMISATION.md)** - Guide d'optimisation et de performance
-- **[ANALYSE_PROJET_COMPLETE.md](ANALYSE_PROJET_COMPLETE.md)** - Analyse complète du projet
-
-## 🛠️ Configuration
-
-### Configuration Locale
-
-La configuration par défaut se trouve dans `config/training_config.yaml`:
-
-```yaml
-data:
-  lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"
-  hr_path: "data/raw/pr_ACCESS-CM2_hist.nc"
-  seq_len: 6
-  stride: 1
-
-training:
-  device: "cuda"  # ou "cpu"
-  epochs: 100
-  lr: 0.0001
-```
-
-### Configuration CyVerse VICE
-
-Pour CyVerse VICE, utilisez `config/training_config_vice.yaml` qui inclut:
-- Chemins adaptés pour Data Store
-- Configuration GPU/CPU automatique
-- Recommandations pour performance I/O
-
-## 📦 Structure du Projet
-
-```
-climate_data/
-├── src/st_cdgm/          # Code source principal
-│   ├── data/             # Pipeline de données
-│   ├── models/           # Modèles (GNN, RCN, Diffusion)
-│   ├── training/         # Boucle d'entraînement
-│   └── evaluation/       # Métriques d'évaluation
-├── scripts/              # Scripts d'exécution
-│   ├── run_training.py
-│   ├── run_evaluation.py
-│   ├── sync_datastore.py # Utilitaires CyVerse VICE
-│   └── vice_utils.py     # Détection VICE
-├── config/               # Fichiers de configuration
-│   ├── training_config.yaml
-│   └── training_config_vice.yaml
-├── docs/                 # Documentation technique
-├── tests/                # Tests unitaires
-└── README.md             # Ce fichier
-```
-
-## 🔧 Dépendances Principales
-
-- **PyTorch** (≥2.0.0) - Framework principal
-- **PyTorch Geometric** (≥2.3.0) - Graph Neural Networks
-- **HuggingFace Diffusers** (≥0.21.0) - Modèles de diffusion
-- **xarray** (≥2023.1.0) - Manipulation NetCDF
-- **Hydra** (≥1.3.0) - Gestion de configuration
-
-Voir `requirements.txt` pour la liste complète.
-
-## 🌐 CyVerse VICE
-
-Pour les utilisateurs **CyVerse Discovery Environment (VICE)**:
-
-### Utilitaires VICE
-
-- **`scripts/vice_utils.py`** - Détection automatique de l'environnement VICE
-- **`scripts/sync_datastore.py`** - Synchronisation données entre local et Data Store
-
-### Utilisation dans VICE
-
-```bash
-# Détecter l'environnement VICE
-python -c "from scripts.vice_utils import is_vice_environment; print(is_vice_environment())"
-
-# Copier des données depuis Data Store (pour performance)
-python scripts/sync_datastore.py --copy-from-datastore \
-    ~/data-store/home/<username>/data/raw/*.nc \
-    ~/climate_data/data/raw/
-
-# Sauvegarder des résultats dans Data Store
-python scripts/sync_datastore.py --save-to-datastore \
-    ~/climate_data/models/ \
-    ~/data-store/home/<username>/st-cdgm/models/
-```
-
-**Important**: Les containers VICE sont éphémères. Sauvegardez régulièrement vos résultats dans le Data Store!
-
-📖 Voir **[CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)** pour plus de détails.
-
-## 🧪 Tests
-
-```bash
-# Test d'installation
-python scripts/test_installation.py
-
-# Tests unitaires (si pytest installé)
-pytest tests/
-
-# Smoke test du modèle
-pytest tests/test_st_cdgm_smoke.py
-```
-
-## 📊 Métriques d'Évaluation
-
-Le modèle supporte plusieurs métriques pour l'évaluation:
-
-- **CRPS** (Continuous Ranked Probability Score) - Métrique probabiliste standard
-- **FSS** (Fractional Skill Score) - Score de compétence fractionnel
-- **Wasserstein Distance** - Distance entre distributions
-- **Energy Score** - Score d'énergie pour cohérence multivariée
-- **SHD** (Structural Hamming Distance) - Distance pour graphes causaux
-
-## 🔬 Architecture
-
-Le pipeline de traitement suit cette séquence:
-
-```
-Données NetCDF (LR) 
-  ↓
-Normalisation & Séquençage temporel
-  ↓
-Construction Graphe Hétérogène (relations spatiales/verticales)
-  ↓
-Encodage Intelligible (GNN) → Variables latentes interprétables
-  ↓
-Dynamique Causale Récurrente (RCN) → Évolution temporelle
-  ↓
-Décodeur de Diffusion Conditionnel → Génération HR
-  ↓
-Reconstruction Physique + Contraintes
-  ↓
-Champ HR Final (172×179)
-```
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues! Veuillez ouvrir une issue ou une pull request pour proposer des améliorations.
-
-## 📝 Licence
-
-[À compléter selon votre licence]
-
-## 🙏 Remerciements
-
-- PyTorch Geometric pour les Graph Neural Networks
-- HuggingFace Diffusers pour les modèles de diffusion
-- CyVerse pour l'environnement VICE
-
-## 📧 Support
-
-Pour des questions ou du support:
-- Ouvrir une issue sur GitHub
-- Consulter la documentation dans `docs/`
-- Pour CyVerse VICE: voir [CYVERSE_VICE_SETUP.md](CYVERSE_VICE_SETUP.md)
-
----
-
-**Version**: 0.1.0  
-**Dernière mise à jour**: 2026-01-16
-````
-
----
-
-### `docs/ARCHITECTURE_MODEL.md`
-
-*[Fichier absent : docs/ARCHITECTURE_MODEL.md]*
-
----
-
-### `docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md`
-
-*[Fichier absent : docs/GUIDE_PEDAGOGIQUE_ST-CDGM.md]*
-
----
-
-### `docs/OPTIMISATION.md`
-
-*[Fichier absent : docs/OPTIMISATION.md]*
-
----
-
-### `docs/RAPPORT_TECHNIQUE_COMPLET.md`
-
-*[Fichier absent : docs/RAPPORT_TECHNIQUE_COMPLET.md]*
-
----
-
-### `docs/SCRIPTS_README.md`
-
-*[Fichier absent : docs/SCRIPTS_README.md]*
-
----
-
-### `docs/research_article_st_cdgm.md`
-
-*[Fichier absent : docs/research_article_st_cdgm.md]*
-
----
-
-### `docs/st_cdgm_quickstart.md`
-
-*[Fichier absent : docs/st_cdgm_quickstart.md]*
-
----
-
-### `stats.md`
-
-*[Fichier absent : stats.md]*
 
 ---
 
@@ -2871,7 +2616,7 @@ Package principal pour le modèle ST-CDGM.
 
 from .models.causal_rcn import RCNCell, RCNSequenceRunner
 from .models.diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
-from .models.intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig
+from .models.intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig, SpatialConditioningProjector
 from .models.graph_builder import HeteroGraphBuilder
 from .data.pipeline import NetCDFDataPipeline, ZarrDataPipeline, ResDiffIterableDataset
 from .data.netcdf_utils import NetCDFToDataFrame
@@ -2889,6 +2634,7 @@ __all__ = [
     "DiffusionOutput",
     "IntelligibleVariableEncoder",
     "IntelligibleVariableConfig",
+    "SpatialConditioningProjector",
     "HeteroGraphBuilder",
     # Data
     "NetCDFDataPipeline",
@@ -3425,14 +3171,16 @@ class NetCDFDataPipeline:
                     "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
                     "2) Use Zarr format (ops/preprocess_to_zarr.py)."
                 ) from e
-            # Retry with alternate engines (h5netcdf often works better on remote/slow HDF)
+            # Retry with HDF5-capable engines only. Do not use scipy here: NetCDF4/HDF5 files
+            # are not NetCDF3; scipy fails with a misleading "install netcdf4" message.
             try:
                 ds.close()
             except Exception:
                 pass
             path_str = str(path)
             time_dim = self.dims.time if (self.dims and hasattr(self.dims, "time")) else "time"
-            for engine in ("h5netcdf", "scipy"):
+            last_err: Optional[BaseException] = None
+            for engine in ("h5netcdf", "netcdf4"):
                 ds_new = None
                 try:
                     ds_new = xr.open_dataset(path_str, engine=engine)
@@ -3444,19 +3192,21 @@ class NetCDFDataPipeline:
                     ds_new.close()
                     return result
                 except Exception as e2:
+                    last_err = e2
                     if ds_new is not None:
                         try:
                             ds_new.close()
                         except Exception:
                             pass
-                    if engine == "scipy":
-                        raise RuntimeError(
-                            f"Failed to load {name}: {e}. Retry with h5netcdf/scipy also failed: {e2}. "
-                            "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
-                            "2) Use Zarr format (ops/preprocess_to_zarr.py)."
-                        ) from e2
                     continue
-            raise
+            raise RuntimeError(
+                f"Failed to load {name}: {e}. Retries with h5netcdf and netcdf4 also failed"
+                + (f" (last: {last_err})" if last_err else "")
+                + ". Often caused by NFS/Data Store I/O or a truncated file. "
+                "Try: 1) Copy the .nc to local fast disk and point paths there (scripts/sync_datastore.py), "
+                "2) Verify the file (e.g. ncdump -h, file size), "
+                "3) Use Zarr (ops/preprocess_to_zarr.py)."
+            ) from (last_err if last_err else e)
 
     def _convert_cftime_to_datetime(self, time_values):
         """
@@ -5362,7 +5112,7 @@ Modules de modèles pour ST-CDGM.
 
 from .causal_rcn import RCNCell, RCNSequenceRunner
 from .diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
-from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig
+from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig, SpatialConditioningProjector
 from .graph_builder import HeteroGraphBuilder
 
 __all__ = [
@@ -5372,6 +5122,7 @@ __all__ = [
     "DiffusionOutput",
     "IntelligibleVariableEncoder",
     "IntelligibleVariableConfig",
+    "SpatialConditioningProjector",
     "HeteroGraphBuilder",
 ]
 ```
@@ -5483,10 +5234,9 @@ class RCNCell(nn.Module):
         self.gru_cells = nn.ModuleList(
             [nn.GRUCell(hidden_dim, hidden_dim) for _ in range(num_vars)]
         )
-        
-        # Phase A2: Vectorized GRU parameters for parallel computation
-        # We extract parameters from individual GRUCells and organize them for batched operations
-        # This allows vectorized computation while maintaining separate parameters per variable
+
+        # Embedding d'identité par variable — spécialise le driver pour chaque GRU
+        self.var_embed = nn.Embedding(num_vars, hidden_dim)
 
         # Décodeur de reconstruction optionnel
         if self.reconstruction_dim is not None:
@@ -5512,6 +5262,7 @@ class RCNCell(nn.Module):
         for layer in self.driver_encoder:
             if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
+        nn.init.normal_(self.var_embed.weight, std=0.02)
         if self.reconstruction_decoder is not None:
             nn.init.xavier_uniform_(self.reconstruction_decoder.weight)
             nn.init.zeros_(self.reconstruction_decoder.bias)
@@ -5575,6 +5326,8 @@ class RCNCell(nn.Module):
         # Prepare batched inputs: [q, N, hidden_dim]
         # driver_emb: [N, hidden_dim] -> expand to [q, N, hidden_dim]
         driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden_dim]
+        var_ids = torch.arange(self.num_vars, device=driver_emb.device)
+        driver_batch = driver_batch + self.var_embed(var_ids).unsqueeze(1)   # [q, N, d] + [q, 1, d]
         hidden_batch = H_hat_tensor  # [q, N, hidden_dim]
         
         # Vectorized GRU computation for all variables in parallel
@@ -5912,20 +5665,38 @@ class CausalDiffusionDecoder(nn.Module):
         if use_gradient_checkpointing:
             self.enable_gradient_checkpointing()
 
+    def _pool_conditioning(self, conditioning: Tensor) -> Tensor:
+        """Flatten conditioning [B, seq, dim] -> [B, seq*dim] for FiLM class_labels."""
+        return conditioning.flatten(start_dim=1)
+
     def forward(
         self,
         noisy_sample: Tensor,
         timestep: Tensor,
         conditioning: Tensor,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Passe avant du UNet (prédiction du bruit).
+
+        Parameters
+        ----------
+        conditioning : Tensor
+            Global conditioning ``[B, num_vars, dim]`` — flattened for FiLM
+            ``class_labels``.
+        conditioning_spatial : Optional[Tensor]
+            Spatial tokens ``[B, num_tokens, dim]`` for cross-attention
+            (``encoder_hidden_states``).  Falls back to *conditioning* when
+            ``None``.
         """
         conditioning = self._prepare_conditioning(conditioning)
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         output = self.unet(
             sample=noisy_sample,
             timestep=timestep,
-            encoder_hidden_states=conditioning,
+            encoder_hidden_states=hidden_states,
+            class_labels=class_labels,
         )
         return output.sample
 
@@ -5933,16 +5704,17 @@ class CausalDiffusionDecoder(nn.Module):
         self,
         target: Tensor,
         conditioning: Tensor,
-        use_focal_loss: bool = False,  # Phase D1: Use focal loss for hard pixels
-        focal_alpha: float = 1.0,  # Phase D1: Weighting factor for focal loss
-        focal_gamma: float = 2.0,  # Phase D1: Focusing parameter (higher = more focus on hard pixels)
+        use_focal_loss: bool = False,
+        focal_alpha: float = 1.0,
+        focal_gamma: float = 2.0,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Calcule la perte de diffusion (MSE entre bruit réel et prédit).
         Gère les NaN dans le target en utilisant un masque (standard pour données climatiques).
         """
         # Vérifier le conditioning (ne doit pas contenir de NaN/Inf)
-        if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+        if not torch.isfinite(conditioning).all():
             raise ValueError(
                 f"Conditioning contains NaN/Inf: NaN={torch.isnan(conditioning).sum().item()}, "
                 f"Inf={torch.isinf(conditioning).sum().item()}, "
@@ -5952,7 +5724,7 @@ class CausalDiffusionDecoder(nn.Module):
         
         # Créer un masque pour les valeurs valides dans le target
         # Les NaN peuvent représenter des masques géographiques (océan, etc.)
-        valid_mask = ~torch.isnan(target) & ~torch.isinf(target)
+        valid_mask = torch.isfinite(target)
         nan_count = (~valid_mask).sum().item()
         total_pixels = target.numel()
         
@@ -5981,10 +5753,10 @@ class CausalDiffusionDecoder(nn.Module):
         # En fait, on doit recréer le masque car add_noise peut changer les valeurs
         # Mais comme on a remplacé les NaN par 0, le masque original reste valide
         
-        noise_pred = self.forward(noisy_sample, timesteps, conditioning)
+        noise_pred = self.forward(noisy_sample, timesteps, conditioning, conditioning_spatial=conditioning_spatial)
         
         # Vérifier que noise_pred ne contient pas de NaN/Inf (problème du modèle)
-        if torch.isnan(noise_pred).any() or torch.isinf(noise_pred).any():
+        if not torch.isfinite(noise_pred).all():
             raise ValueError(
                 f"noise_pred contains NaN/Inf after UNet forward: "
                 f"NaN={torch.isnan(noise_pred).sum().item()}, "
@@ -6057,7 +5829,7 @@ class CausalDiffusionDecoder(nn.Module):
                 loss = mse_error.mean()
         
         # Vérifier la loss finale
-        if torch.isnan(loss) or torch.isinf(loss):
+        if not torch.isfinite(loss):
             raise ValueError(
                 f"Loss is NaN/Inf: loss={loss.item()}, "
                 f"valid_pixels={valid_mask.sum().item()}/{total_pixels}, "
@@ -6128,6 +5900,7 @@ class CausalDiffusionDecoder(nn.Module):
         apply_constraints: bool = True,
         scheduler_type: Optional[str] = None,
         cfg_scale: float = 0.0,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
@@ -6151,6 +5924,7 @@ class CausalDiffusionDecoder(nn.Module):
                 generator=generator,
                 baseline=baseline,
                 apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
             )
         elif scheduler_type == "dpm_solver" or scheduler_type == "dpm_solver++":
             if not HAS_DPM_SOLVER:
@@ -6165,6 +5939,7 @@ class CausalDiffusionDecoder(nn.Module):
                 generator=generator,
                 baseline=baseline,
                 apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
             )
         
         # Original DDPM sampling
@@ -6187,18 +5962,23 @@ class CausalDiffusionDecoder(nn.Module):
             generator=generator,
         )
 
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         for t in scheduler.timesteps:
             noise_pred_cond = self.unet(
                 sample=sample,
                 timestep=t,
-                encoder_hidden_states=conditioning,
+                encoder_hidden_states=hidden_states,
+                class_labels=class_labels,
             ).sample
             if cfg_scale and cfg_scale > 0.0:
-                null_c = torch.zeros_like(conditioning)
+                null_hs = torch.zeros_like(hidden_states)
+                null_cl = torch.zeros_like(class_labels)
                 noise_pred_uncond = self.unet(
                     sample=sample,
                     timestep=t,
-                    encoder_hidden_states=null_c,
+                    encoder_hidden_states=null_hs,
+                    class_labels=null_cl,
                 ).sample
                 model_output = noise_pred_uncond + cfg_scale * (noise_pred_cond - noise_pred_uncond)
             else:
@@ -6243,6 +6023,7 @@ class CausalDiffusionDecoder(nn.Module):
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase 3.2: EDM (Elucidated Diffusion Models) sampling using ODE solver.
@@ -6285,23 +6066,21 @@ class CausalDiffusionDecoder(nn.Module):
         timesteps = torch.linspace(1.0, 0.0, num_steps + 1, device=device)
         dt = 1.0 / num_steps
         
-        # Solve ODE using Euler method
-        # d/dt x = -sigma'(t) * sigma(t) * score(x, sigma(t))
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         for i in range(num_steps):
             t_current = timesteps[i]
             t_next = timesteps[i + 1]
             
-            # Convert time to scheduler timestep for UNet
-            # Map from [0, 1] to [0, num_train_timesteps]
             scheduler_timestep = (1.0 - t_current) * self.num_diffusion_steps
             scheduler_timestep = scheduler_timestep.long().clamp(0, self.num_diffusion_steps - 1)
             
-            # Predict noise/score with UNet
             with torch.no_grad():
                 noise_pred = self.unet(
                     sample=sample,
                     timestep=scheduler_timestep.expand(sample.shape[0]),
-                    encoder_hidden_states=conditioning,
+                    encoder_hidden_states=hidden_states,
+                    class_labels=class_labels,
                 ).sample
             
             # EDM ODE step: dx/dt = -sigma * sigma' * score
@@ -6344,6 +6123,7 @@ class CausalDiffusionDecoder(nn.Module):
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase E1: DPM-Solver++ sampling for ultra-fast inference.
@@ -6403,7 +6183,7 @@ class CausalDiffusionDecoder(nn.Module):
         
         # Sampling loop with DPM-Solver++
         for t in dpm_scheduler.timesteps:
-            model_output = self.forward(sample, t, conditioning)
+            model_output = self.forward(sample, t, conditioning, conditioning_spatial=conditioning_spatial)
             sample = dpm_scheduler.step(model_output, t, sample, return_dict=False)[0]
         
         residual = sample
@@ -7247,6 +7027,61 @@ class IntelligibleVariableEncoder(nn.Module):
         if pool_type in {"", "none", None}:
             return tensor
         raise ValueError(f"Pooling '{pool_type}' non pris en charge.")
+
+
+class SpatialConditioningProjector(nn.Module):
+    """Projects RCN state [q, N, hidden] into spatially-compressed conditioning tokens.
+
+    The state is reshaped onto the LR grid, adaptively pooled to a small target
+    spatial resolution, then projected to ``conditioning_dim``.  The output has
+    shape ``[batch, num_vars * target_h * target_w, conditioning_dim]`` and can
+    be passed directly as ``encoder_hidden_states`` to a UNet with cross-attention.
+    """
+
+    def __init__(
+        self,
+        num_vars: int,
+        hidden_dim: int,
+        conditioning_dim: int,
+        lr_shape: Tuple[int, int],
+        target_shape: Tuple[int, int] = (6, 7),
+    ) -> None:
+        super().__init__()
+        self.num_vars = num_vars
+        self.hidden_dim = hidden_dim
+        self.lr_shape = lr_shape
+        self.target_shape = target_shape
+        self.adaptive_pool = nn.AdaptiveAvgPool2d(target_shape)
+        self.proj = nn.Linear(hidden_dim, conditioning_dim)
+        self.norm = nn.LayerNorm(conditioning_dim)
+
+    def forward(self, state: Tensor, *, batch_index: Optional[Tensor] = None) -> Tensor:
+        """
+        Parameters
+        ----------
+        state : Tensor
+            RCN hidden state of shape ``[q, N, hidden]``.
+        batch_index : Optional[Tensor]
+            Not used (single-graph path). Reserved for future multi-graph batching.
+
+        Returns
+        -------
+        Tensor
+            ``[batch, num_vars * th * tw, conditioning_dim]``
+        """
+        q, N, d = state.shape
+        lat, lon = self.lr_shape
+        if N != lat * lon:
+            raise ValueError(
+                f"SpatialConditioningProjector: expected N={lat*lon} "
+                f"(lr_shape={self.lr_shape}), got N={N}."
+            )
+        grid = state.view(q, lat, lon, d).permute(0, 3, 1, 2)    # [q, d, lat, lon]
+        pooled = self.adaptive_pool(grid)                          # [q, d, th, tw]
+        th, tw = self.target_shape
+        tokens = pooled.permute(0, 2, 3, 1).reshape(q * th * tw, d)  # [q*th*tw, d]
+        projected = self.norm(self.proj(tokens))                   # [q*th*tw, cond_dim]
+        return projected.unsqueeze(0)                              # [1, q*th*tw, cond_dim]
 ```
 
 ---
@@ -7726,24 +7561,10 @@ def loss_diffusion(
     use_focal_loss: bool = False,
     focal_alpha: float = 1.0,
     focal_gamma: float = 2.0,
+    conditioning_spatial: Optional[Tensor] = None,
 ) -> Tensor:
     """
     Perte de diffusion L_gen en déléguant à CausalDiffusionDecoder.
-    
-    Parameters
-    ----------
-    decoder : CausalDiffusionDecoder
-        Le décodeur de diffusion.
-    target : Tensor
-        Target tensor (résidu HR).
-    conditioning : Tensor
-        Conditionnement causal.
-    use_focal_loss : bool
-        Si True, utilise focal loss pour se concentrer sur les pixels difficiles.
-    focal_alpha : float
-        Facteur de pondération pour focal loss.
-    focal_gamma : float
-        Paramètre de focalisation (plus élevé = plus de focus sur pixels difficiles).
     """
     return decoder.compute_loss(
         target,
@@ -7751,6 +7572,7 @@ def loss_diffusion(
         use_focal_loss=use_focal_loss,
         focal_alpha=focal_alpha,
         focal_gamma=focal_gamma,
+        conditioning_spatial=conditioning_spatial,
     )
 
 
@@ -7927,78 +7749,40 @@ def loss_dagma(
     device = A_masked.device
     dtype = A_masked.dtype
     
-    # Phase D3: Clip values of A_masked to prevent extreme values before computation
-    # This improves numerical stability
     A_clipped = torch.clamp(A_masked, min=-10.0, max=10.0)
     
-    # Calculer W∘W (Hadamard product, élément par élément)
+    # W∘W (Hadamard square, element-wise)
     W_squared = torch.mul(A_clipped, A_clipped)  # [q, q]
     
-    # Phase D3: Ensure s is large enough for numerical stability
-    # s must be > max eigenvalue of W_squared
-    max_val = W_squared.abs().max().item()
-    s_safe = max(s, max_val + 0.1)  # Add small margin
+    # s must exceed the spectral radius of W_squared for M to be positive-definite.
+    # Gershgorin bound: rho(W²) <= max row-sum of |W²|.  This is tight and O(q²).
+    gershgorin_bound = W_squared.abs().sum(dim=1).max().item()
+    s_safe = max(s, gershgorin_bound + 0.1)
     
-    # Calculer sI - W∘W où I est la matrice identité
+    # M = sI - W∘W  (M-matrix, positive-definite when s > rho(W²))
     sI = s_safe * torch.eye(q, device=device, dtype=dtype)
     M = sI - W_squared  # [q, q]
     
-    # Phase D3: Enhanced numerical stability for logdet computation
-    # Add small epsilon to diagonal for numerical stability
-    eps = torch.tensor(1e-7, device=device, dtype=dtype)
+    eps = 1e-7
     M = M + eps * torch.eye(q, device=device, dtype=dtype)
     
-    # Calculer le log-déterminant de M
-    # Utiliser logdet pour la stabilité numérique
     try:
-        # Phase D3: Check condition number before logdet
-        # If matrix is ill-conditioned, add more regularization
-        eigenvalues = torch.linalg.eigvals(M).real
-        min_eigenvalue = eigenvalues.min().item()
-        max_eigenvalue = eigenvalues.max().item()
-        
-        if min_eigenvalue <= 1e-6:
-            # Matrix is not positive definite or very close to singular
-            # Add more regularization and retry
-            M = M + (1e-6 - min_eigenvalue + 1e-7) * torch.eye(q, device=device, dtype=dtype)
-            min_eigenvalue = (torch.linalg.eigvals(M).real).min().item()
-        
-        if min_eigenvalue <= 0:
-            # Still not positive definite - return large penalty
-            return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
-        
         log_det_M = torch.logdet(M)
-        
-        # Phase D3: Check for NaN/Inf in logdet result
-        if torch.isnan(log_det_M) or torch.isinf(log_det_M):
-            # Fallback to eigenvalue-based computation if logdet fails
-            log_eigenvalues = torch.log(eigenvalues + 1e-8)
-            log_det_M = log_eigenvalues.sum()
-            
-    except (RuntimeError, ValueError) as e:
-        # Fallback: compute logdet via eigenvalues
-        try:
-            eigenvalues = torch.linalg.eigvals(M).real
-            min_eigenvalue = eigenvalues.min().item()
-            if min_eigenvalue <= 0:
-                return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
-            log_eigenvalues = torch.log(eigenvalues + 1e-8)
-            log_det_M = log_eigenvalues.sum()
-        except Exception:
-            # Ultimate fallback: return large penalty
-            return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
+        if not torch.isfinite(log_det_M):
+            M = M + 1e-5 * torch.eye(q, device=device, dtype=dtype)
+            log_det_M = torch.logdet(M)
+    except RuntimeError:
+        return torch.tensor(float(q), device=device, dtype=dtype, requires_grad=True)
     
-    # Calculer h(W) = -log det(sI - W∘W) + d log s
-    h_W = -log_det_M + q * torch.log(torch.tensor(s_safe, device=device, dtype=dtype) + eps)
+    # h(W) = -log det(sI - W∘W) + d log s
+    h_W = -log_det_M + q * math.log(s_safe + eps)
     
-    # Phase D3: Add L1 regularization for sparsity if requested
     if add_l1_regularization:
         l1_term = l1_weight * A_masked.abs().sum()
         h_W = h_W + l1_term
     
-    # Phase D3: Final check for invalid values
-    if torch.isnan(h_W) or torch.isinf(h_W):
-        return torch.tensor(1e6, device=device, dtype=dtype, requires_grad=True)
+    if not torch.isfinite(h_W):
+        return torch.tensor(float(q), device=device, dtype=dtype, requires_grad=True)
     
     return h_W
 
@@ -8051,6 +7835,9 @@ def train_epoch(
     use_spectral_loss: bool = False,
     lambda_spectral: float = 0.0,
     conditioning_dropout_prob: float = 0.0,
+    lambda_dag_prior: float = 0.0,
+    dag_prior: Optional[Tensor] = None,
+    spatial_projector: Optional[nn.Module] = None,
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
@@ -8127,7 +7914,9 @@ def train_epoch(
         step_loss_phy = 0.0
         
         for micro_idx, batch in enumerate(batches):
-            if verbose and batch_idx == 0 and micro_idx == 0:
+            _do_timing = verbose and batch_idx == 0 and micro_idx == 0
+
+            if _do_timing:
                 print(f"Batch {batch_idx + 1}" + (f" (n={len(batches)})" if len(batches) > 1 else "") + ":")
                 print(f"   - Keys: {list(batch.keys())}")
             
@@ -8135,68 +7924,74 @@ def train_epoch(
             target_data: Tensor = batch.get(residual_key, batch.get("hr")).to(device)  # [seq_len, channels, H, W]
             hetero_data = batch["hetero"]
         
-            # Vérifications de diagnostic avant forward pass
-            if torch.isnan(target_data).any():
-                nan_count = torch.isnan(target_data).sum().item()
-                nan_fill = torch.nanmean(target_data).item()
-                if not math.isfinite(nan_fill):
-                    nan_fill = 0.0
-                # print(f"[WARN] Target contains {nan_count} NaN values ({100*nan_count/target_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
-                target_data = torch.nan_to_num(target_data, nan=nan_fill)
-        
-            if torch.isinf(target_data).any():
-                inf_count = torch.isinf(target_data).sum().item()
-                valid_mean = target_data[~(torch.isnan(target_data) | torch.isinf(target_data))].mean().item() if (target_data.numel() > inf_count) else 0.0
-                # print(f"[WARN] Target contains {inf_count} Inf values ({100*inf_count/target_data.numel():.2f}%) - replacing with mean ({valid_mean:.6f})")
-                target_data = torch.nan_to_num(target_data, nan=valid_mean, posinf=valid_mean, neginf=valid_mean)
-        
-            if torch.isnan(lr_data).any():
-                nan_count = torch.isnan(lr_data).sum().item()
-                nan_fill = torch.nanmean(lr_data).item()
-                if not math.isfinite(nan_fill):
-                    nan_fill = 0.0
-                # print(f"[WARN] LR data contains {nan_count} NaN values ({100*nan_count/lr_data.numel():.2f}%) - replacing with mean ({nan_fill:.6f})")
-                lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
+            # NaN/Inf input sanitization (cadenced to first micro-batch of every 20th optimizer step)
+            if batch_idx % 20 == 0 and micro_idx == 0:
+                _tensors_to_check = {
+                    "target_data": target_data,
+                    "lr_data": lr_data,
+                }
+                for _name, _t in _tensors_to_check.items():
+                    if not torch.isfinite(_t).all():
+                        if _name == "target_data":
+                            _nan_mask = torch.isnan(target_data)
+                            if _nan_mask.any():
+                                nan_fill = torch.nanmean(target_data).item()
+                                if not math.isfinite(nan_fill):
+                                    nan_fill = 0.0
+                                target_data = torch.nan_to_num(target_data, nan=nan_fill)
+                            _inf_mask = torch.isinf(target_data)
+                            if _inf_mask.any():
+                                _valid_mask = torch.isfinite(target_data)
+                                valid_mean = target_data[_valid_mask].mean().item() if _valid_mask.any() else 0.0
+                                target_data = torch.nan_to_num(
+                                    target_data,
+                                    nan=valid_mean,
+                                    posinf=valid_mean,
+                                    neginf=valid_mean,
+                                )
+                        elif _name == "lr_data":
+                            _nan_mask = torch.isnan(lr_data)
+                            if _nan_mask.any():
+                                nan_fill = torch.nanmean(lr_data).item()
+                                if not math.isfinite(nan_fill):
+                                    nan_fill = 0.0
+                                lr_data = torch.nan_to_num(lr_data, nan=nan_fill)
 
-            if verbose and batch_idx == 0 and micro_idx == 0:
+            if _do_timing:
                 print(f"   - LR data shape: {lr_data.shape}")
                 print(f"   - Target data shape: {target_data.shape}")
                 print(f"   - Sequence length: {lr_data.shape[0]}")
 
-            # Phase C1: Mixed Precision - Use autocast for forward pass
             # Encoder step
-            encoder_time = time.time()
+            if _do_timing:
+                encoder_time = time.time()
             with _train_autocast(amp_mode):
                 H_init = encoder.init_state(hetero_data).to(device)
-            encoder_time = time.time() - encoder_time
-        
-            if verbose and batch_idx == 0:
+            if _do_timing:
+                encoder_time = time.time() - encoder_time
                 print(f"   - H_init shape: {H_init.shape}")
                 print(f"   - Encoder time: {encoder_time:.4f}s")
 
             # RCN step
-            rcn_time = time.time()
+            if _do_timing:
+                rcn_time = time.time()
             drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-            # reconstruction_sources is no longer needed - RCNCell uses hidden state internally
             with _train_autocast(amp_mode):
                 seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-            rcn_time = time.time() - rcn_time
-        
-            if verbose and batch_idx == 0:
+            if _do_timing:
+                rcn_time = time.time() - rcn_time
                 print(f"   - Number of states: {len(seq_output.states)}")
                 print(f"   - Number of reconstructions: {len(seq_output.reconstructions)}")
                 print(f"   - Number of DAG matrices: {len(seq_output.dag_matrices)}")
                 print(f"   - RCN time: {rcn_time:.4f}s")
 
-            # Phase C1: Mixed Precision - Loss computation (reconstruction and DAG)
-            loss_time = time.time()
+            # Loss computation (reconstruction and DAG)
             loss_rec_value = torch.tensor(0.0, device=device)
             loss_dag_value = torch.tensor(0.0, device=device)
             num_reconstructions = 0
             with _train_autocast(amp_mode):
-                for recon, A_masked, driver_step in zip(
+                for recon, driver_step in zip(
                     seq_output.reconstructions,
-                    seq_output.dag_matrices,
                     drivers,
                 ):
                     if recon is not None:
@@ -8204,13 +7999,21 @@ def train_epoch(
                         loss_rec_value = loss_rec_value + beta_rec * loss_reconstruction(
                             recon, driver_step, loss_type=reconstruction_loss_type
                         )
-                    # Phase 3.1: Use DAGMA by default (more stable than NO TEARS)
-                    if dag_method == "dagma":
-                        loss_dag_value = loss_dag_value + gamma_dag * loss_dagma(A_masked, s=dagma_s)
-                    else:  # fallback to NO TEARS
-                        loss_dag_value = loss_dag_value + gamma_dag * loss_no_tears(A_masked)
+
+                # A_masked is the same learned adjacency at every timestep;
+                # compute the DAG penalty once and scale by the number of steps.
+                A_masked_0 = seq_output.dag_matrices[0]
+                n_dag_steps = len(seq_output.dag_matrices)
+                if dag_method == "dagma":
+                    loss_dag_value = gamma_dag * n_dag_steps * loss_dagma(A_masked_0, s=dagma_s)
+                else:
+                    loss_dag_value = gamma_dag * n_dag_steps * loss_no_tears(A_masked_0)
+
+                if lambda_dag_prior > 0.0 and dag_prior is not None:
+                    _prior = dag_prior.to(device=A_masked_0.device, dtype=A_masked_0.dtype)
+                    loss_dag_value = loss_dag_value + lambda_dag_prior * nn.functional.mse_loss(A_masked_0, _prior)
         
-            if verbose and batch_idx == 0:
+            if _do_timing:
                 print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
 
             H_condition = seq_output.states[-1]
@@ -8223,10 +8026,17 @@ def train_epoch(
                 conditioning = conditioning_fn(H_condition, batch_index)
             conditioning = conditioning.to(device)
 
-            if conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob:
+            conditioning_spatial = None
+            if spatial_projector is not None:
+                conditioning_spatial = spatial_projector(H_condition, batch_index=batch_index).to(device)
+
+            _dropout = conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob
+            if _dropout:
                 conditioning = torch.zeros_like(conditioning)
+                if conditioning_spatial is not None:
+                    conditioning_spatial = torch.zeros_like(conditioning_spatial)
         
-            if verbose and batch_idx == 0:
+            if _do_timing:
                 print(f"   - Conditioning shape: {conditioning.shape}")
 
             target = target_data[-1]  # Should be [channels, H, W] or [H, W, channels]
@@ -8243,7 +8053,7 @@ def train_epoch(
             else:
                 raise ValueError(f"Unexpected target shape: {target.shape}, expected [channels, H, W] or [batch, channels, H, W]")
         
-            if verbose and batch_idx == 0:
+            if _do_timing:
                 print(f"   - Target shape (after processing): {target.shape}")
         
             # Verify channel count matches UNet expectations
@@ -8264,33 +8074,31 @@ def train_epoch(
                 vm = vm.expand_as(target)
                 target = target.clone().masked_fill(~vm, float("nan"))
         
-            # Vérifications de diagnostic avant la diffusion
-            if verbose and batch_idx == 0:
-                print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
-                print(f"   - Target has NaN: {torch.isnan(target).any().item()}")
-                print(f"   - Target has Inf: {torch.isinf(target).any().item()}")
-                print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
-                print(f"   - Conditioning has NaN: {torch.isnan(conditioning).any().item()}")
-                print(f"   - Conditioning has Inf: {torch.isinf(conditioning).any().item()}")
-        
-            # Vérifier les valeurs extrêmes
-            target_abs_max = target.abs().max().item()
-            if target_abs_max > 1e6:
-                if verbose:
-                    print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
-                    print(f"   - This might cause numerical instability")
-        
-            # Vérifier les NaN dans le target (seront masqués dans compute_loss)
-            nan_mask = torch.isnan(target) | torch.isinf(target)
-            nan_count = nan_mask.sum().item()
-            nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
-        
-            if nan_count > 0:
-                if verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
+            # Expensive per-micro-batch diagnostics: only on first micro-batch
+            nan_count = 0
+            nan_ratio = 0.0
+            if micro_idx == 0:
+                if _do_timing:
+                    print(f"   - Target stats: min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}, std={target.std().item():.6f}")
+                    _target_isfinite = torch.isfinite(target).all().item()
+                    print(f"   - Target has NaN/Inf: {not _target_isfinite}")
+                    print(f"   - Conditioning stats: min={conditioning.min().item():.6f}, max={conditioning.max().item():.6f}, mean={conditioning.mean().item():.6f}")
+                    _cond_isfinite = torch.isfinite(conditioning).all().item()
+                    print(f"   - Conditioning has NaN/Inf: {not _cond_isfinite}")
+
+                target_abs_max = target.abs().max().item()
+                if target_abs_max > 1e6:
+                    if verbose:
+                        print(f"[WARN] Target has very large values: max_abs={target_abs_max:.2e}")
+
+                nan_mask = ~torch.isfinite(target)
+                nan_count = nan_mask.sum().item()
+                nan_ratio = nan_count / target.numel() if target.numel() > 0 else 0.0
+                if nan_count > 0 and verbose and (batch_idx == 0 or batch_idx % log_interval == 0):
                     print(f"[INFO] Target contains {nan_count} NaN/Inf pixels ({nan_ratio:.2%}) - will be masked in loss")
-        
-            # Le conditioning ne doit PAS contenir de NaN/Inf (erreur critique)
-            if torch.isnan(conditioning).any() or torch.isinf(conditioning).any():
+
+            # Conditioning must NEVER contain NaN/Inf (critical safety check on every micro-batch)
+            if not torch.isfinite(conditioning).all():
                 print(f"[ERROR] Conditioning contains NaN/Inf in batch {batch_idx + 1}")
                 print(f"   - NaN count: {torch.isnan(conditioning).sum().item()}")
                 print(f"   - Inf count: {torch.isinf(conditioning).sum().item()}")
@@ -8300,13 +8108,15 @@ def train_epoch(
             # Phase C1: Mixed Precision - Forward pass with autocast for entire forward
             # Diffusion loss (gère automatiquement les NaN via masquage)
             # Phase D1: Supports focal loss for focusing on hard pixels
-            diffusion_time = time.time()
+            if _do_timing:
+                diffusion_time = time.time()
             with _train_autocast(amp_mode):
                 loss_gen_value = lambda_gen * loss_diffusion(
                     diffusion_decoder, target, conditioning,
                     use_focal_loss=use_focal_loss,
                     focal_alpha=focal_alpha,
                     focal_gamma=focal_gamma,
+                    conditioning_spatial=conditioning_spatial,
                 )
 
             # RAPSD (FFT + scatter_add) : déplacé en fin d’époque — voir compute_rapsd_metric_from_batch.
@@ -8348,7 +8158,7 @@ def train_epoch(
                             vort_error = ((vort_pred - vort_target) ** 2).mean()
                             loss_phy_value = lambda_phy * (div_error + 0.1 * vort_error)
                         
-                            if verbose and batch_idx == 0:
+                            if _do_timing:
                                 print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
                         except Exception as e:
                             # Fallback to target-only physical loss if sampling fails
@@ -8369,9 +8179,8 @@ def train_epoch(
                     vort_penalty = (vort_target ** 2).mean()
                     loss_phy_value = lambda_phy * (div_penalty + 0.1 * vort_penalty)
         
-            diffusion_time = time.time() - diffusion_time
-        
-            if verbose and batch_idx == 0:
+            if _do_timing:
+                diffusion_time = time.time() - diffusion_time
                 print(f"   - Diffusion time: {diffusion_time:.4f}s")
                 if lambda_phy > 0.0:
                     print(f"   - Physical loss: {loss_phy_value.item():.6f}")
@@ -8388,7 +8197,7 @@ def train_epoch(
                 )
         
             # Check for NaN or Inf
-            if torch.isnan(loss_total) or torch.isinf(loss_total):
+            if not torch.isfinite(loss_total):
                 print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")
                 print(f"   - Loss total: {loss_total.item()}")
                 print(f"   - Loss gen: {loss_gen_value.item()}")
@@ -8410,7 +8219,8 @@ def train_epoch(
 
             # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
             # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
-            backward_time = time.time()
+            if _do_timing:
+                backward_time = time.time()
             scale = 1.0 / len(batches)  # Scale gradients for accumulation
             is_last_micro = (micro_idx == len(batches) - 1)
             ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
@@ -8421,7 +8231,8 @@ def train_epoch(
                     scaler.scale(loss_total * scale).backward()
                 else:
                     (loss_total * scale).backward()
-            backward_time = time.time() - backward_time
+            if _do_timing:
+                backward_time = time.time() - backward_time
 
         if gradient_clipping is not None:
             clip_time = time.time()
@@ -8439,18 +8250,19 @@ def train_epoch(
             
             # Vérifier les gradients après clipping pour détecter les NaN
             nan_grads_found = False
-            for name, param in encoder.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in encoder.{name}")
-                    nan_grads_found = True
-            for name, param in rcn_runner.cell.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in rcn.{name}")
-                    nan_grads_found = True
-            for name, param in diffusion_decoder.named_parameters():
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"[ERROR] NaN gradient detected in diffusion.{name}")
-                    nan_grads_found = True
+            if batch_idx % 50 == 0:
+                for name, param in encoder.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in encoder.{name}")
+                        nan_grads_found = True
+                for name, param in rcn_runner.cell.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in rcn.{name}")
+                        nan_grads_found = True
+                for name, param in diffusion_decoder.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"[ERROR] NaN gradient detected in diffusion.{name}")
+                        nan_grads_found = True
             
             if nan_grads_found:
                 print(f"[WARN] NaN gradients detected after clipping - this may indicate model divergence")
@@ -8485,10 +8297,13 @@ def train_epoch(
                 print(f"   - Loss phy: {step_loss_phy/n_micro:.6f}")
             print(f"   - Batch time: {step_time:.4f}s")
             if batch_idx == 0:
-                print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
-                      f"Diff={diffusion_time:.3f}s, Backward={backward_time:.3f}s")
-                if gradient_clipping is not None:
-                    print(f"   - Clip time: {clip_time:.3f}s")
+                try:
+                    print(f"   - Time breakdown: Enc={encoder_time:.3f}s, RCN={rcn_time:.3f}s, "
+                          f"Diff={diffusion_time:.3f}s, Backward={backward_time:.3f}s")
+                    if gradient_clipping is not None:
+                        print(f"   - Clip time: {clip_time:.3f}s")
+                except NameError:
+                    pass
 
     epoch_time = time.time() - epoch_start_time
     
@@ -9913,6 +9728,7 @@ Example:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator, List, Optional, Tuple
 
@@ -9931,6 +9747,7 @@ from st_cdgm import (
     RCNCell,
     RCNSequenceRunner,
     CausalDiffusionDecoder,
+    SpatialConditioningProjector,
     train_epoch,
     compute_rapsd_metric_from_batch,
     resolve_train_amp_mode,
@@ -9984,15 +9801,15 @@ class EncoderConfig:
 @dataclass
 class RCNConfig:
     hidden_dim: int = 128
-    driver_dim: int = 8
-    reconstruction_dim: Optional[int] = 8
+    driver_dim: int = 15
+    reconstruction_dim: Optional[int] = 15
     dropout: float = 0.0
     detach_interval: Optional[int] = None
 
 
 @dataclass
 class DiffusionConfig:
-    in_channels: int = 3
+    in_channels: int = 1
     conditioning_dim: int = 128
     height: int = 172
     width: int = 179
@@ -10136,6 +9953,10 @@ def _iterate_batches(
 
 @hydra.main(version_base=None, config_name="st_cdgm_default")
 def main(cfg: DictConfig) -> None:
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    print(f"[PERF] torch.set_num_threads({n_threads})")
+
     print("===== ST-CDGM training configuration =====")
     print(OmegaConf.to_yaml(cfg))
 
@@ -10152,6 +9973,17 @@ def main(cfg: DictConfig) -> None:
         nan_fill_strategy=getattr(cfg.data, 'nan_fill_strategy', 'zero'),
         precipitation_delta=getattr(cfg.data, 'precipitation_delta', 0.01),
     )
+    dataset = pipeline.build_sequence_dataset(
+        seq_len=cfg.data.seq_len,
+        stride=cfg.data.stride,
+        as_torch=True,
+    )
+
+    sample_for_shapes = next(iter(dataset))
+    rcn_driver_dim = sample_for_shapes["lr"].shape[1]
+    hr_channels = sample_for_shapes["residual"].shape[1]
+    print(f"[DIM] Inferred from data: rcn_driver_dim={rcn_driver_dim}, hr_channels={hr_channels}")
+
     dataset = pipeline.build_sequence_dataset(
         seq_len=cfg.data.seq_len,
         stride=cfg.data.stride,
@@ -10180,18 +10012,32 @@ def main(cfg: DictConfig) -> None:
     rcn_cell = RCNCell(
         num_vars=len(encoder.configs),
         hidden_dim=cfg.rcn.hidden_dim,
-        driver_dim=cfg.rcn.driver_dim,
-        reconstruction_dim=cfg.rcn.reconstruction_dim,
+        driver_dim=rcn_driver_dim,
+        reconstruction_dim=rcn_driver_dim,
         dropout=cfg.rcn.dropout,
     ).to(device)
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
 
+    unet_kwargs = dict(cfg.diffusion.unet_kwargs) if cfg.diffusion.get("unet_kwargs") else dict(
+        layers_per_block=1,
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=cfg.diffusion.in_channels,
+        in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
         height=cfg.diffusion.height,
         width=cfg.diffusion.width,
         num_diffusion_steps=cfg.diffusion.steps,
+        unet_kwargs=unet_kwargs,
         scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
         use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
         conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
@@ -10258,7 +10104,18 @@ def main(cfg: DictConfig) -> None:
         elif not compile_enabled:
             print("⚠ torch.compile disabled in config. Skipping compilation.")
 
-    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=len(encoder.configs),
+        hidden_dim=cfg.rcn.hidden_dim,
+        conditioning_dim=cfg.diffusion.conditioning_dim,
+        lr_shape=tuple(cfg.graph.lr_shape),
+        target_shape=tuple(cfg.diffusion.get("spatial_target_shape", [6, 7])),
+    ).to(device)
+
+    params = (
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    )
     optimizer = torch.optim.Adam(params, lr=cfg.training.lr)
 
     for epoch in range(cfg.training.epochs):
@@ -10284,6 +10141,9 @@ def main(cfg: DictConfig) -> None:
             use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
             lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
             conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
+            lambda_dag_prior=cfg.loss.get("lambda_dag_prior", 0.0),
+            dag_prior=torch.tensor(cfg.loss.dag_prior, dtype=torch.float32) if cfg.loss.get("dag_prior") else None,
+            spatial_projector=spatial_projector,
         )
         if cfg.loss.get("log_spectral_metric_each_epoch", False):
             amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
@@ -11115,12 +10975,26 @@ def load_checkpoint(
     
     # Build diffusion decoder
     diffusion_cfg = config.get("diffusion", {})
+    unet_kwargs = dict(diffusion_cfg.get("unet_kwargs", {})) or dict(
+        layers_per_block=1,
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=diffusion_cfg.get("in_channels", 3),
+        in_channels=diffusion_cfg.get("in_channels", 1),
         conditioning_dim=diffusion_cfg.get("conditioning_dim", 128),
         height=diffusion_cfg.get("height", 172),
         width=diffusion_cfg.get("width", 179),
         num_diffusion_steps=diffusion_cfg.get("steps", 1000),
+        unet_kwargs=unet_kwargs,
         use_gradient_checkpointing=diffusion_cfg.get("use_gradient_checkpointing", False),
         scheduler_type=diffusion_cfg.get("scheduler_type", "ddpm"),
         conv_padding_mode=diffusion_cfg.get("conv_padding_mode", "zeros"),
@@ -11934,6 +11808,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -11959,6 +11834,7 @@ from st_cdgm import (
     RCNCell,
     RCNSequenceRunner,
     CausalDiffusionDecoder,
+    SpatialConditioningProjector,
     train_epoch,
 )
 from st_cdgm.training import EarlyStopping
@@ -12064,6 +11940,10 @@ def run_training_with_checkpoints(
     # This is a simplified version - in production, we'd refactor train_st_cdgm
     # to separate setup from training loop
     
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    print(f"[PERF] torch.set_num_threads({n_threads})")
+
     device = torch.device(cfg.training.device)
     
     # Setup models (same as train_st_cdgm)
@@ -12085,13 +11965,25 @@ def run_training_with_checkpoints(
         stride=cfg.data.stride,
         as_torch=True,
     )
+
+    sample_for_shapes = next(iter(dataset))
+    rcn_driver_dim = sample_for_shapes["lr"].shape[1]
+    hr_channels = sample_for_shapes["residual"].shape[1]
+    print(f"[DIM] Inferred from data: rcn_driver_dim={rcn_driver_dim}, hr_channels={hr_channels}")
+
+    dataset = pipeline.build_sequence_dataset(
+        seq_len=cfg.data.seq_len,
+        stride=cfg.data.stride,
+        as_torch=True,
+    )
+    num_workers = int(cfg.training.get("num_workers", 0))
     dataloader = DataLoader(
         dataset,
         batch_size=None,
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
-        prefetch_factor=2,
-        persistent_workers=True,
+        prefetch_factor=2 if num_workers > 0 else None,
+        persistent_workers=num_workers > 0,
     )
     
     builder = HeteroGraphBuilder(
@@ -12106,18 +11998,32 @@ def run_training_with_checkpoints(
     rcn_cell = RCNCell(
         num_vars=len(encoder.configs),
         hidden_dim=cfg.rcn.hidden_dim,
-        driver_dim=cfg.rcn.driver_dim,
-        reconstruction_dim=cfg.rcn.reconstruction_dim,
+        driver_dim=rcn_driver_dim,
+        reconstruction_dim=rcn_driver_dim,
         dropout=cfg.rcn.dropout,
     ).to(device)
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
     
+    unet_kwargs = dict(cfg.diffusion.unet_kwargs) if cfg.diffusion.get("unet_kwargs") else dict(
+        layers_per_block=1,
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+        mid_block_type="UNetMidBlock2D",
+        norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
+    )
     diffusion = CausalDiffusionDecoder(
-        in_channels=cfg.diffusion.in_channels,
+        in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
         height=cfg.diffusion.height,
         width=cfg.diffusion.width,
         num_diffusion_steps=cfg.diffusion.steps,
+        unet_kwargs=unet_kwargs,
         scheduler_type=cfg.diffusion.get("scheduler_type", "ddpm"),
         use_gradient_checkpointing=cfg.diffusion.get("use_gradient_checkpointing", False),
         conv_padding_mode=cfg.diffusion.get("conv_padding_mode", "zeros"),
@@ -12150,7 +12056,18 @@ def run_training_with_checkpoints(
             except Exception as e:
                 print(f"⚠ torch.compile for encoder failed: {e}")
     
-    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=len(encoder.configs),
+        hidden_dim=cfg.rcn.hidden_dim,
+        conditioning_dim=cfg.diffusion.conditioning_dim,
+        lr_shape=tuple(cfg.graph.lr_shape),
+        target_shape=tuple(cfg.diffusion.get("spatial_target_shape", [6, 7])),
+    ).to(device)
+
+    params = (
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    )
     optimizer = optim.Adam(params, lr=cfg.training.lr)
     
     # Setup LR scheduler
@@ -12226,6 +12143,9 @@ def run_training_with_checkpoints(
             use_spectral_loss=cfg.loss.get("use_spectral_loss", False),
             lambda_spectral=cfg.loss.get("lambda_spectral", 0.0),
             conditioning_dropout_prob=cfg.diffusion.get("conditioning_dropout_prob", 0.0),
+            lambda_dag_prior=cfg.loss.get("lambda_dag_prior", 0.0),
+            dag_prior=torch.tensor(cfg.loss.dag_prior, dtype=torch.float32) if cfg.loss.get("dag_prior") else None,
+            spatial_projector=spatial_projector,
         )
 
         if cfg.loss.get("log_spectral_metric_each_epoch", False):
@@ -14190,6 +14110,7 @@ from st_cdgm import (
     HeteroGraphBuilder,
     IntelligibleVariableConfig,
     IntelligibleVariableEncoder,
+    SpatialConditioningProjector,
     train_epoch,
 )
 
@@ -14300,14 +14221,35 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
     rcn_runner = RCNSequenceRunner(rcn_cell)
 
     diffusion = CausalDiffusionDecoder(
-        in_channels=3,
+        in_channels=1,
         conditioning_dim=32,
         height=sample["residual"].shape[-2],
         width=sample["residual"].shape[-1],
         num_diffusion_steps=50,
+        unet_kwargs=dict(
+            layers_per_block=1,
+            block_out_channels=(32, 64),
+            down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+            up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+            mid_block_type="UNetMidBlock2D",
+            norm_num_groups=8,
+            class_embed_type="projection",
+            projection_class_embeddings_input_dim=64,
+            resnet_time_scale_shift="scale_shift",
+            attention_head_dim=32,
+            only_cross_attention=[False, True],
+        ),
     ).to(device)
 
-    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=2, hidden_dim=32, conditioning_dim=32,
+        lr_shape=(2, 3), target_shape=(1, 2),
+    ).to(device)
+
+    params = (
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    )
     optimizer = torch.optim.Adam(params, lr=1e-4)
 
     batch = _convert_sample(sample, builder, device)
@@ -14324,6 +14266,7 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
         device=device,
         gradient_clipping=1.0,
         use_amp=use_amp,
+        spatial_projector=spatial_projector,
     )
     return metrics
 
@@ -14331,6 +14274,55 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
 def test_st_cdgm_smoke(tmp_path: Path):
     metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
     assert "loss" in metrics and np.isfinite(metrics["loss"])
+
+
+def test_film_conditioning_ablation(tmp_path: Path):
+    """Verify that FiLM conditioning is effective: output must change when conditioning is zeroed."""
+    lr_ds, hr_ds, static_ds = _create_synthetic_dataset(time_steps=6, lr_shape=(2, 3), hr_shape=(4, 6))
+    lr_path = tmp_path / "lr.nc"
+    hr_path = tmp_path / "hr.nc"
+    static_path = tmp_path / "static.nc"
+    lr_ds.to_netcdf(lr_path)
+    hr_ds.to_netcdf(hr_path)
+    static_ds.to_netcdf(static_path)
+
+    pipeline = NetCDFDataPipeline(
+        lr_path=lr_path, hr_path=hr_path, static_path=static_path,
+        seq_len=3, baseline_strategy="hr_smoothing", baseline_factor=1, normalize=False,
+    )
+    sample = next(iter(pipeline.build_sequence_dataset(seq_len=3, as_torch=True)))
+    device = torch.device("cpu")
+
+    diffusion = CausalDiffusionDecoder(
+        in_channels=1, conditioning_dim=32,
+        height=sample["residual"].shape[-2], width=sample["residual"].shape[-1],
+        num_diffusion_steps=50,
+        unet_kwargs=dict(
+            layers_per_block=1, block_out_channels=(32, 64),
+            down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+            up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+            mid_block_type="UNetMidBlock2D", norm_num_groups=8,
+            class_embed_type="projection",
+            projection_class_embeddings_input_dim=64,
+            resnet_time_scale_shift="scale_shift",
+            attention_head_dim=32,
+            only_cross_attention=[False, True],
+        ),
+    ).to(device)
+    diffusion.eval()
+
+    noisy = torch.randn(1, 1, sample["residual"].shape[-2], sample["residual"].shape[-1], device=device)
+    timestep = torch.tensor([10], device=device)
+
+    cond_real = torch.randn(1, 2, 32, device=device)
+    cond_zero = torch.zeros(1, 2, 32, device=device)
+
+    with torch.no_grad():
+        out_real = diffusion(noisy, timestep, cond_real)
+        out_zero = diffusion(noisy, timestep, cond_zero)
+
+    diff = (out_real - out_zero).abs().max().item()
+    assert diff > 1e-6, f"FiLM conditioning has no effect: max diff = {diff}"
 
 
 def test_train_epoch_cpu_bf16_amp_when_supported(tmp_path: Path):
@@ -14381,6 +14373,7 @@ from st_cdgm import (
     RCNCell,
     RCNSequenceRunner,
     CausalDiffusionDecoder,
+    SpatialConditioningProjector,
     train_epoch,
     compute_rapsd_metric_from_batch,
     resolve_train_amp_mode,
@@ -14442,6 +14435,11 @@ def main():
         setup_ddp(rank=rank, world_size=world_size, backend="nccl")
     torch.cuda.set_device(local_rank)
     device = torch.device(f"cuda:{local_rank}")
+
+    n_threads = max(1, (os.cpu_count() or 1) // 2)
+    torch.set_num_threads(n_threads)
+    if rank == 0:
+        print(f"[PERF] torch.set_num_threads({n_threads})")
 
     # Load config
     cfg = OmegaConf.load(PROJECT_ROOT / "config" / "training_config.yaml")
@@ -14665,10 +14663,16 @@ def main():
 
     unet_kwargs = dict(
         layers_per_block=1,
-        block_out_channels=(32,),
-        down_block_types=("DownBlock2D",),
-        up_block_types=("UpBlock2D",),
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+        mid_block_type="UNetMidBlock2D",
         norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
     )
     diffusion = CausalDiffusionDecoder(
         in_channels=hr_channels,
@@ -14703,8 +14707,17 @@ def main():
 
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=CONFIG.rcn.get("detach_interval"))
 
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=len(encoder_configs),
+        hidden_dim=CONFIG.rcn.hidden_dim,
+        conditioning_dim=CONFIG.diffusion.conditioning_dim,
+        lr_shape=tuple(CONFIG.graph.lr_shape),
+        target_shape=tuple(CONFIG.diffusion.get("spatial_target_shape", [6, 7])),
+    ).to(device)
+
     optimizer = torch.optim.Adam(
-        list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters()),
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters()),
         lr=CONFIG.training.lr,
     )
 
@@ -14750,6 +14763,9 @@ def main():
             use_spectral_loss=CONFIG.loss.get("use_spectral_loss", False),
             lambda_spectral=CONFIG.loss.get("lambda_spectral", 0.0),
             conditioning_dropout_prob=CONFIG.diffusion.get("conditioning_dropout_prob", 0.0),
+            lambda_dag_prior=CONFIG.loss.get("lambda_dag_prior", 0.0),
+            dag_prior=torch.tensor(CONFIG.loss.dag_prior, dtype=torch.float32) if CONFIG.loss.get("dag_prior") else None,
+            spatial_projector=spatial_projector,
         )
         if get_rank() == 0 and CONFIG.loss.get("log_spectral_metric_each_epoch", False):
             amp_m = resolve_train_amp_mode(device, CONFIG.training.get("use_amp", True))
@@ -14812,6 +14828,13 @@ Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
 
 ---
 ### `st_cdgm_validation_inference.ipynb`
+
+**Contenu non embarqué** (JSON volumineux). Le notebook compte **8** cellules (code: 7, markdown: 1).
+
+Ouvrir le fichier `.ipynb` dans le dépôt pour le code et les sorties complets.
+
+---
+### `resume_training_from_checkpoint.ipynb`
 
 **Contenu non embarqué** (JSON volumineux). Le notebook compte **8** cellules (code: 7, markdown: 1).
 
@@ -14937,20 +14960,20 @@ src/st_cdgm/__init__.py
 
 ### Statistiques (approximatif, genere)
 
-- **Fichiers Python (estimation)** : ~40 fichiers, ~12222 lignes (src + ops + scripts + tests + racine).
+- **Fichiers Python (estimation)** : ~40 fichiers, ~12485 lignes (src + ops + scripts + tests + racine).
 - **Configuration** : `config/*.yaml`, `docker.env`, `requirements.txt`, `environment.yml`.
 - **Documentation** : `docs/*.md`, `README.md`, `stats.md`.
 - **Notebooks** : entrainement/evaluation, validation/inference, figures publication.
 
 ### Lignes de code (modules cles)
 
-- `src/st_cdgm/data/pipeline.py`: ~1324 lignes
+- `src/st_cdgm/data/pipeline.py`: ~1328 lignes
 - `src/st_cdgm/data/netcdf_utils.py`: ~1086 lignes
-- `src/st_cdgm/models/causal_rcn.py`: ~395 lignes
-- `src/st_cdgm/models/diffusion_decoder.py`: ~694 lignes
+- `src/st_cdgm/models/causal_rcn.py`: ~397 lignes
+- `src/st_cdgm/models/diffusion_decoder.py`: ~721 lignes
 - `src/st_cdgm/models/graph_builder.py`: ~480 lignes
-- `src/st_cdgm/models/intelligible_encoder.py`: ~283 lignes
-- `src/st_cdgm/training/training_loop.py`: ~1131 lignes
+- `src/st_cdgm/models/intelligible_encoder.py`: ~338 lignes
+- `src/st_cdgm/training/training_loop.py`: ~1111 lignes
 - `src/st_cdgm/evaluation/evaluation_xai.py`: ~1054 lignes
 
 ---

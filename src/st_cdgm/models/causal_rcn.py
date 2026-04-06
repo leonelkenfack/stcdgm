@@ -100,10 +100,9 @@ class RCNCell(nn.Module):
         self.gru_cells = nn.ModuleList(
             [nn.GRUCell(hidden_dim, hidden_dim) for _ in range(num_vars)]
         )
-        
-        # Phase A2: Vectorized GRU parameters for parallel computation
-        # We extract parameters from individual GRUCells and organize them for batched operations
-        # This allows vectorized computation while maintaining separate parameters per variable
+
+        # Embedding d'identité par variable — spécialise le driver pour chaque GRU
+        self.var_embed = nn.Embedding(num_vars, hidden_dim)
 
         # Décodeur de reconstruction optionnel
         if self.reconstruction_dim is not None:
@@ -129,6 +128,7 @@ class RCNCell(nn.Module):
         for layer in self.driver_encoder:
             if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
+        nn.init.normal_(self.var_embed.weight, std=0.02)
         if self.reconstruction_decoder is not None:
             nn.init.xavier_uniform_(self.reconstruction_decoder.weight)
             nn.init.zeros_(self.reconstruction_decoder.bias)
@@ -192,6 +192,8 @@ class RCNCell(nn.Module):
         # Prepare batched inputs: [q, N, hidden_dim]
         # driver_emb: [N, hidden_dim] -> expand to [q, N, hidden_dim]
         driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden_dim]
+        var_ids = torch.arange(self.num_vars, device=driver_emb.device)
+        driver_batch = driver_batch + self.var_embed(var_ids).unsqueeze(1)   # [q, N, d] + [q, 1, d]
         hidden_batch = H_hat_tensor  # [q, N, hidden_dim]
         
         # Vectorized GRU computation for all variables in parallel

@@ -451,16 +451,18 @@ class NetCDFDataPipeline:
         if not path.exists():
             raise FileNotFoundError(f"Dataset not found: {path}")
         path_str = str(path)
-        # Try engines in order (fixes "did not find a match" on CyVerse/remote paths)
-        for engine in ("netcdf4", "scipy", "h5netcdf"):
+        # netcdf4 + h5netcdf read NetCDF4 (HDF5). scipy only supports classic NetCDF3 — try it last.
+        last_err: Optional[BaseException] = None
+        for engine in ("netcdf4", "h5netcdf", "scipy"):
             try:
                 kwargs = {"chunks": self._chunks} if self._chunks and engine != "scipy" else {}
                 return xr.open_dataset(path_str, engine=engine, **kwargs)
             except Exception as e:
-                if engine == "h5netcdf":
-                    raise
+                last_err = e
                 continue
-        raise RuntimeError(f"Could not open {path_str} with any NetCDF engine")
+        raise RuntimeError(
+            f"Could not open {path_str} with any NetCDF engine (tried netcdf4, h5netcdf, scipy)"
+        ) from last_err
 
     def _load_dataset_robust(
         self, ds: xr.Dataset, name: str = "dataset", path: Optional[Path] = None
@@ -474,9 +476,16 @@ class NetCDFDataPipeline:
         path = Path(src) if src else None
         try:
             return ds.load()
-        except RuntimeError as e:
+        except (RuntimeError, OSError) as e:
             err_str = str(e)
-            if "HDF" not in err_str and "netCDF" not in err_str.lower():
+            is_hdfish = (
+                "HDF" in err_str
+                or "hdf5" in err_str.lower()
+                or "netcdf" in err_str.lower()
+                or "NetCDF" in err_str
+                or "errno 5" in err_str.lower()  # I/O error on some systems
+            )
+            if not is_hdfish:
                 raise
             if path is None:
                 raise RuntimeError(
@@ -490,38 +499,51 @@ class NetCDFDataPipeline:
                     "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
                     "2) Use Zarr format (ops/preprocess_to_zarr.py)."
                 ) from e
-            # Retry with alternate engines (h5netcdf often works better on remote/slow HDF)
+            # Retry with HDF5-capable engines only. Do not use scipy: NetCDF4/HDF5 files are not NetCDF3.
             try:
                 ds.close()
             except Exception:
                 pass
             path_str = str(path)
             time_dim = self.dims.time if (self.dims and hasattr(self.dims, "time")) else "time"
-            for engine in ("h5netcdf", "scipy"):
-                ds_new = None
-                try:
-                    ds_new = xr.open_dataset(path_str, engine=engine)
-                    vars_in_ds = [v for v in ds.data_vars if v in ds_new]
-                    ds_new = ds_new[vars_in_ds]
-                    if time_dim in ds.dims and time_dim in ds_new.dims and ds.dims[time_dim] != ds_new.dims.get(time_dim, 0):
-                        ds_new = ds_new.reindex({time_dim: ds[time_dim]}, method="nearest")
-                    result = ds_new.load()
-                    ds_new.close()
-                    return result
-                except Exception as e2:
-                    if ds_new is not None:
-                        try:
-                            ds_new.close()
-                        except Exception:
-                            pass
-                    if engine == "scipy":
-                        raise RuntimeError(
-                            f"Failed to load {name}: {e}. Retry with h5netcdf/scipy also failed: {e2}. "
-                            "Try: 1) Copy data to local disk (scripts/sync_datastore.py), "
-                            "2) Use Zarr format (ops/preprocess_to_zarr.py)."
-                        ) from e2
-                    continue
-            raise
+            nt = int(ds.sizes.get(time_dim, 1)) if time_dim in ds.sizes else 1
+            chunk_t = max(1, min(512, max(1, nt // 8)))
+            last_err: Optional[BaseException] = None
+            for engine in ("h5netcdf", "netcdf4"):
+                for chunk_spec in (None, {time_dim: chunk_t}):
+                    ds_new = None
+                    try:
+                        open_kw = {}
+                        if chunk_spec is not None:
+                            open_kw["chunks"] = chunk_spec
+                        ds_new = xr.open_dataset(path_str, engine=engine, **open_kw)
+                        vars_in_ds = [v for v in ds.data_vars if v in ds_new]
+                        ds_new = ds_new[vars_in_ds]
+                        if (
+                            time_dim in ds.dims
+                            and time_dim in ds_new.dims
+                            and ds.dims[time_dim] != ds_new.dims.get(time_dim, 0)
+                        ):
+                            ds_new = ds_new.reindex({time_dim: ds[time_dim]}, method="nearest")
+                        result = ds_new.load()
+                        ds_new.close()
+                        return result
+                    except Exception as e2:
+                        last_err = e2
+                        if ds_new is not None:
+                            try:
+                                ds_new.close()
+                            except Exception:
+                                pass
+                        continue
+            raise RuntimeError(
+                f"Failed to load {name}: {e}. Retries with h5netcdf/netcdf4 (with optional time chunking) failed"
+                + (f" (last: {last_err})" if last_err else "")
+                + ". Often caused by NFS/Data Store I/O or a truncated file. "
+                "Try: 1) Copy the .nc to local fast disk and point paths there (scripts/sync_datastore.py), "
+                "2) Verify the file (e.g. ncdump -h, file size), "
+                "3) Use Zarr (ops/preprocess_to_zarr.py)."
+            ) from (last_err if last_err else e)
 
     def _convert_cftime_to_datetime(self, time_values):
         """

@@ -13,6 +13,7 @@ xarray
 netCDF4
 h5netcdf
 zarr
+numcodecs
 dask[complete]
 webdataset  # For shard-based data format (high-performance sequential I/O)
 

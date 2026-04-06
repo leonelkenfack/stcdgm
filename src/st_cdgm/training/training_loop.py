@@ -325,24 +325,10 @@ def loss_diffusion(
     use_focal_loss: bool = False,
     focal_alpha: float = 1.0,
     focal_gamma: float = 2.0,
+    conditioning_spatial: Optional[Tensor] = None,
 ) -> Tensor:
     """
     Perte de diffusion L_gen en déléguant à CausalDiffusionDecoder.
-    
-    Parameters
-    ----------
-    decoder : CausalDiffusionDecoder
-        Le décodeur de diffusion.
-    target : Tensor
-        Target tensor (résidu HR).
-    conditioning : Tensor
-        Conditionnement causal.
-    use_focal_loss : bool
-        Si True, utilise focal loss pour se concentrer sur les pixels difficiles.
-    focal_alpha : float
-        Facteur de pondération pour focal loss.
-    focal_gamma : float
-        Paramètre de focalisation (plus élevé = plus de focus sur pixels difficiles).
     """
     return decoder.compute_loss(
         target,
@@ -350,6 +336,7 @@ def loss_diffusion(
         use_focal_loss=use_focal_loss,
         focal_alpha=focal_alpha,
         focal_gamma=focal_gamma,
+        conditioning_spatial=conditioning_spatial,
     )
 
 
@@ -612,6 +599,9 @@ def train_epoch(
     use_spectral_loss: bool = False,
     lambda_spectral: float = 0.0,
     conditioning_dropout_prob: float = 0.0,
+    lambda_dag_prior: float = 0.0,
+    dag_prior: Optional[Tensor] = None,
+    spatial_projector: Optional[nn.Module] = None,
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
@@ -782,6 +772,10 @@ def train_epoch(
                     loss_dag_value = gamma_dag * n_dag_steps * loss_dagma(A_masked_0, s=dagma_s)
                 else:
                     loss_dag_value = gamma_dag * n_dag_steps * loss_no_tears(A_masked_0)
+
+                if lambda_dag_prior > 0.0 and dag_prior is not None:
+                    _prior = dag_prior.to(device=A_masked_0.device, dtype=A_masked_0.dtype)
+                    loss_dag_value = loss_dag_value + lambda_dag_prior * nn.functional.mse_loss(A_masked_0, _prior)
         
             if _do_timing:
                 print(f"   - Reconstructions computed: {num_reconstructions}/{len(seq_output.reconstructions)}")
@@ -796,8 +790,15 @@ def train_epoch(
                 conditioning = conditioning_fn(H_condition, batch_index)
             conditioning = conditioning.to(device)
 
-            if conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob:
+            conditioning_spatial = None
+            if spatial_projector is not None:
+                conditioning_spatial = spatial_projector(H_condition, batch_index=batch_index).to(device)
+
+            _dropout = conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob
+            if _dropout:
                 conditioning = torch.zeros_like(conditioning)
+                if conditioning_spatial is not None:
+                    conditioning_spatial = torch.zeros_like(conditioning_spatial)
         
             if _do_timing:
                 print(f"   - Conditioning shape: {conditioning.shape}")
@@ -879,6 +880,7 @@ def train_epoch(
                     use_focal_loss=use_focal_loss,
                     focal_alpha=focal_alpha,
                     focal_gamma=focal_gamma,
+                    conditioning_spatial=conditioning_spatial,
                 )
 
             # RAPSD (FFT + scatter_add) : déplacé en fin d’époque — voir compute_rapsd_metric_from_batch.

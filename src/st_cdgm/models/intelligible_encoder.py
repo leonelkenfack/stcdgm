@@ -281,3 +281,58 @@ class IntelligibleVariableEncoder(nn.Module):
         raise ValueError(f"Pooling '{pool_type}' non pris en charge.")
 
 
+class SpatialConditioningProjector(nn.Module):
+    """Projects RCN state [q, N, hidden] into spatially-compressed conditioning tokens.
+
+    The state is reshaped onto the LR grid, adaptively pooled to a small target
+    spatial resolution, then projected to ``conditioning_dim``.  The output has
+    shape ``[batch, num_vars * target_h * target_w, conditioning_dim]`` and can
+    be passed directly as ``encoder_hidden_states`` to a UNet with cross-attention.
+    """
+
+    def __init__(
+        self,
+        num_vars: int,
+        hidden_dim: int,
+        conditioning_dim: int,
+        lr_shape: Tuple[int, int],
+        target_shape: Tuple[int, int] = (6, 7),
+    ) -> None:
+        super().__init__()
+        self.num_vars = num_vars
+        self.hidden_dim = hidden_dim
+        self.lr_shape = lr_shape
+        self.target_shape = target_shape
+        self.adaptive_pool = nn.AdaptiveAvgPool2d(target_shape)
+        self.proj = nn.Linear(hidden_dim, conditioning_dim)
+        self.norm = nn.LayerNorm(conditioning_dim)
+
+    def forward(self, state: Tensor, *, batch_index: Optional[Tensor] = None) -> Tensor:
+        """
+        Parameters
+        ----------
+        state : Tensor
+            RCN hidden state of shape ``[q, N, hidden]``.
+        batch_index : Optional[Tensor]
+            Not used (single-graph path). Reserved for future multi-graph batching.
+
+        Returns
+        -------
+        Tensor
+            ``[batch, num_vars * th * tw, conditioning_dim]``
+        """
+        q, N, d = state.shape
+        lat, lon = self.lr_shape
+        if N != lat * lon:
+            raise ValueError(
+                f"SpatialConditioningProjector: expected N={lat*lon} "
+                f"(lr_shape={self.lr_shape}), got N={N}."
+            )
+        grid = state.view(q, lat, lon, d).permute(0, 3, 1, 2)    # [q, d, lat, lon]
+        pooled = self.adaptive_pool(grid)                          # [q, d, th, tw]
+        th, tw = self.target_shape
+        tokens = pooled.permute(0, 2, 3, 1).reshape(q * th * tw, d)  # [q*th*tw, d]
+        projected = self.norm(self.proj(tokens))                   # [q*th*tw, cond_dim]
+        return projected.unsqueeze(0)                              # [1, q*th*tw, cond_dim]
+
+

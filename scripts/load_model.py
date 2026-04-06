@@ -109,11 +109,16 @@ def load_checkpoint(
     diffusion_cfg = config.get("diffusion", {})
     unet_kwargs = dict(diffusion_cfg.get("unet_kwargs", {})) or dict(
         layers_per_block=1,
-        block_out_channels=(32,),
-        down_block_types=("DownBlock2D",),
-        up_block_types=("UpBlock2D",),
+        block_out_channels=(32, 64),
+        down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+        up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
         mid_block_type="UNetMidBlock2D",
         norm_num_groups=8,
+        class_embed_type="projection",
+        projection_class_embeddings_input_dim=640,
+        resnet_time_scale_shift="scale_shift",
+        attention_head_dim=32,
+        only_cross_attention=[False, True],
     )
     diffusion = CausalDiffusionDecoder(
         in_channels=diffusion_cfg.get("in_channels", 1),

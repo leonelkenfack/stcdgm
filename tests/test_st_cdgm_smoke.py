@@ -15,6 +15,7 @@ from st_cdgm import (
     HeteroGraphBuilder,
     IntelligibleVariableConfig,
     IntelligibleVariableEncoder,
+    SpatialConditioningProjector,
     train_epoch,
 )
 
@@ -132,15 +133,28 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
         num_diffusion_steps=50,
         unet_kwargs=dict(
             layers_per_block=1,
-            block_out_channels=(32,),
-            down_block_types=("DownBlock2D",),
-            up_block_types=("UpBlock2D",),
+            block_out_channels=(32, 64),
+            down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+            up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
             mid_block_type="UNetMidBlock2D",
             norm_num_groups=8,
+            class_embed_type="projection",
+            projection_class_embeddings_input_dim=64,
+            resnet_time_scale_shift="scale_shift",
+            attention_head_dim=32,
+            only_cross_attention=[False, True],
         ),
     ).to(device)
 
-    params = list(encoder.parameters()) + list(rcn_cell.parameters()) + list(diffusion.parameters())
+    spatial_projector = SpatialConditioningProjector(
+        num_vars=2, hidden_dim=32, conditioning_dim=32,
+        lr_shape=(2, 3), target_shape=(1, 2),
+    ).to(device)
+
+    params = (
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    )
     optimizer = torch.optim.Adam(params, lr=1e-4)
 
     batch = _convert_sample(sample, builder, device)
@@ -157,6 +171,7 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
         device=device,
         gradient_clipping=1.0,
         use_amp=use_amp,
+        spatial_projector=spatial_projector,
     )
     return metrics
 
@@ -164,6 +179,55 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
 def test_st_cdgm_smoke(tmp_path: Path):
     metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
     assert "loss" in metrics and np.isfinite(metrics["loss"])
+
+
+def test_film_conditioning_ablation(tmp_path: Path):
+    """Verify that FiLM conditioning is effective: output must change when conditioning is zeroed."""
+    lr_ds, hr_ds, static_ds = _create_synthetic_dataset(time_steps=6, lr_shape=(2, 3), hr_shape=(4, 6))
+    lr_path = tmp_path / "lr.nc"
+    hr_path = tmp_path / "hr.nc"
+    static_path = tmp_path / "static.nc"
+    lr_ds.to_netcdf(lr_path)
+    hr_ds.to_netcdf(hr_path)
+    static_ds.to_netcdf(static_path)
+
+    pipeline = NetCDFDataPipeline(
+        lr_path=lr_path, hr_path=hr_path, static_path=static_path,
+        seq_len=3, baseline_strategy="hr_smoothing", baseline_factor=1, normalize=False,
+    )
+    sample = next(iter(pipeline.build_sequence_dataset(seq_len=3, as_torch=True)))
+    device = torch.device("cpu")
+
+    diffusion = CausalDiffusionDecoder(
+        in_channels=1, conditioning_dim=32,
+        height=sample["residual"].shape[-2], width=sample["residual"].shape[-1],
+        num_diffusion_steps=50,
+        unet_kwargs=dict(
+            layers_per_block=1, block_out_channels=(32, 64),
+            down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+            up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+            mid_block_type="UNetMidBlock2D", norm_num_groups=8,
+            class_embed_type="projection",
+            projection_class_embeddings_input_dim=64,
+            resnet_time_scale_shift="scale_shift",
+            attention_head_dim=32,
+            only_cross_attention=[False, True],
+        ),
+    ).to(device)
+    diffusion.eval()
+
+    noisy = torch.randn(1, 1, sample["residual"].shape[-2], sample["residual"].shape[-1], device=device)
+    timestep = torch.tensor([10], device=device)
+
+    cond_real = torch.randn(1, 2, 32, device=device)
+    cond_zero = torch.zeros(1, 2, 32, device=device)
+
+    with torch.no_grad():
+        out_real = diffusion(noisy, timestep, cond_real)
+        out_zero = diffusion(noisy, timestep, cond_zero)
+
+    diff = (out_real - out_zero).abs().max().item()
+    assert diff > 1e-6, f"FiLM conditioning has no effect: max diff = {diff}"
 
 
 def test_train_epoch_cpu_bf16_amp_when_supported(tmp_path: Path):

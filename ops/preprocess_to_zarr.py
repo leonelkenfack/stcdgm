@@ -21,7 +21,7 @@ import argparse
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 # Ensure st_cdgm is importable when run as subprocess (e.g. from notebook)
 _script_dir = Path(__file__).resolve().parent
@@ -35,6 +35,35 @@ import xarray as xr
 import zarr
 
 from st_cdgm import NetCDFDataPipeline
+
+
+def _default_blosc_compressor() -> Any:
+    """
+    Compresseur Blosc LZ4 pour xarray.to_zarr.
+
+    Zarr 3.x n'expose plus ``zarr.Blosc`` ; ``numcodecs.Blosc`` est le chemin
+    standard. Zarr 2.x peut encore fournir ``zarr.Blosc`` en secours.
+    """
+    try:
+        from numcodecs import Blosc
+
+        return Blosc(cname="lz4", clevel=3, shuffle=Blosc.BITSHUFFLE)
+    except ImportError:
+        pass
+    if hasattr(zarr, "Blosc"):
+        return zarr.Blosc(
+            cname="lz4",
+            clevel=3,
+            shuffle=zarr.Blosc.BITSHUFFLE,
+        )
+    return None
+
+
+def _zarr_var_encoding(chunks: tuple[int, ...], compressor: Any) -> dict[str, Any]:
+    enc: dict[str, Any] = {"chunks": chunks}
+    if compressor is not None:
+        enc["compressor"] = compressor
+    return enc
 
 
 def convert_netcdf_to_zarr(
@@ -56,7 +85,7 @@ def convert_netcdf_to_zarr(
     chunk_size_time: Optional[int] = None,
     chunk_size_lat: Optional[int] = None,
     chunk_size_lon: Optional[int] = None,
-    compressor: Optional[zarr.codec.Codec] = None,
+    compressor: Optional[Any] = None,
 ) -> None:
     """
     Convertit des données NetCDF en format Zarr optimisé.
@@ -87,13 +116,14 @@ def convert_netcdf_to_zarr(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Compresseur par défaut (compression rapide, bon ratio)
     if compressor is None:
-        compressor = zarr.Blosc(
-            cname="lz4",  # Compression rapide
-            clevel=3,  # Niveau de compression modéré
-            shuffle=zarr.Blosc.BITSHUFFLE,  # Bon pour données numériques
-        )
+        compressor = _default_blosc_compressor()
+        if compressor is None:
+            warnings.warn(
+                "Aucun compresseur Blosc disponible (installez numcodecs ou zarr<3). "
+                "Écriture Zarr sans compression explicite.",
+                stacklevel=2,
+            )
 
     print("=" * 80)
     print("🔄 CONVERSION NETCDF → ZARR")
@@ -176,10 +206,7 @@ def convert_netcdf_to_zarr(
         lr_zarr_path,
         mode="w",
         encoding={
-            var: {
-                "chunks": (chunk_size_time, lr_lat_size, lr_lon_size),
-                "compressor": compressor,
-            }
+            var: _zarr_var_encoding((chunk_size_time, lr_lat_size, lr_lon_size), compressor)
             for var in lr_dataset.data_vars
         },
     )
@@ -191,10 +218,7 @@ def convert_netcdf_to_zarr(
         hr_zarr_path,
         mode="w",
         encoding={
-            var: {
-                "chunks": (chunk_size_time, hr_lat_size, hr_lon_size),
-                "compressor": compressor,
-            }
+            var: _zarr_var_encoding((chunk_size_time, hr_lat_size, hr_lon_size), compressor)
             for var in hr_dataset.data_vars
         },
     )
@@ -206,10 +230,7 @@ def convert_netcdf_to_zarr(
         baseline_zarr_path,
         mode="w",
         encoding={
-            var: {
-                "chunks": (chunk_size_time, hr_lat_size, hr_lon_size),
-                "compressor": compressor,
-            }
+            var: _zarr_var_encoding((chunk_size_time, hr_lat_size, hr_lon_size), compressor)
             for var in baseline_dataset.data_vars
         },
     )
@@ -221,10 +242,7 @@ def convert_netcdf_to_zarr(
         residual_zarr_path,
         mode="w",
         encoding={
-            var: {
-                "chunks": (chunk_size_time, hr_lat_size, hr_lon_size),
-                "compressor": compressor,
-            }
+            var: _zarr_var_encoding((chunk_size_time, hr_lat_size, hr_lon_size), compressor)
             for var in residual_dataset.data_vars
         },
     )
@@ -237,10 +255,7 @@ def convert_netcdf_to_zarr(
             static_zarr_path,
             mode="w",
             encoding={
-                var: {
-                    "chunks": (hr_lat_size, hr_lon_size),
-                    "compressor": compressor,
-                }
+                var: _zarr_var_encoding((hr_lat_size, hr_lon_size), compressor)
                 for var in static_dataset.data_vars
             },
         )

@@ -129,20 +129,38 @@ class CausalDiffusionDecoder(nn.Module):
         if use_gradient_checkpointing:
             self.enable_gradient_checkpointing()
 
+    def _pool_conditioning(self, conditioning: Tensor) -> Tensor:
+        """Flatten conditioning [B, seq, dim] -> [B, seq*dim] for FiLM class_labels."""
+        return conditioning.flatten(start_dim=1)
+
     def forward(
         self,
         noisy_sample: Tensor,
         timestep: Tensor,
         conditioning: Tensor,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Passe avant du UNet (prédiction du bruit).
+
+        Parameters
+        ----------
+        conditioning : Tensor
+            Global conditioning ``[B, num_vars, dim]`` — flattened for FiLM
+            ``class_labels``.
+        conditioning_spatial : Optional[Tensor]
+            Spatial tokens ``[B, num_tokens, dim]`` for cross-attention
+            (``encoder_hidden_states``).  Falls back to *conditioning* when
+            ``None``.
         """
         conditioning = self._prepare_conditioning(conditioning)
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         output = self.unet(
             sample=noisy_sample,
             timestep=timestep,
-            encoder_hidden_states=conditioning,
+            encoder_hidden_states=hidden_states,
+            class_labels=class_labels,
         )
         return output.sample
 
@@ -150,9 +168,10 @@ class CausalDiffusionDecoder(nn.Module):
         self,
         target: Tensor,
         conditioning: Tensor,
-        use_focal_loss: bool = False,  # Phase D1: Use focal loss for hard pixels
-        focal_alpha: float = 1.0,  # Phase D1: Weighting factor for focal loss
-        focal_gamma: float = 2.0,  # Phase D1: Focusing parameter (higher = more focus on hard pixels)
+        use_focal_loss: bool = False,
+        focal_alpha: float = 1.0,
+        focal_gamma: float = 2.0,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Calcule la perte de diffusion (MSE entre bruit réel et prédit).
@@ -198,7 +217,7 @@ class CausalDiffusionDecoder(nn.Module):
         # En fait, on doit recréer le masque car add_noise peut changer les valeurs
         # Mais comme on a remplacé les NaN par 0, le masque original reste valide
         
-        noise_pred = self.forward(noisy_sample, timesteps, conditioning)
+        noise_pred = self.forward(noisy_sample, timesteps, conditioning, conditioning_spatial=conditioning_spatial)
         
         # Vérifier que noise_pred ne contient pas de NaN/Inf (problème du modèle)
         if not torch.isfinite(noise_pred).all():
@@ -345,6 +364,7 @@ class CausalDiffusionDecoder(nn.Module):
         apply_constraints: bool = True,
         scheduler_type: Optional[str] = None,
         cfg_scale: float = 0.0,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
@@ -368,6 +388,7 @@ class CausalDiffusionDecoder(nn.Module):
                 generator=generator,
                 baseline=baseline,
                 apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
             )
         elif scheduler_type == "dpm_solver" or scheduler_type == "dpm_solver++":
             if not HAS_DPM_SOLVER:
@@ -382,6 +403,7 @@ class CausalDiffusionDecoder(nn.Module):
                 generator=generator,
                 baseline=baseline,
                 apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
             )
         
         # Original DDPM sampling
@@ -404,18 +426,23 @@ class CausalDiffusionDecoder(nn.Module):
             generator=generator,
         )
 
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         for t in scheduler.timesteps:
             noise_pred_cond = self.unet(
                 sample=sample,
                 timestep=t,
-                encoder_hidden_states=conditioning,
+                encoder_hidden_states=hidden_states,
+                class_labels=class_labels,
             ).sample
             if cfg_scale and cfg_scale > 0.0:
-                null_c = torch.zeros_like(conditioning)
+                null_hs = torch.zeros_like(hidden_states)
+                null_cl = torch.zeros_like(class_labels)
                 noise_pred_uncond = self.unet(
                     sample=sample,
                     timestep=t,
-                    encoder_hidden_states=null_c,
+                    encoder_hidden_states=null_hs,
+                    class_labels=null_cl,
                 ).sample
                 model_output = noise_pred_uncond + cfg_scale * (noise_pred_cond - noise_pred_uncond)
             else:
@@ -460,6 +487,7 @@ class CausalDiffusionDecoder(nn.Module):
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase 3.2: EDM (Elucidated Diffusion Models) sampling using ODE solver.
@@ -502,23 +530,21 @@ class CausalDiffusionDecoder(nn.Module):
         timesteps = torch.linspace(1.0, 0.0, num_steps + 1, device=device)
         dt = 1.0 / num_steps
         
-        # Solve ODE using Euler method
-        # d/dt x = -sigma'(t) * sigma(t) * score(x, sigma(t))
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = conditioning_spatial if conditioning_spatial is not None else conditioning
         for i in range(num_steps):
             t_current = timesteps[i]
             t_next = timesteps[i + 1]
             
-            # Convert time to scheduler timestep for UNet
-            # Map from [0, 1] to [0, num_train_timesteps]
             scheduler_timestep = (1.0 - t_current) * self.num_diffusion_steps
             scheduler_timestep = scheduler_timestep.long().clamp(0, self.num_diffusion_steps - 1)
             
-            # Predict noise/score with UNet
             with torch.no_grad():
                 noise_pred = self.unet(
                     sample=sample,
                     timestep=scheduler_timestep.expand(sample.shape[0]),
-                    encoder_hidden_states=conditioning,
+                    encoder_hidden_states=hidden_states,
+                    class_labels=class_labels,
                 ).sample
             
             # EDM ODE step: dx/dt = -sigma * sigma' * score
@@ -561,6 +587,7 @@ class CausalDiffusionDecoder(nn.Module):
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
+        conditioning_spatial: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase E1: DPM-Solver++ sampling for ultra-fast inference.
@@ -620,7 +647,7 @@ class CausalDiffusionDecoder(nn.Module):
         
         # Sampling loop with DPM-Solver++
         for t in dpm_scheduler.timesteps:
-            model_output = self.forward(sample, t, conditioning)
+            model_output = self.forward(sample, t, conditioning, conditioning_spatial=conditioning_spatial)
             sample = dpm_scheduler.step(model_output, t, sample, return_dict=False)[0]
         
         residual = sample

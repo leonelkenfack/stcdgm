@@ -4,7 +4,7 @@ Modules de modèles pour ST-CDGM.
 
 from .causal_rcn import RCNCell, RCNSequenceRunner
 from .diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
-from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig
+from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig, SpatialConditioningProjector
 from .graph_builder import HeteroGraphBuilder
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "DiffusionOutput",
     "IntelligibleVariableEncoder",
     "IntelligibleVariableConfig",
+    "SpatialConditioningProjector",
     "HeteroGraphBuilder",
 ]
 

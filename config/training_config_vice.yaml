@@ -21,7 +21,8 @@ defaults:
 # - Option 2: Use Data Store paths directly (slower but persistent):
 #   "~/data-store/home/<username>/data/raw/your_file.nc"
 data:
-  dataset_format: "zarr"  # Format de données: "netcdf", "zarr", ou "shard"
+  # netcdf = lecture directe des .nc ; zarr = train_ddp avec lr.zarr / hr.zarr preprocesse
+  dataset_format: "netcdf"
   # Paths relative to project root (recommended for VICE after copying to local disk)
   # Replace these with your actual file paths
   lr_path: "data/raw/predictor_ACCESS-CM2_hist.nc"  # Low-resolution input data
@@ -108,11 +109,16 @@ diffusion:
   anti_checkerboard: false
   unet_kwargs:
     layers_per_block: 1
-    block_out_channels: [32]
-    down_block_types: ["DownBlock2D"]
-    up_block_types: ["UpBlock2D"]
+    block_out_channels: [32, 64]
+    down_block_types: ["DownBlock2D", "CrossAttnDownBlock2D"]
+    up_block_types: ["CrossAttnUpBlock2D", "UpBlock2D"]
     mid_block_type: "UNetMidBlock2D"
     norm_num_groups: 8
+    class_embed_type: "projection"
+    projection_class_embeddings_input_dim: 640
+    resnet_time_scale_shift: "scale_shift"
+    attention_head_dim: 32
+    only_cross_attention: [false, true]
 
 # Loss Configuration
 loss:
@@ -133,6 +139,13 @@ loss:
   dag_l1_regularization: false
   dag_l1_weight: 0.01
   reconstruction_loss_type: "mse+cosine"  # "mse", "cosine", or "mse+cosine"
+  lambda_dag_prior: 0.01
+  dag_prior:
+    - [0.0, 0.3, 0.0, 0.0, 0.0]
+    - [0.3, 0.0, 0.3, 0.0, 0.0]
+    - [0.0, 0.3, 0.0, 0.3, 0.0]
+    - [0.0, 0.0, 0.3, 0.0, 0.3]
+    - [0.0, 0.0, 0.0, 0.3, 0.0]
 
 # Training Configuration
 # 
