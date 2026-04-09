@@ -333,6 +333,9 @@ def main():
         attention_head_dim=32,
         only_cross_attention=[False, True],
     )
+    unet_kwargs["projection_class_embeddings_input_dim"] = (
+        len(encoder.configs) * encoder.conditioning_dim
+    )
     diffusion = CausalDiffusionDecoder(
         in_channels=hr_channels,
         conditioning_dim=CONFIG.diffusion.conditioning_dim,
@@ -347,13 +350,16 @@ def main():
     ).to(device)
 
     # Apply torch.compile if enabled (before DDP wrapping)
-    if CONFIG.training.get("compile", {}).get("enabled", False):
+    compile_cfg = CONFIG.training.get("compile", {}) or {}
+    if compile_cfg.get("enabled", False):
         if rank == 0:
             print("🔧 Compiling models with torch.compile...")
-        compile_cfg = CONFIG.training.compile
         encoder = torch.compile(encoder, mode=compile_cfg.get("encoder_mode", "default"))
         rcn_cell = torch.compile(rcn_cell, mode=compile_cfg.get("rcn_mode", "default"))
-        diffusion = torch.compile(diffusion, mode=compile_cfg.get("diffusion_mode", "default"))
+        if torch.cuda.is_available():
+            diffusion = torch.compile(diffusion, mode=compile_cfg.get("diffusion_mode", "default"))
+        elif rank == 0:
+            print("⚠ Skipping torch.compile for diffusion decoder (CUDA not available)")
         if rank == 0:
             print("✅ Models compiled successfully")
     

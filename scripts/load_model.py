@@ -87,11 +87,13 @@ def load_checkpoint(
     encoder.load_state_dict(encoder_state)
     encoder.to(device)
     encoder.eval()
+
+    _proj_expected = len(encoder.configs) * encoder.conditioning_dim
     
     # Build RCN
     rcn_cfg = config.get("rcn", {})
     rcn_cell = RCNCell(
-        num_vars=len(encoder_cfg.get("metapaths", [])),
+        num_vars=len(encoder.configs),
         hidden_dim=rcn_cfg.get("hidden_dim", 128),
         driver_dim=rcn_cfg.get("driver_dim", 8),
         reconstruction_dim=rcn_cfg.get("reconstruction_dim", 8),
@@ -120,6 +122,14 @@ def load_checkpoint(
         attention_head_dim=32,
         only_cross_attention=[False, True],
     )
+    _proj_ckpt = unet_kwargs.get("projection_class_embeddings_input_dim")
+    unet_kwargs["projection_class_embeddings_input_dim"] = _proj_expected
+    if _proj_ckpt is not None and int(_proj_ckpt) != int(_proj_expected):
+        print(
+            f"⚠ projection_class_embeddings_input_dim: config/checkpoint had {_proj_ckpt}, "
+            f"rebuilt U-Net uses {_proj_expected} (len(encoder.configs) × conditioning_dim). "
+            "Old checkpoints trained with a mismatched FiLM width may fail strict load."
+        )
     diffusion = CausalDiffusionDecoder(
         in_channels=diffusion_cfg.get("in_channels", 1),
         conditioning_dim=diffusion_cfg.get("conditioning_dim", 128),

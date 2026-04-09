@@ -173,7 +173,7 @@ def run_st_cdgm_inference(
 
     H_init = encoder.init_state(batch["hetero"]).to(device)
     drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=drivers)
     conditioning = encoder.project_state_tensor(seq_output.states[-1]).to(device)
     dag_last = seq_output.dag_matrices[-1].detach().cpu()
 

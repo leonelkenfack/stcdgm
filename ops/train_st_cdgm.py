@@ -317,6 +317,8 @@ def main(cfg: DictConfig) -> None:
         attention_head_dim=32,
         only_cross_attention=[False, True],
     )
+    _proj_in = len(encoder.configs) * encoder.conditioning_dim
+    unet_kwargs["projection_class_embeddings_input_dim"] = _proj_in
     diffusion = CausalDiffusionDecoder(
         in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
@@ -331,13 +333,14 @@ def main(cfg: DictConfig) -> None:
     ).to(device)
     
     # Phase A3: Compile critical modules with torch.compile for performance
-    # This provides 10-50% speedup on compatible PyTorch versions (>= 2.0)
-    # The vectorized RCN (Phase A2) eliminates Python loops, making compilation more effective
-    compile_enabled = cfg.get('compile', {}).get('enabled', True)
-    compile_mode_rcn = cfg.get('compile', {}).get('mode_rcn', 'reduce-overhead')
-    compile_mode_diffusion = cfg.get('compile', {}).get('mode_diffusion', 'max-autotune')
-    compile_mode_encoder = cfg.get('compile', {}).get('mode_encoder', 'reduce-overhead')
-    
+    # Reads training.compile (same layout as training_config.yaml)
+    compile_cfg = cfg.training.get("compile", {}) or {}
+    compile_enabled = compile_cfg.get("enabled", False)
+    compile_mode_rcn = compile_cfg.get("rcn_mode", "reduce-overhead")
+    compile_mode_diffusion = compile_cfg.get("diffusion_mode", "max-autotune")
+    compile_mode_encoder = compile_cfg.get("encoder_mode", "reduce-overhead")
+    _cuda = torch.cuda.is_available()
+
     if compile_enabled and hasattr(torch, 'compile'):
         print("\n" + "="*80)
         print("Phase A3: Compiling modules with torch.compile")
@@ -355,7 +358,7 @@ def main(cfg: DictConfig) -> None:
             print(f"⚠ torch.compile for RCN cell failed: {e}")
             print(f"  - Falling back to uncompiled RCN cell")
             import traceback
-            if cfg.get('compile', {}).get('verbose_errors', False):
+            if compile_cfg.get("verbose_errors", False):
                 traceback.print_exc()
         
         try:
@@ -367,19 +370,20 @@ def main(cfg: DictConfig) -> None:
             print(f"⚠ torch.compile for encoder failed: {e}")
             print(f"  - Encoder may use PyG operations incompatible with compile")
             print(f"  - Falling back to uncompiled encoder")
-            if cfg.get('compile', {}).get('verbose_errors', False):
+            if compile_cfg.get("verbose_errors", False):
                 import traceback
                 traceback.print_exc()
         
         try:
-            # Compile diffusion decoder - max-autotune for best performance
-            # Diffusion models benefit from aggressive optimizations
-            diffusion = torch.compile(diffusion, mode=compile_mode_diffusion, fullgraph=False)
-            print(f"✓ Diffusion decoder compiled with torch.compile (mode: {compile_mode_diffusion})")
+            if _cuda:
+                diffusion = torch.compile(diffusion, mode=compile_mode_diffusion, fullgraph=False)
+                print(f"✓ Diffusion decoder compiled with torch.compile (mode: {compile_mode_diffusion})")
+            else:
+                print("⚠ Skipping torch.compile for diffusion decoder (CUDA not available)")
         except Exception as e:
             print(f"⚠ torch.compile for diffusion decoder failed: {e}")
             print(f"  - Falling back to uncompiled diffusion decoder")
-            if cfg.get('compile', {}).get('verbose_errors', False):
+            if compile_cfg.get("verbose_errors", False):
                 import traceback
                 traceback.print_exc()
         

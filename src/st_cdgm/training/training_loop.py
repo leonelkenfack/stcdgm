@@ -227,7 +227,7 @@ def prepare_target_and_conditioning_for_metric(
         H_init = encoder.init_state(hetero_data).to(device)
     drivers = [lr_data[t] for t in range(lr_data.shape[0])]
     with _train_autocast(amp_mode):
-        seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+        seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=drivers)
 
     H_condition = seq_output.states[-1]
     batch_index = batch.get(batch_index_key)
@@ -741,7 +741,7 @@ def train_epoch(
                 rcn_time = time.time()
             drivers = [lr_data[t] for t in range(lr_data.shape[0])]
             with _train_autocast(amp_mode):
-                seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+                seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=drivers)
             if _do_timing:
                 rcn_time = time.time() - rcn_time
                 print(f"   - Number of states: {len(seq_output.states)}")

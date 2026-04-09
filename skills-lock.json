@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "Machine Learning": {
+      "source": "pluginagentmarketplace/custom-plugin-python",
+      "sourceType": "github",
+      "computedHash": "e48f3af1e23a09276b5b5f9b18fb507c16029c768493fac7d85104994eb58795"
+    },
+    "machine-learning": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "5683168b790d3402074da2555c27bd17dc5fde513c69c4d3a1f8ad2210fbc565"
+    },
+    "memory-research": {
+      "source": "basicmachines-co/basic-memory-skills",
+      "sourceType": "github",
+      "computedHash": "13a8931191a6898af1d8f9f09dee437e8ef43556ccff0da63e15781c028414b8"
+    }
+  }
+}

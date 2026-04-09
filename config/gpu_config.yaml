@@ -91,7 +91,7 @@ diffusion:
     mid_block_type: "UNetMidBlock2D"
     norm_num_groups: 32
     class_embed_type: "projection"
-    projection_class_embeddings_input_dim: 1280
+    # projection_class_embeddings_input_dim: défini au runtime selon l’encodeur (q × conditioning_dim)
     resnet_time_scale_shift: "scale_shift"
     attention_head_dim: 32
     only_cross_attention: [false, true, true]

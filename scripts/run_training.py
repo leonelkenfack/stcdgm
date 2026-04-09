@@ -233,6 +233,9 @@ def run_training_with_checkpoints(
         attention_head_dim=32,
         only_cross_attention=[False, True],
     )
+    unet_kwargs["projection_class_embeddings_input_dim"] = (
+        len(encoder.configs) * encoder.conditioning_dim
+    )
     diffusion = CausalDiffusionDecoder(
         in_channels=hr_channels,
         conditioning_dim=cfg.diffusion.conditioning_dim,
@@ -247,22 +250,27 @@ def run_training_with_checkpoints(
     ).to(device)
     
     # Compile models if enabled
-    if cfg.training.compile.get("enabled", False):
+    compile_cfg = cfg.training.get("compile", {}) or {}
+    if compile_cfg.get("enabled", False):
         if hasattr(torch, 'compile'):
-            compile_mode_rcn = cfg.training.compile.get("rcn_mode", "reduce-overhead")
-            compile_mode_diffusion = cfg.training.compile.get("diffusion_mode", "max-autotune")
-            compile_mode_encoder = cfg.training.compile.get("encoder_mode", "reduce-overhead")
-            
+            compile_mode_rcn = compile_cfg.get("rcn_mode", "reduce-overhead")
+            compile_mode_diffusion = compile_cfg.get("diffusion_mode", "max-autotune")
+            compile_mode_encoder = compile_cfg.get("encoder_mode", "reduce-overhead")
+            _cuda = torch.cuda.is_available()
+
             try:
                 rcn_cell = torch.compile(rcn_cell, mode=compile_mode_rcn)
                 rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=cfg.rcn.detach_interval)
                 print(f"✓ RCN cell compiled with torch.compile (mode: {compile_mode_rcn})")
             except Exception as e:
                 print(f"⚠ torch.compile for RCN cell failed: {e}")
-            
+
             try:
-                diffusion = torch.compile(diffusion, mode=compile_mode_diffusion)
-                print(f"✓ Diffusion decoder compiled with torch.compile (mode: {compile_mode_diffusion})")
+                if _cuda:
+                    diffusion = torch.compile(diffusion, mode=compile_mode_diffusion)
+                    print(f"✓ Diffusion decoder compiled with torch.compile (mode: {compile_mode_diffusion})")
+                else:
+                    print("⚠ Skipping torch.compile for diffusion decoder (CUDA not available)")
             except Exception as e:
                 print(f"⚠ torch.compile for diffusion decoder failed: {e}")
             

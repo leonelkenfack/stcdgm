@@ -139,7 +139,7 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
             mid_block_type="UNetMidBlock2D",
             norm_num_groups=8,
             class_embed_type="projection",
-            projection_class_embeddings_input_dim=64,
+            projection_class_embeddings_input_dim=len(encoder.configs) * encoder.conditioning_dim,
             resnet_time_scale_shift="scale_shift",
             attention_head_dim=32,
             only_cross_attention=[False, True],
@@ -197,6 +197,7 @@ def test_film_conditioning_ablation(tmp_path: Path):
     )
     sample = next(iter(pipeline.build_sequence_dataset(seq_len=3, as_torch=True)))
     device = torch.device("cpu")
+    _q, _cdim = 2, 32  # align with cond_real [1, 2, 32] → FiLM input q * cdim
 
     diffusion = CausalDiffusionDecoder(
         in_channels=1, conditioning_dim=32,
@@ -208,7 +209,7 @@ def test_film_conditioning_ablation(tmp_path: Path):
             up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
             mid_block_type="UNetMidBlock2D", norm_num_groups=8,
             class_embed_type="projection",
-            projection_class_embeddings_input_dim=64,
+            projection_class_embeddings_input_dim=_q * _cdim,
             resnet_time_scale_shift="scale_shift",
             attention_head_dim=32,
             only_cross_attention=[False, True],
