@@ -58,6 +58,7 @@ class RCNCell(nn.Module):
         reconstruction_dim: Optional[int] = None,
         activation: Optional[nn.Module] = None,
         dropout: float = 0.0,
+        detach_dag_in_state: bool = True,
     ) -> None:
         super().__init__()
 
@@ -67,6 +68,12 @@ class RCNCell(nn.Module):
         self.reconstruction_dim = reconstruction_dim
         self.activation = activation or nn.ReLU()
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+        # Phase DAG-decouple: the diffusion loss must NOT pull on A_dag via the
+        # state/conditioning path. When True (default), the copy of A used to
+        # build the SCM prediction is detached, so A_dag is trained *only* by
+        # L_dag (and through L_rec, which flows via H_prev). The returned
+        # ``A_masked`` stays attached so those losses still propagate.
+        self.detach_dag_in_state = detach_dag_in_state
 
         # Matrice DAG apprenable
         self.A_dag = nn.Parameter(torch.randn(num_vars, num_vars))
@@ -243,9 +250,16 @@ class RCNCell(nn.Module):
 
         A_masked = _mask_diagonal(self.A_dag)
 
+        # Phase DAG-decouple: isolate the copy of A that feeds the state.
+        # `A_masked` (attached) is returned for L_dag / L_rec; `A_for_state`
+        # carries no gradient to `A_dag`, so the diffusion loss cannot pull
+        # the DAG toward representations that help generation but break
+        # acyclicity / physical interpretation.
+        A_for_state = A_masked.detach() if self.detach_dag_in_state else A_masked
+
         # Étape 1 : Prédiction interne via SCM, entièrement vectorisée.
         # weighted_sum : [q, N, hidden]
-        weighted_sum = torch.einsum("ik,inj->knj", A_masked, H_prev)
+        weighted_sum = torch.einsum("ik,inj->knj", A_for_state, H_prev)
         # MLP structurel batché : 2 ``bmm`` au lieu d'une boucle Python sur q.
         H_hat_tensor = torch.bmm(weighted_sum, self.struct_W1) + self.struct_b1  # [q, N, hidden]
         H_hat_tensor = self.activation(H_hat_tensor)
@@ -352,6 +366,40 @@ class RCNCell(nn.Module):
         Retourne la matrice causale (masquée ou brute).
         """
         return _mask_diagonal(self.A_dag) if masked else self.A_dag
+
+    @torch.no_grad()
+    def project_dag_spectral(self, max_radius: float = 0.95) -> float:
+        """
+        Hard acyclicity projection: scale ``A_dag`` in place so that
+        ``||A ∘ A||`` has spectral radius strictly below 1 (default 0.95).
+
+        This is a **hard** constraint applied after each ``optimizer.step()``
+        and therefore never contributes to the loss / backward pass. It lets
+        us keep ``gamma_dag`` small (so DAGMA does not fight the diffusion
+        objective in gradient space) while still guaranteeing the learned
+        matrix stays on the acyclic cone — the key property of the DAGMA
+        M-matrix characterisation used by ``loss_dagma``.
+
+        Returns the scale factor applied (1.0 if no rescaling was needed),
+        mostly for logging.
+        """
+        A = self.A_dag.data
+        # Keep the diagonal strictly zero: small numerical drift during FP
+        # updates is harmless but pollutes the spectral-radius bound.
+        A.fill_diagonal_(0.0)
+        W_sq = A * A
+        # Gershgorin bound: rho(W²) <= max row-sum of |W²| = max row-sum of W²
+        # (all entries non-negative). This is tight and O(q²), matching the
+        # bound used inside ``loss_dagma``.
+        row_sum_max = float(W_sq.sum(dim=1).max().item())
+        if row_sum_max <= max_radius:
+            return 1.0
+        # We want rho(W²') <= max_radius where W' = alpha * W, and
+        # rho(alpha² * W²) = alpha² * rho(W²) <= max_radius
+        #   => alpha = sqrt(max_radius / rho(W²))
+        alpha = math.sqrt(max_radius / (row_sum_max + 1e-12))
+        A.mul_(alpha)
+        return alpha
 
     def _prepare_reconstruction_features(self, tensor: Tensor, N: int) -> Tensor:
         """

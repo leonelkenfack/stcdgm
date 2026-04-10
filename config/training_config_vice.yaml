@@ -121,10 +121,20 @@ diffusion:
     only_cross_attention: [false, true]
 
 # Loss Configuration
+#
+# Phase DAG-decouple (2026-04): the DAG branch is now fully decoupled from the
+# diffusion branch (A_dag is detached on the state path, ``loss_dag`` is
+# applied once per step — not ×seq_len — and a hard spectral projection keeps
+# acyclicity as an invariant). As a result ``gamma_dag`` can be small; the
+# structural constraint is carried by the projection, not the penalty, so it
+# no longer fights the generative objective in gradient space.
 loss:
   lambda_gen: 1.0
-  beta_rec: 0.05
-  gamma_dag: 0.1
+  beta_rec: 0.3          # was 0.05 — 6× to anchor the RCN state on LR data
+  gamma_dag: 0.05        # was 0.1 — penalty is now applied once, not ×seq_len
+  dag_warmup_epochs: 5   # ramp gamma_dag from 0 to 1 over the first 5 epochs
+  dag_spectral_projection: true  # hard-project A_dag after each optimizer step
+  dag_spectral_max_radius: 0.95
   lambda_phy: 0.0
   lambda_spectral: 0.0
   use_spectral_loss: false
@@ -165,6 +175,7 @@ training:
   
   epochs: 100  # Adjust based on your needs
   lr: 0.0001
+  dag_lr_mult: 5.0  # A_dag is trained with lr × this factor (separate param group)
   gradient_clipping: 1.0
   log_every: 10  # Log progress every N batches
   

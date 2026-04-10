@@ -602,6 +602,12 @@ def train_epoch(
     lambda_dag_prior: float = 0.0,
     dag_prior: Optional[Tensor] = None,
     spatial_projector: Optional[nn.Module] = None,
+    # Phase DAG-decouple
+    dag_warmup_scale: float = 1.0,          # multiplier in [0, 1] applied to gamma_dag this epoch
+    dag_l1_regularization: bool = False,    # forwarded to loss_dagma
+    dag_l1_weight: float = 0.01,            # forwarded to loss_dagma
+    dag_spectral_projection: bool = True,   # hard-project A_dag after each optimizer.step()
+    dag_spectral_max_radius: float = 0.95,  # target spectral radius bound for rho(A ∘ A)
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
@@ -765,13 +771,24 @@ def train_epoch(
                         )
 
                 # A_masked is the same learned adjacency at every timestep;
-                # compute the DAG penalty once and scale by the number of steps.
+                # compute the DAG penalty **once** (no n_dag_steps multiplier —
+                # the old code effectively multiplied gamma_dag by seq_len,
+                # which made the penalty dominate the diffusion objective in
+                # gradient norm). Scaling is now governed entirely by
+                # ``gamma_dag * dag_warmup_scale``, which lets the caller run
+                # a warm-up curriculum where the DAG penalty starts at 0 and
+                # ramps up as the diffusion branch stabilises.
                 A_masked_0 = seq_output.dag_matrices[0]
-                n_dag_steps = len(seq_output.dag_matrices)
+                gamma_eff = gamma_dag * dag_warmup_scale
                 if dag_method == "dagma":
-                    loss_dag_value = gamma_dag * n_dag_steps * loss_dagma(A_masked_0, s=dagma_s)
+                    loss_dag_value = gamma_eff * loss_dagma(
+                        A_masked_0,
+                        s=dagma_s,
+                        add_l1_regularization=dag_l1_regularization,
+                        l1_weight=dag_l1_weight,
+                    )
                 else:
-                    loss_dag_value = gamma_dag * n_dag_steps * loss_no_tears(A_masked_0)
+                    loss_dag_value = gamma_eff * loss_no_tears(A_masked_0)
 
                 if lambda_dag_prior > 0.0 and dag_prior is not None:
                     _prior = dag_prior.to(device=A_masked_0.device, dtype=A_masked_0.dtype)
@@ -1040,6 +1057,18 @@ def train_epoch(
             scaler.update()
         else:
             optimizer.step()
+
+        # Phase DAG-decouple: hard acyclicity projection on A_dag. This is a
+        # post-hoc rescaling — it never enters the loss, so it cannot fight
+        # the diffusion objective in gradient space, yet guarantees the DAG
+        # stays strictly acyclic (rho(A ∘ A) <= max_radius < 1, which is the
+        # sufficient condition for the DAGMA M-matrix to stay positive
+        # definite). Combined with a small ``gamma_dag``, this gives a
+        # "strong constraint on the DAG without penalising the stats".
+        if dag_spectral_projection:
+            _rcn = rcn_runner.cell.module if isinstance(rcn_runner.cell, DDP) else rcn_runner.cell
+            _rcn.project_dag_spectral(max_radius=dag_spectral_max_radius)
+
         step_time = time.time() - batch_start_time
 
         n_micro = len(batches)

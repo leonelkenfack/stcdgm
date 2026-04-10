@@ -415,13 +415,48 @@ def main(cfg: DictConfig) -> None:
         target_shape=tuple(cfg.diffusion.get("spatial_target_shape", [6, 7])),
     ).to(device)
 
-    params = (
-        list(encoder.parameters()) + list(rcn_cell.parameters())
-        + list(diffusion.parameters()) + list(spatial_projector.parameters())
+    # Phase DAG-decouple: split the optimizer into two parameter groups. The
+    # DAG adjacency has a very different loss landscape (only L_dag + L_rec
+    # push on it now, thanks to the ``detach_dag_in_state`` guard) and it
+    # benefits from a higher LR and lighter momentum — otherwise Adam state
+    # accumulated from diffusion-dominated steps bleeds into A_dag and the
+    # two objectives fight each other.
+    dag_params = [p for n, p in rcn_cell.named_parameters() if n == "A_dag"]
+    other_rcn_params = [p for n, p in rcn_cell.named_parameters() if n != "A_dag"]
+    other_params = (
+        list(encoder.parameters())
+        + other_rcn_params
+        + list(diffusion.parameters())
+        + list(spatial_projector.parameters())
     )
-    optimizer = torch.optim.Adam(params, lr=cfg.training.lr)
+    dag_lr_mult = float(cfg.training.get("dag_lr_mult", 5.0))
+    optimizer = torch.optim.Adam(
+        [
+            {"params": other_params, "lr": cfg.training.lr},
+            {
+                "params": dag_params,
+                "lr": cfg.training.lr * dag_lr_mult,
+                "betas": (0.5, 0.9),
+            },
+        ]
+    )
+
+    # Phase DAG-decouple: DAG curriculum. Ramp gamma_dag from 0 to 1 over
+    # the first ``dag_warmup_epochs`` epochs so the diffusion branch has
+    # time to find a sensible local minimum before the acyclicity penalty
+    # starts tugging on the shared encoder/RCN gradients.
+    dag_warmup_epochs = int(cfg.loss.get("dag_warmup_epochs", 5))
+    dag_l1_reg = bool(cfg.loss.get("dag_l1_regularization", False))
+    dag_l1_w = float(cfg.loss.get("dag_l1_weight", 0.01))
+    dag_spectral_proj = bool(cfg.loss.get("dag_spectral_projection", True))
+    dag_spectral_radius = float(cfg.loss.get("dag_spectral_max_radius", 0.95))
 
     for epoch in range(cfg.training.epochs):
+        if dag_warmup_epochs > 0:
+            dag_warmup_scale = min(1.0, (epoch + 1) / dag_warmup_epochs)
+        else:
+            dag_warmup_scale = 1.0
+
         batch_iter = _iterate_batches(dataloader, builder, device)
         metrics = train_epoch(
             encoder=encoder,
@@ -447,6 +482,11 @@ def main(cfg: DictConfig) -> None:
             lambda_dag_prior=cfg.loss.get("lambda_dag_prior", 0.0),
             dag_prior=torch.tensor(cfg.loss.dag_prior, dtype=torch.float32) if cfg.loss.get("dag_prior") else None,
             spatial_projector=spatial_projector,
+            dag_warmup_scale=dag_warmup_scale,
+            dag_l1_regularization=dag_l1_reg,
+            dag_l1_weight=dag_l1_w,
+            dag_spectral_projection=dag_spectral_proj,
+            dag_spectral_max_radius=dag_spectral_radius,
         )
         if cfg.loss.get("log_spectral_metric_each_epoch", False):
             amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))
