@@ -746,8 +746,18 @@ def train_epoch(
             if _do_timing:
                 rcn_time = time.time()
             drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+            # Note: ``reconstruction_sources`` is the *input* of the recon
+            # decoder, not its target. The decoder is a
+            # ``Linear(num_vars * hidden_dim, driver_dim)`` so it must be fed
+            # the hidden state ``H`` (shape ``[q, N, hidden]``), not the
+            # drivers themselves (``[N, driver_dim]``). Passing ``None`` here
+            # makes the cell fall back to ``H_prev``, which is what the
+            # decoder was sized for; the loss is then computed against
+            # ``driver_step`` further down. Previously this passed
+            # ``reconstruction_sources=drivers`` and crashed with
+            # ``mat1 [N, driver_dim] vs mat2 [num_vars*hidden, driver_dim]``.
             with _train_autocast(amp_mode):
-                seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=drivers)
+                seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
             if _do_timing:
                 rcn_time = time.time() - rcn_time
                 print(f"   - Number of states: {len(seq_output.states)}")
