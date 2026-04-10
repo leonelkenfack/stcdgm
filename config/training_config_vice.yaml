@@ -101,9 +101,9 @@ diffusion:
   height: 172
   width: 179
   steps: 100
-  scheduler_type: "ddpm"  # "ddpm", "edm", or "dpm_solver++"
-  use_gradient_checkpointing: false
-  cfg_scale: 0.2
+  scheduler_type: "dpm_solver++"  # CPU: avoid DDPM 100-step inference (was "ddpm")
+  use_gradient_checkpointing: false  # counter-productive on CPU with 500 GB RAM
+  cfg_scale: 0.0  # disable CFG (doubles UNet forwards at inference for marginal gain)
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: false
@@ -136,7 +136,7 @@ loss:
   focal_gamma: 2.0
   extreme_weight_factor: 2.0
   extreme_percentiles: [95.0, 99.0]
-  dag_l1_regularization: false
+  dag_l1_regularization: true  # push DAG toward sparsity, eases DAGMA penalty
   dag_l1_weight: 0.01
   reconstruction_loss_type: "mse+cosine"  # "mse", "cosine", or "mse+cosine"
   lambda_dag_prior: 0.01
@@ -160,7 +160,8 @@ training:
   device: "cpu"  # Change to "cuda" if GPU available in your VICE session
   
   # CRITICAL for CyVerse: num_workers=0 to avoid "No space left on device" /dev/shm errors
-  num_workers: 0  # VICE has ~64MB /dev/shm - use 0, never 20+
+  # On large-RAM CPU hosts (non-VICE) raise this — RAM is plentiful, /dev/shm not relevant.
+  num_workers: 4  # CPU/500 GB host: 4 workers; set to 0 if running inside VICE
   
   epochs: 100  # Adjust based on your needs
   lr: 0.0001
@@ -189,11 +190,11 @@ training:
     physical_sample_interval: 10
     physical_num_steps: 15
   
-  # torch.compile (may improve performance on GPU)
+  # torch.compile — modest 1.1-1.3× speed-up on CPU but worth it for the RCN/UNet hot loops
   compile:
-    enabled: false  # Enable if GPU available for potential speedup
+    enabled: true
     rcn_mode: "reduce-overhead"
-    diffusion_mode: "max-autotune"
+    diffusion_mode: "reduce-overhead"  # CPU: avoid max-autotune (CUDA-only benefits)
     encoder_mode: "reduce-overhead"
 
 # Model Checkpointing

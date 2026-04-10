@@ -9,6 +9,7 @@ suivie d’une reconstruction optionnelle pour la perte L_rec.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -17,23 +18,15 @@ import torch.nn as nn
 from torch import Tensor
 
 
-class MaskDiagonal(torch.autograd.Function):
+def _mask_diagonal(matrix: Tensor) -> Tensor:
     """
-    Fonction autograd pour imposer une diagonale nulle sur la matrice DAG.
+    Renvoie ``matrix`` avec la diagonale forcée à zéro, en restant différentiable.
+
+    Remplace l'ancienne ``MaskDiagonal(torch.autograd.Function)`` qui clonait
+    + ``fill_diagonal_`` et créait une allocation par step. La forme actuelle
+    est in-graph (autograd suit naturellement) et plus rapide sur CPU.
     """
-
-    @staticmethod
-    def forward(ctx, matrix: Tensor) -> Tensor:
-        ctx.save_for_backward(matrix)
-        out = matrix.clone()
-        out.fill_diagonal_(0.0)
-        return out
-
-    @staticmethod
-    def backward(ctx, grad_output: Tensor) -> Tuple[Tensor]:
-        grad_input = grad_output.clone()
-        grad_input.fill_diagonal_(0.0)
-        return (grad_input,)
+    return matrix - torch.diag(torch.diagonal(matrix))
 
 
 class RCNCell(nn.Module):
@@ -78,17 +71,15 @@ class RCNCell(nn.Module):
         # Matrice DAG apprenable
         self.A_dag = nn.Parameter(torch.randn(num_vars, num_vars))
 
-        # MLPs d'assignation structurelle (une par variable cible)
-        self.structural_mlps = nn.ModuleList(
-            [
-                nn.Sequential(
-                    nn.Linear(hidden_dim, hidden_dim),
-                    self.activation,
-                    nn.Linear(hidden_dim, hidden_dim),
-                )
-                for _ in range(num_vars)
-            ]
-        )
+        # Phase B-perf: MLPs d'assignation structurelle vectorisés.
+        # Anciennement ``nn.ModuleList[nn.Sequential]`` itéré dans une boucle
+        # Python — coûteux sur CPU. Stockés ici comme paramètres batchés
+        # ``[q, hidden, hidden]`` pour appliquer l'ensemble des q MLPs en deux
+        # ``bmm``. Sémantique préservée : 2 couches Linear + activation entre.
+        self.struct_W1 = nn.Parameter(torch.empty(num_vars, hidden_dim, hidden_dim))
+        self.struct_b1 = nn.Parameter(torch.empty(num_vars, 1, hidden_dim))
+        self.struct_W2 = nn.Parameter(torch.empty(num_vars, hidden_dim, hidden_dim))
+        self.struct_b2 = nn.Parameter(torch.empty(num_vars, 1, hidden_dim))
 
         # Encodeur du forçage externe
         self.driver_encoder = nn.Sequential(
@@ -96,10 +87,15 @@ class RCNCell(nn.Module):
             self.activation,
         )
 
-        # GRUCell par variable
-        self.gru_cells = nn.ModuleList(
-            [nn.GRUCell(hidden_dim, hidden_dim) for _ in range(num_vars)]
-        )
+        # Phase B-perf: GRU vectorisé. Au lieu de stacker à chaque forward les
+        # poids de q ``nn.GRUCell``, on stocke directement des paramètres
+        # batchés ``[q, 3*hidden, hidden]`` (et biais ``[q, 3*hidden]``).
+        # L'init reproduit celle de ``nn.GRUCell`` (uniform[-k, k] avec
+        # k = 1/sqrt(hidden_dim)) pour préserver la dynamique d'entraînement.
+        self.gru_W_ih = nn.Parameter(torch.empty(num_vars, 3 * hidden_dim, hidden_dim))
+        self.gru_W_hh = nn.Parameter(torch.empty(num_vars, 3 * hidden_dim, hidden_dim))
+        self.gru_b_ih = nn.Parameter(torch.empty(num_vars, 3 * hidden_dim))
+        self.gru_b_hh = nn.Parameter(torch.empty(num_vars, 3 * hidden_dim))
 
         # Embedding d'identité par variable — spécialise le driver pour chaque GRU
         self.var_embed = nn.Embedding(num_vars, hidden_dim)
@@ -119,12 +115,20 @@ class RCNCell(nn.Module):
         Réinitialise les paramètres internes.
         """
         nn.init.xavier_uniform_(self.A_dag)
-        for mlp in self.structural_mlps:
-            for layer in mlp:
-                if hasattr(layer, "reset_parameters"):
-                    layer.reset_parameters()
-        for gru in self.gru_cells:
-            gru.reset_parameters()
+
+        # Structural MLPs vectorisés : init Xavier uniforme couche par couche.
+        for w in (self.struct_W1, self.struct_W2):
+            for k in range(self.num_vars):
+                nn.init.xavier_uniform_(w[k])
+        nn.init.zeros_(self.struct_b1)
+        nn.init.zeros_(self.struct_b2)
+
+        # GRU vectorisé : reproduit l'init de ``nn.GRUCell``
+        # (uniform[-k, k] avec k = 1/sqrt(hidden_dim)).
+        gru_bound = 1.0 / math.sqrt(self.hidden_dim)
+        for p in (self.gru_W_ih, self.gru_W_hh, self.gru_b_ih, self.gru_b_hh):
+            nn.init.uniform_(p, -gru_bound, gru_bound)
+
         for layer in self.driver_encoder:
             if hasattr(layer, "reset_parameters"):
                 layer.reset_parameters()
@@ -132,6 +136,73 @@ class RCNCell(nn.Module):
         if self.reconstruction_decoder is not None:
             nn.init.xavier_uniform_(self.reconstruction_decoder.weight)
             nn.init.zeros_(self.reconstruction_decoder.bias)
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        """
+        Backward-compat shim : convertit en place les clés des anciens checkpoints
+        ``structural_mlps.k.{0,2}.{weight,bias}`` et ``gru_cells.k.{weight_ih,
+        weight_hh, bias_ih, bias_hh}`` vers les nouveaux paramètres batchés
+        ``struct_W{1,2}`` / ``struct_b{1,2}`` / ``gru_{W,b}_{ih,hh}``.
+
+        Permet de reprendre un checkpoint pré-vectorisation sans re-train.
+        """
+        # Détection de l'ancien format
+        old_struct_keys = [k for k in state_dict if k.startswith(prefix + "structural_mlps.")]
+        old_gru_keys = [k for k in state_dict if k.startswith(prefix + "gru_cells.")]
+        if old_struct_keys or old_gru_keys:
+            q = self.num_vars
+            d = self.hidden_dim
+            device = self.A_dag.device
+
+            if old_struct_keys:
+                W1 = torch.empty(q, d, d, device=device)
+                W2 = torch.empty(q, d, d, device=device)
+                b1 = torch.empty(q, 1, d, device=device)
+                b2 = torch.empty(q, 1, d, device=device)
+                for k in range(q):
+                    # nn.Linear stocke weight en [out, in]; notre bmm veut [in, out].
+                    W1[k] = state_dict.pop(f"{prefix}structural_mlps.{k}.0.weight").t()
+                    b1[k, 0] = state_dict.pop(f"{prefix}structural_mlps.{k}.0.bias")
+                    W2[k] = state_dict.pop(f"{prefix}structural_mlps.{k}.2.weight").t()
+                    b2[k, 0] = state_dict.pop(f"{prefix}structural_mlps.{k}.2.bias")
+                state_dict[f"{prefix}struct_W1"] = W1
+                state_dict[f"{prefix}struct_b1"] = b1
+                state_dict[f"{prefix}struct_W2"] = W2
+                state_dict[f"{prefix}struct_b2"] = b2
+
+            if old_gru_keys:
+                W_ih = torch.empty(q, 3 * d, d, device=device)
+                W_hh = torch.empty(q, 3 * d, d, device=device)
+                b_ih = torch.empty(q, 3 * d, device=device)
+                b_hh = torch.empty(q, 3 * d, device=device)
+                for k in range(q):
+                    W_ih[k] = state_dict.pop(f"{prefix}gru_cells.{k}.weight_ih")
+                    W_hh[k] = state_dict.pop(f"{prefix}gru_cells.{k}.weight_hh")
+                    b_ih[k] = state_dict.pop(f"{prefix}gru_cells.{k}.bias_ih")
+                    b_hh[k] = state_dict.pop(f"{prefix}gru_cells.{k}.bias_hh")
+                state_dict[f"{prefix}gru_W_ih"] = W_ih
+                state_dict[f"{prefix}gru_W_hh"] = W_hh
+                state_dict[f"{prefix}gru_b_ih"] = b_ih
+                state_dict[f"{prefix}gru_b_hh"] = b_hh
+
+        return super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
 
     def forward(
         self,
@@ -170,60 +241,27 @@ class RCNCell(nn.Module):
         if driver.shape[1] != self.driver_dim:
             raise ValueError("Dimension du driver incompatible.")
 
-        A_masked = MaskDiagonal.apply(self.A_dag)
+        A_masked = _mask_diagonal(self.A_dag)
 
-        # Étape 1 : Prédiction interne via SCM (vectorisée)
+        # Étape 1 : Prédiction interne via SCM, entièrement vectorisée.
+        # weighted_sum : [q, N, hidden]
         weighted_sum = torch.einsum("ik,inj->knj", A_masked, H_prev)
-        H_hat = []
-        for k in range(self.num_vars):
-            h_k_hat = self.structural_mlps[k](weighted_sum[k])
-            H_hat.append(h_k_hat)
-        H_hat_tensor = torch.stack(H_hat, dim=0)
+        # MLP structurel batché : 2 ``bmm`` au lieu d'une boucle Python sur q.
+        H_hat_tensor = torch.bmm(weighted_sum, self.struct_W1) + self.struct_b1  # [q, N, hidden]
+        H_hat_tensor = self.activation(H_hat_tensor)
+        H_hat_tensor = torch.bmm(H_hat_tensor, self.struct_W2) + self.struct_b2  # [q, N, hidden]
 
-        # Étape 2 : Mise à jour par forçage externe (GRU)
-        # Phase A2: Fully vectorized GRU computation - eliminates Python loop
-        # Pre-encode driver once, reuse for all GRU cells
+        # Étape 2 : GRU vectorisé. Plus de stack de poids à chaque step :
+        # les paramètres sont déjà ``[q, 3*hidden, hidden]``.
         driver_emb = self.driver_encoder(driver)  # [N, hidden_dim]
-        
-        # Phase A2: Vectorized GRU computation with separate parameters per variable
-        # Extract all GRU parameters and process in a single batched operation
-        # This eliminates the Python loop overhead and allows better GPU utilization
-        
-        # Prepare batched inputs: [q, N, hidden_dim]
-        # driver_emb: [N, hidden_dim] -> expand to [q, N, hidden_dim]
-        driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden_dim]
+        driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden]
         var_ids = torch.arange(self.num_vars, device=driver_emb.device)
-        driver_batch = driver_batch + self.var_embed(var_ids).unsqueeze(1)   # [q, N, d] + [q, 1, d]
-        hidden_batch = H_hat_tensor  # [q, N, hidden_dim]
-        
-        # Vectorized GRU computation for all variables in parallel
-        # Each GRU cell has separate parameters, so we batch the computation manually
-        # by extracting weights and doing batched matrix operations
-        
-        # Extract weights from all GRU cells and stack them: [q, ...]
-        weight_ih_list = []
-        weight_hh_list = []
-        bias_ih_list = []
-        bias_hh_list = []
-        
-        for k in range(self.num_vars):
-            gru_cell = self.gru_cells[k]
-            # GRUCell weights: [3*hidden_dim, hidden_dim] (for input->reset/update/new)
-            weight_ih_list.append(gru_cell.weight_ih)  # [3*hidden_dim, hidden_dim]
-            weight_hh_list.append(gru_cell.weight_hh)  # [3*hidden_dim, hidden_dim]
-            bias_ih_list.append(gru_cell.bias_ih if gru_cell.bias_ih is not None else torch.zeros(3*hidden_dim, device=driver_emb.device))
-            bias_hh_list.append(gru_cell.bias_hh if gru_cell.bias_hh is not None else torch.zeros(3*hidden_dim, device=driver_emb.device))
-        
-        # Stack all parameters: [q, 3*hidden_dim, hidden_dim]
-        W_ih_batch = torch.stack(weight_ih_list, dim=0)  # [q, 3*hidden_dim, hidden_dim]
-        W_hh_batch = torch.stack(weight_hh_list, dim=0)  # [q, 3*hidden_dim, hidden_dim]
-        b_ih_batch = torch.stack(bias_ih_list, dim=0)  # [q, 3*hidden_dim]
-        b_hh_batch = torch.stack(bias_hh_list, dim=0)  # [q, 3*hidden_dim]
-        
-        # Batched matrix operations
-        # Input transformation: [q, N, hidden_dim] @ [q, hidden_dim, 3*hidden_dim] -> [q, N, 3*hidden_dim]
-        gi_batch = torch.bmm(driver_batch, W_ih_batch.transpose(1, 2)) + b_ih_batch.unsqueeze(1)  # [q, N, 3*hidden_dim]
-        gh_batch = torch.bmm(hidden_batch, W_hh_batch.transpose(1, 2)) + b_hh_batch.unsqueeze(1)  # [q, N, 3*hidden_dim]
+        driver_batch = driver_batch + self.var_embed(var_ids).unsqueeze(1)    # [q, N, hidden]
+        hidden_batch = H_hat_tensor
+
+        # gi/gh : [q, N, 3*hidden]
+        gi_batch = torch.bmm(driver_batch, self.gru_W_ih.transpose(1, 2)) + self.gru_b_ih.unsqueeze(1)
+        gh_batch = torch.bmm(hidden_batch, self.gru_W_hh.transpose(1, 2)) + self.gru_b_hh.unsqueeze(1)
         
         # Split into reset, update, and new gates
         # GRU gates are ordered as: reset, update, new
@@ -313,7 +351,7 @@ class RCNCell(nn.Module):
         """
         Retourne la matrice causale (masquée ou brute).
         """
-        return MaskDiagonal.apply(self.A_dag) if masked else self.A_dag
+        return _mask_diagonal(self.A_dag) if masked else self.A_dag
 
     def _prepare_reconstruction_features(self, tensor: Tensor, N: int) -> Tensor:
         """

@@ -239,9 +239,22 @@ def _iterate_batches(
 
 @hydra.main(version_base=None, config_name="st_cdgm_default")
 def main(cfg: DictConfig) -> None:
-    n_threads = max(1, (os.cpu_count() or 1) // 2)
-    torch.set_num_threads(n_threads)
-    print(f"[PERF] torch.set_num_threads({n_threads})")
+    # CPU threading: on a CPU-only host, use *all* logical cores for intra-op
+    # math (BLAS/MKL/oneDNN), and a small fixed pool for inter-op scheduling.
+    # OMP_NUM_THREADS / MKL_NUM_THREADS must be set before any heavy import that
+    # initialises the threadpool — set them defensively here in case the user
+    # didn't export them.
+    ncpu = os.cpu_count() or 1
+    os.environ.setdefault("OMP_NUM_THREADS", str(ncpu))
+    os.environ.setdefault("MKL_NUM_THREADS", str(ncpu))
+    torch.set_num_threads(ncpu)
+    try:
+        torch.set_num_interop_threads(2)
+    except RuntimeError:
+        # set_num_interop_threads can only be called once per process; ignore
+        # if a parent already configured it (e.g. when re-entering main).
+        pass
+    print(f"[PERF] torch.set_num_threads({ncpu}), interop=2, OMP/MKL={ncpu}")
 
     print("===== ST-CDGM training configuration =====")
     print(OmegaConf.to_yaml(cfg))
