@@ -336,3 +336,212 @@ class SpatialConditioningProjector(nn.Module):
         return projected.unsqueeze(0)                              # [1, q*th*tw, cond_dim]
 
 
+class HRTargetIdentifiabilityHead(nn.Module):
+    """
+    Sprint 2: predicts summary statistics of the HR target from the pooled
+    causal state H_T. Used as an *additional* reconstruction loss that
+    complements the LR-driver recon (Eq.(7) of the ORACLE paper).
+
+    Motivation
+    ----------
+    The Sprint 1 fix made ``L_rec = || g(H_t) - u_t ||^2`` functional, but
+    ``u_t`` is the *low-resolution* driver field. Reconstructing the LR
+    driver exercises the SCM as an autoencoder but never teaches it
+    anything specific about the HR target (precipitation extremes). This
+    head provides a much more targeted signal: the pooled causal state
+    must predict a small vector of HR statistics (spatial mean, std, p95,
+    p99 by default), so gradient flowing back through the SCM forces A_dag
+    and the structural MLPs to carry information that *actually matters*
+    for downscaling.
+
+    The head is deliberately small (a 2-layer MLP) so most of the
+    learning happens upstream — in A_dag, not in the head itself.
+    """
+
+    #: Default statistics order. Must stay stable across training/eval.
+    DEFAULT_STATS: Tuple[str, ...] = ("mean", "std", "p95", "p99")
+
+    def __init__(
+        self,
+        num_vars: int,
+        hidden_dim: int,
+        *,
+        stats: Optional[Sequence[str]] = None,
+        inner_dim: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        self.num_vars = num_vars
+        self.hidden_dim = hidden_dim
+        self.stats: Tuple[str, ...] = tuple(stats) if stats else self.DEFAULT_STATS
+        for s in self.stats:
+            if s not in {"mean", "std", "p95", "p99", "max"}:
+                raise ValueError(f"Unknown HR target stat '{s}'")
+        inner = inner_dim or max(32, num_vars * hidden_dim // 4)
+        self.mlp = nn.Sequential(
+            nn.Linear(num_vars * hidden_dim, inner),
+            nn.GELU(),
+            nn.Linear(inner, len(self.stats)),
+        )
+
+    def forward(self, state: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        state : Tensor
+            Pooled causal state ``[batch, q, hidden_dim]`` — typically the
+            output of ``IntelligibleVariableEncoder.project_state_tensor``
+            *without* the conditioning projection (pre-Linear), or any
+            tensor that flattens to ``[batch, q*d]``.
+
+        Returns
+        -------
+        Tensor
+            ``[batch, len(self.stats)]`` — predicted summary statistics.
+        """
+        if state.dim() == 3:
+            batch = state.shape[0]
+            flat = state.reshape(batch, -1)
+        elif state.dim() == 4:
+            # [q, N, hidden] — single-graph path, pool spatially.
+            pooled = state.mean(dim=1) if state.shape[0] == self.num_vars else state.mean(dim=2)
+            flat = pooled.reshape(1, -1)
+        else:
+            flat = state.reshape(state.shape[0], -1)
+        return self.mlp(flat)
+
+    @staticmethod
+    def extract_target_stats(
+        target: Tensor,
+        stats: Sequence[str] = DEFAULT_STATS,
+    ) -> Tensor:
+        """
+        Compute the per-sample summary statistics used as the regression
+        target for this head. NaN pixels (ocean masks) are ignored.
+
+        Parameters
+        ----------
+        target : Tensor
+            HR field ``[batch, channels, H, W]``.
+
+        Returns
+        -------
+        Tensor
+            ``[batch, len(stats)]``
+        """
+        if target.dim() != 4:
+            raise ValueError(f"target must be [B, C, H, W]; got {tuple(target.shape)}")
+        batch = target.shape[0]
+        out_cols = []
+        for b in range(batch):
+            x = target[b].reshape(-1)
+            x = x[torch.isfinite(x)]
+            if x.numel() == 0:
+                row = [0.0] * len(stats)
+            else:
+                row = []
+                for s in stats:
+                    if s == "mean":
+                        row.append(x.mean().item())
+                    elif s == "std":
+                        row.append(x.std(unbiased=False).item())
+                    elif s == "p95":
+                        row.append(torch.quantile(x, 0.95).item())
+                    elif s == "p99":
+                        row.append(torch.quantile(x, 0.99).item())
+                    elif s == "max":
+                        row.append(x.max().item())
+                    else:
+                        raise ValueError(f"Unknown stat '{s}'")
+            out_cols.append(row)
+        return torch.tensor(out_cols, dtype=target.dtype, device=target.device)
+
+
+class CausalConditioningProjector(nn.Module):
+    """
+    Sprint 2: condition the diffusion decoder on *both* the causal state
+    ``H_T`` and the learned DAG matrix ``A_dag``.
+
+    The rationale is developed in ``ORACLE_HYPERPLAN_ANALYSIS.md`` §2.2
+    and §6: to have A_dag *actually* condition every prediction, the
+    UNet has to see it. The default path (``SpatialConditioningProjector``
+    + FiLM of pooled H_T) sends the state to the UNet but hides A_dag.
+    Here we append a learnable embedding of the flattened DAG matrix to
+    the spatial tokens, so the cross-attention blocks can attend to the
+    current causal structure. Editing ``A_dag`` at inference time (do-
+    calculus) then directly changes the tokens fed to the UNet.
+
+    The module wraps a ``SpatialConditioningProjector`` by default — the
+    DAG token is an *addition*, not a replacement. Output shape:
+    ``[batch, num_spatial_tokens + num_dag_tokens, conditioning_dim]``.
+    """
+
+    def __init__(
+        self,
+        num_vars: int,
+        hidden_dim: int,
+        conditioning_dim: int,
+        lr_shape: Tuple[int, int],
+        target_shape: Tuple[int, int] = (6, 7),
+        *,
+        num_dag_tokens: int = 1,
+        dag_token_dim: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        self.num_vars = num_vars
+        self.num_dag_tokens = int(num_dag_tokens)
+        self.spatial = SpatialConditioningProjector(
+            num_vars=num_vars,
+            hidden_dim=hidden_dim,
+            conditioning_dim=conditioning_dim,
+            lr_shape=lr_shape,
+            target_shape=target_shape,
+        )
+        # The DAG embedding: flatten A_dag [q, q] → q² scalars, project
+        # through a small MLP to ``num_dag_tokens * conditioning_dim``.
+        # Keeping this shallow (1 hidden layer) is important: we want the
+        # UNet to *see* the raw entries of A_dag, not a heavy re-encoding
+        # that dilutes interventional edits.
+        inner = dag_token_dim or conditioning_dim
+        self.dag_mlp = nn.Sequential(
+            nn.Linear(num_vars * num_vars, inner),
+            nn.GELU(),
+            nn.Linear(inner, self.num_dag_tokens * conditioning_dim),
+        )
+        self.dag_norm = nn.LayerNorm(conditioning_dim)
+        self.conditioning_dim = conditioning_dim
+
+    def forward(
+        self,
+        state: Tensor,
+        A_dag: Tensor,
+        *,
+        batch_index: Optional[Tensor] = None,
+    ) -> Tensor:
+        """
+        Parameters
+        ----------
+        state : Tensor
+            RCN hidden state ``[q, N, hidden]``.
+        A_dag : Tensor
+            Masked DAG matrix ``[q, q]``. Must be attached (we *want*
+            gradient to flow back to ``A_dag`` — this is the Sprint 2
+            point: the UNet learns to use the causal structure).
+
+        Returns
+        -------
+        Tensor
+            ``[1, num_spatial + num_dag_tokens, conditioning_dim]``
+        """
+        spatial_tokens = self.spatial(state, batch_index=batch_index)  # [1, Ns, d]
+        if A_dag.dim() != 2 or A_dag.shape[0] != self.num_vars or A_dag.shape[1] != self.num_vars:
+            raise ValueError(
+                f"CausalConditioningProjector: A_dag must be [{self.num_vars}, "
+                f"{self.num_vars}]; got {tuple(A_dag.shape)}"
+            )
+        flat = A_dag.reshape(1, -1)                                       # [1, q²]
+        dag_emb = self.dag_mlp(flat)                                      # [1, T*d]
+        dag_tokens = dag_emb.view(1, self.num_dag_tokens, self.conditioning_dim)
+        dag_tokens = self.dag_norm(dag_tokens)
+        return torch.cat([spatial_tokens, dag_tokens], dim=1)             # [1, Ns+T, d]
+
+

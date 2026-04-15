@@ -18,6 +18,8 @@ from st_cdgm import (
     RCNCell,
     RCNSequenceRunner,
     CausalDiffusionDecoder,
+    SpatialConditioningProjector,
+    CausalConditioningProjector,
 )
 
 
@@ -145,12 +147,45 @@ def load_checkpoint(
     diffusion.load_state_dict(diffusion_state)
     diffusion.to(device)
     diffusion.eval()
-    
+
+    # Sprint 1 / B4 + Sprint 2 fix: rebuild the conditioning projector when
+    # the checkpoint contains its state dict. We detect whether the saved
+    # state belongs to a ``CausalConditioningProjector`` (Sprint 2) by
+    # looking for ``dag_mlp`` keys; otherwise we fall back to the Sprint 1
+    # ``SpatialConditioningProjector``.
+    spatial_projector = None
+    spatial_state = (
+        checkpoint.get("spatial_projector_state_dict")
+        or checkpoint.get("spatial_projector_state")
+    )
+    if spatial_state is not None:
+        graph_cfg = config.get("graph", {})
+        encoder_cfg = config.get("encoder", {}) if isinstance(config, dict) else {}
+        is_causal_proj = any("dag_mlp" in k for k in spatial_state.keys())
+        common_kwargs = dict(
+            num_vars=len(encoder.configs),
+            hidden_dim=rcn_cfg.get("hidden_dim", 128),
+            conditioning_dim=diffusion_cfg.get("conditioning_dim", 128),
+            lr_shape=tuple(graph_cfg.get("lr_shape", [23, 26])),
+            target_shape=tuple(diffusion_cfg.get("spatial_target_shape", [6, 7])),
+        )
+        if is_causal_proj:
+            spatial_projector = CausalConditioningProjector(
+                **common_kwargs,
+                num_dag_tokens=int(encoder_cfg.get("num_dag_tokens", 1)),
+            )
+        else:
+            spatial_projector = SpatialConditioningProjector(**common_kwargs)
+        spatial_projector.load_state_dict(spatial_state)
+        spatial_projector.to(device)
+        spatial_projector.eval()
+
     result = {
         "encoder": encoder,
         "rcn_cell": rcn_cell,
         "rcn_runner": rcn_runner,
         "diffusion_decoder": diffusion,
+        "spatial_projector": spatial_projector,
         "config": config,
         "metrics": metrics,
     }

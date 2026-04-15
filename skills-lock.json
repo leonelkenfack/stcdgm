@@ -6,6 +6,16 @@
       "sourceType": "github",
       "computedHash": "e48f3af1e23a09276b5b5f9b18fb507c16029c768493fac7d85104994eb58795"
     },
+    "knowledge-synthesis": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "computedHash": "74658ae14d85da10065c63c40d92041e75b7f1686ebb531816dfc2d0883eb9d0"
+    },
+    "latex-paper-en": {
+      "source": "bahayonghang/academic-writing-skills",
+      "sourceType": "github",
+      "computedHash": "bb8240d8a082abe09c37f779d480d8e449406cc94f0cadaa28f2ecd9c2a161cc"
+    },
     "machine-learning": {
       "source": "mindrally/skills",
       "sourceType": "github",

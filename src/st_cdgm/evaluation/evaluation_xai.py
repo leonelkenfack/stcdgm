@@ -161,9 +161,18 @@ def run_st_cdgm_inference(
     apply_constraints: bool = False,
     use_log1p_inverse: bool = False,
     cfg_scale: float = 0.0,
+    spatial_projector: Optional[torch.nn.Module] = None,
 ) -> Tuple[List[DiffusionOutput], Tensor, Tensor, Tensor, Tensor]:
     """
     Inférence complète encodeur → RCN → diffusion (multi-échantillons).
+
+    Sprint 1 / B4 fix: accept an optional ``spatial_projector``
+    (``SpatialConditioningProjector``). When provided, its output is passed as
+    ``conditioning_spatial`` to the diffusion decoder, so the UNet receives a
+    grid of tokens for cross-attention instead of the ``q`` globally-pooled
+    vectors produced by ``encoder.project_state_tensor``. This matches the
+    training path in ``train_ddp.py`` and unlocks the spatial conditioning
+    bottleneck that was silently killing downscaling quality at inference.
 
     Retourne ``samples_out, target_batch, baseline_batch, dag_last, mask_batch``.
     """
@@ -173,9 +182,21 @@ def run_st_cdgm_inference(
 
     H_init = encoder.init_state(batch["hetero"]).to(device)
     drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=drivers)
-    conditioning = encoder.project_state_tensor(seq_output.states[-1]).to(device)
-    dag_last = seq_output.dag_matrices[-1].detach().cpu()
+    # Note: reconstruction_sources is ignored at inference (we don't back-prop
+    # through L_rec), but we keep the signature consistent with train time.
+    seq_output = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+    H_last = seq_output.states[-1]
+    A_last_attached = seq_output.dag_matrices[-1]
+    conditioning = encoder.project_state_tensor(H_last).to(device)
+    conditioning_spatial: Optional[Tensor] = None
+    if spatial_projector is not None:
+        # Sprint 2: CausalConditioningProjector also takes A_dag. Detect it
+        # by duck-typing on ``num_dag_tokens``.
+        if hasattr(spatial_projector, "num_dag_tokens"):
+            conditioning_spatial = spatial_projector(H_last, A_last_attached).to(device)
+        else:
+            conditioning_spatial = spatial_projector(H_last).to(device)
+    dag_last = A_last_attached.detach().cpu()
 
     samples_out: List[DiffusionOutput] = []
     for _ in range(num_samples):
@@ -186,6 +207,7 @@ def run_st_cdgm_inference(
             apply_constraints=apply_constraints,
             baseline=baseline_batch,
             cfg_scale=cfg_scale,
+            conditioning_spatial=conditioning_spatial,
         )
         if generated.t_mean.shape != target_batch.shape:
             generated = resize_diffusion_output_to_spatial(
@@ -247,6 +269,60 @@ def autoregressive_inference(
 # ---------------------------------------------------------------------------
 # Métriques de précision et de réalisme
 # ---------------------------------------------------------------------------
+
+def compute_ensemble_sigma_r(
+    ensemble_fields: Sequence[Tensor],
+    target: Tensor,
+    eps: float = 1e-8,
+) -> Dict[str, float]:
+    """
+    Ratio d'étalement d'ensemble = std(ensemble) / std_spatiale(target).
+
+    Sprint 1 fix for ``sigma_r = NaN``. The previous notebook helper was called
+    with ``target_fields = [target_batch] * M`` and computed ``std`` over the
+    repeated axis (→ 0, division by eps, NaN). The correct quantity is the
+    *ensemble* spread (std across members) normalised by a measure of target
+    variability. We use the **spatial** std of the ground-truth field, which
+    is well-defined even for a single target sample.
+
+    Parameters
+    ----------
+    ensemble_fields : Sequence[Tensor]
+        Liste des ``M`` tenseurs prédiction [..., H, W] (mêmes formes).
+    target : Tensor
+        Vérité-terrain unique [..., H, W], mêmes dims que chaque membre.
+
+    Returns
+    -------
+    Dict[str, float]
+        ``{"sigma_r": ratio, "sigma_r_pct": ratio * 100}``; NaN si l'ensemble
+        est dégénéré (<2 membres) ou si la cible est constante.
+    """
+    if len(ensemble_fields) < 2:
+        return {"sigma_r": float("nan"), "sigma_r_pct": float("nan")}
+    stack = torch.stack([
+        f.squeeze(0) if f.dim() == 4 and f.size(0) == 1 else f
+        for f in ensemble_fields
+    ], dim=0).float()
+    tgt = target.squeeze(0) if target.dim() == 4 and target.size(0) == 1 else target
+    tgt = tgt.float()
+    # Mean spatial ensemble spread (std over members, then spatial mean).
+    spread = stack.std(dim=0, unbiased=False)
+    # Ignore NaN pixels that come from geographic masks.
+    spread_valid = spread[torch.isfinite(spread)]
+    if spread_valid.numel() == 0:
+        return {"sigma_r": float("nan"), "sigma_r_pct": float("nan")}
+    mean_spread = spread_valid.mean().item()
+    # Target spatial variability: std across pixels of the single target.
+    tgt_valid = tgt[torch.isfinite(tgt)]
+    if tgt_valid.numel() < 2:
+        return {"sigma_r": float("nan"), "sigma_r_pct": float("nan")}
+    tgt_std = tgt_valid.std(unbiased=False).item()
+    if tgt_std <= eps:
+        return {"sigma_r": float("nan"), "sigma_r_pct": float("nan")}
+    sigma_r = mean_spread / (tgt_std + eps)
+    return {"sigma_r": float(sigma_r), "sigma_r_pct": float(100.0 * sigma_r)}
+
 
 def compute_mse(pred: Tensor, target: Tensor, mask: Optional[Tensor] = None) -> float:
     """Calcule MSE avec gestion des NaN."""

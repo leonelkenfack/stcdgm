@@ -474,6 +474,78 @@ def loss_physical(output: Tensor, target: Tensor, dx: float = 1.0, dy: float = 1
     return div_loss + vort_loss
 
 
+def loss_precip_physical(
+    x0_pred: Tensor,
+    target: Tensor,
+    *,
+    w_positivity: float = 1.0,
+    w_mass: float = 0.1,
+    w_quantile: float = 0.2,
+    quantiles: Tuple[float, float] = (0.95, 0.99),
+    valid_mask: Optional[Tensor] = None,
+) -> Tensor:
+    """
+    Sprint 3: precipitation-specific physical loss.
+
+    The divergence/vorticity penalty in :func:`loss_physical` is defined for
+    wind vector fields and degenerates for the 1-channel precipitation
+    target (``compute_divergence`` returns zeros when ``field.shape[1] < 2``),
+    which is why ``lambda_phy`` was inert in the precipitation config.
+    This helper provides meaningful, differentiable physical constraints
+    that *do* apply to a scalar precipitation field:
+
+    1. **Positivity**: penalise negative predicted precipitation via a soft
+       hinge ``mean(relu(-x0_pred))``. Precipitation is non-negative by
+       definition; this acts as a prior that regularises extrapolated
+       residuals under climate drift.
+    2. **Global mass conservation**: align the spatial mean of the
+       prediction with that of the target over valid pixels. Prevents
+       the decoder from introducing a global bias on top of the bicubic
+       baseline.
+    3. **Tail quantile matching**: square-difference between matched
+       quantiles (p95, p99) of the prediction and the target, exactly the
+       tail ORACLE cares about. This is the loss that directly targets
+       ``F1_p95`` / ``F1_p99``.
+
+    ``x0_pred`` is typically recovered inside the training loop from the
+    predicted ε and the current noisy sample via
+    :func:`CausalDiffusionDecoder.predict_x0_from_epsilon`, so the gradient
+    flows back through the UNet — unlike the target-only fallback in
+    :func:`loss_physical`, which had zero gradient.
+
+    All components are reduced to a single scalar loss.
+    """
+    if valid_mask is None:
+        valid_mask = torch.isfinite(target) & torch.isfinite(x0_pred)
+    else:
+        valid_mask = valid_mask & torch.isfinite(target) & torch.isfinite(x0_pred)
+    if not valid_mask.any():
+        return torch.zeros((), device=x0_pred.device, dtype=x0_pred.dtype)
+
+    xp = x0_pred[valid_mask]
+    xt = target[valid_mask]
+
+    # 1. Positivity (soft hinge on negatives).
+    l_pos = nn.functional.relu(-xp).mean() if w_positivity > 0.0 else xp.new_zeros(())
+
+    # 2. Global mass conservation: match spatial means.
+    if w_mass > 0.0:
+        l_mass = (xp.mean() - xt.mean()) ** 2
+    else:
+        l_mass = xp.new_zeros(())
+
+    # 3. Quantile matching — per-quantile square error.
+    if w_quantile > 0.0 and xp.numel() > 0:
+        q_tensor = torch.tensor(quantiles, device=xp.device, dtype=xp.dtype)
+        q_pred = torch.quantile(xp, q_tensor)
+        q_true = torch.quantile(xt, q_tensor)
+        l_quant = ((q_pred - q_true) ** 2).mean()
+    else:
+        l_quant = xp.new_zeros(())
+
+    return w_positivity * l_pos + w_mass * l_mass + w_quantile * l_quant
+
+
 def loss_dagma(
     A_masked: Tensor,
     s: float = 1.0,
@@ -608,6 +680,18 @@ def train_epoch(
     dag_l1_weight: float = 0.01,            # forwarded to loss_dagma
     dag_spectral_projection: bool = True,   # hard-project A_dag after each optimizer.step()
     dag_spectral_max_radius: float = 0.95,  # target spectral radius bound for rho(A ∘ A)
+    # Sprint 2: HR identifiability head (predicts summary stats of the HR
+    # target from the pooled causal state). When a head is provided,
+    # L_hr_ident is added to the total loss scaled by ``beta_hr_ident``,
+    # and its gradient flows back through the encoder + RCN, pulling A_dag
+    # toward representations that actually know about precipitation extremes.
+    hr_ident_head: Optional[nn.Module] = None,
+    beta_hr_ident: float = 0.0,
+    # Sprint 3: precipitation-specific physical loss (positivity + global
+    # mass + quantile matching). Differentiable through the UNet via
+    # x0-from-epsilon, unlike the target-only ``lambda_phy`` fallback.
+    lambda_precip_phy: float = 0.0,
+    precip_phy_weights: Tuple[float, float, float] = (1.0, 0.1, 0.2),
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
@@ -819,7 +903,29 @@ def train_epoch(
 
             conditioning_spatial = None
             if spatial_projector is not None:
-                conditioning_spatial = spatial_projector(H_condition, batch_index=batch_index).to(device)
+                # Sprint 2: CausalConditioningProjector also needs A_dag so the
+                # UNet can attend to the current DAG topology. We detect it
+                # via duck-typing on ``num_dag_tokens`` — if the projector has
+                # this attribute, it's causal-aware and we pass A_masked.
+                _sp_mod = (
+                    spatial_projector.module
+                    if isinstance(spatial_projector, DDP)
+                    else spatial_projector
+                )
+                _proj_target = _sp_mod
+                if hasattr(_proj_target, "num_dag_tokens"):
+                    # A_masked is attached in the last cell output; we pass
+                    # it so the DAG-token gradient can flow back to A_dag
+                    # (combined with dag_grad_gate this is what lets the
+                    # diffusion loss actually train the DAG).
+                    _A = seq_output.dag_matrices[-1]
+                    conditioning_spatial = spatial_projector(
+                        H_condition, _A, batch_index=batch_index
+                    ).to(device)
+                else:
+                    conditioning_spatial = spatial_projector(
+                        H_condition, batch_index=batch_index
+                    ).to(device)
 
             _dropout = conditioning_dropout_prob > 0.0 and torch.rand(1, device=device).item() < conditioning_dropout_prob
             if _dropout:
@@ -978,6 +1084,109 @@ def train_epoch(
                 if nan_count > 0:
                     print(f"   - Loss computed on {target.numel() - nan_count}/{target.numel()} valid pixels ({1.0 - nan_ratio:.2%})")
 
+            # Sprint 3: precipitation-specific physical loss.
+            # Computed via an extra UNet forward on the current noisy target
+            # (not a full sampling — ~1.2x the cost of compute_loss), from
+            # which we recover x0_pred = (noisy - √(1-α̅)·ε̂) / √α̅ and feed
+            # the composite ``baseline + x0_pred`` to ``loss_precip_physical``.
+            # Gated by ``lambda_precip_phy > 0`` and by a coarse interval to
+            # keep CPU cost bounded. Unlike ``lambda_phy`` (which is zero for
+            # 1-channel precipitation), this one has a non-zero gradient on
+            # the UNet / encoder / RCN parameters.
+            loss_precip_phy_value = torch.tensor(0.0, device=device)
+            _diff_unwrapped = (
+                diffusion_decoder.module
+                if isinstance(diffusion_decoder, DDP)
+                else diffusion_decoder
+            )
+            if (
+                lambda_precip_phy > 0.0
+                and batch_idx % max(1, physical_sample_interval) == 0
+            ):
+                try:
+                    with _train_autocast(amp_mode):
+                        _valid = torch.isfinite(target)
+                        _target_clean = torch.where(
+                            _valid, target, torch.zeros_like(target)
+                        )
+                        _noise = torch.randn_like(_target_clean)
+                        _bs = _target_clean.shape[0]
+                        _ts = torch.randint(
+                            0,
+                            _diff_unwrapped.scheduler.num_train_timesteps,
+                            (_bs,),
+                            device=_target_clean.device,
+                            dtype=torch.long,
+                        )
+                        _noisy = _diff_unwrapped.scheduler.add_noise(
+                            _target_clean, _noise, _ts
+                        )
+                        _noise_pred = _diff_unwrapped.forward(
+                            _noisy,
+                            _ts,
+                            conditioning,
+                            conditioning_spatial=conditioning_spatial,
+                        )
+                        _x0_pred = _diff_unwrapped.predict_x0_from_epsilon(
+                            _noisy, _noise_pred, _ts
+                        )
+                        # Compose with baseline when available so the loss
+                        # speaks in HR composite units; otherwise stay in
+                        # residual space.
+                        _baseline = batch.get("baseline")
+                        if _baseline is not None:
+                            _baseline_t = _baseline[-1].to(device)
+                            if _baseline_t.dim() == 3:
+                                _baseline_t = _baseline_t.unsqueeze(0)
+                            if _baseline_t.shape == _x0_pred.shape:
+                                _x0_composite = _baseline_t + _x0_pred
+                                _target_composite = _baseline_t + _target_clean
+                            else:
+                                _x0_composite = _x0_pred
+                                _target_composite = _target_clean
+                        else:
+                            _x0_composite = _x0_pred
+                            _target_composite = _target_clean
+                        w_pos, w_mass, w_quant = precip_phy_weights
+                        loss_precip_phy_value = lambda_precip_phy * loss_precip_physical(
+                            _x0_composite,
+                            _target_composite,
+                            w_positivity=w_pos,
+                            w_mass=w_mass,
+                            w_quantile=w_quant,
+                            valid_mask=_valid,
+                        )
+                except Exception as _pp_ex:
+                    if verbose and batch_idx == 0:
+                        print(f"[WARN] precip physical loss skipped: {_pp_ex}")
+
+            # Sprint 2: HR identifiability loss (optional).
+            loss_hr_ident_value = torch.tensor(0.0, device=device)
+            if hr_ident_head is not None and beta_hr_ident > 0.0:
+                # Use a pooled causal state without the conditioning projection
+                # to match the head's input dim.
+                with _train_autocast(amp_mode):
+                    _pool = H_condition
+                    if _pool.dim() == 3:
+                        # [q, N, hidden] -> [1, q, hidden]
+                        _pool = _pool.mean(dim=1, keepdim=False).unsqueeze(0)
+                    try:
+                        pred_stats = hr_ident_head(_pool)
+                        _head = (
+                            hr_ident_head.module
+                            if isinstance(hr_ident_head, DDP)
+                            else hr_ident_head
+                        )
+                        true_stats = _head.extract_target_stats(
+                            target.detach(), stats=_head.stats
+                        )
+                        loss_hr_ident_value = beta_hr_ident * nn.functional.smooth_l1_loss(
+                            pred_stats, true_stats
+                        )
+                    except Exception as _hr_ex:
+                        if verbose and batch_idx == 0:
+                            print(f"[WARN] HR ident head skipped: {_hr_ex}")
+
             # Phase C1: Mixed Precision - Compute total loss
             with _train_autocast(amp_mode):
                 loss_total = (
@@ -985,8 +1194,10 @@ def train_epoch(
                     + loss_rec_value
                     + loss_dag_value
                     + loss_phy_value
+                    + loss_hr_ident_value
+                    + loss_precip_phy_value
                 )
-        
+
             # Check for NaN or Inf
             if not torch.isfinite(loss_total):
                 print(f"[WARN] Batch {batch_idx + 1} has invalid loss!")

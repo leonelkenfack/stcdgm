@@ -33,6 +33,8 @@ from st_cdgm import (
     RCNSequenceRunner,
     CausalDiffusionDecoder,
     SpatialConditioningProjector,
+    CausalConditioningProjector,
+    HRTargetIdentifiabilityHead,
     train_epoch,
     compute_rapsd_metric_from_batch,
     resolve_train_amp_mode,
@@ -292,12 +294,46 @@ def main():
         include_mid_layer=CONFIG.graph.get("include_mid_layer", True),
     )
 
-    # Encoder configs (only metapaths whose nodes exist in the graph)
+    # Encoder configs (only metapaths whose nodes exist in the graph).
+    # Sprint 1 / B2 fix: a silently filtered metapath degrades the DAG size
+    # without warning. The 2x2 DAG observed in the current checkpoint comes
+    # from here: GP500 / GP250 were missing from the builder, four of the
+    # five configured metapaths were dropped, and q collapsed to 2. We now
+    # fail loudly unless the user explicitly opts out via
+    # ``encoder.allow_missing_metapaths: true``.
     allowed_nodes = set(builder.dynamic_node_types) | set(builder.static_node_types)
+    configured_metapaths = list(CONFIG.encoder.metapaths)
+    kept_metapaths = [
+        mp for mp in configured_metapaths
+        if mp.src in allowed_nodes and mp.target in allowed_nodes
+    ]
+    missing_metapaths = [
+        mp.name for mp in configured_metapaths
+        if mp.src not in allowed_nodes or mp.target not in allowed_nodes
+    ]
+    if missing_metapaths:
+        allow_missing = bool(CONFIG.encoder.get("allow_missing_metapaths", False))
+        msg = (
+            "Encoder metapaths were silently filtered because their source or "
+            "target node types are absent from the heterogeneous graph.\n"
+            f"  - missing    : {missing_metapaths}\n"
+            f"  - kept       : {[mp.name for mp in kept_metapaths]}\n"
+            f"  - known nodes: {sorted(allowed_nodes)}\n"
+            "This usually means your NetCDF/Zarr data does not contain the "
+            "500 hPa / 250 hPa variables (u_500, v_500, w_500, q_500, t_500, "
+            "u_250, ...) or that `graph.include_mid_layer` is false. A reduced "
+            "metapath set collapses the learned DAG (q becomes smaller than "
+            "the 5 variables assumed in the ORACLE paper) and silently "
+            "degrades downscaling quality. Set "
+            "`encoder.allow_missing_metapaths: true` in the config to opt in."
+        )
+        if not allow_missing:
+            raise RuntimeError(msg)
+        if get_rank() == 0:
+            print(f"[WARN] {msg}")
     encoder_configs = [
         IntelligibleVariableConfig(name=mp.name, meta_path=(mp.src, mp.relation, mp.target), pool=mp.get("pool", "mean"))
-        for mp in CONFIG.encoder.metapaths
-        if mp.src in allowed_nodes and mp.target in allowed_nodes
+        for mp in kept_metapaths
     ]
     if pipeline.get_static_dataset() is not None:
         encoder_configs.append(
@@ -312,12 +348,32 @@ def main():
     ).to(device)
 
     num_vars = len(encoder_configs)
+    # Sprint 1: prior-based DAG init. If the user supplied a physically
+    # meaningful prior matrix under ``loss.dag_prior`` and set
+    # ``rcn.init_dag_from_prior: true``, the RCNCell starts A_dag at that
+    # prior (plus small noise) instead of Xavier random. We only use the
+    # prior when its shape matches the actual q inferred from the graph,
+    # to stay robust to configuration mismatches.
+    rcn_dag_prior_tensor = None
+    if CONFIG.rcn.get("init_dag_from_prior", False) and CONFIG.loss.get("dag_prior") is not None:
+        prior_list = CONFIG.loss.dag_prior
+        prior_tensor = torch.tensor(prior_list, dtype=torch.float32)
+        if prior_tensor.shape == (num_vars, num_vars):
+            rcn_dag_prior_tensor = prior_tensor
+        elif get_rank() == 0:
+            print(
+                f"[WARN] loss.dag_prior shape {tuple(prior_tensor.shape)} "
+                f"does not match num_vars={num_vars}; falling back to Xavier init."
+            )
+
     rcn_cell = RCNCell(
         num_vars=num_vars,
         hidden_dim=CONFIG.rcn.hidden_dim,
         driver_dim=rcn_driver_dim,
         reconstruction_dim=rcn_driver_dim,
         dropout=CONFIG.rcn.get("dropout", 0.0),
+        dag_prior=rcn_dag_prior_tensor,
+        dag_prior_noise=CONFIG.rcn.get("init_dag_prior_noise", 0.02),
     ).to(device)
 
     unet_kwargs = dict(
@@ -372,19 +428,61 @@ def main():
 
     rcn_runner = RCNSequenceRunner(rcn_cell, detach_interval=CONFIG.rcn.get("detach_interval"))
 
-    spatial_projector = SpatialConditioningProjector(
-        num_vars=len(encoder_configs),
-        hidden_dim=CONFIG.rcn.hidden_dim,
-        conditioning_dim=CONFIG.diffusion.conditioning_dim,
-        lr_shape=tuple(CONFIG.graph.lr_shape),
-        target_shape=tuple(CONFIG.diffusion.get("spatial_target_shape", [6, 7])),
-    ).to(device)
+    # Sprint 2: use the CausalConditioningProjector (DAG-token aware) when
+    # ``encoder.causal_conditioning: true`` in the YAML. This is the key
+    # architectural change that makes A_dag *visible* to the UNet via
+    # cross-attention — the decoder learns ``f(x | H_T, A_dag)`` instead
+    # of just ``f(x | H_T)``, and interventional edits of A_dag at
+    # inference now directly change the tokens fed to the UNet.
+    use_causal_proj = bool(CONFIG.encoder.get("causal_conditioning", False))
+    spatial_target_shape = tuple(CONFIG.diffusion.get("spatial_target_shape", [6, 7]))
+    if use_causal_proj:
+        if get_rank() == 0:
+            print("🧠 Sprint 2: using CausalConditioningProjector (A_dag tokens)")
+        spatial_projector = CausalConditioningProjector(
+            num_vars=len(encoder_configs),
+            hidden_dim=CONFIG.rcn.hidden_dim,
+            conditioning_dim=CONFIG.diffusion.conditioning_dim,
+            lr_shape=tuple(CONFIG.graph.lr_shape),
+            target_shape=spatial_target_shape,
+            num_dag_tokens=int(CONFIG.encoder.get("num_dag_tokens", 1)),
+        ).to(device)
+    else:
+        spatial_projector = SpatialConditioningProjector(
+            num_vars=len(encoder_configs),
+            hidden_dim=CONFIG.rcn.hidden_dim,
+            conditioning_dim=CONFIG.diffusion.conditioning_dim,
+            lr_shape=tuple(CONFIG.graph.lr_shape),
+            target_shape=spatial_target_shape,
+        ).to(device)
 
-    optimizer = torch.optim.Adam(
-        list(encoder.parameters()) + list(rcn_cell.parameters())
-        + list(diffusion.parameters()) + list(spatial_projector.parameters()),
-        lr=CONFIG.training.lr,
+    # Sprint 2: optional HR-target identifiability head.
+    hr_ident_cfg = CONFIG.loss.get("hr_ident", {}) or {}
+    hr_ident_enabled = bool(hr_ident_cfg.get("enabled", False))
+    beta_hr_ident = float(hr_ident_cfg.get("beta", 0.0))
+    if hr_ident_enabled and beta_hr_ident > 0.0:
+        hr_ident_head = HRTargetIdentifiabilityHead(
+            num_vars=len(encoder_configs),
+            hidden_dim=CONFIG.rcn.hidden_dim,
+            stats=list(hr_ident_cfg.get("stats", ["mean", "std", "p95", "p99"])),
+        ).to(device)
+        if get_rank() == 0:
+            print(
+                f"🎯 Sprint 2: HR identifiability head enabled "
+                f"(beta={beta_hr_ident}, stats={hr_ident_head.stats})"
+            )
+    else:
+        hr_ident_head = None
+
+    _opt_params = (
+        list(encoder.parameters())
+        + list(rcn_cell.parameters())
+        + list(diffusion.parameters())
+        + list(spatial_projector.parameters())
     )
+    if hr_ident_head is not None:
+        _opt_params += list(hr_ident_head.parameters())
+    optimizer = torch.optim.Adam(_opt_params, lr=CONFIG.training.lr)
 
     batch_size = CONFIG.training.get("batch_size", 1)
     num_workers = CONFIG.training.get("num_workers", 0)  # 0 on CyVerse (limited /dev/shm)
@@ -400,7 +498,38 @@ def main():
 
     history = {"loss": [], "loss_gen": [], "loss_rec": [], "loss_dag": []}
 
+    # Sprint 2: dag_grad_gate warm-up schedule.
+    # Gate stays at 0 during the first ``dag_gate_cold_epochs`` so the UNet
+    # can stabilise against the detached A_dag (Sprint 1 behaviour), then
+    # ramps linearly to ``dag_gate_max`` over ``dag_gate_ramp_epochs``,
+    # then stays constant. This gives end-to-end causal training with a
+    # safe cold-start and no risk of wrecking A_dag in the first epochs.
+    dag_gate_cfg = CONFIG.rcn.get("dag_grad_gate", {}) or {}
+    dag_gate_enabled = bool(dag_gate_cfg.get("enabled", False))
+    dag_gate_cold_epochs = int(dag_gate_cfg.get("cold_epochs", 5))
+    dag_gate_ramp_epochs = max(1, int(dag_gate_cfg.get("ramp_epochs", 20)))
+    dag_gate_max = float(dag_gate_cfg.get("max", 1.0))
+
+    def _dag_gate_value(epoch_idx: int) -> float:
+        if not dag_gate_enabled:
+            return 0.0
+        if epoch_idx < dag_gate_cold_epochs:
+            return 0.0
+        progress = (epoch_idx - dag_gate_cold_epochs) / dag_gate_ramp_epochs
+        return float(max(0.0, min(dag_gate_max, progress * dag_gate_max)))
+
     for epoch in range(CONFIG.training.epochs):
+        # Sprint 2: set the gate *before* train_epoch so every batch this
+        # epoch sees the same gate value. We poke through the DDP wrapper
+        # if present, and through the torch.compile wrapper (``_orig_mod``).
+        _gate_value = _dag_gate_value(epoch)
+        _rcn_target = rcn_cell.module if hasattr(rcn_cell, "module") else rcn_cell
+        _rcn_target = getattr(_rcn_target, "_orig_mod", _rcn_target)
+        if hasattr(_rcn_target, "set_dag_grad_gate"):
+            _rcn_target.set_dag_grad_gate(_gate_value)
+        if get_rank() == 0 and dag_gate_enabled:
+            print(f"[Epoch {epoch + 1}] dag_grad_gate = {_gate_value:.3f}")
+
         # Reuse the same DataLoader (no need to recreate with persistent_workers)
         data_loader = iterate_batches(train_loader, builder, device)
         metrics = train_epoch(
@@ -431,6 +560,15 @@ def main():
             lambda_dag_prior=CONFIG.loss.get("lambda_dag_prior", 0.0),
             dag_prior=torch.tensor(CONFIG.loss.dag_prior, dtype=torch.float32) if CONFIG.loss.get("dag_prior") else None,
             spatial_projector=spatial_projector,
+            hr_ident_head=hr_ident_head,
+            beta_hr_ident=beta_hr_ident,
+            lambda_precip_phy=float(CONFIG.loss.get("lambda_precip_phy", 0.0)),
+            precip_phy_weights=tuple(
+                CONFIG.loss.get("precip_phy_weights", [1.0, 0.1, 0.2])
+            ),
+            physical_sample_interval=int(
+                CONFIG.training.get("physical_loss", {}).get("physical_sample_interval", 10)
+            ),
         )
         if get_rank() == 0 and CONFIG.loss.get("log_spectral_metric_each_epoch", False):
             amp_m = resolve_train_amp_mode(device, CONFIG.training.get("use_amp", True))
@@ -462,15 +600,25 @@ def main():
             enc = encoder.module if hasattr(encoder, "module") else encoder
             rcn = rcn_cell.module if hasattr(rcn_cell, "module") else rcn_cell
             diff = diffusion.module if hasattr(diffusion, "module") else diffusion
-            torch.save({
+            sp = spatial_projector.module if hasattr(spatial_projector, "module") else spatial_projector
+            _ckpt_payload = {
                 "epoch": epoch + 1,
                 "encoder_state_dict": enc.state_dict(),
                 "rcn_cell_state_dict": rcn.state_dict(),
                 "diffusion_state_dict": diff.state_dict(),
+                # Sprint 1 / B4 fix: persist the spatial projector so that
+                # evaluation can rebuild it and feed cross-attention tokens
+                # to the UNet instead of q global scalars.
+                "spatial_projector_state_dict": sp.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
                 "history": history,
                 "config": OmegaConf.to_container(CONFIG, resolve=True),
-            }, ckpt)
+            }
+            # Sprint 2: persist the HR identifiability head when enabled.
+            if hr_ident_head is not None:
+                _hrh = hr_ident_head.module if hasattr(hr_ident_head, "module") else hr_ident_head
+                _ckpt_payload["hr_ident_head_state_dict"] = _hrh.state_dict()
+            torch.save(_ckpt_payload, ckpt)
             print(f"Checkpoint saved: {ckpt}")
 
     if world_size > 1:

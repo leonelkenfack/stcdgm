@@ -404,6 +404,7 @@ class CausalDiffusionDecoder(nn.Module):
                 baseline=baseline,
                 apply_constraints=apply_constraints,
                 conditioning_spatial=conditioning_spatial,
+                cfg_scale=cfg_scale,
             )
         
         # Original DDPM sampling
@@ -588,6 +589,7 @@ class CausalDiffusionDecoder(nn.Module):
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
         conditioning_spatial: Optional[Tensor] = None,
+        cfg_scale: float = 0.0,
     ) -> DiffusionOutput:
         """
         Phase E1: DPM-Solver++ sampling for ultra-fast inference.
@@ -644,10 +646,44 @@ class CausalDiffusionDecoder(nn.Module):
             use_karras_sigmas=True,  # Karras noise schedule for better quality
         )
         dpm_scheduler.set_timesteps(num_steps, device=device)
-        
+
+        # Sprint 3: classifier-free guidance for DPM-Solver++.
+        # The DDPM branch already supported CFG, but the production config
+        # uses DPM-Solver++ at inference — CFG was silently ignored, which
+        # made ``cfg_scale`` in the YAML a no-op. We replicate the same
+        # dual-stream (class_labels + encoder_hidden_states) null-branch
+        # logic here. Training already drops both streams jointly under
+        # ``conditioning_dropout_prob`` (see training_loop.py), so the
+        # model has learned an unconditional branch we can legitimately
+        # extrapolate away from.
+        use_cfg = bool(cfg_scale) and cfg_scale > 0.0
+        if use_cfg:
+            prepared_cond = self._prepare_conditioning(conditioning)
+            class_labels_cond = self._pool_conditioning(prepared_cond)
+            hidden_cond = (
+                conditioning_spatial
+                if conditioning_spatial is not None
+                else prepared_cond
+            )
+            null_hidden = torch.zeros_like(hidden_cond)
+            null_class = torch.zeros_like(class_labels_cond)
+
         # Sampling loop with DPM-Solver++
         for t in dpm_scheduler.timesteps:
-            model_output = self.forward(sample, t, conditioning, conditioning_spatial=conditioning_spatial)
+            cond_out = self.forward(
+                sample, t, conditioning,
+                conditioning_spatial=conditioning_spatial,
+            )
+            if use_cfg:
+                uncond_out = self.unet(
+                    sample=sample,
+                    timestep=t,
+                    encoder_hidden_states=null_hidden,
+                    class_labels=null_class,
+                ).sample
+                model_output = uncond_out + cfg_scale * (cond_out - uncond_out)
+            else:
+                model_output = cond_out
             sample = dpm_scheduler.step(model_output, t, sample, return_dict=False)[0]
         
         residual = sample

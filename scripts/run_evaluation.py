@@ -108,6 +108,7 @@ def run_evaluation(
     encoder = checkpoint_data["encoder"]
     rcn_runner = checkpoint_data["rcn_runner"]
     diffusion_decoder = checkpoint_data["diffusion_decoder"]
+    spatial_projector = checkpoint_data.get("spatial_projector")
     config = checkpoint_data["config"]
     
     # Setup graph builder
@@ -144,6 +145,7 @@ def run_evaluation(
         num_steps=num_inference_steps,
         scheduler_type=scheduler_type,
         cfg_scale=cfg_scale,
+        spatial_projector=spatial_projector,
     )
 
     print("\nComputing metrics...")

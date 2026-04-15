@@ -53,6 +53,16 @@ graph:
 encoder:
   hidden_dim: 128
   conditioning_dim: 128
+  # Sprint 1 / B2 fix: fail loudly if a metapath is silently filtered out
+  # because its node types are missing from the graph. Set to true only if
+  # you intentionally want to downscale with an incomplete DAG (q < 5).
+  allow_missing_metapaths: false
+  # Sprint 2: use CausalConditioningProjector, which appends a learnable
+  # DAG-token to the spatial cross-attention tokens so the UNet literally
+  # *sees* A_dag. Required to make the DAG effectively condition every
+  # diffusion sample (and to unlock interventional do-calculus at inference).
+  causal_conditioning: true
+  num_dag_tokens: 2
   metapaths:
     - name: "GP850_spat_adj"
       src: "GP850"
@@ -87,8 +97,26 @@ rcn:
   hidden_dim: 128
   driver_dim: 15      # Overridden at runtime by data sample shape
   reconstruction_dim: 15
-  dropout: 0.2        # Pas de dropout (sous-apprentissage actuel)
-  detach_interval: 16  # Truncated BPTT: gradient flows back 4 steps
+  dropout: 0.1        # Sprint 1: lower dropout — model is under-fitting, not overfitting
+  detach_interval: 16  # Truncated BPTT: gradient flows back 16 steps
+  # Sprint 1: initialise A_dag from the user-supplied prior matrix
+  # (see loss.dag_prior) plus small noise. Avoids the xavier random init
+  # that wanders until DAGMA drags it to zero, and gives the RCN a
+  # physically meaningful starting topology (vertical coupling).
+  init_dag_from_prior: true
+  init_dag_prior_noise: 0.02
+  # Sprint 2: grad gate on A_dag. Controls how much of the diffusion
+  # gradient reaches A_dag via the straight-through interpolation inside
+  # RCNCell.forward(). Default recipe:
+  #   - 5 "cold" epochs with gate=0 (Sprint 1 detached behaviour)
+  #   - linear ramp over 20 epochs to ``max`` (default 1.0 = full gradient)
+  # The spectral projection after each optimiser step keeps A_dag acyclic
+  # regardless of the gate value, so it's safe to go all the way to 1.0.
+  dag_grad_gate:
+    enabled: true
+    cold_epochs: 5
+    ramp_epochs: 20
+    max: 1.0
 
 # ============================================================================
 # CONFIGURATION DIFFUSION
@@ -105,7 +133,13 @@ diffusion:
   eval_num_steps: 12            # 15 steps suffisent avec DPM-Solver++
   
   use_gradient_checkpointing: false
-  cfg_scale: 0.2
+  # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
+  # ignoring ``cfg_scale`` until we added dual-stream guidance support in
+  # ``_sample_dpm_solver``. 1.5–2.0 is the sweet spot for residual
+  # precipitation: below 1.2 the extrapolation has no effect, above 2.5
+  # extremes become too salty. ``conditioning_dropout_prob: 0.1`` keeps
+  # the training-time null branch available for CFG to extrapolate from.
+  cfg_scale: 1.5
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: true
@@ -134,12 +168,25 @@ diffusion:
 # CONFIGURATION DES PERTES (LOSS)
 # ============================================================================
 loss:
-  # Pondérations des pertes - REBALANCÉ pour convergence optimale
-  lambda_gen: 1.0       # ↓ de 1.0 (trop dominant avant)
-  beta_rec: 0.05         # ↑ de 0.05 (CRITIQUE pour reconstruction)
-  gamma_dag: 0.15       # Warm-up phase 1 (→ 0.1 après epoch 50)
-  lambda_phy: 0.0       # Désactivé (instable sans use_predicted_output=true)
+  # Pondérations des pertes - Sprint 1: rebalance after B1 fix.
+  # With L_rec actually working now (B1), beta_rec has to be raised so the
+  # DAG is driven by reconstruction. gamma_dag is slightly lowered so the
+  # DAGMA penalty does not fight the new L_rec signal.
+  lambda_gen: 1.0
+  beta_rec: 0.20        # was 0.05 — L_rec is now functional (B1 fix)
+  gamma_dag: 0.10       # was 0.15 — leave headroom for L_rec gradient
+  lambda_phy: 0.0       # Disabled for 1-channel precip (div/vort need vector field)
   lambda_spectral: 0.0
+
+  # Sprint 3: precipitation-specific physical loss.
+  # Applies positivity + global mass + quantile matching on the composite
+  # (baseline + predicted residual). Differentiable through the UNet via
+  # x0-from-epsilon, so the gradient actually reaches the SCM. Triggers
+  # every ``training.physical_loss.physical_sample_interval`` batches.
+  # Weights = (positivity, mass, quantile). Default 1.0/0.1/0.2 — quantile
+  # weight is the key lever for F1_p95/F1_p99.
+  lambda_precip_phy: 0.05
+  precip_phy_weights: [1.0, 0.1, 0.2]
   
   # Métriques spectrales
   use_spectral_loss: false
@@ -169,6 +216,16 @@ loss:
   
   # Type de perte reconstruction
   reconstruction_loss_type: "huber+cosine"  # Combinaison MSE + similarité cosinus
+
+  # Sprint 2: optional HR-target identifiability head. Predicts summary
+  # statistics of the HR field (spatial mean, std, p95, p99) from the
+  # pooled causal state. Gradient flows back through the encoder + RCN,
+  # pulling A_dag toward representations that know about precipitation
+  # extremes. Use this *in addition to* the regular LR driver L_rec.
+  hr_ident:
+    enabled: true
+    beta: 0.05
+    stats: ["mean", "std", "p95", "p99"]
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT
@@ -235,8 +292,15 @@ checkpoint:
 evaluation:
   enabled: true
   eval_every: 10
-  num_samples: 10
-  eval_num_steps: 12
+  # Sprint 3: probabilistic-calibration bumps.
+  # - num_samples 10→16: tighter CRPS estimate (≈ sqrt(10/16) ≈ 0.79x the
+  #   Monte-Carlo noise), and sigma_r becomes statistically meaningful.
+  # - eval_num_steps 12→25: DPM-Solver++ extrapolation error drops
+  #   sharply between 12 and 25 steps on small residual UNets. Doubles
+  #   inference cost (~14s → ~28s per sample on CPU) but recovers most
+  #   of the RAPSD distance gap.
+  num_samples: 16
+  eval_num_steps: 25
   eval_scheduler: "dpm_solver++"
   crps_max_ensemble_members: 32
   compute_f1_extremes: true

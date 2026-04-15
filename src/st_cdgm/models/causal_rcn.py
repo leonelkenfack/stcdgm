@@ -59,6 +59,8 @@ class RCNCell(nn.Module):
         activation: Optional[nn.Module] = None,
         dropout: float = 0.0,
         detach_dag_in_state: bool = True,
+        dag_prior: Optional[Tensor] = None,
+        dag_prior_noise: float = 0.02,
     ) -> None:
         super().__init__()
 
@@ -74,6 +76,52 @@ class RCNCell(nn.Module):
         # L_dag (and through L_rec, which flows via H_prev). The returned
         # ``A_masked`` stays attached so those losses still propagate.
         self.detach_dag_in_state = detach_dag_in_state
+
+        # Sprint 2: straight-through "grad gate" on A_dag.
+        # When detach_dag_in_state is True, the previous behaviour was to feed
+        # ``A_masked.detach()`` to the structural path, so the diffusion loss
+        # could never update A_dag. That choice kept the DAG "pure" at the
+        # cost of making it decorative: A_dag was only trained by L_rec and
+        # L_dag, never by the signal that actually matters for downscaling.
+        #
+        # The grad gate interpolates between the two extremes as a smooth,
+        # schedulable knob:
+        #     A_for_state = A_masked.detach()
+        #                 + dag_grad_gate * (A_masked - A_masked.detach())
+        # so that ``dag_grad_gate = 0`` reproduces the Sprint 1 detached
+        # behaviour (safe for cold-start when the UNet is still noisy),
+        # ``dag_grad_gate = 1`` exposes A_dag to the full diffusion gradient
+        # (end-to-end causal downscaling), and anything in between is a
+        # linear mix. The spectral projection performed by
+        # ``project_dag_spectral`` after every optimiser step still
+        # guarantees acyclicity regardless of the gate value.
+        #
+        # The gate is a *buffer*, not a parameter — it is set externally by
+        # the training loop (cf. ``set_dag_grad_gate``) so it can follow a
+        # warm-up schedule without interfering with the optimizer state.
+        self.register_buffer(
+            "dag_grad_gate",
+            torch.tensor(0.0, dtype=torch.float32),
+        )
+
+        # Sprint 1: optional prior-based initialisation of A_dag. When a
+        # physically meaningful prior matrix is passed, we start the DAG at
+        # ``prior + N(0, noise^2)`` instead of pure Xavier random init. This
+        # (a) gives the RCN a meaningful causal structure from step 0, so
+        # the structural MLPs can learn against a coherent Â, and (b) avoids
+        # the pathological regime where A_dag wanders around 0 until DAGMA
+        # drags it to the sparse acyclic attractor.
+        if dag_prior is not None:
+            prior_tensor = torch.as_tensor(dag_prior, dtype=torch.float32)
+            if prior_tensor.shape != (num_vars, num_vars):
+                raise ValueError(
+                    f"dag_prior must have shape ({num_vars}, {num_vars}); "
+                    f"got {tuple(prior_tensor.shape)}"
+                )
+            self._dag_prior = prior_tensor
+        else:
+            self._dag_prior = None
+        self._dag_prior_noise = float(dag_prior_noise)
 
         # Matrice DAG apprenable
         self.A_dag = nn.Parameter(torch.randn(num_vars, num_vars))
@@ -107,21 +155,58 @@ class RCNCell(nn.Module):
         # Embedding d'identité par variable — spécialise le driver pour chaque GRU
         self.var_embed = nn.Embedding(num_vars, hidden_dim)
 
-        # Décodeur de reconstruction optionnel
+        # Décodeur de reconstruction optionnel.
+        # Sprint 1 / B1 fix: the recon decoder takes the *hidden state* H_prev
+        # as input (shape [N, q*hidden_dim] after reshape), not the driver.
+        # Eq.(7) of the ORACLE paper reads
+        #     L_rec = E_t[ || g(H_{t-1}) - u_t ||^2 ]
+        # so ``g`` must map ``num_vars * hidden_dim -> reconstruction_dim``.
+        # Previously sized as ``Linear(driver_dim, reconstruction_dim)``, which
+        # silently broke L_rec (shape mismatch at forward time) and left the
+        # DAG without its main supervision signal.
         if self.reconstruction_dim is not None:
             self.reconstruction_decoder = nn.Linear(
-                num_vars * hidden_dim, self.reconstruction_dim
+                num_vars * hidden_dim,
+                reconstruction_dim,
             )
         else:
             self.reconstruction_decoder = None
 
         self.reset_parameters()
 
+    @torch.no_grad()
+    def set_dag_grad_gate(self, value: float) -> None:
+        """
+        Sprint 2: externally set the straight-through grad gate on A_dag.
+
+        ``value`` is clamped to ``[0, 1]``. A value of 0 reproduces the
+        Sprint 1 behaviour (A_dag detached from the diffusion loss); a
+        value of 1 gives full end-to-end gradient flow from L_gen to A_dag.
+        Intermediate values enable a warm-up curriculum.
+        """
+        v = float(value)
+        if not math.isfinite(v):
+            raise ValueError(f"dag_grad_gate must be finite; got {value}")
+        v = max(0.0, min(1.0, v))
+        self.dag_grad_gate.fill_(v)
+
     def reset_parameters(self) -> None:
         """
         Réinitialise les paramètres internes.
         """
-        nn.init.xavier_uniform_(self.A_dag)
+        # Sprint 1: prior-based DAG init when available, Xavier otherwise.
+        # The prior is expected to already satisfy acyclicity (tridiagonal
+        # in the ORACLE config) so no spectral projection is needed here —
+        # ``project_dag_spectral`` in the training loop takes care of it
+        # after the first optimiser step if the noise pushes us off-cone.
+        if self._dag_prior is not None:
+            with torch.no_grad():
+                self.A_dag.copy_(self._dag_prior)
+                if self._dag_prior_noise > 0:
+                    self.A_dag.add_(torch.randn_like(self.A_dag) * self._dag_prior_noise)
+                self.A_dag.fill_diagonal_(0.0)
+        else:
+            nn.init.xavier_uniform_(self.A_dag)
 
         # Structural MLPs vectorisés : init Xavier uniforme couche par couche.
         for w in (self.struct_W1, self.struct_W2):
@@ -201,6 +286,22 @@ class RCNCell(nn.Module):
                 state_dict[f"{prefix}gru_b_ih"] = b_ih
                 state_dict[f"{prefix}gru_b_hh"] = b_hh
 
+        # Sprint 1 / B1 fix: checkpoints written before the recon shape
+        # correction stored the decoder as Linear(driver_dim, reconstruction_dim),
+        # which is incompatible with the new Linear(num_vars*hidden_dim, _).
+        # Those weights were never trained meaningfully (L_rec was broken),
+        # so we drop them and let xavier re-init handle it on resume.
+        if self.reconstruction_decoder is not None:
+            expected_in = self.num_vars * self.hidden_dim
+            for suffix in ("reconstruction_decoder.weight", "reconstruction_decoder.bias"):
+                key = prefix + suffix
+                if key in state_dict:
+                    tensor = state_dict[key]
+                    if suffix.endswith(".weight") and tensor.shape[1] != expected_in:
+                        state_dict.pop(key)
+                    elif suffix.endswith(".bias") and tensor.shape[0] != self.reconstruction_dim:
+                        state_dict.pop(key)
+
         return super()._load_from_state_dict(
             state_dict,
             prefix,
@@ -250,12 +351,24 @@ class RCNCell(nn.Module):
 
         A_masked = _mask_diagonal(self.A_dag)
 
-        # Phase DAG-decouple: isolate the copy of A that feeds the state.
-        # `A_masked` (attached) is returned for L_dag / L_rec; `A_for_state`
-        # carries no gradient to `A_dag`, so the diffusion loss cannot pull
-        # the DAG toward representations that help generation but break
-        # acyclicity / physical interpretation.
-        A_for_state = A_masked.detach() if self.detach_dag_in_state else A_masked
+        # Phase DAG-decouple + Sprint 2 grad gate.
+        # ``A_masked`` (attached) is always returned for L_dag / L_rec so
+        # those losses can still propagate. The copy fed into the structural
+        # path is built as a straight-through interpolation between the
+        # detached and attached matrices, controlled by ``dag_grad_gate``:
+        #     A_for_state = detached + gate * (attached - detached)
+        # The *value* at the forward pass is always ``A_masked`` (both
+        # terms evaluate to the same numbers), but the *gradient* scale on
+        # the attached branch equals ``gate``. So gate=0 ⇔ Sprint 1
+        # detachment, gate=1 ⇔ full end-to-end gradient, intermediate =
+        # warm-up ramp. ``detach_dag_in_state=False`` forces gate=1
+        # regardless, to preserve the old switch semantics.
+        if self.detach_dag_in_state:
+            A_det = A_masked.detach()
+            gate = self.dag_grad_gate  # scalar buffer
+            A_for_state = A_det + gate * (A_masked - A_det)
+        else:
+            A_for_state = A_masked
 
         # Étape 1 : Prédiction interne via SCM, entièrement vectorisée.
         # weighted_sum : [q, N, hidden]
@@ -293,14 +406,27 @@ class RCNCell(nn.Module):
         # Apply dropout in vectorized manner
         H_next_tensor = self.dropout(H_next_tensor)
 
-        # Reconstruction facultative
+        # Reconstruction facultative.
+        # Sprint 1: by default we now feed the *updated* state H_next to the
+        # recon decoder (not H_prev). The semantics become an identifiability
+        # bottleneck on the full SCM+GRU step:
+        #     "given H_t (computed from H_{t-1} and u_t), can you recover u_t?"
+        # This is the only way to get L_rec to push gradient into struct_W*,
+        # GRU weights and — with ``detach_dag_in_state=False`` — A_dag itself.
+        # The previous behaviour (source = H_prev) kept L_rec a dead branch:
+        # it only trained the recon decoder and nothing upstream, so the DAG
+        # was never supervised by reconstruction. Callers can still override
+        # by passing an explicit ``reconstruction_source``.
         reconstruction = None
         if self.reconstruction_decoder is not None:
-            # Use provided reconstruction source or default to H_prev
-            source = reconstruction_source if reconstruction_source is not None else H_prev
-            
+            source = (
+                reconstruction_source
+                if reconstruction_source is not None
+                else H_next_tensor
+            )
+
             # Ensure source has shape [N, num_vars * hidden_dim]
-            # If source is [q, N, hidden_dim] (like H_prev), permute and reshape
+            # If source is [q, N, hidden_dim] (like H_next), permute and reshape
             if source.dim() == 3 and source.shape[0] == self.num_vars and source.shape[2] == self.hidden_dim:
                 recon_input = source.permute(1, 0, 2).reshape(N, -1)
             elif source.dim() == 2:
@@ -309,7 +435,7 @@ class RCNCell(nn.Module):
             else:
                 # Fallback reshape trying to preserve N
                 recon_input = source.reshape(N, -1)
-                
+
             reconstruction = self.reconstruction_decoder(recon_input)
 
         return H_next_tensor, reconstruction, A_masked
