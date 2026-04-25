@@ -27,6 +27,9 @@ data:
   
   # Préprocessing
   normalize: true
+  # NetCDF memory guard: keep datasets lazy to avoid large RAM peaks
+  # during pipeline construction (baseline/residual preparation).
+  eager_load_datasets: false
   target_transform: "log1p"
   nan_fill_strategy: "mean"
   precipitation_delta: 0.01
@@ -114,8 +117,13 @@ rcn:
   # regardless of the gate value, so it's safe to go all the way to 1.0.
   dag_grad_gate:
     enabled: true
-    cold_epochs: 5
-    ramp_epochs: 20
+    # Sprint 4: shortened cold phase (5 → 2) so the diffusion gradient
+    # reaches A_dag earlier. The combined recipe of wider cross-attention
+    # (see diffusion.unet_kwargs) + contrastive DAG loss (see
+    # loss.contrastive_dag.*) means A_dag is now a *useful* target for the
+    # diffusion loss from epoch 3 onward — no benefit in keeping gate=0.
+    cold_epochs: 2
+    ramp_epochs: 15
     max: 1.0
 
 # ============================================================================
@@ -147,22 +155,36 @@ diffusion:
   unet_kwargs:
     layers_per_block: 1
     block_out_channels: [32, 64]
+    # Sprint 4 / DAG-conditioning fix.
+    # Previous config had cross-attention only on the 2nd down + 1st up block
+    # and a plain ``UNetMidBlock2D``. That left the bottleneck (the most
+    # semantically concentrated representation) blind to H_T and the A_dag
+    # tokens. Combined with conditioning_dropout=0.1 + cfg_scale=0 at
+    # inference, the UNet learned to marginalise out the conditioning
+    # stream entirely. Empirical confirmation: intervention test on the
+    # epoch-10 checkpoint shows delta_zero / signal ≈ 0.0001%.
+    #
+    # We now cross-attend at *every* resolution level (including mid),
+    # keeping self-attention on (``only_cross_attention=[false, false]``)
+    # so each block still has the usual self-attention channel. Cost on
+    # CPU is modest because in_channels=1 and the deepest level runs at
+    # ~44×45 tokens.
     down_block_types:
-      - "DownBlock2D"
+      - "CrossAttnDownBlock2D"
       - "CrossAttnDownBlock2D"
     up_block_types:
       - "CrossAttnUpBlock2D"
-      - "UpBlock2D"
-    mid_block_type: "UNetMidBlock2D"
+      - "CrossAttnUpBlock2D"
+    mid_block_type: "UNetMidBlock2DCrossAttn"
     norm_num_groups: 8
     class_embed_type: "projection"
-    
+
     # ⚠️ CRITIQUE: Doit correspondre à hidden_dim × nb_metapaths
     projection_class_embeddings_input_dim: 640  # 128 × 5 = 640
-    
+
     resnet_time_scale_shift: "scale_shift"
     attention_head_dim: 32
-    only_cross_attention: [false, true]
+    only_cross_attention: [false, false]
 
 # ============================================================================
 # CONFIGURATION DES PERTES (LOSS)
@@ -226,6 +248,27 @@ loss:
     enabled: true
     beta: 0.05
     stats: ["mean", "std", "p95", "p99"]
+
+  # Sprint 4: contrastive DAG-conditioning loss.
+  # For every K-th optimizer step we perform an *extra* UNet forward with
+  # A_dag zeroed (same noisy target, same timestep, same class_labels,
+  # only the DAG-token branch of conditioning_spatial is nulled). A margin
+  # loss then forces the real-A_dag epsilon prediction to beat the zeroed
+  # one by at least ``margin`` MSE points on the diffusion target:
+  #     L_c = max(0, margin - (MSE(eps_zero, eps) - MSE(eps_real, eps)))
+  # Gradient flows only through the *real* branch (eps_zero is produced
+  # with ``torch.no_grad()``), so the UNet has an unambiguous incentive
+  # to route A_dag information into its prediction. This is the single
+  # most important lever that makes the DAG *actually* condition the
+  # diffusion rather than being decorative.
+  contrastive_dag:
+    enabled: true
+    weight: 0.5
+    margin: 0.02
+    # One contrastive pass every N optimizer steps. 4 is a good balance
+    # on CPU (~25% training-time overhead). Raise to 1 for faster signal,
+    # lower it to 8/16 if training throughput is the bottleneck.
+    interval: 4
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT

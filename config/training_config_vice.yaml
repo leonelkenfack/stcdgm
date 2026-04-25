@@ -40,6 +40,7 @@ data:
   baseline_strategy: "hr_smoothing"  # or "lr_interp"
   baseline_factor: 4
   normalize: true
+  eager_load_datasets: false
   target_transform: "log1p"  # aligné sur training_config.yaml (v6)
   nan_fill_strategy: "mean"
   precipitation_delta: 0.01

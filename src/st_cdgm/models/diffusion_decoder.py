@@ -448,6 +448,15 @@ class CausalDiffusionDecoder(nn.Module):
                 model_output = noise_pred_uncond + cfg_scale * (noise_pred_cond - noise_pred_uncond)
             else:
                 model_output = noise_pred_cond
+            # CFG safety net: with an under-trained unconditional branch
+            # (early epochs, small conditioning_dropout_prob), the
+            # extrapolation ``u + s·(c - u)`` can overshoot and saturate
+            # in bf16/fp16. Clamp to a wide finite range so the scheduler
+            # step does not consume a NaN that then propagates to every
+            # subsequent step of the reverse process.
+            model_output = torch.nan_to_num(
+                model_output, nan=0.0, posinf=1e4, neginf=-1e4
+            )
             sample = scheduler.step(model_output, t, sample).prev_sample
 
         residual = sample
@@ -684,6 +693,12 @@ class CausalDiffusionDecoder(nn.Module):
                 model_output = uncond_out + cfg_scale * (cond_out - uncond_out)
             else:
                 model_output = cond_out
+            # CFG safety net: same reasoning as the DDPM branch above —
+            # under-trained uncond + high cfg_scale can saturate; clamp to
+            # a finite range so DPM-Solver++ never ingests a NaN.
+            model_output = torch.nan_to_num(
+                model_output, nan=0.0, posinf=1e4, neginf=-1e4
+            )
             sample = dpm_scheduler.step(model_output, t, sample, return_dict=False)[0]
         
         residual = sample

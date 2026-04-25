@@ -271,6 +271,7 @@ def main(cfg: DictConfig) -> None:
         normalize=cfg.data.normalize,
         nan_fill_strategy=getattr(cfg.data, 'nan_fill_strategy', 'zero'),
         precipitation_delta=getattr(cfg.data, 'precipitation_delta', 0.01),
+        eager_load_datasets=bool(getattr(cfg.data, "eager_load_datasets", False)),
     )
     dataset = pipeline.build_sequence_dataset(
         seq_len=cfg.data.seq_len,

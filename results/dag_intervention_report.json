@@ -1,0 +1,39 @@
+{
+  "checkpoint": "models/st_cdgm_checkpoint.pth",
+  "epoch": 10,
+  "n_samples": 5,
+  "num_steps": 15,
+  "regimes": [
+    "orig",
+    "zero",
+    "perm"
+  ],
+  "summary": {
+    "sample_idx": 2.0,
+    "sample_seed": 1002.0,
+    "mse_orig_vs_target": 0.564038610458374,
+    "mse_zero_vs_target": 0.5637912273406982,
+    "mse_perm_vs_target": 0.5639877200126648,
+    "delta_orig_vs_zero_mse": 2.7266476536169646e-06,
+    "delta_orig_vs_perm_mse": 1.4216633189789719e-06,
+    "delta_orig_vs_zero_mae": 0.0012487764470279217,
+    "delta_orig_vs_perm_mae": 0.0008861730108037591,
+    "pred_orig_rms": 1.3056438088417053,
+    "pred_orig_max": 5.888876247406006
+  },
+  "relative_delta_pct": {
+    "orig_vs_zero": 0.00015994828695293383,
+    "orig_vs_perm": 8.339640517646901e-05
+  },
+  "precision_degradation": {
+    "zero_minus_orig": -0.00024738311767580345,
+    "perm_minus_orig": -5.08904457091619e-05
+  },
+  "verdict_code": "non_conditioning",
+  "verdict": "DAG NON-CONDITIONNANTE. Les interventions sur A_dag produisent un effet\ninferieur a 1.0% du signal. Le decodeur de diffusion ignore\nla structure causale: le conditionnement passe presque exclusivement par\nH_T (et le projecteur spatial), qui ne dependent que faiblement de A_dag\nparce que le grad gate est a 0 et detach_dag_in_state est True.",
+  "A_dag_stats": {
+    "frobenius_norm": 1.1399166584014893,
+    "max_abs": 0.5397698283195496,
+    "mean_abs": 0.10179732739925385
+  }
+}

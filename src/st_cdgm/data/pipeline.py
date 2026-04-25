@@ -348,6 +348,7 @@ class NetCDFDataPipeline:
         means_path: Optional[str | Path] = None,
         stds_path: Optional[str | Path] = None,
         chunks: Optional[Dict[str, int]] = None,
+        eager_load_datasets: bool = False,
         transform_epsilon: float = 1e-6,
     ) -> None:
         if xbatcher is None:
@@ -366,6 +367,7 @@ class NetCDFDataPipeline:
         self.stds_path = Path(stds_path) if stds_path else None
         self.transform_epsilon = transform_epsilon
         self._chunks = chunks
+        self._eager_load_datasets = bool(eager_load_datasets)
 
         self._target_transform = _ensure_callable_transform(target_transform, transform_epsilon)
         self._target_inverse_transform = target_inverse_transform
@@ -409,7 +411,8 @@ class NetCDFDataPipeline:
 
         # Align datasets along the shared temporal axis
         self.lr_dataset_raw, self.hr_dataset_raw = self._align_time(self.lr_dataset_raw, self.hr_dataset_raw)
-        # Load into memory (chunked on failure for CyVerse Data Store / slow HDF reads)
+        # Optional eager load (legacy behavior). Disabled by default to avoid
+        # large RAM spikes on NetCDF workflows.
         self.lr_dataset_raw = self._load_dataset_robust(self.lr_dataset_raw, "LR", self.lr_path)
         self.hr_dataset_raw = self._load_dataset_robust(self.hr_dataset_raw, "HR", self.hr_path)
 
@@ -468,6 +471,8 @@ class NetCDFDataPipeline:
         self, ds: xr.Dataset, name: str = "dataset", path: Optional[Path] = None
     ) -> xr.Dataset:
         """Load xarray dataset into memory. On HDF error (CyVerse Data Store), retry with alternate engines."""
+        if not self._eager_load_datasets:
+            return ds
         src = path
         if src is None and getattr(ds, "encoding", None):
             src = ds.encoding.get("source") if isinstance(ds.encoding, dict) else None
@@ -668,15 +673,31 @@ class NetCDFDataPipeline:
                 self.dims.hr_lat: self.baseline_factor,
                 self.dims.hr_lon: self.baseline_factor,
             }
-            smoothed = self.hr_dataset_raw.coarsen(coarsen_kwargs, boundary="trim").mean(keep_attrs=True)
-            baseline = smoothed.interp(
-                {
-                    self.dims.hr_lat: self.hr_dataset_raw[self.dims.hr_lat],
-                    self.dims.hr_lon: self.hr_dataset_raw[self.dims.hr_lon],
-                },
-                method="linear",
-            )
-            return baseline
+            try:
+                smoothed = self.hr_dataset_raw.coarsen(coarsen_kwargs, boundary="trim").mean(keep_attrs=True)
+                baseline = smoothed.interp(
+                    {
+                        self.dims.hr_lat: self.hr_dataset_raw[self.dims.hr_lat],
+                        self.dims.hr_lon: self.hr_dataset_raw[self.dims.hr_lon],
+                    },
+                    method="linear",
+                )
+                return baseline
+            except Exception as exc:
+                # NetCDF mode can hit memory spikes on the smoothing+interp path.
+                # Fall back to LR interpolation to preserve pipeline continuity.
+                print(
+                    "[WARN] baseline_strategy='hr_smoothing' failed; "
+                    "falling back to 'lr_interp'. "
+                    f"Original error: {exc}"
+                )
+                mapping = {
+                    self.dims.lr_lat: self.hr_dataset_raw[self.dims.hr_lat],
+                    self.dims.lr_lon: self.hr_dataset_raw[self.dims.hr_lon],
+                }
+                baseline = self.lr_dataset_raw.interp(mapping, method="linear")
+                baseline = baseline.rename({self.dims.lr_lat: self.dims.hr_lat, self.dims.lr_lon: self.dims.hr_lon})
+                return baseline
 
         raise ValueError(f"Unsupported baseline_strategy '{self.baseline_strategy}'.")
 

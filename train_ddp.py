@@ -231,6 +231,7 @@ def main():
             lr_variables=list(CONFIG.data.get("lr_variables", [])),
             hr_variables=list(CONFIG.data.get("hr_variables", [])),
             static_variables=list(CONFIG.data.get("static_variables", [])) if static_path else None,
+            eager_load_datasets=bool(CONFIG.data.get("eager_load_datasets", False)),
         )
         
     elif dataset_format == "zarr":
@@ -568,6 +569,19 @@ def main():
             ),
             physical_sample_interval=int(
                 CONFIG.training.get("physical_loss", {}).get("physical_sample_interval", 10)
+            ),
+            # Sprint 4: contrastive DAG-conditioning loss. Forces the UNet
+            # to actually use the A_dag tokens rather than marginalise them.
+            lambda_contrastive_dag=(
+                float(CONFIG.loss.get("contrastive_dag", {}).get("weight", 0.0))
+                if bool(CONFIG.loss.get("contrastive_dag", {}).get("enabled", False))
+                else 0.0
+            ),
+            contrastive_dag_margin=float(
+                CONFIG.loss.get("contrastive_dag", {}).get("margin", 0.02)
+            ),
+            contrastive_dag_interval=int(
+                CONFIG.loss.get("contrastive_dag", {}).get("interval", 4)
             ),
         )
         if get_rank() == 0 and CONFIG.loss.get("log_spectral_metric_each_epoch", False):

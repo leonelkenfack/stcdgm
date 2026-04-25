@@ -173,6 +173,7 @@ def run_training_with_checkpoints(
         baseline_strategy=cfg.data.baseline_strategy,
         baseline_factor=cfg.data.baseline_factor,
         normalize=cfg.data.normalize,
+        eager_load_datasets=bool(getattr(cfg.data, "eager_load_datasets", False)),
     )
     
     from torch.utils.data import DataLoader

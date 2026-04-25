@@ -692,6 +692,17 @@ def train_epoch(
     # x0-from-epsilon, unlike the target-only ``lambda_phy`` fallback.
     lambda_precip_phy: float = 0.0,
     precip_phy_weights: Tuple[float, float, float] = (1.0, 0.1, 0.2),
+    # Sprint 4: contrastive DAG-conditioning loss. For every
+    # ``contrastive_dag_interval``-th optimizer step, compute an *extra*
+    # UNet forward with the DAG-token portion of ``conditioning_spatial``
+    # zeroed, and add a margin loss forcing the real-A_dag epsilon
+    # prediction to beat the DAG-blind one by at least
+    # ``contrastive_dag_margin``. This is what makes the UNet *use* the
+    # DAG tokens rather than marginalising them out. Only active when the
+    # spatial projector is causal-aware (``CausalConditioningProjector``).
+    lambda_contrastive_dag: float = 0.0,
+    contrastive_dag_margin: float = 0.02,
+    contrastive_dag_interval: int = 4,
 ) -> Dict[str, float]:
     """
     Entraîne les modules sur une epoch complète.
@@ -737,6 +748,9 @@ def train_epoch(
     total_rec = 0.0
     total_dag = 0.0
     total_phy = 0.0  # Phase 3.3: Physical loss accumulator
+    total_contrastive = 0.0  # Sprint 4: contrastive DAG loss accumulator
+    total_dag_sensitivity = 0.0  # Sprint 4: avg (MSE_zero - MSE_real)
+    num_contrastive_steps = 0
     num_batches = 0
     
     epoch_start_time = time.time()
@@ -1187,6 +1201,107 @@ def train_epoch(
                         if verbose and batch_idx == 0:
                             print(f"[WARN] HR ident head skipped: {_hr_ex}")
 
+            # Sprint 4: contrastive DAG-conditioning loss.
+            # For every ``contrastive_dag_interval``-th batch we do an extra
+            # UNet forward with the dag-token slice of ``conditioning_spatial``
+            # zeroed. A margin loss then forces the epsilon prediction from
+            # the real-A_dag branch to beat the DAG-blind branch by at least
+            # ``contrastive_dag_margin`` MSE points on the diffusion target.
+            # Gradient flows only through the real branch (eps_zero is
+            # produced under ``no_grad``), so the UNet has an unambiguous
+            # incentive to route A_dag information into its prediction.
+            # Without this term the conditioning_dropout path trains an
+            # equally good unconditional branch and the UNet learns to
+            # ignore A_dag — which is exactly what the intervention test on
+            # the epoch-10 Sprint 2 checkpoint reported (delta ≈ 0.0001%).
+            loss_contrastive_dag_value = torch.tensor(0.0, device=device)
+            _can_contrast = (
+                lambda_contrastive_dag > 0.0
+                and conditioning_spatial is not None
+                and spatial_projector is not None
+                and not _dropout  # skip when dropout has already nulled the conditioning
+                and batch_idx % max(1, contrastive_dag_interval) == 0
+            )
+            if _can_contrast:
+                _sp_core = (
+                    spatial_projector.module
+                    if isinstance(spatial_projector, DDP)
+                    else spatial_projector
+                )
+                _sp_core = getattr(_sp_core, "_orig_mod", _sp_core)
+                if hasattr(_sp_core, "num_dag_tokens"):
+                    try:
+                        with _train_autocast(amp_mode):
+                            _nT = int(_sp_core.num_dag_tokens)
+                            cond_spatial_noDAG = conditioning_spatial.clone()
+                            cond_spatial_noDAG[:, -_nT:, :] = 0.0
+
+                            _valid_c = torch.isfinite(target)
+                            _target_c = torch.where(
+                                _valid_c, target, torch.zeros_like(target)
+                            )
+                            _eps_c = torch.randn_like(_target_c)
+                            _bs_c = _target_c.shape[0]
+                            _ts_c = torch.randint(
+                                0,
+                                _diff_unwrapped.scheduler.num_train_timesteps,
+                                (_bs_c,),
+                                device=device,
+                                dtype=torch.long,
+                            )
+                            _noisy_c = _diff_unwrapped.scheduler.add_noise(
+                                _target_c, _eps_c, _ts_c
+                            )
+
+                            # Real-A_dag prediction (gradient flows through
+                            # UNet + dag_mlp + A_dag).
+                            eps_real = _diff_unwrapped.forward(
+                                _noisy_c,
+                                _ts_c,
+                                conditioning,
+                                conditioning_spatial=conditioning_spatial,
+                            )
+                            # DAG-blind prediction (detached reference).
+                            with torch.no_grad():
+                                eps_zero = _diff_unwrapped.forward(
+                                    _noisy_c,
+                                    _ts_c,
+                                    conditioning,
+                                    conditioning_spatial=cond_spatial_noDAG,
+                                )
+                            _vc = _valid_c.to(dtype=eps_real.dtype)
+                            _denom = _vc.sum().clamp(min=1.0)
+                            mse_real = (((eps_real - _eps_c) ** 2) * _vc).sum() / _denom
+                            mse_zero = (((eps_zero - _eps_c) ** 2) * _vc).sum() / _denom
+                            # Margin loss: we want mse_zero - mse_real >= margin,
+                            # i.e. the real-A_dag prediction must beat the
+                            # DAG-blind one by at least ``margin`` on the
+                            # diffusion target. If already satisfied → 0.
+                            loss_contrastive_dag_value = (
+                                lambda_contrastive_dag
+                                * torch.clamp(
+                                    contrastive_dag_margin - (mse_zero - mse_real),
+                                    min=0.0,
+                                )
+                            )
+                        # Diagnostic: raw sensitivity of the UNet to the DAG
+                        # tokens, independent of the margin clamp. A positive
+                        # value means the UNet's epsilon prediction is *more*
+                        # accurate with the real DAG tokens than with them
+                        # zeroed — i.e. the DAG is conditioning. Track this
+                        # so the per-epoch log shows the actual conditioning
+                        # health (loss_contrastive can be 0 either because
+                        # the margin is met or because lambda is 0).
+                        total_dag_sensitivity += float(
+                            (mse_zero - mse_real).item()
+                        )
+                        num_contrastive_steps += 1
+                    except Exception as _c_ex:
+                        if verbose and batch_idx == 0:
+                            print(
+                                f"[WARN] contrastive DAG loss skipped: {_c_ex}"
+                            )
+
             # Phase C1: Mixed Precision - Compute total loss
             with _train_autocast(amp_mode):
                 loss_total = (
@@ -1196,6 +1311,7 @@ def train_epoch(
                     + loss_phy_value
                     + loss_hr_ident_value
                     + loss_precip_phy_value
+                    + loss_contrastive_dag_value
                 )
 
             # Check for NaN or Inf
@@ -1218,6 +1334,9 @@ def train_epoch(
             step_loss_rec += loss_rec_value.item()
             step_loss_dag += loss_dag_value.item()
             step_loss_phy += loss_phy_value.item()
+            # Sprint 4: track contrastive DAG loss separately.
+            if isinstance(loss_contrastive_dag_value, torch.Tensor):
+                total_contrastive += float(loss_contrastive_dag_value.item())
 
             # Phase C1: Mixed Precision - Backward pass (scaled for gradient accumulation)
             # DDP: skip gradient sync on non-last micro-batches (no_sync) for faster accumulation
@@ -1331,6 +1450,16 @@ def train_epoch(
     avg_rec = total_rec / num_batches
     avg_dag = total_dag / num_batches
     avg_phy = total_phy / num_batches
+    avg_contrastive = (
+        total_contrastive / max(1, num_contrastive_steps)
+        if num_contrastive_steps > 0
+        else 0.0
+    )
+    avg_dag_sensitivity = (
+        total_dag_sensitivity / max(1, num_contrastive_steps)
+        if num_contrastive_steps > 0
+        else 0.0
+    )
     
     if verbose:
         print(f"\n{'='*80}")
@@ -1347,6 +1476,27 @@ def train_epoch(
         print(f"   - Loss DAG ({dag_method.upper()}): {avg_dag:.6f}")
         if lambda_phy > 0.0:
             print(f"   - Loss physique (divergence+vorticité): {avg_phy:.6f}")
+        if num_contrastive_steps > 0:
+            print(
+                f"   - Loss contrastive DAG: {avg_contrastive:.6f} "
+                f"({num_contrastive_steps} steps, margin={contrastive_dag_margin})"
+            )
+            # Health indicator: positive ≈ DAG conditions the UNet, near-zero
+            # ≈ UNet ignores the DAG tokens (intervention test will report
+            # "non_conditioning"). Watch this trend across epochs.
+            _verdict = (
+                "DAG CONDITIONS"
+                if avg_dag_sensitivity >= contrastive_dag_margin
+                else (
+                    "DAG WEAKLY CONDITIONS"
+                    if avg_dag_sensitivity > 0.0
+                    else "DAG IGNORED (warning)"
+                )
+            )
+            print(
+                f"   - DAG sensitivity (MSE_zero - MSE_real): "
+                f"{avg_dag_sensitivity:+.6f}  → {_verdict}"
+            )
         print(f"{'='*80}\n")
 
     result = {
@@ -1357,5 +1507,9 @@ def train_epoch(
     }
     if lambda_phy > 0.0:
         result["loss_phy"] = avg_phy
+    if num_contrastive_steps > 0:
+        result["loss_contrastive_dag"] = avg_contrastive
+        result["dag_sensitivity"] = avg_dag_sensitivity
+        result["num_contrastive_steps"] = float(num_contrastive_steps)
     return result
 
