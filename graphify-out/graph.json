@@ -4332,6 +4332,69 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py:48"
+    },
+    {
+      "id": "file::_patch_autoreload_py312",
+      "label": "_patch_autoreload_py312.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py:1"
+    },
+    {
+      "id": "_patch_autoreload_py312::_patch_source",
+      "label": "_patch_source",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py:53"
+    },
+    {
+      "id": "_patch_autoreload_py312::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py:65"
+    },
+    {
+      "id": "file::_patch_data_root_drive",
+      "label": "_patch_data_root_drive.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:1"
+    },
+    {
+      "id": "_patch_data_root_drive::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:229"
+    },
+    {
+      "id": "file::_patch_gpu_optimizations",
+      "label": "_patch_gpu_optimizations.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py:1"
+    },
+    {
+      "id": "_patch_gpu_optimizations::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py:169"
+    },
+    {
+      "id": "file::_patch_zenodo_download",
+      "label": "_patch_zenodo_download.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py:1"
+    },
+    {
+      "id": "_patch_zenodo_download::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py:180"
     }
   ],
   "edges": [
@@ -9275,12 +9338,57 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py:48",
       "weight": 1
+    },
+    {
+      "source": "file::_patch_autoreload_py312",
+      "target": "_patch_autoreload_py312::_patch_source",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py:53",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_autoreload_py312",
+      "target": "_patch_autoreload_py312::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_autoreload_py312.py:65",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_data_root_drive",
+      "target": "_patch_data_root_drive::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:229",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_gpu_optimizations",
+      "target": "_patch_gpu_optimizations::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_gpu_optimizations.py:169",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_zenodo_download",
+      "target": "_patch_zenodo_download::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py:180",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 71,
-    "nodes": 619,
-    "edges": 549,
-    "builtAt": "2026-04-27T14:36:47.886Z"
+    "files": 75,
+    "nodes": 628,
+    "edges": 554,
+    "builtAt": "2026-04-27T15:04:47.820Z"
   }
 }
