@@ -4395,6 +4395,27 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:233"
+    },
+    {
+      "id": "file::_patch_oom_round2",
+      "label": "_patch_oom_round2.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py:1"
+    },
+    {
+      "id": "_patch_oom_round2::patch_bootstrap_xformers",
+      "label": "patch_bootstrap_xformers",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py:122"
+    },
+    {
+      "id": "_patch_oom_round2::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py:136"
     }
   ],
   "edges": [
@@ -9383,12 +9404,30 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:233",
       "weight": 1
+    },
+    {
+      "source": "file::_patch_oom_round2",
+      "target": "_patch_oom_round2::patch_bootstrap_xformers",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py:122",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_oom_round2",
+      "target": "_patch_oom_round2::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_oom_round2.py:136",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 75,
-    "nodes": 628,
-    "edges": 554,
-    "builtAt": "2026-04-27T15:13:56.396Z"
+    "files": 76,
+    "nodes": 631,
+    "edges": 556,
+    "builtAt": "2026-04-27T18:33:58.195Z"
   }
 }
