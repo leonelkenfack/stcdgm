@@ -62,43 +62,51 @@ print(f"[PERF] PYTORCH_ALLOC_CONF={os.environ['PYTORCH_ALLOC_CONF']}")
 '''
 
 
-# Cell 35 — GPU memory + force mem-efficient SDPA + try xformers.
+# Cell 35 — GPU memory + préfère mem-efficient SDPA + xformers.
 CELL_35_NEW = '''\
 # >>> OOM_FIX_R2
-# Optimisation mémoire GPU + sélection du backend SDPA.
+# Optimisation mémoire GPU + ordre de préférence des backends SDPA.
 #
-# Le OOM "tried to allocate 7.14 GiB" venait du fait que SDPA tombait sur
-# le backend math (matrice [N,N] en fp32 = 478 MB par attention × 8 attns
-# UNet × 2 pour le backward = ~7 GB). Sur T4 (sm_75) Flash n'est pas dispo,
-# mais memory_efficient l'est : O(N) mémoire au lieu de O(N²).
+# Round 1 du fix avait DÉSACTIVÉ math, ce qui causait ``RuntimeError:
+# Invalid backend`` quand mem-efficient ne pouvait pas s'appliquer (ex.
+# attention_mask non-None passé par diffusers). On garde math activé en
+# **fallback de dernier recours** ; mem-efficient sera essayé en priorité
+# par le dispatcher PyTorch et utilisé quand applicable.
 #
-# On désactive explicitement math + flash pour forcer mem-efficient. Si
-# mem-efficient ne peut pas s'appliquer (cas pathologique), PyTorch lèvera
-# une erreur claire au lieu de tomber silencieusement sur math.
+# Combiné avec ``expandable_segments:True`` (cell 4), la fragmentation qui
+# rendait math OOM-able est désormais éliminée → math comme fallback est
+# safe. xformers reste préféré quand dispo (constraints plus permissives
+# que SDPA mem-efficient).
 if torch.cuda.is_available():
     print("🧹 GPU memory optimization…")
     torch.cuda.empty_cache()
     print("   ✓ GPU cache cleared")
 
-    # Sélection du backend SDPA — force mem-efficient.
+    # Préférences SDPA — l'ordre Flash > Mem-Eff > Math est conservé,
+    # on désactive juste Flash (T4 sm_75 ne le supporte pas) pour éviter
+    # qu'il tente d'abord et échoue silencieusement.
     try:
-        torch.backends.cuda.enable_flash_sdp(False)        # T4 sm_75 ne supporte pas
-        torch.backends.cuda.enable_math_sdp(False)         # bannit le fallback O(N²)
-        torch.backends.cuda.enable_mem_efficient_sdp(True)
-        print("   ✓ SDPA backend = memory_efficient (math/flash désactivés)")
+        torch.backends.cuda.enable_flash_sdp(False)        # T4 sm_75 → pas Flash
+        torch.backends.cuda.enable_mem_efficient_sdp(True) # priorité 1
+        torch.backends.cuda.enable_math_sdp(True)          # filet de sécurité
+        print("   ✓ SDPA: mem-efficient prioritaire, math en fallback")
     except AttributeError:
-        # PyTorch < 2.0 ou API renommée — on continue sans forcer.
-        print("   ⚠️  Impossible de configurer SDPA backend (API absente).")
+        print("   ⚠️  API SDPA absente (PyTorch ancien).")
 
-    # Tente d'activer xformers sur l'UNet (kernel mémoire encore meilleur sur sm_75).
+    # xformers : kernel attention encore meilleur que SDPA mem-eff sur sm_75
+    # et bien plus permissif sur les shapes/dtypes/masks.
     if "diffusion" in dir() and hasattr(diffusion, "unet"):
         try:
             diffusion.unet.enable_xformers_memory_efficient_attention()
-            print("   ✓ xformers memory_efficient_attention activé sur diffusion.unet")
+            print("   ✅ xformers ATTENTION ACTIVÉ sur diffusion.unet — OOM résolu.")
         except (ImportError, ModuleNotFoundError):
-            print("   ℹ️  xformers absent — SDPA mem-efficient utilisé à la place.")
+            print("   ⚠️  xformers ABSENT — fallback sur SDPA. Si OOM persiste :")
+            print("        !pip install xformers && Runtime → Restart runtime")
+        except ValueError as _ve:
+            # Survient quand la version xformers est incompatible avec PyTorch
+            print(f"   ⚠️  xformers incompatible: {_ve}")
         except Exception as _xe:
-            print(f"   ⚠️  xformers indisponible: {_xe}")
+            print(f"   ⚠️  xformers échec: {type(_xe).__name__}: {_xe}")
 
     # Status mémoire courant
     print("\\n📊 GPU Memory Status (post-optim):")
@@ -154,27 +162,32 @@ def main() -> int:
                 n_changed += 1
             break
 
-    # Patch cell 35 (GPU memory). Detect by header comment.
+    # Patch cell 35 (GPU memory). Always rewrite to ensure latest content
+    # (we tweak the SDPA backend strategy across iterations of this patch).
     target35 = None
     for i, c in enumerate(cells):
         if c["cell_type"] != "code":
             continue
         src = "".join(c.get("source", []))
-        if "GPU Memory Optimization" in src and "torch.cuda.empty_cache" in src:
+        if (
+            ("GPU Memory Optimization" in src and "torch.cuda.empty_cache" in src)
+            or (SENTINEL in src and "enable_mem_efficient_sdp" in src)
+        ):
             target35 = i
-            break
-        if SENTINEL in src and "enable_mem_efficient_sdp" in src:
-            target35 = i
-            print(f"✓ Cell {i} (GPU mem) déjà patchée R2.")
             break
 
-    if target35 is not None and SENTINEL not in "".join(cells[target35].get("source", [])):
-        cells[target35]["source"] = CELL_35_NEW.splitlines(keepends=True)
-        cells[target35]["outputs"] = []
-        cells[target35]["execution_count"] = None
-        print(f"  ↪ Cell {target35} (GPU mem) → SDPA mem_efficient + xformers")
-        n_changed += 1
-    elif target35 is None:
+    if target35 is not None:
+        current = "".join(cells[target35].get("source", []))
+        # Idempotency : skip rewrite if content is byte-identical.
+        if current == CELL_35_NEW:
+            print(f"✓ Cell {target35} (GPU mem) déjà à jour.")
+        else:
+            cells[target35]["source"] = CELL_35_NEW.splitlines(keepends=True)
+            cells[target35]["outputs"] = []
+            cells[target35]["execution_count"] = None
+            print(f"  ↪ Cell {target35} (GPU mem) → SDPA mem_efficient prio + math fallback")
+            n_changed += 1
+    else:
         print("[WARN] Cell 'GPU Memory Optimization' introuvable — skip cell 35.")
 
     # Patch cell 5 (bootstrap) — append xformers to deps list
