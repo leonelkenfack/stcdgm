@@ -40,8 +40,8 @@ try:
         drive.mount("/content/drive")
     else:
         print("ℹ️  /content/drive déjà monté — skip drive.mount().")
-    # Chemin Drive persistant. Modifier ici si vous voulez un autre dossier.
-    CONFIG.checkpoint.save_dir = "/content/drive/MyDrive/st_cdgm/ckpt"
+    # Chemin Drive persistant — même nom que le dossier local (climate_data).
+    CONFIG.checkpoint.save_dir = "/content/drive/MyDrive/climate_data/ckpt"
     print(f"📂 Drive monté — checkpoints → {CONFIG.checkpoint.save_dir}")
 except ImportError:
     # Hors Colab : on garde le save_dir du YAML (par défaut "models/").
@@ -72,7 +72,18 @@ def main() -> int:
 
     src = "".join(nb["cells"][target_idx].get("source", []))
     if SENTINEL_DRIVE in src:
-        print(f"✓ Drive-mount déjà injecté dans la cellule {target_idx}.")
+        # Bloc déjà présent — on le remplace pour propager les changements
+        # (chemin save_dir mis à jour, etc.).
+        # On retire le bloc existant entre SENTINEL_DRIVE et la prochaine
+        # ligne vide, puis on ré-injecte la version courante.
+        end_idx = src.find(SENTINEL_HELPERS)
+        if end_idx == -1:
+            print(f"[ERROR] Marqueur PERSIST_HELPERS introuvable dans cellule {target_idx}.")
+            return 3
+        new_src = DRIVE_BLOCK + src[end_idx:]
+        nb["cells"][target_idx]["source"] = new_src.splitlines(keepends=True)
+        NB.write_text(json.dumps(nb, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"✓ Drive-mount mis à jour dans la cellule {target_idx} (path = climate_data).")
         return 0
 
     new_src = DRIVE_BLOCK + src

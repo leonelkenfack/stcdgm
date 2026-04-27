@@ -4264,20 +4264,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\tests\\test_st_cdgm_smoke.py:353"
     },
     {
-      "id": "file::_patch_inject_drive_mount",
-      "label": "_patch_inject_drive_mount.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:1"
-    },
-    {
-      "id": "_patch_inject_drive_mount::main",
-      "label": "main",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:53"
-    },
-    {
       "id": "file::_patch_persist_per_epoch",
       "label": "_patch_persist_per_epoch.py",
       "fileType": "code",
@@ -4383,20 +4369,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_zenodo_download.py:180"
     },
     {
-      "id": "file::_patch_data_root_drive",
-      "label": "_patch_data_root_drive.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:1"
-    },
-    {
-      "id": "_patch_data_root_drive::main",
-      "label": "main",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:233"
-    },
-    {
       "id": "file::_patch_oom_round2",
       "label": "_patch_oom_round2.py",
       "fileType": "code",
@@ -4430,6 +4402,34 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell34_kwargs.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell34_kwargs.py:50"
+    },
+    {
+      "id": "file::_patch_data_root_drive",
+      "label": "_patch_data_root_drive.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:1"
+    },
+    {
+      "id": "_patch_data_root_drive::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:268"
+    },
+    {
+      "id": "file::_patch_inject_drive_mount",
+      "label": "_patch_inject_drive_mount.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:1"
+    },
+    {
+      "id": "_patch_inject_drive_mount::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:53"
     }
   ],
   "edges": [
@@ -9321,15 +9321,6 @@
       "weight": 1
     },
     {
-      "source": "file::_patch_inject_drive_mount",
-      "target": "_patch_inject_drive_mount::main",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:53",
-      "weight": 1
-    },
-    {
       "source": "file::_patch_persist_per_epoch",
       "target": "_patch_persist_per_epoch::_make_md_cell",
       "relation": "contains",
@@ -9411,15 +9402,6 @@
       "weight": 1
     },
     {
-      "source": "file::_patch_data_root_drive",
-      "target": "_patch_data_root_drive::main",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:233",
-      "weight": 1
-    },
-    {
       "source": "file::_patch_oom_round2",
       "target": "_patch_oom_round2::patch_bootstrap_xformers",
       "relation": "contains",
@@ -9445,12 +9427,30 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell34_kwargs.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell34_kwargs.py:50",
       "weight": 1
+    },
+    {
+      "source": "file::_patch_data_root_drive",
+      "target": "_patch_data_root_drive::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:268",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_inject_drive_mount",
+      "target": "_patch_inject_drive_mount::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_inject_drive_mount.py:53",
+      "weight": 1
     }
   ],
   "metadata": {
     "files": 77,
     "nodes": 633,
     "edges": 557,
-    "builtAt": "2026-04-27T20:21:08.452Z"
+    "builtAt": "2026-04-27T22:44:17.754Z"
   }
 }

@@ -43,11 +43,15 @@ from pathlib import Path
 
 _ON_COLAB = "google.colab" in sys.modules or Path("/content").exists()
 DATA_ROOT_LOCAL = Path("data/raw")
-# Racine Drive unifiée — même convention que la cellule de checkpoints :
-#   /content/drive/MyDrive/st_cdgm/
+# Racine Drive unifiée — même nom que le dossier local du projet
+# (``climate_data``), donc cohérente avec :
+#   - le clone SSD du bootstrap : /content/climate_data
+#   - le dossier local Desktop/climate_data
+# Layout sur Drive :
+#   /content/drive/MyDrive/climate_data/
 #   ├── data/   ← ici (DATA_ROOT, ce que cette cellule télécharge)
 #   └── ckpt/   ← cellule 44 (CONFIG.checkpoint.save_dir)
-DATA_ROOT_DRIVE = Path("/content/drive/MyDrive/st_cdgm/data")
+DATA_ROOT_DRIVE = Path("/content/drive/MyDrive/climate_data/data")
 
 if _ON_COLAB and DATA_ROOT_DRIVE.parent.parent.exists():  # /content/drive/MyDrive/ existe
     DATA_ROOT = DATA_ROOT_DRIVE
@@ -178,12 +182,43 @@ for _path, _name in [(LR_PATH, "LR"), (HR_PATH, "HR")]:
     else:
         print(f"❌ {_name} manquant: {_path}")
 
+def _exists_with_drive_sync(p: str) -> bool:
+    """
+    ``Path.exists()`` peut retourner False sur Drive (FUSE) si le dossier
+    parent n'a pas encore été énuméré ou si le cache de listing est stale.
+    On force une énumération via ``os.listdir`` puis on re-stat.
+    """
+    if not p:
+        return False
+    pth = Path(p)
+    if pth.exists():
+        return True
+    parent = pth.parent
+    if not parent.exists():
+        return False
+    try:
+        os.listdir(parent)  # force FUSE Drive à énumérer
+    except OSError:
+        return False
+    return pth.exists()
+
 for _var, _name in [("STATIC_PATH", "Static"), ("MEAN_PATH", "Mean"), ("STD_PATH", "Std")]:
     _p = globals()[_var]
-    if _p and Path(_p).exists():
+    if _exists_with_drive_sync(_p):
         print(f"✅ {_name}: {_p}")
     else:
-        print(f"⚠️  {_name} absent: {_p} → mis à None")
+        # Diagnostic : lister ce qui EST réellement présent dans le parent.
+        _parent = Path(_p).parent if _p else None
+        if _parent and _parent.exists():
+            try:
+                _seen = sorted(os.listdir(_parent))[:8]
+            except OSError as _ose:
+                _seen = f"(listing failed: {_ose})"
+            print(f"⚠️  {_name} absent: {_p}")
+            print(f"     parent {_parent} contient: {_seen}")
+        else:
+            print(f"⚠️  {_name} absent: {_p} (parent inexistant)")
+        print(f"     → mis à None")
         globals()[_var] = None
 
 if DATA_ROOT.exists():
