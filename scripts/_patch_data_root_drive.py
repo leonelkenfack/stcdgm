@@ -43,9 +43,13 @@ from pathlib import Path
 
 _ON_COLAB = "google.colab" in sys.modules or Path("/content").exists()
 DATA_ROOT_LOCAL = Path("data/raw")
-DATA_ROOT_DRIVE = Path("/content/drive/MyDrive/climate_data_data")
+# Racine Drive unifiée — même convention que la cellule de checkpoints :
+#   /content/drive/MyDrive/st_cdgm/
+#   ├── data/   ← ici (DATA_ROOT, ce que cette cellule télécharge)
+#   └── ckpt/   ← cellule 44 (CONFIG.checkpoint.save_dir)
+DATA_ROOT_DRIVE = Path("/content/drive/MyDrive/st_cdgm/data")
 
-if _ON_COLAB and DATA_ROOT_DRIVE.parent.exists():
+if _ON_COLAB and DATA_ROOT_DRIVE.parent.parent.exists():  # /content/drive/MyDrive/ existe
     DATA_ROOT = DATA_ROOT_DRIVE
     print(f"📁 DATA_ROOT = Drive ({DATA_ROOT})")
 else:
