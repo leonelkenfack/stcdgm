@@ -4304,6 +4304,34 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_persist_per_epoch.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_persist_per_epoch.py:275"
+    },
+    {
+      "id": "file::_patch_colab_bootstrap",
+      "label": "_patch_colab_bootstrap.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py:1"
+    },
+    {
+      "id": "_patch_colab_bootstrap::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py:189"
+    },
+    {
+      "id": "file::_patch_threading_colab_aware",
+      "label": "_patch_threading_colab_aware.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py:1"
+    },
+    {
+      "id": "_patch_threading_colab_aware::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py:48"
     }
   ],
   "edges": [
@@ -9229,12 +9257,30 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_persist_per_epoch.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_persist_per_epoch.py:275",
       "weight": 1
+    },
+    {
+      "source": "file::_patch_colab_bootstrap",
+      "target": "_patch_colab_bootstrap::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_bootstrap.py:189",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_threading_colab_aware",
+      "target": "_patch_threading_colab_aware::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_threading_colab_aware.py:48",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 69,
-    "nodes": 615,
-    "edges": 547,
-    "builtAt": "2026-04-27T12:19:52.091Z"
+    "files": 71,
+    "nodes": 619,
+    "edges": 549,
+    "builtAt": "2026-04-27T14:36:47.886Z"
   }
 }
