@@ -36,6 +36,22 @@ def _train_autocast(amp_mode: str):
     return nullcontext()
 
 
+def _eager_core(m):
+    """
+    Strip both DDP and torch.compile (``_orig_mod``) wrappers and return the
+    eager-mode submodule. Use whenever a forward must run *outside* the main
+    ``compute_loss`` path with tensors built locally — those tensors can have
+    different strides than what compile traced, which fires the TensorMatch
+    guard and is silently swallowed by the surrounding ``except Exception``.
+    Safe when neither wrapper is present (returns ``m`` unchanged).
+    """
+    if m is None:
+        return None
+    if isinstance(m, DDP):
+        m = m.module
+    return getattr(m, "_orig_mod", m)
+
+
 def resolve_train_amp_mode(device: torch.device, use_amp: bool) -> str:
     """Même logique que le début de ``train_epoch`` (pour métrique RAPSD fin d’époque)."""
     if not use_amp:
@@ -278,9 +294,12 @@ def compute_rapsd_metric_from_batch(
     Calcule la métrique RAPSD (scalaire) sur un batch, sans gradient.
     À appeler une fois par époque après ``train_epoch`` (ex. premier batch du loader).
     """
-    enc = encoder.module if isinstance(encoder, DDP) else encoder
-    rcn_cell = rcn_runner.cell.module if isinstance(rcn_runner.cell, DDP) else rcn_runner.cell
-    diff = diffusion_decoder.module if isinstance(diffusion_decoder, DDP) else diffusion_decoder
+    # Strip both DDP and torch.compile wrappers so the eager-mode submodules
+    # are exposed for the RAPSD metric forward (avoids the same TensorMatch
+    # guard failure described in the precip/contrastive blocks).
+    enc = _eager_core(encoder)
+    rcn_cell = _eager_core(rcn_runner.cell)
+    diff = _eager_core(diffusion_decoder)
 
     was_enc_train = enc.training
     was_rcn_train = rcn_cell.training
@@ -288,6 +307,12 @@ def compute_rapsd_metric_from_batch(
     enc.eval()
     rcn_cell.eval()
     diff.eval()
+    # Swap the runner's cell to the eager-mode core for the duration of this
+    # call so ``rcn_runner.run(...)`` inside ``prepare_target_and_conditioning_for_metric``
+    # does NOT re-enter the compiled graph with locally built tensors. Restored
+    # in ``finally`` regardless of exceptions.
+    _saved_cell = rcn_runner.cell
+    rcn_runner.cell = rcn_cell
     try:
         prepared = prepare_target_and_conditioning_for_metric(
             batch,
@@ -309,6 +334,7 @@ def compute_rapsd_metric_from_batch(
         val = compute_rapsd_spectral_value_no_grad(diff, target, conditioning, amp_mode=amp_mode)
         return float(val.item())
     finally:
+        rcn_runner.cell = _saved_cell
         if was_enc_train:
             enc.train()
         if was_rcn_train:
@@ -752,6 +778,15 @@ def train_epoch(
     total_dag_sensitivity = 0.0  # Sprint 4: avg (MSE_zero - MSE_real)
     num_contrastive_steps = 0
     num_batches = 0
+    # Sprint 4 / C4: epoch-end failure counters so silent ``except Exception``
+    # blocks no longer hide repeated failures past the first batch. Each entry
+    # records the last error message and a hit count.
+    silent_failures: Dict[str, Tuple[int, str]] = {
+        "physical_sample": (0, ""),
+        "precip_phy": (0, ""),
+        "hr_ident": (0, ""),
+        "contrastive_dag": (0, ""),
+    }
     
     epoch_start_time = time.time()
     
@@ -921,12 +956,7 @@ def train_epoch(
                 # UNet can attend to the current DAG topology. We detect it
                 # via duck-typing on ``num_dag_tokens`` — if the projector has
                 # this attribute, it's causal-aware and we pass A_masked.
-                _sp_mod = (
-                    spatial_projector.module
-                    if isinstance(spatial_projector, DDP)
-                    else spatial_projector
-                )
-                _proj_target = _sp_mod
+                _proj_target = _eager_core(spatial_projector)
                 if hasattr(_proj_target, "num_dag_tokens"):
                     # A_masked is attached in the last cell output; we pass
                     # it so the DAG-token gradient can flow back to A_dag
@@ -1073,7 +1103,9 @@ def train_epoch(
                                 print(f"   - Physical loss computed on predictions (EDM, {physical_num_steps} steps)")
                         except Exception as e:
                             # Fallback to target-only physical loss if sampling fails
-                            if verbose:
+                            _n, _ = silent_failures["physical_sample"]
+                            silent_failures["physical_sample"] = (_n + 1, str(e))
+                            if verbose and batch_idx == 0:
                                 print(f"[WARN] Physical loss sampling failed: {e}, falling back to target-only")
                             div_target = compute_divergence(target, dx=dx, dy=dy)
                             vort_target = compute_vorticity(target, dx=dx, dy=dy)
@@ -1108,14 +1140,27 @@ def train_epoch(
             # 1-channel precipitation), this one has a non-zero gradient on
             # the UNet / encoder / RCN parameters.
             loss_precip_phy_value = torch.tensor(0.0, device=device)
-            _diff_unwrapped = (
-                diffusion_decoder.module
-                if isinstance(diffusion_decoder, DDP)
-                else diffusion_decoder
-            )
+            # Unwrap *both* DDP and torch.compile. The previous code only
+            # unwrapped DDP, which left ``_diff_unwrapped`` as a
+            # ``torch._dynamo.eval_frame.OptimizedModule`` whenever
+            # ``training.compile.enabled`` was true. Calling ``.forward(...)``
+            # on the compiled module from outside the main ``compute_loss``
+            # entry point re-enters the compiled graph with tensors built
+            # by ``torch.where`` / ``randn_like`` / ``scheduler.add_noise``
+            # *here* (not by ``compute_loss``), which present different
+            # strides than what was traced — the TensorMatch guard fires
+            # and the surrounding try/except silently skips the loss.
+            # ``_eager_core`` strips both DDP and ``_orig_mod`` so the
+            # extra forward passes always hit the eager-mode forward.
+            _diff_unwrapped = _eager_core(diffusion_decoder)
             if (
                 lambda_precip_phy > 0.0
                 and batch_idx % max(1, physical_sample_interval) == 0
+                # Only fire once per outer batch (was firing on every
+                # micro-batch when ``batch_size > 1`` was implemented as
+                # gradient accumulation, which multiplied the cost by 48
+                # on the user's setup and made batch 1 take 10+ minutes).
+                and micro_idx == 0
             ):
                 try:
                     with _train_autocast(amp_mode):
@@ -1171,6 +1216,8 @@ def train_epoch(
                             valid_mask=_valid,
                         )
                 except Exception as _pp_ex:
+                    _n, _ = silent_failures["precip_phy"]
+                    silent_failures["precip_phy"] = (_n + 1, str(_pp_ex))
                     if verbose and batch_idx == 0:
                         print(f"[WARN] precip physical loss skipped: {_pp_ex}")
 
@@ -1186,11 +1233,7 @@ def train_epoch(
                         _pool = _pool.mean(dim=1, keepdim=False).unsqueeze(0)
                     try:
                         pred_stats = hr_ident_head(_pool)
-                        _head = (
-                            hr_ident_head.module
-                            if isinstance(hr_ident_head, DDP)
-                            else hr_ident_head
-                        )
+                        _head = _eager_core(hr_ident_head)
                         true_stats = _head.extract_target_stats(
                             target.detach(), stats=_head.stats
                         )
@@ -1198,6 +1241,8 @@ def train_epoch(
                             pred_stats, true_stats
                         )
                     except Exception as _hr_ex:
+                        _n, _ = silent_failures["hr_ident"]
+                        silent_failures["hr_ident"] = (_n + 1, str(_hr_ex))
                         if verbose and batch_idx == 0:
                             print(f"[WARN] HR ident head skipped: {_hr_ex}")
 
@@ -1215,20 +1260,26 @@ def train_epoch(
             # ignore A_dag — which is exactly what the intervention test on
             # the epoch-10 Sprint 2 checkpoint reported (delta ≈ 0.0001%).
             loss_contrastive_dag_value = torch.tensor(0.0, device=device)
+            # C1: per-micro DAG sensitivity scalar surfaced in the heartbeat.
+            # ``mse_zero - mse_real`` is the always-meaningful diagnostic
+            # (positive ⇒ DAG is conditioning the UNet); the clamp(margin - …)
+            # used by the loss is zero exactly when conditioning is healthy
+            # and is therefore a misleading heartbeat metric.
+            _dag_sens_step: Optional[float] = None
             _can_contrast = (
                 lambda_contrastive_dag > 0.0
                 and conditioning_spatial is not None
                 and spatial_projector is not None
                 and not _dropout  # skip when dropout has already nulled the conditioning
                 and batch_idx % max(1, contrastive_dag_interval) == 0
+                # Only fire once per outer batch (cf. the same fix on
+                # precip_phy above). Without this, batch 1 was triggering
+                # 48 contrastive passes (2 extra UNet forwards each) on
+                # top of 48 main forwards, blowing past 10 minutes.
+                and micro_idx == 0
             )
             if _can_contrast:
-                _sp_core = (
-                    spatial_projector.module
-                    if isinstance(spatial_projector, DDP)
-                    else spatial_projector
-                )
-                _sp_core = getattr(_sp_core, "_orig_mod", _sp_core)
+                _sp_core = _eager_core(spatial_projector)
                 if hasattr(_sp_core, "num_dag_tokens"):
                     try:
                         with _train_autocast(amp_mode):
@@ -1292,17 +1343,30 @@ def train_epoch(
                         # so the per-epoch log shows the actual conditioning
                         # health (loss_contrastive can be 0 either because
                         # the margin is met or because lambda is 0).
-                        total_dag_sensitivity += float(
-                            (mse_zero - mse_real).item()
-                        )
+                        _dag_sens_step = float((mse_zero - mse_real).item())
+                        total_dag_sensitivity += _dag_sens_step
                         num_contrastive_steps += 1
                     except Exception as _c_ex:
+                        _n, _ = silent_failures["contrastive_dag"]
+                        silent_failures["contrastive_dag"] = (_n + 1, str(_c_ex))
                         if verbose and batch_idx == 0:
                             print(
                                 f"[WARN] contrastive DAG loss skipped: {_c_ex}"
                             )
 
-            # Phase C1: Mixed Precision - Compute total loss
+            # Phase C1 + Sprint 4 fix: Compute total loss.
+            #
+            # Per-micro losses (gen, rec, dag, phy) accumulate ``Σ_µ(loss * 1/N)``
+            # = mean over micro-batches, which is the standard gradient-accumulation
+            # contract. But ``loss_precip_phy`` and ``loss_contrastive_dag`` are
+            # gated to fire only at ``micro_idx == 0`` (to avoid 48× extra UNet
+            # forwards on CPU). Without compensation, the ``* 1/N`` scale at
+            # backward time would make their effective lambda ``λ/N`` — i.e.
+            # 48× weaker than the same lambda meant under ``batch_size=1``.
+            # Multiplying by ``_grad_comp = len(batches)`` here pre-cancels that
+            # division so the gated losses contribute their full nominal weight.
+            # ``loss_*_value`` itself stays unchanged for logging purposes.
+            _grad_comp = float(len(batches))
             with _train_autocast(amp_mode):
                 loss_total = (
                     loss_gen_value
@@ -1310,8 +1374,8 @@ def train_epoch(
                     + loss_dag_value
                     + loss_phy_value
                     + loss_hr_ident_value
-                    + loss_precip_phy_value
-                    + loss_contrastive_dag_value
+                    + loss_precip_phy_value * _grad_comp
+                    + loss_contrastive_dag_value * _grad_comp
                 )
 
             # Check for NaN or Inf
@@ -1347,6 +1411,7 @@ def train_epoch(
             ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
             ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
             ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
+            _micro_t0 = time.time()
             with ctx_enc, ctx_rcn, ctx_diff:
                 if amp_mode == "cuda_fp16":
                     scaler.scale(loss_total * scale).backward()
@@ -1354,6 +1419,29 @@ def train_epoch(
                     (loss_total * scale).backward()
             if _do_timing:
                 backward_time = time.time() - backward_time
+            # Per-micro-batch heartbeat so the user can see progress
+            # inside batch_size>1 gradient-accumulation steps. Without
+            # this, batch_idx==0 with batches=48 was completely silent
+            # for 10+ minutes. Cheap (one print per micro_idx).
+            if verbose and len(batches) > 1 and (
+                batch_idx == 0
+                or batch_idx % max(1, log_interval) == 0
+            ):
+                _mb_dt = time.time() - _micro_t0
+                _suffix = ""
+                # C1: surface DAG sensitivity (positive ⇒ DAG is conditioning),
+                # which is informative regardless of whether the margin is met.
+                # Falls back to nothing when the contrastive block didn't fire
+                # this micro (gated to micro_idx==0 + interval).
+                if _dag_sens_step is not None:
+                    _suffix += f" | dag_sens={_dag_sens_step:+.4f}"
+                if loss_precip_phy_value.item() > 0.0:
+                    _suffix += f" | precip={loss_precip_phy_value.item():.4f}"
+                print(
+                    f"   micro {micro_idx + 1}/{len(batches)} "
+                    f"loss={loss_total.item():.4f} bwd={_mb_dt:.2f}s{_suffix}",
+                    flush=True,
+                )
 
         if gradient_clipping is not None:
             clip_time = time.time()
@@ -1406,7 +1494,7 @@ def train_epoch(
         # definite). Combined with a small ``gamma_dag``, this gives a
         # "strong constraint on the DAG without penalising the stats".
         if dag_spectral_projection:
-            _rcn = rcn_runner.cell.module if isinstance(rcn_runner.cell, DDP) else rcn_runner.cell
+            _rcn = _eager_core(rcn_runner.cell)
             _rcn.project_dag_spectral(max_radius=dag_spectral_max_radius)
 
         step_time = time.time() - batch_start_time
@@ -1497,6 +1585,13 @@ def train_epoch(
                 f"   - DAG sensitivity (MSE_zero - MSE_real): "
                 f"{avg_dag_sensitivity:+.6f}  → {_verdict}"
             )
+        # C4: surface silent failures so they don't accumulate invisibly
+        # past the first batch. Each entry is (count, last_message).
+        _failed = {k: v for k, v in silent_failures.items() if v[0] > 0}
+        if _failed:
+            print("\nSilent failures (try/except blocks that swallowed errors):")
+            for _name, (_cnt, _msg) in _failed.items():
+                print(f"   - {_name}: {_cnt}× — last: {_msg[:200]}")
         print(f"{'='*80}\n")
 
     result = {

@@ -38,6 +38,7 @@ from st_cdgm import (
     compute_rapsd_metric_from_batch,
     resolve_train_amp_mode,
 )
+from st_cdgm.models.intelligible_encoder import HRTargetIdentifiabilityHead
 
 
 @dataclass
@@ -239,27 +240,47 @@ def _iterate_batches(
 
 @hydra.main(version_base=None, config_name="st_cdgm_default")
 def main(cfg: DictConfig) -> None:
-    # CPU threading: on a CPU-only host, use *all* logical cores for intra-op
-    # math (BLAS/MKL/oneDNN), and a small fixed pool for inter-op scheduling.
-    # OMP_NUM_THREADS / MKL_NUM_THREADS must be set before any heavy import that
-    # initialises the threadpool — set them defensively here in case the user
-    # didn't export them.
+    device = torch.device(cfg.training.device)
+    _on_gpu = device.type == "cuda" and torch.cuda.is_available()
+
+    # Threading policy depends on the device:
+    # - CPU host: pin BLAS to all cores (math-bound).
+    # - GPU host (T4 / Colab): keep BLAS small (4 threads) so dataloader
+    #   workers + Python overhead don't starve the host while CUDA does the
+    #   tensor math. Colab Pro typically has 4-8 vCPUs.
     ncpu = os.cpu_count() or 1
-    os.environ.setdefault("OMP_NUM_THREADS", str(ncpu))
-    os.environ.setdefault("MKL_NUM_THREADS", str(ncpu))
-    torch.set_num_threads(ncpu)
+    if _on_gpu:
+        n_intra = max(1, min(4, ncpu))
+    else:
+        n_intra = ncpu
+    os.environ.setdefault("OMP_NUM_THREADS", str(n_intra))
+    os.environ.setdefault("MKL_NUM_THREADS", str(n_intra))
+    torch.set_num_threads(n_intra)
     try:
         torch.set_num_interop_threads(2)
     except RuntimeError:
-        # set_num_interop_threads can only be called once per process; ignore
-        # if a parent already configured it (e.g. when re-entering main).
         pass
-    print(f"[PERF] torch.set_num_threads({ncpu}), interop=2, OMP/MKL={ncpu}")
+
+    if _on_gpu:
+        # cuDNN benchmark mode is a free win when input shapes are fixed
+        # (172×179 here) — selects the fastest convolution algo per shape
+        # and caches it. TF32 matmul on Ampere+; harmless no-op on T4 (sm_75).
+        torch.backends.cudnn.benchmark = True
+        try:
+            torch.set_float32_matmul_precision("high")
+        except Exception:
+            pass
+        _gpu = torch.cuda.get_device_name(0)
+        _vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+        print(
+            f"[PERF] GPU={_gpu} ({_vram_gb:.1f} GB VRAM), "
+            f"cudnn.benchmark=True, intra={n_intra}, interop=2"
+        )
+    else:
+        print(f"[PERF] CPU-only: torch.set_num_threads({n_intra}), interop=2, OMP/MKL={n_intra}")
 
     print("===== ST-CDGM training configuration =====")
     print(OmegaConf.to_yaml(cfg))
-
-    device = torch.device(cfg.training.device)
 
     pipeline = NetCDFDataPipeline(
         lr_path=cfg.data.lr_path,
@@ -416,6 +437,26 @@ def main(cfg: DictConfig) -> None:
         target_shape=tuple(cfg.diffusion.get("spatial_target_shape", [6, 7])),
     ).to(device)
 
+    # Sprint 2: optional HR-target identifiability head (mirrors train_ddp.py).
+    # When enabled, predicts summary stats (mean/std/p95/p99) of the HR target
+    # from the pooled causal state — gradient flows back into encoder + RCN,
+    # pulling A_dag toward representations that know about precip extremes.
+    hr_ident_cfg = cfg.loss.get("hr_ident", {}) or {}
+    hr_ident_enabled = bool(hr_ident_cfg.get("enabled", False))
+    beta_hr_ident = float(hr_ident_cfg.get("beta", 0.0))
+    if hr_ident_enabled and beta_hr_ident > 0.0:
+        hr_ident_head = HRTargetIdentifiabilityHead(
+            num_vars=len(encoder.configs),
+            hidden_dim=cfg.rcn.hidden_dim,
+            stats=list(hr_ident_cfg.get("stats", ["mean", "std", "p95", "p99"])),
+        ).to(device)
+        print(
+            f"🎯 Sprint 2: HR ident head enabled "
+            f"(beta={beta_hr_ident}, stats={hr_ident_head.stats})"
+        )
+    else:
+        hr_ident_head = None
+
     # Phase DAG-decouple: split the optimizer into two parameter groups. The
     # DAG adjacency has a very different loss landscape (only L_dag + L_rec
     # push on it now, thanks to the ``detach_dag_in_state`` guard) and it
@@ -430,6 +471,8 @@ def main(cfg: DictConfig) -> None:
         + list(diffusion.parameters())
         + list(spatial_projector.parameters())
     )
+    if hr_ident_head is not None:
+        other_params += list(hr_ident_head.parameters())
     dag_lr_mult = float(cfg.training.get("dag_lr_mult", 5.0))
     optimizer = torch.optim.Adam(
         [
@@ -471,6 +514,11 @@ def main(cfg: DictConfig) -> None:
             conditioning_fn=None,
             device=device,
             gradient_clipping=cfg.training.gradient_clipping,
+            log_interval=int(cfg.training.get("log_every", 10)),
+            verbose=True,
+            use_amp=bool(cfg.training.get("use_amp", True)),
+            dag_method=cfg.loss.get("dag_method", "dagma"),
+            dagma_s=float(cfg.loss.get("dagma_s", 1.0)),
             use_focal_loss=cfg.loss.get("use_focal_loss", False),
             focal_alpha=cfg.loss.get("focal_alpha", 1.0),
             focal_gamma=cfg.loss.get("focal_gamma", 2.0),
@@ -488,6 +536,36 @@ def main(cfg: DictConfig) -> None:
             dag_l1_weight=dag_l1_w,
             dag_spectral_projection=dag_spectral_proj,
             dag_spectral_max_radius=dag_spectral_radius,
+            # Sprint 2: HR identifiability head (encoder + RCN gradient signal
+            # toward representations that know about HR target stats).
+            hr_ident_head=hr_ident_head,
+            beta_hr_ident=beta_hr_ident,
+            # Sprint 3: precipitation-specific physical loss (positivity +
+            # mass + quantile matching, differentiable via x0-from-epsilon).
+            lambda_precip_phy=float(cfg.loss.get("lambda_precip_phy", 0.0)),
+            precip_phy_weights=tuple(
+                cfg.loss.get("precip_phy_weights", [1.0, 0.1, 0.2])
+            ),
+            physical_sample_interval=int(
+                cfg.training.get("physical_loss", {}).get("physical_sample_interval", 10)
+            ),
+            physical_num_steps=int(
+                cfg.training.get("physical_loss", {}).get("physical_num_steps", 15)
+            ),
+            # Sprint 4: contrastive DAG-conditioning loss — the lever that
+            # makes the UNet *use* A_dag rather than marginalise it. Without
+            # this, the DAG/RCN conditioning is decorative.
+            lambda_contrastive_dag=(
+                float(cfg.loss.get("contrastive_dag", {}).get("weight", 0.0))
+                if bool(cfg.loss.get("contrastive_dag", {}).get("enabled", False))
+                else 0.0
+            ),
+            contrastive_dag_margin=float(
+                cfg.loss.get("contrastive_dag", {}).get("margin", 0.02)
+            ),
+            contrastive_dag_interval=int(
+                cfg.loss.get("contrastive_dag", {}).get("interval", 4)
+            ),
         )
         if cfg.loss.get("log_spectral_metric_each_epoch", False):
             amp_m = resolve_train_amp_mode(device, cfg.training.get("use_amp", True))

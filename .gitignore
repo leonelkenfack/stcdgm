@@ -13,7 +13,8 @@ dist/
 downloads/
 downscaling/
 docs/
-data/raw
+data/raw/test
+data/raw/train
 eggs/
 .eggs/
 lib/

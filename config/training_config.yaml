@@ -155,26 +155,36 @@ diffusion:
   unet_kwargs:
     layers_per_block: 1
     block_out_channels: [32, 64]
-    # Sprint 4 / DAG-conditioning fix.
-    # Previous config had cross-attention only on the 2nd down + 1st up block
-    # and a plain ``UNetMidBlock2D``. That left the bottleneck (the most
-    # semantically concentrated representation) blind to H_T and the A_dag
-    # tokens. Combined with conditioning_dropout=0.1 + cfg_scale=0 at
-    # inference, the UNet learned to marginalise out the conditioning
-    # stream entirely. Empirical confirmation: intervention test on the
-    # epoch-10 checkpoint shows delta_zero / signal ≈ 0.0001%.
+    # Sprint 4 / DAG-conditioning fix — Option B (CPU-friendly).
     #
-    # We now cross-attend at *every* resolution level (including mid),
-    # keeping self-attention on (``only_cross_attention=[false, false]``)
-    # so each block still has the usual self-attention channel. Cost on
-    # CPU is modest because in_channels=1 and the deepest level runs at
-    # ~44×45 tokens.
+    # Previous config (pre-Sprint-4) had cross-attention only on the 2nd
+    # down + 1st up block and a plain ``UNetMidBlock2D``. That left the
+    # *bottleneck* (the most semantically concentrated representation)
+    # blind to H_T and the A_dag tokens — combined with
+    # conditioning_dropout=0.1 + cfg_scale=0 at inference, the UNet
+    # learned to marginalise out the conditioning. Intervention test on
+    # the epoch-10 Sprint 2 checkpoint: delta_zero / signal ≈ 0.0001%.
+    #
+    # The first Sprint-4 attempt added cross+self-attention at *every*
+    # resolution level. The 1st down block then ran self-attention at
+    # full 172×179 resolution (30 788 tokens, 30 GFLOPs/layer for the
+    # ``Q@Kᵀ`` alone) and pushed ``diffusion_time`` from ~5s to ~80s on
+    # CPU. Untenable.
+    #
+    # The minimal change that *actually* fixes the conditioning is to
+    # add a cross-attention bottleneck — i.e. swap the mid block from
+    # ``UNetMidBlock2D`` to ``UNetMidBlock2DCrossAttn`` while keeping the
+    # rest of the (cheap) topology intact. The bottleneck is what was
+    # missing; the down/up cross-attn blocks were already there. Combined
+    # with the contrastive DAG loss + the dag_grad_gate ramp + cfg_scale,
+    # this gives 3 cross-attention injection points (1 down, 1 mid, 1 up)
+    # all at ≤1/2 resolution, so cost stays bounded on CPU.
     down_block_types:
-      - "CrossAttnDownBlock2D"
+      - "DownBlock2D"
       - "CrossAttnDownBlock2D"
     up_block_types:
       - "CrossAttnUpBlock2D"
-      - "CrossAttnUpBlock2D"
+      - "UpBlock2D"
     mid_block_type: "UNetMidBlock2DCrossAttn"
     norm_num_groups: 8
     class_embed_type: "projection"
@@ -184,7 +194,12 @@ diffusion:
 
     resnet_time_scale_shift: "scale_shift"
     attention_head_dim: 32
-    only_cross_attention: [false, false]
+    # ``only_cross_attention[i]`` only applies when ``down_block_types[i]``
+    # has attention. Index 0 is ``DownBlock2D`` (no attention) → its value
+    # is ignored by diffusers. Index 1 is ``CrossAttnDownBlock2D`` with
+    # ``true`` ⇒ skip self-attn at level-1 to save FLOPs (cross-attn alone
+    # is enough since the bottleneck mid-block also cross-attends).
+    only_cross_attention: [false, true]
 
 # ============================================================================
 # CONFIGURATION DES PERTES (LOSS)
@@ -274,14 +289,31 @@ loss:
 # CONFIGURATION ENTRAÎNEMENT
 # ============================================================================
 training:
-  device: "cpu"  # "cuda" si GPU disponible
-  epochs: 30    # ↑ de 10 à 100 (convergence complète)
+  # Profil cible : Colab Pro T4 (16 GB VRAM, 15-50 GB RAM, 4-8 vCPU).
+  # Pour repasser sur CPU local, surcharger via la CLI Hydra :
+  #   python ops/train_st_cdgm.py training.device=cpu training.use_amp=false training.compile.enabled=false
+  device: "cuda"
+  epochs: 30
+  # ``batch_size`` = nb. de micro-batches accumulés par optimizer step.
+  # 48 sur T4 reste raisonnable car chaque forward UNet est rapide
+  # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
+  # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
+  # confortablement en VRAM avec block_out_channels=[32, 64].
   batch_size: 48
-  num_workers: 0  # 0 pour CyVerse/Docker (évite /dev/shm limité)
+  # Colab a typiquement 4-8 vCPU. 2 workers + pin_memory donnent un
+  # prefetch suffisant pour saturer le T4 sans saturer la RAM (<2 GB
+  # par worker pour le pipeline NetCDF lazy).
+  num_workers: 2
   lr: 0.0003
   gradient_clipping: 0.5
-  log_every: 20
-  use_amp: false
+  # Sur T4 chaque batch dure ~1-3s : log every 1 reste lisible.
+  # Passer à 5-10 si la sortie est trop bavarde sur des époques longues.
+  log_every: 1
+  # T4 (sm_75) supporte les Tensor Cores **fp16** (et non bf16, qui
+  # exige sm_80+). En CUDA, ``use_amp=true`` active ``autocast(fp16)``
+  # + GradScaler — speedup ~2-3× sur le UNet, sans dégradation de
+  # convergence avec GradScaler bien tuné.
+  use_amp: true
   
   # Multi-GPU (DDP)
   multi_gpu:
@@ -311,23 +343,47 @@ training:
     physical_sample_interval: 10
     physical_num_steps: 15
   
-  # torch.compile - Optimisation performance
+  # torch.compile - Optimisation performance.
+  #
+  # Activé pour le profil T4. ``reduce-overhead`` est le bon défaut sur T4 :
+  # ``max-autotune`` cible des kernels Triton avec autotuning agressif —
+  # bien sur Ampere/Hopper, mais sur T4 (sm_75) le temps de compilation
+  # peut atteindre 10+ minutes par module pour un gain marginal vs
+  # ``reduce-overhead``. Si vous tournez sur A100/H100, ``max-autotune``
+  # peut gagner 10-20% supplémentaires sur le UNet.
+  #
+  # Les forwards "extra" hors ``compute_loss`` (precip_phy, contrastive_dag,
+  # RAPSD metric) passent désormais explicitement par les modules eager
+  # via ``_eager_core(...)``, donc compile reste sûr ici.
   compile:
     enabled: true
     rcn_mode: "reduce-overhead"
-    diffusion_mode: "max-autotune"
+    diffusion_mode: "reduce-overhead"
     encoder_mode: "reduce-overhead"
-    fallback_on_error: true  # Retour automatique à eager si erreur
+    fallback_on_error: true
 
 # ============================================================================
 # CONFIGURATION CHECKPOINT
 # ============================================================================
 checkpoint:
   enabled: true
+  # Colab + Drive : monter Drive et pointer ici sur un dossier persistant :
+  #   from google.colab import drive
+  #   drive.mount('/content/drive')
+  #   CONFIG.checkpoint.save_dir = '/content/drive/MyDrive/st_cdgm/ckpt'
+  # Sinon les checkpoints disparaissent à la déconnexion du runtime.
   save_dir: "models"
   save_every: 5
   save_best: true
   max_checkpoints: 50
+  # Sprint 4: persistance atomique en fin de chaque époque (notebook Colab).
+  # ``persist_every`` : toutes les N époques, écrit ``epoch_last.pth`` (toujours)
+  # et ``epoch_best.pth`` (si val improved). 1 = à chaque époque.
+  # ``keep_last_k`` : nombre de snapshots ``epoch_NNN.pth`` à garder en plus
+  # (0 = aucun, juste last + best). Utile si vous voulez un historique pour
+  # rollback sur Drive — coût ~50-200 MB par snapshot, à doser selon le quota.
+  persist_every: 1
+  keep_last_k: 0
 
 # ============================================================================
 # CONFIGURATION ÉVALUATION

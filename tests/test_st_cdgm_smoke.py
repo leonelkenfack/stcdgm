@@ -12,6 +12,7 @@ from st_cdgm import (
     RCNSequenceRunner,
     NetCDFDataPipeline,
     CausalDiffusionDecoder,
+    CausalConditioningProjector,
     HeteroGraphBuilder,
     IntelligibleVariableConfig,
     IntelligibleVariableEncoder,
@@ -136,7 +137,8 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
             block_out_channels=(32, 64),
             down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
             up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
-            mid_block_type="UNetMidBlock2D",
+            # Sprint 4: bottleneck cross-attn — same topology as YAML.
+            mid_block_type="UNetMidBlock2DCrossAttn",
             norm_num_groups=8,
             class_embed_type="projection",
             projection_class_embeddings_input_dim=len(encoder.configs) * encoder.conditioning_dim,
@@ -176,6 +178,112 @@ def _run_one_smoke_train_epoch(tmp_path: Path, *, use_amp: bool) -> dict:
     return metrics
 
 
+def _run_one_smoke_train_epoch_with_contrastive(tmp_path: Path) -> dict:
+    """
+    Sprint 4 / B4: smoke that exercises the gated extra-forward losses
+    (``lambda_contrastive_dag > 0``, ``lambda_precip_phy > 0``) under
+    gradient accumulation (``len(batches) > 1``). Verifies that:
+      - the unwrap path works (no TensorMatch swallow),
+      - the µ_idx==0 gate fires,
+      - the gradient compensation (×len(batches)) does not produce NaN,
+      - the contrastive loss is added to ``loss_total`` and tracked.
+    """
+    lr_ds, hr_ds, static_ds = _create_synthetic_dataset(time_steps=6, lr_shape=(2, 3), hr_shape=(4, 6))
+    lr_path = tmp_path / "lr.nc"
+    hr_path = tmp_path / "hr.nc"
+    static_path = tmp_path / "static.nc"
+    lr_ds.to_netcdf(lr_path)
+    hr_ds.to_netcdf(hr_path)
+    static_ds.to_netcdf(static_path)
+
+    pipeline = NetCDFDataPipeline(
+        lr_path=lr_path, hr_path=hr_path, static_path=static_path,
+        seq_len=3, baseline_strategy="hr_smoothing", baseline_factor=1, normalize=False,
+    )
+    sample = next(iter(pipeline.build_sequence_dataset(seq_len=3, as_torch=True)))
+    device = torch.device("cpu")
+
+    builder = HeteroGraphBuilder(
+        lr_shape=(2, 3), hr_shape=(4, 6),
+        static_dataset=pipeline.get_static_dataset(),
+        include_mid_layer=False,
+    )
+    driver_nodes = builder.lr_grid_to_nodes(sample["lr"][0])
+    driver_dim = driver_nodes.shape[1]
+
+    encoder = IntelligibleVariableEncoder(
+        configs=[
+            IntelligibleVariableConfig(name="surface", meta_path=("GP850", "spat_adj", "GP850")),
+            IntelligibleVariableConfig(name="static", meta_path=("SP_HR", "causes", "GP850")),
+        ],
+        hidden_dim=32, conditioning_dim=32,
+    ).to(device)
+    rcn_cell = RCNCell(num_vars=2, hidden_dim=32, driver_dim=driver_dim,
+                       reconstruction_dim=driver_dim, dropout=0.0).to(device)
+    rcn_runner = RCNSequenceRunner(rcn_cell)
+
+    diffusion = CausalDiffusionDecoder(
+        in_channels=1, conditioning_dim=32,
+        height=sample["residual"].shape[-2], width=sample["residual"].shape[-1],
+        num_diffusion_steps=50,
+        unet_kwargs=dict(
+            layers_per_block=1, block_out_channels=(32, 64),
+            down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
+            up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
+            mid_block_type="UNetMidBlock2DCrossAttn",
+            norm_num_groups=8, class_embed_type="projection",
+            projection_class_embeddings_input_dim=len(encoder.configs) * encoder.conditioning_dim,
+            resnet_time_scale_shift="scale_shift",
+            attention_head_dim=32,
+            only_cross_attention=[False, True],
+        ),
+    ).to(device)
+    # Sprint 4 contrastive loss requires the *causal* projector — its
+    # ``num_dag_tokens`` attribute is what enables the DAG-token zeroing
+    # branch. ``SpatialConditioningProjector`` (no DAG tokens) silently
+    # skips the contrastive block, which is exactly the regression we
+    # want this test to catch.
+    spatial_projector = CausalConditioningProjector(
+        num_vars=2, hidden_dim=32, conditioning_dim=32,
+        lr_shape=(2, 3), target_shape=(1, 2),
+        num_dag_tokens=2,
+    ).to(device)
+    optimizer = torch.optim.Adam(
+        list(encoder.parameters()) + list(rcn_cell.parameters())
+        + list(diffusion.parameters()) + list(spatial_projector.parameters()),
+        lr=1e-4,
+    )
+
+    # Gradient accumulation: data_loader yields a *list* of 2 batch dicts
+    # so ``len(batches) > 1`` and the µ_idx==0 gate is exercised.
+    batch = _convert_sample(sample, builder, device)
+    micro_batches = [batch, batch]
+
+    metrics = train_epoch(
+        encoder=encoder,
+        rcn_runner=rcn_runner,
+        diffusion_decoder=diffusion,
+        optimizer=optimizer,
+        data_loader=itertools.repeat(micro_batches, 1),
+        lambda_gen=1.0,
+        beta_rec=0.1,
+        gamma_dag=0.1,
+        conditioning_fn=None,
+        device=device,
+        gradient_clipping=1.0,
+        use_amp=False,
+        verbose=False,
+        spatial_projector=spatial_projector,
+        lambda_contrastive_dag=0.5,
+        contrastive_dag_margin=0.02,
+        contrastive_dag_interval=1,
+        lambda_precip_phy=0.05,
+        precip_phy_weights=(1.0, 0.1, 0.2),
+        physical_sample_interval=1,
+    )
+    return metrics
+
+
 def test_st_cdgm_smoke(tmp_path: Path):
     metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
     assert "loss" in metrics and np.isfinite(metrics["loss"])
@@ -207,7 +315,9 @@ def test_film_conditioning_ablation(tmp_path: Path):
             layers_per_block=1, block_out_channels=(32, 64),
             down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
             up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
-            mid_block_type="UNetMidBlock2D", norm_num_groups=8,
+            # Sprint 4: bottleneck cross-attn — must match YAML topology so
+            # this ablation actually tests the production code path.
+            mid_block_type="UNetMidBlock2DCrossAttn", norm_num_groups=8,
             class_embed_type="projection",
             projection_class_embeddings_input_dim=_q * _cdim,
             resnet_time_scale_shift="scale_shift",
@@ -238,4 +348,30 @@ def test_train_epoch_cpu_bf16_amp_when_supported(tmp_path: Path):
         pytest.skip("CPU bfloat16 not supported on this host")
     metrics = _run_one_smoke_train_epoch(tmp_path, use_amp=True)
     assert "loss" in metrics and np.isfinite(metrics["loss"])
+
+
+def test_train_epoch_contrastive_dag_under_grad_accum(tmp_path: Path):
+    """
+    Sprint 4 / B4 regression: train_epoch with ``lambda_contrastive_dag > 0``
+    AND gradient accumulation (``len(batches) == 2``) must:
+      - run without raising (the µ_idx==0 gate + _eager_core unwrap path),
+      - produce a finite loss,
+      - record at least one contrastive step in the returned metrics
+        (i.e. the gate fired and the contrastive loss was actually applied).
+    Failure mode this guards against: the pre-fix path silently swallowed
+    the TensorMatch guard error and reported zero contrastive steps, so the
+    user-facing metrics looked fine but the conditioning was untrained.
+    """
+    metrics = _run_one_smoke_train_epoch_with_contrastive(tmp_path)
+    assert "loss" in metrics and np.isfinite(metrics["loss"])
+    # The contrastive block must have fired at least once on µ_idx=0
+    # of the first (and only) outer batch. If it didn't, either the gate
+    # is mis-wired or the block was silently skipped by the try/except.
+    assert metrics.get("num_contrastive_steps", 0) >= 1, (
+        f"contrastive_dag block did not fire — metrics={metrics}"
+    )
+    # The DAG-sensitivity diagnostic should be a finite real number even
+    # in untrained smoke conditions (it's just MSE_zero - MSE_real).
+    assert "dag_sensitivity" in metrics
+    assert np.isfinite(metrics["dag_sensitivity"])
 
