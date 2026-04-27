@@ -18,7 +18,7 @@ data:
   shard_dir: "data/raw/train/shards"
   
   # Séquences temporelles
-  seq_len: 16              # Contexte temporel suffisant pour météo
+  seq_len: 8              # Contexte temporel suffisant pour météo
   stride: 2               # Équilibre entre données et mémoire
   
   # Baseline
@@ -140,7 +140,7 @@ diffusion:
   scheduler_type: "dpm_solver++"        # Stable pour entraînement
   eval_num_steps: 12            # 15 steps suffisent avec DPM-Solver++
   
-  use_gradient_checkpointing: false
+  use_gradient_checkpointing: true  # OOM fix T4 : divise les activations UNet par ~2
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
   # ignoring ``cfg_scale`` until we added dual-stream guidance support in
   # ``_sample_dpm_solver``. 1.5–2.0 is the sweet spot for residual
@@ -299,7 +299,7 @@ training:
   # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
   # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
   # confortablement en VRAM avec block_out_channels=[32, 64].
-  batch_size: 48
+  batch_size: 8
   # Colab a typiquement 4-8 vCPU. 2 workers + pin_memory donnent un
   # prefetch suffisant pour saturer le T4 sans saturer la RAM (<2 GB
   # par worker pour le pipeline NetCDF lazy).
@@ -356,9 +356,9 @@ training:
   # RAPSD metric) passent désormais explicitement par les modules eager
   # via ``_eager_core(...)``, donc compile reste sûr ici.
   compile:
-    enabled: true
+    enabled: false
     rcn_mode: "reduce-overhead"
-    diffusion_mode: "reduce-overhead"
+    diffusion_mode: "default"  # OOM fix T4 : reduce-overhead ⇒ CUDA graphs ⇒ mémoire figée
     encoder_mode: "reduce-overhead"
     fallback_on_error: true
 
