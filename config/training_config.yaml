@@ -18,7 +18,7 @@ data:
   shard_dir: "data/raw/train/shards"
   
   # Séquences temporelles
-  seq_len: 16             # A100 80GB : retour à 16 (était 8 pour OOM T4)
+  seq_len: 8              # T4 profile restauré (A100 avait 16, +2× RCN sans gain métrique validé)
   stride: 2               # Équilibre entre données et mémoire
   
   # Baseline
@@ -54,8 +54,8 @@ graph:
 # CONFIGURATION DE L'ENCODEUR
 # ============================================================================
 encoder:
-  hidden_dim: 256                   # A100 : 128 → 256
-  conditioning_dim: 256              # A100 : 128 → 256
+  hidden_dim: 128                   # T4 profile restauré (256 non validé sur métriques)
+  conditioning_dim: 128              # T4 profile restauré
   # Sprint 1 / B2 fix: fail loudly if a metapath is silently filtered out
   # because its node types are missing from the graph. Set to true only if
   # you intentionally want to downscale with an incomplete DAG (q < 5).
@@ -65,7 +65,7 @@ encoder:
   # *sees* A_dag. Required to make the DAG effectively condition every
   # diffusion sample (and to unlock interventional do-calculus at inference).
   causal_conditioning: true
-  num_dag_tokens: 4                  # A100 : 2 → 4 (DAG plus expressif)
+  num_dag_tokens: 2                  # T4 profile restauré (4 non validé)
   metapaths:
     - name: "GP850_spat_adj"
       src: "GP850"
@@ -97,11 +97,11 @@ encoder:
 # CONFIGURATION RCN (Réseau Causal Récurrent)
 # ============================================================================
 rcn:
-  hidden_dim: 256                      # A100 : aligné avec encoder
+  hidden_dim: 128                      # T4 profile restauré (aligné avec encoder 128)
   driver_dim: 15      # Overridden at runtime by data sample shape
   reconstruction_dim: 15
   dropout: 0.1        # Sprint 1: lower dropout — model is under-fitting, not overfitting
-  detach_interval: 16  # Truncated BPTT: gradient flows back 16 steps
+  detach_interval: 8   # Aligné sur seq_len=8 (BPTT sur toute la séquence)
   # Sprint 1: initialise A_dag from the user-supplied prior matrix
   # (see loss.dag_prior) plus small noise. Avoids the xavier random init
   # that wanders until DAGMA drags it to zero, and gives the RCN a
@@ -131,16 +131,16 @@ rcn:
 # ============================================================================
 diffusion:
   in_channels: 1
-  conditioning_dim: 256                # A100 : aligné avec encoder.conditioning_dim
+  conditioning_dim: 128                # T4 profile restauré (aligné avec encoder.conditioning_dim 128)
   height: 172
   width: 179
-  
+
   # Steps de diffusion - CRITIQUE pour la qualité
   steps: 1000              # FIX : training timesteps DDPM (12 était un bug — c'est eval_num_steps qui doit être petit)
   scheduler_type: "dpm_solver++"        # Stable pour entraînement
-  eval_num_steps: 30            # A100 : 25-30 steps DPM-Solver++ pour qualité
-  
-  use_gradient_checkpointing: true  # A100 80GB : ~50M UNet × layers_per_block=2 → activations >60 GB sans, OOM. Recompute en backward (perte ~30% temps).
+  eval_num_steps: 20            # Réduit de 30 : DPM-Solver++ converge bien à 20 steps
+
+  use_gradient_checkpointing: false  # A100 80GB : modèle réduit (~12M params), mémoire confortable sans recompute → +30% vitesse
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
   # ignoring ``cfg_scale`` until we added dual-stream guidance support in
   # ``_sample_dpm_solver``. 1.5–2.0 is the sweet spot for residual
@@ -153,8 +153,8 @@ diffusion:
   anti_checkerboard: true
   
   unet_kwargs:
-    layers_per_block: 2                # A100 : 1 → 2
-    block_out_channels: [64, 128, 256, 512]   # A100 : 4 niveaux, ~50M params
+    layers_per_block: 1                # T4 profile restauré (2×  non validé → +2× coût UNet)
+    block_out_channels: [32, 64, 128, 256]    # T4 profile restauré — 4× moins cher que [64,128,256,512]
     # Sprint 4 / DAG-conditioning fix — Option B (CPU-friendly).
     #
     # Previous config (pre-Sprint-4) had cross-attention only on the 2nd
@@ -190,20 +190,20 @@ diffusion:
       - "CrossAttnUpBlock2D"
       - "UpBlock2D"
     mid_block_type: "UNetMidBlock2DCrossAttn"
-    norm_num_groups: 32                # A100 : standard SD
+    norm_num_groups: 8                 # T4 profile restauré (32 avec channels=32 OK, 8 suffisant)
     class_embed_type: "projection"
 
-    # ⚠️ CRITIQUE: Doit correspondre à hidden_dim × nb_metapaths
-    projection_class_embeddings_input_dim: 1536 # 256 × 6 = 1536 (auto-aligné par cell 34 quand même)
+    # ⚠️ CRITIQUE: Doit correspondre à hidden_dim × nb_metapaths (auto-calculé au runtime)
+    projection_class_embeddings_input_dim: 768  # 128 × 6 = 768 (auto-aligné au runtime)
 
     resnet_time_scale_shift: "scale_shift"
-    attention_head_dim: 64             # A100 : 32 → 64 (standard SD)
+    attention_head_dim: 32             # T4 profile restauré (64 non validé → 4× plus lent en attention)
     # ``only_cross_attention[i]`` only applies when ``down_block_types[i]``
     # has attention. Index 0 is ``DownBlock2D`` (no attention) → its value
     # is ignored by diffusers. Index 1 is ``CrossAttnDownBlock2D`` with
     # ``true`` ⇒ skip self-attn at level-1 to save FLOPs (cross-attn alone
     # is enough since the bottleneck mid-block also cross-attends).
-    only_cross_attention: [false, false, false, false]  # A100 : self-attn complet à tous niveaux
+    only_cross_attention: [false, true, true, false]   # T4 profile : cross-attn seul aux niveaux 1-2 (self-attn coûteux, bottleneck mi-bloc suffit)
 
 # ============================================================================
 # CONFIGURATION DES PERTES (LOSS)
@@ -287,7 +287,7 @@ loss:
     # One contrastive pass every N optimizer steps. 4 is a good balance
     # on CPU (~25% training-time overhead). Raise to 1 for faster signal,
     # lower it to 8/16 if training throughput is the bottleneck.
-    interval: 2                       # A100 : signal DAG plus dense
+    interval: 8                        # 2 → 8 : 4× moins de passes UNet contrastives (~6% overhead vs ~25%)
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT
@@ -309,9 +309,8 @@ training:
   num_workers: 8
   lr: 0.0003
   gradient_clipping: 0.5
-  # Sur T4 chaque batch dure ~1-3s : log every 1 reste lisible.
-  # Passer à 5-10 si la sortie est trop bavarde sur des époques longues.
-  log_every: 1
+  # Log groupé par 20 batches pour réduire le bruit console.
+  log_every: 20
   # T4 (sm_75) supporte les Tensor Cores **fp16** (et non bf16, qui
   # exige sm_80+). En CUDA, ``use_amp=true`` active ``autocast(fp16)``
   # + GradScaler — speedup ~2-3× sur le UNet, sans dégradation de
@@ -342,9 +341,9 @@ training:
   
   # Physical Loss (optionnel)
   physical_loss:
-    use_predicted_output: true        # A100 : sampling réel pour physical loss
-    physical_sample_interval: 4       # A100 : physique plus dense
-    physical_num_steps: 25            # A100 : sampling plus fidèle
+    use_predicted_output: true
+    physical_sample_interval: 16      # 4 → 16 : précip-phy 4× moins fréquent (~6% overhead vs ~25%)
+    physical_num_steps: 12            # 25 → 12 : sampling rapide (DPM-Solver++ converge à 12 steps)
   
   # torch.compile - Optimisation performance.
   #
@@ -359,9 +358,9 @@ training:
   # RAPSD metric) passent désormais explicitement par les modules eager
   # via ``_eager_core(...)``, donc compile reste sûr ici.
   compile:
-    enabled: false
+    enabled: true                    # A100 : activé — gain 10-20% free sur UNet (formes fixes 172×179)
     rcn_mode: "reduce-overhead"
-    diffusion_mode: "max-autotune"   # A100 : max-autotune gain 10-20% (compile time 5-15 min)
+    diffusion_mode: "reduce-overhead"  # reduce-overhead suffisant sur A100 avec modèle réduit (max-autotune 5-15 min compile)
     encoder_mode: "reduce-overhead"
     fallback_on_error: true
 
@@ -393,7 +392,7 @@ checkpoint:
 # ============================================================================
 evaluation:
   enabled: true
-  eval_every: 10
+  eval_every: 20
   # Sprint 3: probabilistic-calibration bumps.
   # - num_samples 10→16: tighter CRPS estimate (≈ sqrt(10/16) ≈ 0.79x the
   #   Monte-Carlo noise), and sigma_r becomes statistically meaningful.
@@ -401,8 +400,8 @@ evaluation:
   #   sharply between 12 and 25 steps on small residual UNets. Doubles
   #   inference cost (~14s → ~28s per sample on CPU) but recovers most
   #   of the RAPSD distance gap.
-  num_samples: 16
-  eval_num_steps: 25
+  num_samples: 8               # 16 → 8 : CRPS Monte-Carlo 2× plus rapide (bruit +41% acceptable)
+  eval_num_steps: 20
   eval_scheduler: "dpm_solver++"
   crps_max_ensemble_members: 32
   compute_f1_extremes: true

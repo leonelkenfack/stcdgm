@@ -1411,7 +1411,6 @@ def train_epoch(
             ctx_enc = encoder.no_sync() if (isinstance(encoder, DDP) and not is_last_micro) else nullcontext()
             ctx_rcn = rcn_runner.cell.no_sync() if (isinstance(rcn_runner.cell, DDP) and not is_last_micro) else nullcontext()
             ctx_diff = diffusion_decoder.no_sync() if (isinstance(diffusion_decoder, DDP) and not is_last_micro) else nullcontext()
-            _micro_t0 = time.time()
             with ctx_enc, ctx_rcn, ctx_diff:
                 if amp_mode == "cuda_fp16":
                     scaler.scale(loss_total * scale).backward()
@@ -1419,29 +1418,6 @@ def train_epoch(
                     (loss_total * scale).backward()
             if _do_timing:
                 backward_time = time.time() - backward_time
-            # Per-micro-batch heartbeat so the user can see progress
-            # inside batch_size>1 gradient-accumulation steps. Without
-            # this, batch_idx==0 with batches=48 was completely silent
-            # for 10+ minutes. Cheap (one print per micro_idx).
-            if verbose and len(batches) > 1 and (
-                batch_idx == 0
-                or batch_idx % max(1, log_interval) == 0
-            ):
-                _mb_dt = time.time() - _micro_t0
-                _suffix = ""
-                # C1: surface DAG sensitivity (positive ⇒ DAG is conditioning),
-                # which is informative regardless of whether the margin is met.
-                # Falls back to nothing when the contrastive block didn't fire
-                # this micro (gated to micro_idx==0 + interval).
-                if _dag_sens_step is not None:
-                    _suffix += f" | dag_sens={_dag_sens_step:+.4f}"
-                if loss_precip_phy_value.item() > 0.0:
-                    _suffix += f" | precip={loss_precip_phy_value.item():.4f}"
-                print(
-                    f"   micro {micro_idx + 1}/{len(batches)} "
-                    f"loss={loss_total.item():.4f} bwd={_mb_dt:.2f}s{_suffix}",
-                    flush=True,
-                )
 
         if gradient_clipping is not None:
             clip_time = time.time()
