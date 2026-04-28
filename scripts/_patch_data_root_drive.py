@@ -202,22 +202,84 @@ def _exists_with_drive_sync(p: str) -> bool:
         return False
     return pth.exists()
 
+
+# Fallback : Drive public partagé par l'auteur. Quand le fichier est
+# absent dans DATA_ROOT, on tente le téléchargement direct via gdown.
+# Clé = chemin relatif sous DATA_ROOT (préserve la structure dossiers).
+_PUBLIC_DRIVE_FALLBACKS = {
+    "static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc":
+        "1KY6IS1W5Wt-l_xyV7Qw8caA49zPzuSEx",
+    "normalization_coefs/mean_1974_2011.nc":
+        "14wVaJTUDgLwLlFcqRFA6pzJg9tZtAVQ0",
+    "normalization_coefs/std_1974_2011.nc":
+        "1ycqq9DqpfdOOiyQqgKs797OzRdHND3ZL",
+}
+
+
+def _gdown_install_if_needed():
+    """Installe gdown si absent (~150 KB, rapide)."""
+    try:
+        import gdown  # noqa: F401
+        return True
+    except ImportError:
+        import subprocess as _sp
+        try:
+            _sp.check_call([sys.executable, "-m", "pip", "install", "-q", "gdown"], timeout=120)
+            import gdown  # noqa: F401
+            return True
+        except Exception as _e:
+            print(f"     ⚠️  pip install gdown a échoué: {_e}")
+            return False
+
+
+def _try_public_drive_download(path: str) -> bool:
+    """Télécharge depuis le Drive public partagé si le path correspond à
+    une clé connue. Retourne True si succès, False sinon."""
+    if not path:
+        return False
+    pth = Path(path)
+    # Trouve la clé fallback correspondant au suffixe du path.
+    rel_key = None
+    for _key in _PUBLIC_DRIVE_FALLBACKS:
+        if str(pth).endswith(_key.replace("/", os.sep)) or str(pth).endswith(_key):
+            rel_key = _key
+            break
+    if rel_key is None:
+        return False
+    file_id = _PUBLIC_DRIVE_FALLBACKS[rel_key]
+    pth.parent.mkdir(parents=True, exist_ok=True)
+    if not _gdown_install_if_needed():
+        return False
+    import gdown
+    try:
+        print(f"     ⏳ gdown.download(id={file_id}) → {pth}")
+        gdown.download(id=file_id, output=str(pth), quiet=False)
+        return pth.exists() and pth.stat().st_size > 0
+    except Exception as _e:
+        print(f"     ⚠️  gdown a échoué: {_e}")
+        return False
+
+
 for _var, _name in [("STATIC_PATH", "Static"), ("MEAN_PATH", "Mean"), ("STD_PATH", "Std")]:
     _p = globals()[_var]
     if _exists_with_drive_sync(_p):
         print(f"✅ {_name}: {_p}")
+        continue
+    # Diagnostic : lister ce qui EST réellement présent dans le parent.
+    _parent = Path(_p).parent if _p else None
+    if _parent and _parent.exists():
+        try:
+            _seen = sorted(os.listdir(_parent))[:8]
+        except OSError as _ose:
+            _seen = f"(listing failed: {_ose})"
+        print(f"⚠️  {_name} absent: {_p}")
+        print(f"     parent {_parent} contient: {_seen}")
     else:
-        # Diagnostic : lister ce qui EST réellement présent dans le parent.
-        _parent = Path(_p).parent if _p else None
-        if _parent and _parent.exists():
-            try:
-                _seen = sorted(os.listdir(_parent))[:8]
-            except OSError as _ose:
-                _seen = f"(listing failed: {_ose})"
-            print(f"⚠️  {_name} absent: {_p}")
-            print(f"     parent {_parent} contient: {_seen}")
-        else:
-            print(f"⚠️  {_name} absent: {_p} (parent inexistant)")
+        print(f"⚠️  {_name} absent: {_p} (parent inexistant)")
+    # Tentative de fallback vers le Drive public partagé.
+    if _try_public_drive_download(_p):
+        print(f"     ✅ {_name} téléchargé depuis le Drive public.")
+    else:
         print(f"     → mis à None")
         globals()[_var] = None
 
