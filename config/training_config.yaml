@@ -18,8 +18,8 @@ data:
   shard_dir: "data/raw/train/shards"
   
   # Séquences temporelles
-  seq_len: 8              # T4 profile restauré (A100 avait 16, +2× RCN sans gain métrique validé)
-  stride: 2               # Équilibre entre données et mémoire
+  seq_len: 16              # T4 profile restauré (A100 avait 16, +2× RCN sans gain métrique validé)
+  stride: 4               # Équilibre entre données et mémoire
   
   # Baseline
   baseline_strategy: "hr_smoothing"
@@ -303,7 +303,7 @@ training:
   # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
   # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
   # confortablement en VRAM avec block_out_channels=[32, 64].
-  batch_size: 48                  # A100 80GB : grad-accum count, 1 sample/micro
+  batch_size: 96               # A100 80GB : grad-accum count, 1 sample/micro
   # A100 host : 8-16 vCPU disponibles. 8 workers + pin_memory + prefetch_factor
   # saturent le pipeline NetCDF lazy sans saturer la RAM.
   num_workers: 8
