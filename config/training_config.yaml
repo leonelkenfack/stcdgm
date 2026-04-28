@@ -140,7 +140,7 @@ diffusion:
   scheduler_type: "dpm_solver++"        # Stable pour entraînement
   eval_num_steps: 30            # A100 : 25-30 steps DPM-Solver++ pour qualité
   
-  use_gradient_checkpointing: false # A100 80GB : on a la VRAM, gain ~30% temps
+  use_gradient_checkpointing: true  # A100 80GB : ~50M UNet × layers_per_block=2 → activations >60 GB sans, OOM. Recompute en backward (perte ~30% temps).
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
   # ignoring ``cfg_scale`` until we added dual-stream guidance support in
   # ``_sample_dpm_solver``. 1.5–2.0 is the sweet spot for residual
