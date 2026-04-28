@@ -297,13 +297,13 @@ training:
   # Pour repasser sur CPU local, surcharger via la CLI Hydra :
   #   python ops/train_st_cdgm.py training.device=cpu training.use_amp=false training.compile.enabled=false
   device: "cuda"
-  epochs: 1                      # A100 baseline — à ajuster après lecture des métriques
+  epochs: 20                      # A100 baseline — à ajuster après lecture des métriques
   # ``batch_size`` = nb. de micro-batches accumulés par optimizer step.
   # 48 sur T4 reste raisonnable car chaque forward UNet est rapide
   # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
   # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
   # confortablement en VRAM avec block_out_channels=[32, 64].
-  batch_size: 96               # A100 80GB : grad-accum count, 1 sample/micro
+  batch_size: 100               # A100 80GB : grad-accum count, 1 sample/micro
   # A100 host : 8-16 vCPU disponibles. 8 workers + pin_memory + prefetch_factor
   # saturent le pipeline NetCDF lazy sans saturer la RAM.
   num_workers: 8
