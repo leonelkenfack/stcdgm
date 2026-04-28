@@ -341,7 +341,7 @@ training:
   
   # Physical Loss (optionnel)
   physical_loss:
-    use_predicted_output: true
+    use_predicted_output: false       # SPEED : lambda_phy=0 → branche dead, mais true compile inutilement le sampling path
     physical_sample_interval: 16      # 4 → 16 : précip-phy 4× moins fréquent (~6% overhead vs ~25%)
     physical_num_steps: 12            # 25 → 12 : sampling rapide (DPM-Solver++ converge à 12 steps)
   
@@ -369,7 +369,7 @@ training:
     # diffusion (UNet) : appelé 1× par microbatch via compute_loss (les passes extras
     # contrastive/precip_phy passent par _eager_core et ne retriggerent pas le CUDA Graph).
     # reduce-overhead est safe ici et donne le plus gros gain (UNet = goulot principal).
-    diffusion_mode: "reduce-overhead"
+    diffusion_mode: "default"  # SPEED FIX : reduce-overhead capture des CUDA graphs qui se recapturent à chaque itération (shapes variables : main forward vs precip_phy vs contrastive_dag) → coût élevé sans bénéfice steady-state. "default" = compile classique sans CUDA graphs.
     fallback_on_error: true
 
 # ============================================================================
