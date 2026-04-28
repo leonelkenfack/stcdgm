@@ -407,7 +407,7 @@ class HRTargetIdentifiabilityHead(nn.Module):
             flat = pooled.reshape(1, -1)
         else:
             flat = state.reshape(state.shape[0], -1)
-        return self.mlp(flat)
+        return self.mlp(flat).clone()
 
     @staticmethod
     def extract_target_stats(
