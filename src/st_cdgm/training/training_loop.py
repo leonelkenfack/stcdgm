@@ -817,6 +817,13 @@ def train_epoch(
         step_loss_phy = 0.0
         
         for micro_idx, batch in enumerate(batches):
+            # CUDA Graphs (mode="reduce-overhead") reuse output buffers across
+            # calls in the same logical step. With N microbatches we are calling
+            # the same compiled module N times per optimizer.step(), so each
+            # forward overwrites the previous output. Mark a new "step begin"
+            # so the runtime allocates fresh buffers for this iteration.
+            if hasattr(torch, "compiler") and hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+                torch.compiler.cudagraph_mark_step_begin()
             _do_timing = verbose and batch_idx == 0 and micro_idx == 0
 
             if _do_timing:
