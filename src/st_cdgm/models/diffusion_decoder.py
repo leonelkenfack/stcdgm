@@ -129,6 +129,39 @@ class CausalDiffusionDecoder(nn.Module):
         if use_gradient_checkpointing:
             self.enable_gradient_checkpointing()
 
+    def enable_gradient_checkpointing(self) -> None:
+        """
+        Active le gradient checkpointing en délégant au UNet diffusers
+        sous-jacent. Sans cette méthode, ``__init__`` levait
+        ``AttributeError: 'CausalDiffusionDecoder' object has no attribute
+        'enable_gradient_checkpointing'`` quand ``use_gradient_checkpointing=True``.
+
+        Le UNet de diffusers expose ``enable_gradient_checkpointing()`` qui
+        active ``gradient_checkpointing=True`` sur tous les blocs supportant
+        l'API (down/up/mid). En fallback (versions très anciennes), on
+        positionne directement l'attribut sur les blocs.
+        """
+        if hasattr(self.unet, "enable_gradient_checkpointing"):
+            self.unet.enable_gradient_checkpointing()
+        else:
+            # Fallback : poser l'attribut directement (les blocs diffusers
+            # le testent via ``getattr(self, "gradient_checkpointing", False)``).
+            for _module in self.unet.modules():
+                if hasattr(_module, "gradient_checkpointing"):
+                    _module.gradient_checkpointing = True
+        self._gradient_checkpointing_enabled = True
+
+    def disable_gradient_checkpointing(self) -> None:
+        """Symétrique de ``enable_gradient_checkpointing`` pour pouvoir
+        repasser en mode plein-mémoire (ex. avant un export ONNX)."""
+        if hasattr(self.unet, "disable_gradient_checkpointing"):
+            self.unet.disable_gradient_checkpointing()
+        else:
+            for _module in self.unet.modules():
+                if hasattr(_module, "gradient_checkpointing"):
+                    _module.gradient_checkpointing = False
+        self._gradient_checkpointing_enabled = False
+
     def _pool_conditioning(self, conditioning: Tensor) -> Tensor:
         """Flatten conditioning [B, seq, dim] -> [B, seq*dim] for FiLM class_labels."""
         return conditioning.flatten(start_dim=1)

@@ -2997,125 +2997,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\causal_rcn.py:569"
     },
     {
-      "id": "file::diffusion_decoder",
-      "label": "diffusion_decoder.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
-    },
-    {
-      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
-      "label": "_replace_conv_transpose_with_resize",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput",
-      "label": "DiffusionOutput",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput::composite",
-      "label": ".composite",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder",
-      "label": "CausalDiffusionDecoder",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
-      "label": "._pool_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
-      "label": ".forward",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:136"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
-      "label": ".compute_loss",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:167"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
-      "label": ".predict_x0_from_epsilon",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:305"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
-      "label": ".apply_physical_constraints",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:316"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
-      "label": ".sample",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:357"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
-      "label": "._sample_edm_ode",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:493"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
-      "label": "._sample_dpm_solver",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:593"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
-      "label": ".reconstruct_from_residual",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:728"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
-      "label": ".set_condition_adapter",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:758"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
-      "label": "._prepare_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:764"
-    },
-    {
       "id": "file::graph_builder",
       "label": "graph_builder.py",
       "fileType": "code",
@@ -4444,6 +4325,139 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:330"
+    },
+    {
+      "id": "file::diffusion_decoder",
+      "label": "diffusion_decoder.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
+    },
+    {
+      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
+      "label": "_replace_conv_transpose_with_resize",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput",
+      "label": "DiffusionOutput",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput::composite",
+      "label": ".composite",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder",
+      "label": "CausalDiffusionDecoder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
+      "label": ".enable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
+      "label": ".disable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:154"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
+      "label": "._pool_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:165"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:169"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
+      "label": ".compute_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:200"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
+      "label": ".predict_x0_from_epsilon",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:338"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
+      "label": ".apply_physical_constraints",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:349"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
+      "label": ".sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:390"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
+      "label": "._sample_edm_ode",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:526"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
+      "label": "._sample_dpm_solver",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:626"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
+      "label": ".reconstruct_from_residual",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:761"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
+      "label": ".set_condition_adapter",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:791"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
+      "label": "._prepare_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:797"
     }
   ],
   "edges": [
@@ -7841,150 +7855,6 @@
       "weight": 1
     },
     {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::_replace_conv_transpose_with_resize",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34",
-      "weight": 1
-    },
-    {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::diffusionoutput",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::diffusionoutput",
-      "target": "diffusion_decoder::diffusionoutput::composite",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73",
-      "weight": 1
-    },
-    {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::forward",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:136",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:167",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:305",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:316",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::sample",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:357",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:493",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:593",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:728",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:758",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:764",
-      "weight": 1
-    },
-    {
       "source": "file::graph_builder",
       "target": "graph_builder::graphbuildreport",
       "relation": "contains",
@@ -9468,12 +9338,174 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_data_root_drive.py:330",
       "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::_replace_conv_transpose_with_resize",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34",
+      "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::diffusionoutput",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::diffusionoutput",
+      "target": "diffusion_decoder::diffusionoutput::composite",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73",
+      "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:154",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:165",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:169",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:200",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:338",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:349",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::sample",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:390",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:526",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:626",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:761",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:791",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:797",
+      "weight": 1
     }
   ],
   "metadata": {
     "files": 78,
-    "nodes": 635,
-    "edges": 558,
-    "builtAt": "2026-04-28T08:47:57.346Z"
+    "nodes": 637,
+    "edges": 560,
+    "builtAt": "2026-04-28T09:32:56.116Z"
   }
 }
