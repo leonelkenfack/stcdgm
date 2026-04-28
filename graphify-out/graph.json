@@ -4422,112 +4422,112 @@
       "label": "_eager_core",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:39"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:48"
     },
     {
       "id": "training_loop::resolve_train_amp_mode",
       "label": "resolve_train_amp_mode",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:55"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:64"
     },
     {
       "id": "training_loop::loss_reconstruction",
       "label": "loss_reconstruction",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:68"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:94"
     },
     {
       "id": "training_loop::compute_rapsd_loss",
       "label": "compute_rapsd_loss",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:136"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:162"
     },
     {
       "id": "training_loop::compute_rapsd_spectral_value_no_grad",
       "label": "compute_rapsd_spectral_value_no_grad",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:182"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:208"
     },
     {
       "id": "training_loop::prepare_target_and_conditioning_for_metric",
       "label": "prepare_target_and_conditioning_for_metric",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:209"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:235"
     },
     {
       "id": "training_loop::compute_rapsd_metric_from_batch",
       "label": "compute_rapsd_metric_from_batch",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:280"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:306"
     },
     {
       "id": "training_loop::loss_diffusion",
       "label": "loss_diffusion",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:346"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:372"
     },
     {
       "id": "training_loop::loss_no_tears",
       "label": "loss_no_tears",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:369"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:395"
     },
     {
       "id": "training_loop::compute_divergence",
       "label": "compute_divergence",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:381"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:407"
     },
     {
       "id": "training_loop::compute_vorticity",
       "label": "compute_vorticity",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:421"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:447"
     },
     {
       "id": "training_loop::loss_physical",
       "label": "loss_physical",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:461"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:487"
     },
     {
       "id": "training_loop::loss_precip_physical",
       "label": "loss_precip_physical",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:503"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:529"
     },
     {
       "id": "training_loop::loss_dagma",
       "label": "loss_dagma",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:575"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:601"
     },
     {
       "id": "training_loop::trainingstepresult",
       "label": "TrainingStepResult",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:653"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:679"
     },
     {
       "id": "training_loop::train_epoch",
       "label": "train_epoch",
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:664"
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:690"
     }
   ],
   "edges": [
@@ -9496,7 +9496,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:39",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:48",
       "weight": 1
     },
     {
@@ -9505,7 +9505,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:55",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:64",
       "weight": 1
     },
     {
@@ -9514,7 +9514,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:68",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:94",
       "weight": 1
     },
     {
@@ -9523,7 +9523,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:136",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:162",
       "weight": 1
     },
     {
@@ -9532,7 +9532,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:182",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:208",
       "weight": 1
     },
     {
@@ -9541,7 +9541,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:209",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:235",
       "weight": 1
     },
     {
@@ -9550,7 +9550,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:280",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:306",
       "weight": 1
     },
     {
@@ -9559,7 +9559,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:346",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:372",
       "weight": 1
     },
     {
@@ -9568,7 +9568,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:369",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:395",
       "weight": 1
     },
     {
@@ -9577,7 +9577,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:381",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:407",
       "weight": 1
     },
     {
@@ -9586,7 +9586,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:421",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:447",
       "weight": 1
     },
     {
@@ -9595,7 +9595,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:461",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:487",
       "weight": 1
     },
     {
@@ -9604,7 +9604,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:503",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:529",
       "weight": 1
     },
     {
@@ -9613,7 +9613,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:575",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:601",
       "weight": 1
     },
     {
@@ -9622,7 +9622,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:653",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:679",
       "weight": 1
     },
     {
@@ -9631,7 +9631,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:664",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:690",
       "weight": 1
     }
   ],
@@ -9639,6 +9639,6 @@
     "files": 81,
     "nodes": 647,
     "edges": 567,
-    "builtAt": "2026-04-28T13:43:18.471Z"
+    "builtAt": "2026-04-28T14:43:27.367Z"
   }
 }

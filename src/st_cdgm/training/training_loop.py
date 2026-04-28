@@ -26,11 +26,20 @@ from ..models.intelligible_encoder import IntelligibleVariableEncoder
 
 def _train_autocast(amp_mode: str):
     """
-    Mixed precision context for train_epoch: CUDA FP16 (with GradScaler) or CPU BF16 (no scaler).
-    amp_mode: "none" | "cuda_fp16" | "cpu_bf16"
+    Mixed precision context for train_epoch.
+
+    Modes :
+      - ``cuda_fp16`` : CUDA FP16 + GradScaler. Risque d'overflow softmax (NaN
+        cascade sur tous les gradients) — utilisé sur T4 sm_75 par défaut.
+      - ``cuda_bf16`` : CUDA bf16 (A100 sm_80+). **Plage = fp32, pas d'overflow,
+        pas besoin de GradScaler**. Recommandé sur Ampere et plus.
+      - ``cpu_bf16``  : CPU bf16 (CPU avec AVX512_BF16).
+      - ``none``      : full fp32.
     """
     if amp_mode == "cuda_fp16":
-        return torch.cuda.amp.autocast()
+        return torch.cuda.amp.autocast(dtype=torch.float16)
+    if amp_mode == "cuda_bf16":
+        return torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16)
     if amp_mode == "cpu_bf16":
         return torch.amp.autocast(device_type="cpu", dtype=torch.bfloat16)
     return nullcontext()
@@ -52,12 +61,29 @@ def _eager_core(m):
     return getattr(m, "_orig_mod", m)
 
 
-def resolve_train_amp_mode(device: torch.device, use_amp: bool) -> str:
-    """Même logique que le début de ``train_epoch`` (pour métrique RAPSD fin d’époque)."""
+def resolve_train_amp_mode(device: torch.device, use_amp: bool, amp_dtype: str = "auto") -> str:
+    """
+    Sélectionne le mode AMP. ``amp_dtype`` peut être :
+      - ``"auto"``     : bf16 sur Ampere+ (sm_80+), fp16 sinon → recommandé
+      - ``"float16"`` / ``"fp16"`` : fp16 forcé
+      - ``"bfloat16"`` / ``"bf16"`` : bf16 forcé (échec si non supporté)
+    """
     if not use_amp:
         return "none"
     if device.type == "cuda" and torch.cuda.is_available():
-        return "cuda_fp16"
+        _dt = (amp_dtype or "auto").lower().replace("_", "")
+        # Détection Ampere+ : capability >= (8, 0) → bf16 natif
+        try:
+            _cap = torch.cuda.get_device_capability(device)
+            _is_ampere_plus = _cap[0] >= 8
+        except Exception:
+            _is_ampere_plus = False
+        if _dt in ("bfloat16", "bf16"):
+            return "cuda_bf16"
+        if _dt in ("float16", "fp16"):
+            return "cuda_fp16"
+        # auto
+        return "cuda_bf16" if _is_ampere_plus else "cuda_fp16"
     if device.type == "cpu":
         bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
         if bf16_ok is not None and bf16_ok():
@@ -747,15 +773,32 @@ def train_epoch(
     rcn_runner.cell.train()
     diffusion_decoder.train()
     
-    # Phase C1: Mixed precision — CUDA FP16 + GradScaler, or CPU BF16 (no scaler)
+    # Phase C1: Mixed precision — auto-select bf16 sur Ampere+ (A100), fp16 sinon.
+    # bf16 a la même plage que fp32 → pas d'overflow softmax → pas de NaN cascade.
+    # ``amp_dtype`` peut être surchargé via ``use_amp`` (bool) + détection auto, ou
+    # forcé via une variable d'environnement ``ST_CDGM_AMP_DTYPE`` ("fp16"/"bf16"/"auto").
     scaler = None
     amp_mode = "none"
     if use_amp:
         if device.type == "cuda" and torch.cuda.is_available():
-            from torch.cuda.amp import GradScaler
-
-            scaler = GradScaler()
-            amp_mode = "cuda_fp16"
+            import os as _os_amp
+            _amp_dtype = _os_amp.environ.get("ST_CDGM_AMP_DTYPE", "auto").lower()
+            try:
+                _cap = torch.cuda.get_device_capability(device)
+                _is_ampere_plus = _cap[0] >= 8
+            except Exception:
+                _is_ampere_plus = False
+            if _amp_dtype in ("bf16", "bfloat16") or (_amp_dtype == "auto" and _is_ampere_plus):
+                amp_mode = "cuda_bf16"
+                # bf16 = pas de GradScaler nécessaire (range fp32, pas d'overflow)
+                if verbose:
+                    print(f"[AMP] cuda_bf16 sélectionné (cap={_cap}) — pas de GradScaler")
+            else:
+                from torch.cuda.amp import GradScaler
+                scaler = GradScaler()
+                amp_mode = "cuda_fp16"
+                if verbose:
+                    print(f"[AMP] cuda_fp16 + GradScaler (cap={_cap}, ampere_plus={_is_ampere_plus})")
         elif device.type == "cpu":
             bf16_ok = getattr(torch.cpu, "is_bf16_supported", None)
             if bf16_ok is not None and bf16_ok():
