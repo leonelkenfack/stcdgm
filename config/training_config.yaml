@@ -18,7 +18,7 @@ data:
   shard_dir: "data/raw/train/shards"
   
   # Séquences temporelles
-  seq_len: 8              # Contexte temporel suffisant pour météo
+  seq_len: 16             # A100 80GB : retour à 16 (était 8 pour OOM T4)
   stride: 2               # Équilibre entre données et mémoire
   
   # Baseline
@@ -54,8 +54,8 @@ graph:
 # CONFIGURATION DE L'ENCODEUR
 # ============================================================================
 encoder:
-  hidden_dim: 128
-  conditioning_dim: 128
+  hidden_dim: 256                   # A100 : 128 → 256
+  conditioning_dim: 256              # A100 : 128 → 256
   # Sprint 1 / B2 fix: fail loudly if a metapath is silently filtered out
   # because its node types are missing from the graph. Set to true only if
   # you intentionally want to downscale with an incomplete DAG (q < 5).
@@ -65,7 +65,7 @@ encoder:
   # *sees* A_dag. Required to make the DAG effectively condition every
   # diffusion sample (and to unlock interventional do-calculus at inference).
   causal_conditioning: true
-  num_dag_tokens: 2
+  num_dag_tokens: 4                  # A100 : 2 → 4 (DAG plus expressif)
   metapaths:
     - name: "GP850_spat_adj"
       src: "GP850"
@@ -97,7 +97,7 @@ encoder:
 # CONFIGURATION RCN (Réseau Causal Récurrent)
 # ============================================================================
 rcn:
-  hidden_dim: 128
+  hidden_dim: 256                      # A100 : aligné avec encoder
   driver_dim: 15      # Overridden at runtime by data sample shape
   reconstruction_dim: 15
   dropout: 0.1        # Sprint 1: lower dropout — model is under-fitting, not overfitting
@@ -131,30 +131,30 @@ rcn:
 # ============================================================================
 diffusion:
   in_channels: 1
-  conditioning_dim: 128
+  conditioning_dim: 256                # A100 : aligné avec encoder.conditioning_dim
   height: 172
   width: 179
   
   # Steps de diffusion - CRITIQUE pour la qualité
-  steps: 12                # ↑ de 20 à 100 (qualité génération)
+  steps: 1000              # FIX : training timesteps DDPM (12 était un bug — c'est eval_num_steps qui doit être petit)
   scheduler_type: "dpm_solver++"        # Stable pour entraînement
-  eval_num_steps: 12            # 15 steps suffisent avec DPM-Solver++
+  eval_num_steps: 30            # A100 : 25-30 steps DPM-Solver++ pour qualité
   
-  use_gradient_checkpointing: true  # OOM fix T4 : divise les activations UNet par ~2
+  use_gradient_checkpointing: false # A100 80GB : on a la VRAM, gain ~30% temps
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
   # ignoring ``cfg_scale`` until we added dual-stream guidance support in
   # ``_sample_dpm_solver``. 1.5–2.0 is the sweet spot for residual
   # precipitation: below 1.2 the extrapolation has no effect, above 2.5
   # extremes become too salty. ``conditioning_dropout_prob: 0.1`` keeps
   # the training-time null branch available for CFG to extrapolate from.
-  cfg_scale: 1.5
+  cfg_scale: 2.0                # A100 : guidance plus forte
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: true
   
   unet_kwargs:
-    layers_per_block: 1
-    block_out_channels: [32, 64]
+    layers_per_block: 2                # A100 : 1 → 2
+    block_out_channels: [64, 128, 256, 512]   # A100 : 4 niveaux, ~50M params
     # Sprint 4 / DAG-conditioning fix — Option B (CPU-friendly).
     #
     # Previous config (pre-Sprint-4) had cross-attention only on the 2nd
@@ -182,24 +182,28 @@ diffusion:
     down_block_types:
       - "DownBlock2D"
       - "CrossAttnDownBlock2D"
+      - "CrossAttnDownBlock2D"
+      - "CrossAttnDownBlock2D"
     up_block_types:
+      - "CrossAttnUpBlock2D"
+      - "CrossAttnUpBlock2D"
       - "CrossAttnUpBlock2D"
       - "UpBlock2D"
     mid_block_type: "UNetMidBlock2DCrossAttn"
-    norm_num_groups: 8
+    norm_num_groups: 32                # A100 : standard SD
     class_embed_type: "projection"
 
     # ⚠️ CRITIQUE: Doit correspondre à hidden_dim × nb_metapaths
-    projection_class_embeddings_input_dim: 640  # 128 × 5 = 640
+    projection_class_embeddings_input_dim: 1536 # 256 × 6 = 1536 (auto-aligné par cell 34 quand même)
 
     resnet_time_scale_shift: "scale_shift"
-    attention_head_dim: 32
+    attention_head_dim: 64             # A100 : 32 → 64 (standard SD)
     # ``only_cross_attention[i]`` only applies when ``down_block_types[i]``
     # has attention. Index 0 is ``DownBlock2D`` (no attention) → its value
     # is ignored by diffusers. Index 1 is ``CrossAttnDownBlock2D`` with
     # ``true`` ⇒ skip self-attn at level-1 to save FLOPs (cross-attn alone
     # is enough since the bottleneck mid-block also cross-attends).
-    only_cross_attention: [false, true]
+    only_cross_attention: [false, false, false, false]  # A100 : self-attn complet à tous niveaux
 
 # ============================================================================
 # CONFIGURATION DES PERTES (LOSS)
@@ -222,8 +226,8 @@ loss:
   # every ``training.physical_loss.physical_sample_interval`` batches.
   # Weights = (positivity, mass, quantile). Default 1.0/0.1/0.2 — quantile
   # weight is the key lever for F1_p95/F1_p99.
-  lambda_precip_phy: 0.05
-  precip_phy_weights: [1.0, 0.1, 0.2]
+  lambda_precip_phy: 0.10            # A100 : push physique plus fort
+  precip_phy_weights: [1.0, 0.1, 0.3]   # A100 : poids quantile ↑ pour extrêmes
   
   # Métriques spectrales
   use_spectral_loss: false
@@ -245,7 +249,7 @@ loss:
   # Focal Loss - CRITIQUE pour événements extrêmes
   use_focal_loss: true
   focal_alpha: 1.0
-  focal_gamma: 1.5        # ↑ de 2.0 (plus focus sur pixels difficiles)
+  focal_gamma: 2.5        # A100 : push extrêmes (objectif F1_p95/p99)
   
   # Pondération événements extrêmes
   extreme_weight_factor: 2.0
@@ -283,7 +287,7 @@ loss:
     # One contrastive pass every N optimizer steps. 4 is a good balance
     # on CPU (~25% training-time overhead). Raise to 1 for faster signal,
     # lower it to 8/16 if training throughput is the bottleneck.
-    interval: 4
+    interval: 2                       # A100 : signal DAG plus dense
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT
@@ -293,17 +297,16 @@ training:
   # Pour repasser sur CPU local, surcharger via la CLI Hydra :
   #   python ops/train_st_cdgm.py training.device=cpu training.use_amp=false training.compile.enabled=false
   device: "cuda"
-  epochs: 30
+  epochs: 1                      # A100 baseline — à ajuster après lecture des métriques
   # ``batch_size`` = nb. de micro-batches accumulés par optimizer step.
   # 48 sur T4 reste raisonnable car chaque forward UNet est rapide
   # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
   # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
   # confortablement en VRAM avec block_out_channels=[32, 64].
-  batch_size: 8
-  # Colab a typiquement 4-8 vCPU. 2 workers + pin_memory donnent un
-  # prefetch suffisant pour saturer le T4 sans saturer la RAM (<2 GB
-  # par worker pour le pipeline NetCDF lazy).
-  num_workers: 2
+  batch_size: 48                  # A100 80GB : grad-accum count, 1 sample/micro
+  # A100 host : 8-16 vCPU disponibles. 8 workers + pin_memory + prefetch_factor
+  # saturent le pipeline NetCDF lazy sans saturer la RAM.
+  num_workers: 8
   lr: 0.0003
   gradient_clipping: 0.5
   # Sur T4 chaque batch dure ~1-3s : log every 1 reste lisible.
@@ -339,9 +342,9 @@ training:
   
   # Physical Loss (optionnel)
   physical_loss:
-    use_predicted_output: false
-    physical_sample_interval: 10
-    physical_num_steps: 15
+    use_predicted_output: true        # A100 : sampling réel pour physical loss
+    physical_sample_interval: 4       # A100 : physique plus dense
+    physical_num_steps: 25            # A100 : sampling plus fidèle
   
   # torch.compile - Optimisation performance.
   #
@@ -358,7 +361,7 @@ training:
   compile:
     enabled: false
     rcn_mode: "reduce-overhead"
-    diffusion_mode: "default"  # OOM fix T4 : reduce-overhead ⇒ CUDA graphs ⇒ mémoire figée
+    diffusion_mode: "max-autotune"   # A100 : max-autotune gain 10-20% (compile time 5-15 min)
     encoder_mode: "reduce-overhead"
     fallback_on_error: true
 
@@ -382,7 +385,7 @@ checkpoint:
   # ``keep_last_k`` : nombre de snapshots ``epoch_NNN.pth`` à garder en plus
   # (0 = aucun, juste last + best). Utile si vous voulez un historique pour
   # rollback sur Drive — coût ~50-200 MB par snapshot, à doser selon le quota.
-  persist_every: 1
+  persist_every: 1                    # OBLIGATOIRE — per-epoch save sur Drive                    # OBLIGATOIRE — per-epoch save sur Drive
   keep_last_k: 0
 
 # ============================================================================
