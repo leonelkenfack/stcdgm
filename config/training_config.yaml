@@ -287,7 +287,7 @@ loss:
     # One contrastive pass every N optimizer steps. 4 is a good balance
     # on CPU (~25% training-time overhead). Raise to 1 for faster signal,
     # lower it to 8/16 if training throughput is the bottleneck.
-    interval: 8                        # 2 → 8 : 4× moins de passes UNet contrastives (~6% overhead vs ~25%)
+    interval: 4                        # 4 = good balance (commentaire config). Sur A100 modèle réduit : 2 passes extras/4 steps ≈ 4% overhead. Ne pas dépasser 4 : ce loss est LE levier qui force le UNet à utiliser A_dag (pas de DAG fantôme).
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT
@@ -359,9 +359,17 @@ training:
   # via ``_eager_core(...)``, donc compile reste sûr ici.
   compile:
     enabled: true                    # A100 : activé — gain 10-20% free sur UNet (formes fixes 172×179)
-    rcn_mode: "reduce-overhead"
-    diffusion_mode: "reduce-overhead"  # reduce-overhead suffisant sur A100 avec modèle réduit (max-autotune 5-15 min compile)
-    encoder_mode: "reduce-overhead"
+    # encoder est appelé 2× par microbatch (init_state + project_state_tensor → même mlp).
+    # reduce-overhead active CUDA Graphs → 2e appel écrase le buffer du 1er avant le backward.
+    # "default" donne la fusion de kernels sans CUDA Graphs → pas d'aliasing.
+    encoder_mode: "default"
+    # rcn_cell.run() boucle sur seq_len étapes → appelle le cell compilé 8× par microbatch.
+    # Même risque qu'encoder avec CUDA Graphs. "default" est sûr.
+    rcn_mode: "default"
+    # diffusion (UNet) : appelé 1× par microbatch via compute_loss (les passes extras
+    # contrastive/precip_phy passent par _eager_core et ne retriggerent pas le CUDA Graph).
+    # reduce-overhead est safe ici et donne le plus gros gain (UNet = goulot principal).
+    diffusion_mode: "reduce-overhead"
     fallback_on_error: true
 
 # ============================================================================
