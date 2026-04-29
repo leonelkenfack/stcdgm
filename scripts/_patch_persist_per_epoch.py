@@ -204,9 +204,15 @@ def maybe_resume_from_disk():
     if scheduler is not None and ckpt.get("scheduler_state_dict") is not None:
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
     if ckpt.get("rng_torch_cpu") is not None:
-        torch.set_rng_state(ckpt["rng_torch_cpu"])
+        try:
+            torch.set_rng_state(ckpt["rng_torch_cpu"])
+        except TypeError:
+            torch.set_rng_state(torch.as_tensor(ckpt["rng_torch_cpu"], dtype=torch.uint8).cpu())
     if torch.cuda.is_available() and ckpt.get("rng_torch_cuda") is not None:
-        torch.cuda.set_rng_state_all(ckpt["rng_torch_cuda"])
+        try:
+            torch.cuda.set_rng_state_all(ckpt["rng_torch_cuda"])
+        except (TypeError, RuntimeError):
+            pass
     if ckpt.get("rng_numpy") is not None:
         np.random.set_state(ckpt["rng_numpy"])
     print(f"   epoch précédente: {ckpt['epoch']} / {ckpt['epochs_total']}, "
