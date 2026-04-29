@@ -308,8 +308,8 @@ def main() -> int:
     persist_present = SENTINEL_PERSIST in train_src
 
     if helpers_present and resume_present and persist_present:
-        print("✓ Notebook déjà patché (helpers + resume + persist call détectés).")
-        return 0
+        print("✓ Notebook déjà patché (helpers + resume + persist call détectés). Mise à jour du block helper...")
+        # We don't return 0 here, so we can update the cell below and save.
 
     # 3) Insert markdown + helpers cells BEFORE the training cell.
     if not helpers_present:
@@ -317,6 +317,11 @@ def main() -> int:
         cells.insert(train_cell_idx, _make_md_cell(MARKDOWN_CELL))
         train_cell_idx += 2  # we shifted the training cell down by 2
         print(f"  ✓ Inserted persistence cells at index {train_cell_idx - 2}, {train_cell_idx - 1}")
+    else:
+        for c in cells:
+            if c["cell_type"] == "code" and SENTINEL_HELPERS in "".join(c.get("source", [])):
+                c["source"] = HELPERS_CELL.splitlines(keepends=True)
+        print("  ✓ Updated existing persistence helpers cell.")
 
     # 4) Patch training cell.
     train_src = "".join(cells[train_cell_idx].get("source", []))
