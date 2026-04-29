@@ -297,7 +297,7 @@ training:
   # Pour repasser sur CPU local, surcharger via la CLI Hydra :
   #   python ops/train_st_cdgm.py training.device=cpu training.use_amp=false training.compile.enabled=false
   device: "cuda"
-  epochs: 20                      # A100 baseline — à ajuster après lecture des métriques
+  epochs: 10                      # A100 baseline — à ajuster après lecture des métriques
   # ``batch_size`` = nb. de micro-batches accumulés par optimizer step.
   # 48 sur T4 reste raisonnable car chaque forward UNet est rapide
   # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
