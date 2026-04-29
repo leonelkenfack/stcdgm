@@ -308,7 +308,7 @@ def main() -> int:
     persist_present = SENTINEL_PERSIST in train_src
 
     if helpers_present and resume_present and persist_present:
-        print("✓ Notebook déjà patché (helpers + resume + persist call détectés). Mise à jour du block helper...")
+        print("[INFO] Notebook deja patche (helpers + resume + persist call detectes). Mise a jour du block helper...")
         # We don't return 0 here, so we can update the cell below and save.
 
     # 3) Insert markdown + helpers cells BEFORE the training cell.
@@ -321,7 +321,7 @@ def main() -> int:
         for c in cells:
             if c["cell_type"] == "code" and SENTINEL_HELPERS in "".join(c.get("source", [])):
                 c["source"] = HELPERS_CELL.splitlines(keepends=True)
-        print("  ✓ Updated existing persistence helpers cell.")
+        print("  [OK] Updated existing persistence helpers cell.")
 
     # 4) Patch training cell.
     train_src = "".join(cells[train_cell_idx].get("source", []))
@@ -350,7 +350,7 @@ def main() -> int:
         train_src = train_src.replace(anchor, PERSIST_CALL + anchor, 1)
 
     cells[train_cell_idx]["source"] = train_src.splitlines(keepends=True)
-    print(f"  ✓ Patched training cell (idx={train_cell_idx})")
+    print(f"  [OK] Patched training cell (idx={train_cell_idx})")
 
     # 5) Save back.
     NB.write_text(json.dumps(nb, indent=1, ensure_ascii=False), encoding="utf-8")
