@@ -343,7 +343,7 @@ training:
   device: "cuda"
   # EDM-rewrite : 30 epochs, batch_size 32 (grad-accum 2 × micro 16)
   # Budget A100 ~5 it/s avec block_out_channels=[32,64] → 30 epochs ≈ 10h.
-  epochs: 30
+  epochs: 0
   batch_size: 32                 # grad-accum count (micro = 16, accum = 2)
   # A100 host : 8-16 vCPU disponibles. 8 workers + pin_memory + prefetch_factor
   # saturent le pipeline NetCDF lazy sans saturer la RAM.
