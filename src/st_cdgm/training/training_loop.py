@@ -381,7 +381,23 @@ def loss_diffusion(
 ) -> Tensor:
     """
     Perte de diffusion L_gen en déléguant à CausalDiffusionDecoder.
+
+    Dispatches between DDPM (legacy) and EDM (Karras 2022) based on the
+    decoder's ``scheduler_type``. EDM mode ignores ``use_focal_loss`` /
+    ``focal_*`` because the lambda(sigma) weighting subsumes that role
+    (see edm_preconditioner.lambda_weight).
     """
+    base = decoder.module if hasattr(decoder, "module") else decoder
+    base = getattr(base, "_orig_mod", base)
+    scheduler_type = getattr(base, "scheduler_type", "ddpm")
+
+    if scheduler_type == "edm_karras":
+        return decoder.compute_loss_edm(
+            target,
+            conditioning,
+            conditioning_spatial=conditioning_spatial,
+        )
+
     return decoder.compute_loss(
         target,
         conditioning,

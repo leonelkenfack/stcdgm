@@ -115,16 +115,18 @@ rcn:
   #   - linear ramp over 20 epochs to ``max`` (default 1.0 = full gradient)
   # The spectral projection after each optimiser step keeps A_dag acyclic
   # regardless of the gate value, so it's safe to go all the way to 1.0.
+  # ============================================================
+  # EDM-rewrite : detach permanent — conformité au papier oracle.tex
+  # §sec:arch:rcn ("DAG detachment" paragraph). Le commentaire Sprint 4
+  # ci-dessous documentait une déviation qui s'est avérée nocive
+  # (Gemini Deep Research Axis 1 : "Trace Trap"). On revient au
+  # detach strict : A_dag est entraîné UNIQUEMENT par L_rec + L_dag.
+  # ============================================================
   dag_grad_gate:
-    enabled: true
-    # Sprint 4: shortened cold phase (5 → 2) so the diffusion gradient
-    # reaches A_dag earlier. The combined recipe of wider cross-attention
-    # (see diffusion.unet_kwargs) + contrastive DAG loss (see
-    # loss.contrastive_dag.*) means A_dag is now a *useful* target for the
-    # diffusion loss from epoch 3 onward — no benefit in keeping gate=0.
-    cold_epochs: 2
-    ramp_epochs: 15
-    max: 1.0
+    enabled: false               # DETACH PERMANENT (oracle.tex §sec:arch:rcn)
+    cold_epochs: 0
+    ramp_epochs: 1
+    max: 0.0
 
 # ============================================================================
 # CONFIGURATION DIFFUSION
@@ -135,10 +137,34 @@ diffusion:
   height: 172
   width: 179
 
-  # Steps de diffusion - CRITIQUE pour la qualité
-  steps: 1000              # FIX : training timesteps DDPM (12 était un bug — c'est eval_num_steps qui doit être petit)
-  scheduler_type: "dpm_solver++"        # Stable pour entraînement
-  eval_num_steps: 20            # Réduit de 30 : DPM-Solver++ converge bien à 20 steps
+  # ============================================================
+  # EDM (Karras 2022) — branche edm-rewrite
+  # ------------------------------------------------------------
+  # Le papier ST-CDGM ciblait DDPM/DPM-Solver++. Sprint 4 a montré
+  # que ce choix mal calibré (sigma_data implicite ~0.5 vs réel ~0.1)
+  # cause une sur-dispersion catastrophique de l'ensemble (sigma_r=9).
+  # EDM (preconditioning explicite + Heun sampler) résout ce problème.
+  # ============================================================
+  steps: 1000                    # legacy DDPM, ignoré quand scheduler_type=edm_karras
+  scheduler_type: "edm_karras"   # "ddpm" | "dpm_solver++" | "edm_karras"
+  eval_num_steps: 18             # Heun sampler — 18 = défaut Karras, 15 = papier ST-CDGM
+
+  # EDM hyperparameters (Karras 2022 Table 5)
+  # sigma_data DOIT être calibré sur la std empirique du résidu log1p
+  # (cf. scripts/measure_residual_std.py). Default 0.1 = estimation
+  # initiale ; corrige après mesure.
+  edm:
+    sigma_data: 0.1              # DOIT être réécrit après mesure empirique
+    sigma_min: 0.002             # Karras défaut
+    sigma_max: 80.0              # Karras défaut
+    rho: 7.0                     # warp du sigma schedule
+    P_mean: -1.2                 # log-normal training noise prior
+    P_std: 1.2
+    # Stochastic Heun (S_churn=0 → deterministic Heun = recommandé)
+    S_churn: 0.0
+    S_tmin: 0.0
+    S_tmax: .inf
+    S_noise: 1.0
 
   use_gradient_checkpointing: false  # A100 80GB : modèle réduit (~12M params), mémoire confortable sans recompute → +30% vitesse
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
@@ -147,14 +173,25 @@ diffusion:
   # precipitation: below 1.2 the extrapolation has no effect, above 2.5
   # extremes become too salty. ``conditioning_dropout_prob: 0.1`` keeps
   # the training-time null branch available for CFG to extrapolate from.
-  cfg_scale: 2.0                # A100 : guidance plus forte
+  # CFG désactivé : Gemini Axis 5 + papier confirment qu'avec EDM bien
+  # calibré, la guidance > 1 inflate artificiellement l'ensemble (cause
+  # sigma_r=9). Le conditioning_dropout reste à 0.1 pour robustesse,
+  # mais cfg_scale=1.0 désactive l'extrapolation à l'inférence.
+  cfg_scale: 1.0
   conditioning_dropout_prob: 0.1
   conv_padding_mode: "zeros"
   anti_checkerboard: true
   
   unet_kwargs:
-    layers_per_block: 1                # T4 profile restauré (2×  non validé → +2× coût UNet)
-    block_out_channels: [32, 64, 128, 256]    # T4 profile restauré — 4× moins cher que [64,128,256,512]
+    # ============================================================
+    # EDM-rewrite : architecture minimale du papier oracle.tex Tab.2
+    # block_out_channels=[32, 64], 2 niveaux, cross-attn 1 niveau.
+    # Justification : Karras §5 fig.3 (scaling laws) montre que sur
+    # 14k samples, [32, 64] atteint ~95% du plafond métrique
+    # de [128, 192, 256, 256] avec 30× moins de paramètres.
+    # ============================================================
+    layers_per_block: 1
+    block_out_channels: [32, 64]
     # Sprint 4 / DAG-conditioning fix — Option B (CPU-friendly).
     #
     # Previous config (pre-Sprint-4) had cross-attention only on the 2nd
@@ -179,17 +216,15 @@ diffusion:
     # with the contrastive DAG loss + the dag_grad_gate ramp + cfg_scale,
     # this gives 3 cross-attention injection points (1 down, 1 mid, 1 up)
     # all at ≤1/2 resolution, so cost stays bounded on CPU.
+    # 2-niveaux : DownBlock plain + 1 cross-attn down/up.
+    # Bottleneck SANS cross-attn (UNetMidBlock2D) → conformité papier.
     down_block_types:
       - "DownBlock2D"
       - "CrossAttnDownBlock2D"
-      - "CrossAttnDownBlock2D"
-      - "CrossAttnDownBlock2D"
     up_block_types:
       - "CrossAttnUpBlock2D"
-      - "CrossAttnUpBlock2D"
-      - "CrossAttnUpBlock2D"
       - "UpBlock2D"
-    mid_block_type: "UNetMidBlock2DCrossAttn"
+    mid_block_type: "UNetMidBlock2D"
     norm_num_groups: 8                 # T4 profile restauré (32 avec channels=32 OK, 8 suffisant)
     class_embed_type: "projection"
 
@@ -203,7 +238,7 @@ diffusion:
     # is ignored by diffusers. Index 1 is ``CrossAttnDownBlock2D`` with
     # ``true`` ⇒ skip self-attn at level-1 to save FLOPs (cross-attn alone
     # is enough since the bottleneck mid-block also cross-attends).
-    only_cross_attention: [false, true, true, false]   # T4 profile : cross-attn seul aux niveaux 1-2 (self-attn coûteux, bottleneck mi-bloc suffit)
+    only_cross_attention: [false, false]   # 2-niveaux EDM : self-attn léger autorisé sur le seul cross-attn block
 
 # ============================================================================
 # CONFIGURATION DES PERTES (LOSS)
@@ -226,8 +261,12 @@ loss:
   # every ``training.physical_loss.physical_sample_interval`` batches.
   # Weights = (positivity, mass, quantile). Default 1.0/0.1/0.2 — quantile
   # weight is the key lever for F1_p95/F1_p99.
-  lambda_precip_phy: 0.10            # A100 : push physique plus fort
-  precip_phy_weights: [1.0, 0.1, 0.3]   # A100 : poids quantile ↑ pour extrêmes
+  # EDM-rewrite : Sprint 3/4 auxiliary losses désactivés (hors papier).
+  # Le papier ST-CDGM Eq. ref:eq:total ne contient que 4 termes :
+  # L = lambda_gen·L_gen + beta_rec·L_rec + gamma_dag·L_dag + lambda_phy·L_phy
+  # avec lambda_phy=0 par défaut (ablation futur).
+  lambda_precip_phy: 0.0             # désactivé (hors papier oracle.tex)
+  precip_phy_weights: [1.0, 0.1, 0.3]
   
   # Métriques spectrales
   use_spectral_loss: false
@@ -263,8 +302,9 @@ loss:
   # pooled causal state. Gradient flows back through the encoder + RCN,
   # pulling A_dag toward representations that know about precipitation
   # extremes. Use this *in addition to* the regular LR driver L_rec.
+  # EDM-rewrite : hr_ident désactivé (hors papier oracle.tex).
   hr_ident:
-    enabled: true
+    enabled: false
     beta: 0.05
     stats: ["mean", "std", "p95", "p99"]
 
@@ -280,8 +320,12 @@ loss:
   # to route A_dag information into its prediction. This is the single
   # most important lever that makes the DAG *actually* condition the
   # diffusion rather than being decorative.
+  # EDM-rewrite : contrastive_dag désactivé (hors papier oracle.tex).
+  # La pression à utiliser A_dag vient maintenant de L_rec (qui passe
+  # par H_T qui dépend de A_dag via la dynamique RCN). Plus simple,
+  # plus stable, fidèle au papier.
   contrastive_dag:
-    enabled: true
+    enabled: false
     weight: 0.5
     margin: 0.02
     # One contrastive pass every N optimizer steps. 4 is a good balance
@@ -297,18 +341,15 @@ training:
   # Pour repasser sur CPU local, surcharger via la CLI Hydra :
   #   python ops/train_st_cdgm.py training.device=cpu training.use_amp=false training.compile.enabled=false
   device: "cuda"
-  epochs: 20                      # A100 baseline — à ajuster après lecture des métriques
-  # ``batch_size`` = nb. de micro-batches accumulés par optimizer step.
-  # 48 sur T4 reste raisonnable car chaque forward UNet est rapide
-  # (cross-attn limité au goulot + niveau-1, voir diffusion.unet_kwargs).
-  # Effective batch size = 48 micro-batches ; sur T4 chaque µ-batch tient
-  # confortablement en VRAM avec block_out_channels=[32, 64].
-  batch_size: 100               # A100 80GB : grad-accum count, 1 sample/micro
+  # EDM-rewrite : 30 epochs, batch_size 32 (grad-accum 2 × micro 16)
+  # Budget A100 ~5 it/s avec block_out_channels=[32,64] → 30 epochs ≈ 10h.
+  epochs: 30
+  batch_size: 32                 # grad-accum count (micro = 16, accum = 2)
   # A100 host : 8-16 vCPU disponibles. 8 workers + pin_memory + prefetch_factor
   # saturent le pipeline NetCDF lazy sans saturer la RAM.
   num_workers: 8
-  lr: 0.0003
-  gradient_clipping: 0.5
+  lr: 0.0002                     # EDM Karras §5 (cosine decay, 2-ep warmup)
+  gradient_clipping: 1.0         # Karras défaut
   # Log groupé par 20 batches pour réduire le bruit console.
   log_every: 20
   # T4 (sm_75) supporte les Tensor Cores **fp16** (et non bf16, qui

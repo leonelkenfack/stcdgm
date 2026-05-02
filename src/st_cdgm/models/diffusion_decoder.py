@@ -93,6 +93,7 @@ class CausalDiffusionDecoder(nn.Module):
         use_gradient_checkpointing: bool = False,
         conv_padding_mode: str = "zeros",
         anti_checkerboard: bool = False,
+        edm_config: Optional["EDMConfig"] = None,  # noqa: F821
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -100,7 +101,20 @@ class CausalDiffusionDecoder(nn.Module):
         self.height = height
         self.width = width
         self.num_diffusion_steps = num_diffusion_steps
-        self.scheduler_type = scheduler_type  # "ddpm" or "edm"
+        # ``scheduler_type`` controls both training and inference path.
+        # Supported: "ddpm" (legacy), "dpm_solver++" (legacy inference), and
+        # "edm_karras" (Karras 2022 EDM, Sec. 5). When "edm_karras", the
+        # forward pass applies the EDM preconditioning of Eq. 7 and the
+        # training loss uses the lambda(sigma) weighting of Eq. 8.
+        self.scheduler_type = scheduler_type
+
+        # EDM config — only consulted when scheduler_type == "edm_karras".
+        # Lazy import keeps the legacy DDPM path import-light.
+        if scheduler_type == "edm_karras":
+            from .edm_preconditioner import EDMConfig as _EDMConfig
+            self.edm_config = edm_config if edm_config is not None else _EDMConfig()
+        else:
+            self.edm_config = None
 
         self._condition_adapter: Optional[Callable[[Tensor], Tensor]] = None
 
@@ -113,6 +127,9 @@ class CausalDiffusionDecoder(nn.Module):
             cross_attention_dim=conditioning_dim,
             **unet_kwargs,
         )
+        # Keep the DDPM scheduler around even in EDM mode: some legacy
+        # helpers (``predict_x0_from_epsilon``) reference it. EDM training/
+        # inference does not consume it.
         self.scheduler = DDPMScheduler(num_train_timesteps=num_diffusion_steps)
 
         if conv_padding_mode == "replicate":
@@ -332,7 +349,129 @@ class CausalDiffusionDecoder(nn.Module):
                 f"valid_pixels={valid_mask.sum().item()}/{total_pixels}, "
                 f"noise_pred_stats: min={noise_pred[valid_mask].min().item():.6f}, max={noise_pred[valid_mask].max().item():.6f}"
             )
-        
+
+        return loss
+
+    # ------------------------------------------------------------------
+    # EDM (Karras 2022) path. Activated by ``scheduler_type='edm_karras'``.
+    # ------------------------------------------------------------------
+
+    def forward_edm(
+        self,
+        x_noisy: Tensor,
+        sigma: Tensor,
+        conditioning: Tensor,
+        conditioning_spatial: Optional[Tensor] = None,
+    ) -> Tensor:
+        """EDM denoiser ``D(x; sigma, c)`` (Karras Eq. 7).
+
+        Returns a *clean* prediction of ``x_0`` (the residual target),
+        not the noise. Caller is responsible for sampling ``sigma``.
+        """
+        from .edm_preconditioner import compute_preconditioning
+
+        if self.edm_config is None:
+            raise RuntimeError("forward_edm requires scheduler_type='edm_karras'")
+
+        c_skip, c_out, c_in, c_noise = compute_preconditioning(
+            sigma, self.edm_config.sigma_data
+        )
+
+        conditioning = self._prepare_conditioning(conditioning)
+        class_labels = self._pool_conditioning(conditioning)
+        hidden_states = (
+            conditioning_spatial if conditioning_spatial is not None else conditioning
+        )
+
+        # Run UNet on preconditioned input. The diffusers UNet accepts
+        # continuous floats for the ``timestep`` argument via its
+        # Timesteps embedding (see TimestepEmbedding in diffusers).
+        F_x = self.unet(
+            sample=c_in * x_noisy,
+            timestep=c_noise,
+            encoder_hidden_states=hidden_states,
+            class_labels=class_labels,
+        ).sample
+
+        # Reconstruct the denoised prediction.
+        return c_skip * x_noisy + c_out * F_x
+
+    def compute_loss_edm(
+        self,
+        target: Tensor,
+        conditioning: Tensor,
+        conditioning_spatial: Optional[Tensor] = None,
+    ) -> Tensor:
+        """EDM training loss (Karras Eq. 8) — ``E[lambda(sigma) ||D - x0||^2]``.
+
+        Sigma is sampled per-batch element from a log-normal prior with
+        location ``P_mean`` and scale ``P_std`` (Karras Eq. 9). The loss
+        weight ``lambda(sigma)`` rebalances contributions across the
+        sigma spectrum.
+
+        NaN handling is identical to the DDPM path: pixels with NaN in
+        ``target`` are excluded from the loss via a finite-mask.
+        """
+        from .edm_preconditioner import lambda_weight, sample_training_sigma
+
+        if self.edm_config is None:
+            raise RuntimeError("compute_loss_edm requires scheduler_type='edm_karras'")
+
+        if not torch.isfinite(conditioning).all():
+            raise ValueError(
+                f"Conditioning contains NaN/Inf at compute_loss_edm entry. "
+                f"shape={conditioning.shape}"
+            )
+
+        valid_mask = torch.isfinite(target)
+        if not valid_mask.any():
+            return torch.tensor(0.0, device=target.device, requires_grad=True)
+
+        target_clean = target.clone()
+        target_clean[~valid_mask] = 0.0
+
+        B = target_clean.shape[0]
+        cfg = self.edm_config
+        sigma = sample_training_sigma(
+            B,
+            P_mean=cfg.P_mean,
+            P_std=cfg.P_std,
+            device=target_clean.device,
+            dtype=target_clean.dtype,
+        )
+
+        # Forward noising y_noisy = y0 + sigma * n, n ~ N(0, I).
+        noise = torch.randn_like(target_clean)
+        sigma_b = sigma.view(-1, 1, 1, 1)
+        y_noisy = target_clean + sigma_b * noise
+
+        D_y = self.forward_edm(
+            y_noisy, sigma, conditioning, conditioning_spatial=conditioning_spatial
+        )
+
+        if not torch.isfinite(D_y).all():
+            raise ValueError(
+                f"D(y) contains NaN/Inf after forward_edm. "
+                f"NaN={torch.isnan(D_y).sum().item()}, "
+                f"Inf={torch.isinf(D_y).sum().item()}, "
+                f"sigma_range=[{sigma.min().item():.4g}, {sigma.max().item():.4g}]"
+            )
+
+        weights = lambda_weight(sigma, cfg.sigma_data)  # [B, 1, 1, 1]
+        sq_err = (D_y - target_clean) ** 2  # [B, C, H, W]
+
+        # Apply mask + weight, then mean over valid elements only.
+        # Broadcast weights against [B, C, H, W].
+        weighted = weights * sq_err
+        masked = weighted * valid_mask.float()
+        n_valid = valid_mask.float().sum().clamp(min=1.0)
+        loss = masked.sum() / n_valid
+
+        if not torch.isfinite(loss):
+            raise ValueError(
+                f"EDM loss is NaN/Inf: {loss.item()}. "
+                f"sigma_range=[{sigma.min().item():.4g}, {sigma.max().item():.4g}]"
+            )
         return loss
 
     def predict_x0_from_epsilon(
@@ -412,9 +551,20 @@ class CausalDiffusionDecoder(nn.Module):
         
         # Phase 3.2: Use EDM ODE solver if requested
         # Phase E1: Use DPM-Solver++ if requested (faster than EDM)
+        if scheduler_type == "edm_karras":
+            # EDM Heun sampler (Karras 2022 Algo 2). Default 18 steps.
+            num_steps = num_steps or 18
+            return self._sample_edm_karras(
+                conditioning=conditioning,
+                num_steps=num_steps,
+                generator=generator,
+                baseline=baseline,
+                apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
+            )
         if scheduler_type == "edm":
-            # EDM ODE solver with fewer steps
-            num_steps = num_steps or 25  # Default to 25 steps for EDM (vs 1000 for DDPM)
+            # Legacy: simple Euler ODE solver (kept for backward compat).
+            num_steps = num_steps or 25
             return self._sample_edm_ode(
                 conditioning=conditioning,
                 num_steps=num_steps,
@@ -522,6 +672,78 @@ class CausalDiffusionDecoder(nn.Module):
                 f"Sortie diffusion {tuple(residual.shape[-2:])} != ({self.height}, {self.width})"
             )
         return DiffusionOutput(residual=residual, baseline=baseline, t_min=t_min, t_mean=t_mean, t_max=t_max)
+
+    def _sample_edm_karras(
+        self,
+        conditioning: Tensor,
+        num_steps: int = 18,
+        generator: Optional[torch.Generator] = None,
+        baseline: Optional[Tensor] = None,
+        apply_constraints: bool = True,
+        conditioning_spatial: Optional[Tensor] = None,
+    ) -> DiffusionOutput:
+        """Heun ODE sampler over the Karras sigma schedule.
+
+        Defaults: ``num_steps=18`` (Karras 2022 Tab. 5 for image gen).
+        The ST-CDGM paper specifies 15 in `oracle.tex` Tab. 2 — both work.
+        """
+        from .edm_sampler import heun_sample
+
+        if self.edm_config is None:
+            raise RuntimeError("_sample_edm_karras requires scheduler_type='edm_karras'")
+
+        conditioning = self._prepare_conditioning(conditioning)
+        B = conditioning.shape[0]
+        device = conditioning.device
+        dtype = conditioning.dtype
+
+        # Closure that binds the conditioning so heun_sample sees a
+        # simple ``denoiser_fn(x, sigma) -> D(x; sigma, c)``.
+        def denoiser_fn(x: Tensor, sigma: Tensor) -> Tensor:
+            sigma_b = sigma.expand(x.shape[0])
+            return self.forward_edm(
+                x, sigma_b, conditioning, conditioning_spatial=conditioning_spatial
+            )
+
+        residual = heun_sample(
+            denoiser_fn,
+            shape=(B, self.in_channels, self.height, self.width),
+            cfg=self.edm_config,
+            num_steps=num_steps,
+            device=device,
+            dtype=dtype,
+            generator=generator,
+        )
+
+        if baseline is not None:
+            if baseline.shape != residual.shape:
+                raise ValueError(
+                    f"Baseline shape {tuple(baseline.shape)} incompatible avec résidu "
+                    f"{tuple(residual.shape)}."
+                )
+            composite = baseline + residual
+        else:
+            composite = residual
+
+        # Same physical-constraint logic as DDPM path.
+        if composite.shape[1] == 3:
+            if apply_constraints:
+                t_min, t_mean, t_max = self.apply_physical_constraints(
+                    composite, use_soft=True
+                )
+            else:
+                t_min, t_mean, t_max = (
+                    composite[:, 0:1, :, :],
+                    composite[:, 1:2, :, :],
+                    composite[:, 2:3, :, :],
+                )
+        else:
+            t_min = t_mean = t_max = composite[:, 0:1, :, :]
+
+        return DiffusionOutput(
+            residual=residual, baseline=baseline,
+            t_min=t_min, t_mean=t_mean, t_max=t_max,
+        )
 
     def _sample_edm_ode(
         self,
