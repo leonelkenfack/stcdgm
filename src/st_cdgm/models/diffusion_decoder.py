@@ -94,8 +94,20 @@ class CausalDiffusionDecoder(nn.Module):
         conv_padding_mode: str = "zeros",
         anti_checkerboard: bool = False,
         edm_config: Optional["EDMConfig"] = None,  # noqa: F821
+        causal_concat: bool = False,
     ) -> None:
         super().__init__()
+        # ``causal_concat`` activates the Two-Stage architecture (hyperplan
+        # v2.0). When True, the UNet expects the channel-concatenation of
+        # ``[delta_noisy, mu_HR, log1p(baseline)]`` as input (3 input
+        # channels), producing the diffusion residual ``delta`` (1 output
+        # channel). The cross-attention conditioning path is then unused —
+        # causality flows architecturally through ``mu_HR`` (which is itself
+        # a function of ``H_T(A_dag)`` via ``GraphToGridDecoder``).
+        self.causal_concat = causal_concat
+        unet_in_channels = in_channels + 2 if causal_concat else in_channels
+        unet_out_channels = in_channels  # always residual ``delta`` of in_channels
+
         self.in_channels = in_channels
         self.conditioning_dim = conditioning_dim
         self.height = height
@@ -122,8 +134,8 @@ class CausalDiffusionDecoder(nn.Module):
         self.unet = UNet2DConditionModel(
             # NOTE: use (height, width) for non-square grids; passing an int makes Diffusers assume square inputs.
             sample_size=(height, width),
-            in_channels=in_channels,
-            out_channels=in_channels,
+            in_channels=unet_in_channels,
+            out_channels=unet_out_channels,
             cross_attention_dim=conditioning_dim,
             **unet_kwargs,
         )
@@ -360,13 +372,29 @@ class CausalDiffusionDecoder(nn.Module):
         self,
         x_noisy: Tensor,
         sigma: Tensor,
-        conditioning: Tensor,
+        conditioning: Optional[Tensor] = None,
         conditioning_spatial: Optional[Tensor] = None,
+        mu_HR: Optional[Tensor] = None,
+        baseline_log: Optional[Tensor] = None,
     ) -> Tensor:
         """EDM denoiser ``D(x; sigma, c)`` (Karras Eq. 7).
 
-        Returns a *clean* prediction of ``x_0`` (the residual target),
-        not the noise. Caller is responsible for sampling ``sigma``.
+        Two operating modes:
+
+        1. **Standard** (``causal_concat=False``): cross-attention + class-
+           embed conditioning via ``conditioning`` and ``conditioning_spatial``.
+           Backwards-compatible with the EDM single-stage path.
+
+        2. **Two-Stage Causal** (``causal_concat=True``, hyperplan v2.0):
+           ``mu_HR`` and ``baseline_log`` are concatenated channel-wise to
+           the noisy residual. The cross-attention conditioning path is
+           kept available but typically left ``None`` since causality
+           already flows through ``mu_HR``. This is the architecturally
+           non-bypassable conditioning route.
+
+        Returns a *clean* prediction of ``x_0`` (the diffusion residual
+        ``delta``), not the noise. Caller is responsible for sampling
+        ``sigma``.
         """
         from .edm_preconditioner import compute_preconditioning
 
@@ -377,30 +405,83 @@ class CausalDiffusionDecoder(nn.Module):
             sigma, self.edm_config.sigma_data
         )
 
-        conditioning = self._prepare_conditioning(conditioning)
-        class_labels = self._pool_conditioning(conditioning)
-        hidden_states = (
-            conditioning_spatial if conditioning_spatial is not None else conditioning
-        )
+        # ----- Build UNet input -----
+        if self.causal_concat:
+            if mu_HR is None or baseline_log is None:
+                raise ValueError(
+                    "causal_concat=True requires mu_HR and baseline_log"
+                )
+            # Verify shapes match x_noisy
+            if mu_HR.shape != x_noisy.shape:
+                raise ValueError(
+                    f"mu_HR shape {tuple(mu_HR.shape)} != x_noisy "
+                    f"{tuple(x_noisy.shape)}"
+                )
+            if baseline_log.shape != x_noisy.shape:
+                raise ValueError(
+                    f"baseline_log shape {tuple(baseline_log.shape)} != "
+                    f"x_noisy {tuple(x_noisy.shape)}"
+                )
+            # Concat along channel dim: x_noisy is preconditioned (c_in),
+            # mu_HR and baseline_log are passed through unchanged (they are
+            # already at the right scale for the network — they live in the
+            # same log1p space as the diffusion target).
+            unet_input = torch.cat(
+                [c_in * x_noisy, mu_HR, baseline_log], dim=1
+            )
+        else:
+            unet_input = c_in * x_noisy
 
-        # Run UNet on preconditioned input. The diffusers UNet accepts
-        # continuous floats for the ``timestep`` argument via its
-        # Timesteps embedding (see TimestepEmbedding in diffusers).
-        F_x = self.unet(
-            sample=c_in * x_noisy,
-            timestep=c_noise,
-            encoder_hidden_states=hidden_states,
-            class_labels=class_labels,
-        ).sample
+        # ----- Conditioning (cross-attention path) -----
+        # In causal_concat mode, conditioning may be None — the UNet still
+        # needs an ``encoder_hidden_states`` placeholder when cross-attn
+        # blocks are present in unet_kwargs, but a zero tensor is fine.
+        if conditioning is not None:
+            conditioning = self._prepare_conditioning(conditioning)
+            class_labels = self._pool_conditioning(conditioning)
+            hidden_states = (
+                conditioning_spatial
+                if conditioning_spatial is not None
+                else conditioning
+            )
+        elif self.causal_concat:
+            # In concat mode, conditioning is unused but diffusers
+            # UNet2DConditionModel still requires ``encoder_hidden_states``
+            # as a positional argument. We feed a single zero token of
+            # the configured cross_attention_dim to satisfy the API
+            # without contributing any signal — this token is multiplied
+            # by zero by any cross-attention W_O at init and remains
+            # benign throughout training (no gradient incentive to use it
+            # since the real signal comes from concat channels).
+            class_labels = None
+            B = unet_input.shape[0]
+            hidden_states = unet_input.new_zeros((B, 1, self.conditioning_dim))
+        else:
+            raise ValueError(
+                "Standard mode requires conditioning (cross-attn + class_labels)"
+            )
 
-        # Reconstruct the denoised prediction.
+        unet_kwargs_run = {
+            "sample": unet_input,
+            "timestep": c_noise,
+            "encoder_hidden_states": hidden_states,
+        }
+        if class_labels is not None:
+            unet_kwargs_run["class_labels"] = class_labels
+
+        F_x = self.unet(**unet_kwargs_run).sample
+
+        # Reconstruct the denoised prediction (always on the residual ``delta``,
+        # not the concatenated input).
         return c_skip * x_noisy + c_out * F_x
 
     def compute_loss_edm(
         self,
         target: Tensor,
-        conditioning: Tensor,
+        conditioning: Optional[Tensor] = None,
         conditioning_spatial: Optional[Tensor] = None,
+        mu_HR: Optional[Tensor] = None,
+        baseline_log: Optional[Tensor] = None,
     ) -> Tensor:
         """EDM training loss (Karras Eq. 8) — ``E[lambda(sigma) ||D - x0||^2]``.
 
@@ -446,7 +527,12 @@ class CausalDiffusionDecoder(nn.Module):
         y_noisy = target_clean + sigma_b * noise
 
         D_y = self.forward_edm(
-            y_noisy, sigma, conditioning, conditioning_spatial=conditioning_spatial
+            y_noisy,
+            sigma,
+            conditioning,
+            conditioning_spatial=conditioning_spatial,
+            mu_HR=mu_HR,
+            baseline_log=baseline_log,
         )
 
         if not torch.isfinite(D_y).all():
@@ -675,34 +761,61 @@ class CausalDiffusionDecoder(nn.Module):
 
     def _sample_edm_karras(
         self,
-        conditioning: Tensor,
+        conditioning: Optional[Tensor] = None,
         num_steps: int = 18,
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
         conditioning_spatial: Optional[Tensor] = None,
+        mu_HR: Optional[Tensor] = None,
+        baseline_log: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """Heun ODE sampler over the Karras sigma schedule.
 
         Defaults: ``num_steps=18`` (Karras 2022 Tab. 5 for image gen).
         The ST-CDGM paper specifies 15 in `oracle.tex` Tab. 2 — both work.
+
+        In ``causal_concat`` mode (Two-Stage), pass ``mu_HR`` and
+        ``baseline_log`` instead of (or in addition to) ``conditioning``.
+        ``baseline`` argument is then optional since the baseline is
+        already captured in ``baseline_log`` for the channel-concat input.
         """
         from .edm_sampler import heun_sample
 
         if self.edm_config is None:
             raise RuntimeError("_sample_edm_karras requires scheduler_type='edm_karras'")
 
-        conditioning = self._prepare_conditioning(conditioning)
-        B = conditioning.shape[0]
-        device = conditioning.device
-        dtype = conditioning.dtype
+        # Determine batch size + device + dtype from any available tensor.
+        if self.causal_concat:
+            if mu_HR is None or baseline_log is None:
+                raise ValueError(
+                    "_sample_edm_karras with causal_concat requires "
+                    "mu_HR and baseline_log"
+                )
+            ref = mu_HR
+        else:
+            if conditioning is None:
+                raise ValueError(
+                    "_sample_edm_karras requires conditioning in standard mode"
+                )
+            conditioning = self._prepare_conditioning(conditioning)
+            ref = conditioning
+
+        B = ref.shape[0]
+        device = ref.device
+        dtype = ref.dtype
 
         # Closure that binds the conditioning so heun_sample sees a
         # simple ``denoiser_fn(x, sigma) -> D(x; sigma, c)``.
         def denoiser_fn(x: Tensor, sigma: Tensor) -> Tensor:
             sigma_b = sigma.expand(x.shape[0])
             return self.forward_edm(
-                x, sigma_b, conditioning, conditioning_spatial=conditioning_spatial
+                x,
+                sigma_b,
+                conditioning=conditioning,
+                conditioning_spatial=conditioning_spatial,
+                mu_HR=mu_HR,
+                baseline_log=baseline_log,
             )
 
         residual = heun_sample(

@@ -1672,3 +1672,324 @@ def train_epoch(
         result["num_contrastive_steps"] = float(num_contrastive_steps)
     return result
 
+
+# ======================================================================
+# Two-Stage training (hyperplan v2.0). Architecturally enforces (O3) on the
+# regression mean prediction. Diffusion is then trained sequentially on
+# the small residual after Stage 1 freezes.
+# ======================================================================
+
+
+def train_epoch_stage1(
+    *,
+    encoder,
+    rcn_runner,
+    regression_head,
+    optimizer,
+    data_loader,
+    device: torch.device,
+    epoch_idx: int,
+    lambda_reg: float = 1.0,
+    beta_rec: float = 0.05,
+    gamma_dag_max: float = 0.10,
+    gamma_dag_warmup_epochs: int = 5,
+    lambda_l1: float = 0.01,
+    gradient_clipping: Optional[float] = None,
+    log_interval: int = 20,
+    verbose: bool = True,
+    dag_method: str = "dagma",
+    dagma_s: float = 1.0,
+    use_amp: bool = True,
+    dag_spectral_projection: bool = True,
+    dag_spectral_max_radius: float = 0.95,
+) -> Dict[str, float]:
+    """Stage 1 of the Two-Stage Causal Architecture.
+
+    Trains: ``encoder`` + ``rcn_runner.cell`` + ``regression_head`` jointly.
+    The diffusion U-Net is NOT touched here.
+
+    Loss = lambda_reg · MSE(μ_HR, log1p(HR) - log1p(baseline))
+         + beta_rec · L_rec_RCN
+         + gamma_dag(t) · h_DAGMA(A) (linear warmup)
+         + lambda_l1 · ||A||_1
+
+    Both ``μ_HR`` and the target residual live in log1p space.
+    """
+    from .two_stage import gamma_dag_warmup, stage1_compute_loss
+
+    encoder.train()
+    rcn_runner.cell.train()
+    regression_head.train()
+
+    amp_mode = resolve_train_amp_mode(device, use_amp)
+    scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
+
+    gamma_dag_eff = gamma_dag_warmup(
+        epoch_idx, max_value=gamma_dag_max, warmup_epochs=gamma_dag_warmup_epochs
+    )
+
+    if verbose:
+        print(
+            f"\n📚 Stage 1 epoch {epoch_idx + 1} | "
+            f"γ_dag={gamma_dag_eff:.4f} (warmup {gamma_dag_warmup_epochs} ep) | "
+            f"amp={amp_mode}"
+        )
+
+    total_loss = 0.0
+    total_reg = 0.0
+    total_rec = 0.0
+    total_dag = 0.0
+    n_batches = 0
+    n_micros = 0
+
+    for batch_idx, batch in enumerate(data_loader):
+        batches = batch if isinstance(batch, list) else [batch]
+        optimizer.zero_grad(set_to_none=True)
+
+        step_loss = 0.0
+        step_reg = 0.0
+        step_rec = 0.0
+        step_dag = 0.0
+
+        for micro_idx, micro in enumerate(batches):
+            lr_data = micro["lr"].to(device)
+            target_residual = micro["residual"][-1].to(device)
+            if target_residual.dim() == 3:
+                target_residual = target_residual.unsqueeze(0)
+
+            with _train_autocast(amp_mode):
+                # Forward through encoder + RCN
+                H_init = encoder.init_state(micro["hetero"]).to(device)
+                drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+                seq_out = rcn_runner.run(
+                    H_init, drivers, reconstruction_sources=None
+                )
+                H_T = seq_out.states[-1]
+
+                mu_HR = regression_head(H_T)
+                if mu_HR.shape != target_residual.shape:
+                    mu_HR = torch.nn.functional.interpolate(
+                        mu_HR, size=target_residual.shape[-2:],
+                        mode="bilinear", align_corners=False,
+                    )
+
+                # RCN reconstruction loss (paper §sec:arch:rcn Eq. ref:eq:Lrec).
+                # The seq_out provides per-step reconstructions if available;
+                # we use the mean over the sequence.
+                rec_loss = None
+                if seq_out.reconstructions is not None and len(seq_out.reconstructions) > 0:
+                    # reconstructions = list of [N, driver_dim] tensors per step
+                    recon_stack = torch.stack(seq_out.reconstructions, dim=0)
+                    rec_loss = (recon_stack - lr_data).pow(2).mean()
+
+                # DAGMA penalty + L1 sparsity
+                rcn_eager = _eager_core(rcn_runner.cell)
+                A_masked = rcn_eager.get_dag(masked=True)
+                if dag_method == "dagma":
+                    L_dag = loss_dagma(A_masked, s=dagma_s)
+                else:
+                    L_dag = loss_no_tears(A_masked)
+                L_l1 = A_masked.abs().sum()
+
+                loss_total, components = stage1_compute_loss(
+                    mu_HR=mu_HR,
+                    target_residual=target_residual,
+                    rcn_reconstruction_loss=rec_loss,
+                    dagma_loss=L_dag,
+                    dag_l1_loss=L_l1,
+                    lambda_reg=lambda_reg,
+                    beta_rec=beta_rec,
+                    gamma_dag=gamma_dag_eff,
+                    lambda_l1=lambda_l1,
+                )
+                # Average over micro-batches in the optimiser step
+                loss_for_backward = loss_total / max(len(batches), 1)
+
+            if amp_mode == "cuda_fp16":
+                scaler.scale(loss_for_backward).backward()
+            else:
+                loss_for_backward.backward()
+
+            step_loss += components["loss_total"]
+            step_reg += components["loss_reg"]
+            step_rec += components.get("loss_rec", 0.0)
+            step_dag += components.get("loss_dag", 0.0)
+            n_micros += 1
+
+        # Gradient clipping + step
+        if gradient_clipping is not None and gradient_clipping > 0:
+            if amp_mode == "cuda_fp16":
+                scaler.unscale_(optimizer)
+            params_to_clip = (
+                list(encoder.parameters())
+                + list(rcn_runner.cell.parameters())
+                + list(regression_head.parameters())
+            )
+            torch.nn.utils.clip_grad_norm_(params_to_clip, gradient_clipping)
+
+        if amp_mode == "cuda_fp16":
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
+
+        # Hard acyclicity projection (paper §sec:arch:dagma Eq. ref:eq:proj)
+        if dag_spectral_projection:
+            _eager_core(rcn_runner.cell).project_dag_spectral(
+                max_radius=dag_spectral_max_radius
+            )
+
+        total_loss += step_loss / max(len(batches), 1)
+        total_reg += step_reg / max(len(batches), 1)
+        total_rec += step_rec / max(len(batches), 1)
+        total_dag += step_dag / max(len(batches), 1)
+        n_batches += 1
+
+        if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
+            print(
+                f"  S1 batch {batch_idx + 1} | "
+                f"loss_total={step_loss / max(len(batches), 1):.5f} "
+                f"reg={step_reg / max(len(batches), 1):.5f} "
+                f"rec={step_rec / max(len(batches), 1):.5f} "
+                f"dag={step_dag / max(len(batches), 1):.5f}"
+            )
+
+    n_eff = max(n_batches, 1)
+    return {
+        "loss": total_loss / n_eff,
+        "loss_reg": total_reg / n_eff,
+        "loss_rec": total_rec / n_eff,
+        "loss_dag": total_dag / n_eff,
+        "n_batches": float(n_batches),
+        "n_micros": float(n_micros),
+        "gamma_dag_eff": float(gamma_dag_eff),
+    }
+
+
+def train_epoch_stage2(
+    *,
+    encoder,
+    rcn_runner,
+    regression_head,
+    diffusion_decoder,
+    optimizer,
+    data_loader,
+    device: torch.device,
+    gradient_clipping: Optional[float] = None,
+    log_interval: int = 20,
+    verbose: bool = True,
+    use_amp: bool = True,
+) -> Dict[str, float]:
+    """Stage 2 of the Two-Stage Causal Architecture.
+
+    Trains the diffusion U-Net ONLY. Encoder + RCN + regression_head must
+    be frozen by the caller (use ``freeze_stage1`` from
+    ``st_cdgm.training.two_stage``). Loss is the EDM weighted L2 on the
+    diffusion residual ``δ = log1p(HR) - log1p(baseline) - μ_HR``.
+
+    The U-Net must have been built with ``causal_concat=True`` so that
+    the channel-concatenated input ``[δ_noisy, μ_HR, baseline_log]`` is
+    accepted. Conditioning via cross-attention is not used (causality
+    flows through ``μ_HR`` architecturally, no bypass possible).
+    """
+    encoder.eval()
+    rcn_runner.cell.eval()
+    regression_head.eval()
+    diffusion_decoder.train()
+
+    amp_mode = resolve_train_amp_mode(device, use_amp)
+    scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
+
+    if verbose:
+        print(f"\n📚 Stage 2 epoch | amp={amp_mode}")
+
+    total_loss = 0.0
+    n_batches = 0
+    n_micros = 0
+
+    for batch_idx, batch in enumerate(data_loader):
+        batches = batch if isinstance(batch, list) else [batch]
+        optimizer.zero_grad(set_to_none=True)
+        step_loss = 0.0
+
+        for micro_idx, micro in enumerate(batches):
+            lr_data = micro["lr"].to(device)
+            target_residual = micro["residual"][-1].to(device)
+            baseline_t = micro["baseline"][-1].to(device) if micro.get("baseline") is not None else None
+            if target_residual.dim() == 3:
+                target_residual = target_residual.unsqueeze(0)
+            if baseline_t is not None and baseline_t.dim() == 3:
+                baseline_t = baseline_t.unsqueeze(0)
+
+            # Stage 1 forward — completely no_grad, modules already eval()
+            with torch.no_grad():
+                H_init = encoder.init_state(micro["hetero"]).to(device)
+                drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+                seq_out = rcn_runner.run(
+                    H_init, drivers, reconstruction_sources=None
+                )
+                H_T = seq_out.states[-1]
+                mu_HR = regression_head(H_T)
+                if mu_HR.shape != target_residual.shape:
+                    mu_HR = torch.nn.functional.interpolate(
+                        mu_HR, size=target_residual.shape[-2:],
+                        mode="bilinear", align_corners=False,
+                    )
+
+            delta_target = target_residual - mu_HR
+            # baseline_log : the baseline already lives in log1p space because
+            # the pipeline applies log1p to HR + baseline. So we forward it as-is.
+            baseline_log = (
+                baseline_t if baseline_t is not None else torch.zeros_like(target_residual)
+            )
+
+            # Diffusion U-Net is the only thing receiving gradient.
+            with _train_autocast(amp_mode):
+                loss_diff = diffusion_decoder.compute_loss_edm(
+                    target=delta_target,
+                    conditioning=None,
+                    conditioning_spatial=None,
+                    mu_HR=mu_HR,
+                    baseline_log=baseline_log,
+                )
+                loss_for_backward = loss_diff / max(len(batches), 1)
+
+            if amp_mode == "cuda_fp16":
+                scaler.scale(loss_for_backward).backward()
+            else:
+                loss_for_backward.backward()
+
+            step_loss += float(loss_diff.detach().item())
+            n_micros += 1
+
+        # Gradient clipping + step (UNet only — Stage 1 grads are None by freeze)
+        if gradient_clipping is not None and gradient_clipping > 0:
+            if amp_mode == "cuda_fp16":
+                scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(
+                diffusion_decoder.parameters(), gradient_clipping
+            )
+
+        if amp_mode == "cuda_fp16":
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
+
+        total_loss += step_loss / max(len(batches), 1)
+        n_batches += 1
+
+        if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
+            print(
+                f"  S2 batch {batch_idx + 1} | "
+                f"loss_diff={step_loss / max(len(batches), 1):.5f}"
+            )
+
+    n_eff = max(n_batches, 1)
+    return {
+        "loss": total_loss / n_eff,
+        "loss_diff": total_loss / n_eff,
+        "n_batches": float(n_batches),
+        "n_micros": float(n_micros),
+    }
+

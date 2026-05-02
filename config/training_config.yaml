@@ -414,6 +414,61 @@ training:
     fallback_on_error: true
 
 # ============================================================================
+# CONFIGURATION TWO-STAGE CAUSAL ARCHITECTURE (hyperplan v2.0)
+# ============================================================================
+# Active la pipeline two-stage CorrDiff-style avec causalité architecturalement
+# obligatoire sur la prédiction du champ moyen (Stage 1) et diffusion EDM
+# raffinant le résidu (Stage 2). Cf. hyperplan.md §4 et oracle.tex §sec:arch.
+#
+# Quand ``two_stage.enabled = false``, la pipeline retombe sur le mode
+# single-stage EDM (branche ``edm-rewrite`` legacy).
+two_stage:
+  enabled: true
+
+  # Architecture du regression head (GraphToGridDecoder)
+  regression_head:
+    architecture: "graph_to_grid_xattn"
+    d_model: 128                           # = encoder.hidden_dim
+    n_heads: 4
+    intermediate_h: 43                     # ~2x LR (23) pour cross-attn → memory budget
+    intermediate_w: 45                     # ~2x LR (26)
+    refine_channels: 64                    # CNN refine: d_model → refine_channels → refine_channels/2 → 1
+    spatial_query_init: "normal_0.02"
+
+  # Stage 1 : training deterministe causal mean
+  stage1:
+    epochs_max: 5                          # cap dur (hyperplan v2.0 décision 8)
+    early_stop_patience: 3                 # plateau MSE val ≥ 3 epochs
+    lr: 0.0003
+    optimizer: "adamw"
+    weight_decay: 1.0e-4
+    scheduler: "cosine"
+    warmup_epochs: 1
+    log_rapsd_each_epoch: true             # détection over-smoothing
+    # Loss weights (cf. paper §sec:arch:loss + Tab. 2)
+    lambda_reg: 1.0                        # MSE(mu_HR, residual)
+    beta_rec: 0.05                         # RCN driver reconstruction
+    gamma_dag_max: 0.10                    # DAGMA penalty target value
+    gamma_dag_warmup_epochs: 5             # linear ramp 0 -> gamma_dag_max
+    lambda_l1: 0.01                        # ||A||_1 sparsity
+
+  # Stage 2 : diffusion EDM sur résidu fin
+  stage2:
+    epochs_max: 15                         # cap (5 + 15 = 20 epochs total)
+    lr: 0.0002
+    freeze_stage1: true                    # encoder + RCN + reg_head no-grad
+    sigma_data_recalibrate: true           # MANDATORY post-Stage 1
+    sigma_min_scale_factor: 0.02           # σ_min = sigma_data * scale
+    causal_concat_mode: true               # UNet input = concat(δ, μ, baseline_log)
+
+  # Diagnostic causal ablation post-Stage 1
+  causal_ablation:
+    enabled: true
+    n_samples: 100
+    threshold: 0.05                        # |μ(A) - μ(0)| / |μ(A)| > threshold
+    abort_if_fail: true                    # STOP run si ratio < threshold
+
+# ============================================================================
 # CONFIGURATION CHECKPOINT
 # ============================================================================
 checkpoint:
