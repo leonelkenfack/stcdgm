@@ -1745,9 +1745,31 @@ def train_epoch_stage1(
         rcn_eager_for_gate.set_dag_grad_gate(float(dag_grad_gate_value))
 
     # Move dag_prior to device once, ready to feed into stage1_compute_loss.
+    # Auto-pad / truncate / skip on shape mismatch so cell 50 doesn't have to
+    # care whether the YAML matches num_vars at runtime.
     dag_prior_device: Optional[Tensor] = None
     if dag_prior is not None and lambda_dag_prior > 0.0:
-        dag_prior_device = torch.as_tensor(dag_prior, dtype=torch.float32).to(device)
+        prior_t = torch.as_tensor(dag_prior, dtype=torch.float32)
+        target_q = int(rcn_eager_for_gate.A_dag.shape[0])
+        if prior_t.shape == (target_q, target_q):
+            dag_prior_device = prior_t.to(device)
+        elif prior_t.dim() == 2 and prior_t.shape[0] == prior_t.shape[1]:
+            src_q = prior_t.shape[0]
+            padded = torch.zeros(target_q, target_q, dtype=torch.float32)
+            k = min(src_q, target_q)
+            padded[:k, :k] = prior_t[:k, :k]
+            dag_prior_device = padded.to(device)
+            if verbose:
+                print(
+                    f"  ⚠️  dag_prior shape ({src_q}×{src_q}) ≠ num_vars ({target_q}); "
+                    f"auto-padded with zeros (top-left {k}×{k} kept)."
+                )
+        else:
+            if verbose:
+                print(
+                    f"  ⚠️  dag_prior shape {tuple(prior_t.shape)} non carré — "
+                    f"prior pull désactivé pour cet epoch."
+                )
 
     amp_mode = resolve_train_amp_mode(device, use_amp)
     scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
