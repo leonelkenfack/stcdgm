@@ -349,16 +349,20 @@ def patch_validation_notebook() -> int:
     else:
         print("  ! validation diffusion rebuild non trouvée")
 
-    # 2) SHD test : insérer après la cellule de chargement checkpoint
+    # 2) SHD test : insérer APRÈS la cellule de helpers (qui définit
+    # convert_sample_to_batch, extract_target_and_baseline_t_mean, etc.).
+    # Ces helpers sont dépendances de SHD pour reconstruire les états
+    # ; placer SHD avant échouerait au runtime sur ``rcn_cell.A_dag``.
     if _find_cell(cells, lambda s: "EDM_SHD_TEST" in s) is None:
-        # Insérer juste avant la cellule "Configuration test (dossiers et GCM)"
-        anchor_idx = _find_cell(cells, lambda s: "TEST_GCMS = discover_test_gcms()" in s)
-        if anchor_idx is not None:
-            cells.insert(anchor_idx, _make_code_cell(SHD_TEST_BLOCK, "edm_shd_test"))
+        helpers_idx = _find_cell(
+            cells, lambda s: "def convert_sample_to_batch" in s
+        )
+        if helpers_idx is not None:
+            cells.insert(helpers_idx + 1, _make_code_cell(SHD_TEST_BLOCK, "edm_shd_test"))
             n_changed += 1
-            print(f"  + validation SHD test inséré en cell {anchor_idx}")
+            print(f"  + validation SHD test inséré en cell {helpers_idx + 1} (après helpers)")
         else:
-            print("  ! validation SHD anchor introuvable")
+            print("  ! validation SHD anchor introuvable (helpers)")
     else:
         print("  = validation SHD test déjà inséré")
 
