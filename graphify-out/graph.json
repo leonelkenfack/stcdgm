@@ -3018,230 +3018,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\tests\\__init__.py:1"
     },
     {
-      "id": "file::evaluation_xai",
-      "label": "evaluation_xai.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1"
-    },
-    {
-      "id": "evaluation_xai::inferenceresult",
-      "label": "InferenceResult",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:40"
-    },
-    {
-      "id": "evaluation_xai::resize_tensor_bicubic_nonneg",
-      "label": "resize_tensor_bicubic_nonneg",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:55"
-    },
-    {
-      "id": "evaluation_xai::resize_diffusion_output_to_spatial",
-      "label": "resize_diffusion_output_to_spatial",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:71"
-    },
-    {
-      "id": "evaluation_xai::convert_sample_to_batch",
-      "label": "convert_sample_to_batch",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:100"
-    },
-    {
-      "id": "evaluation_xai::extract_target_baseline_and_mask",
-      "label": "extract_target_baseline_and_mask",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:120"
-    },
-    {
-      "id": "evaluation_xai::run_st_cdgm_inference",
-      "label": "run_st_cdgm_inference",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:150"
-    },
-    {
-      "id": "evaluation_xai::autoregressive_inference",
-      "label": "autoregressive_inference",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:226"
-    },
-    {
-      "id": "evaluation_xai::compute_ensemble_sigma_r",
-      "label": "compute_ensemble_sigma_r",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:273"
-    },
-    {
-      "id": "evaluation_xai::compute_mse",
-      "label": "compute_mse",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:327"
-    },
-    {
-      "id": "evaluation_xai::compute_mae",
-      "label": "compute_mae",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:338"
-    },
-    {
-      "id": "evaluation_xai::compute_histogram_distance",
-      "label": "compute_histogram_distance",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:349"
-    },
-    {
-      "id": "evaluation_xai::compute_crps_pixel_map",
-      "label": "compute_crps_pixel_map",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:361"
-    },
-    {
-      "id": "evaluation_xai::compute_spread_skill_ratio",
-      "label": "compute_spread_skill_ratio",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:379"
-    },
-    {
-      "id": "evaluation_xai::compute_rapsd_numpy",
-      "label": "compute_rapsd_numpy",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:391"
-    },
-    {
-      "id": "evaluation_xai::compute_crps",
-      "label": "compute_crps",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:407"
-    },
-    {
-      "id": "evaluation_xai::compute_fss",
-      "label": "compute_fss",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:431"
-    },
-    {
-      "id": "evaluation_xai::compute_f1_extremes",
-      "label": "compute_f1_extremes",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:492"
-    },
-    {
-      "id": "evaluation_xai::compute_wasserstein_distance",
-      "label": "compute_wasserstein_distance",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:554"
-    },
-    {
-      "id": "evaluation_xai::compute_energy_score",
-      "label": "compute_energy_score",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:615"
-    },
-    {
-      "id": "evaluation_xai::_prepare_field",
-      "label": "_prepare_field",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:662"
-    },
-    {
-      "id": "evaluation_xai::compute_power_spectrum",
-      "label": "compute_power_spectrum",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:673"
-    },
-    {
-      "id": "evaluation_xai::compute_spectrum_distance",
-      "label": "compute_spectrum_distance",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:684"
-    },
-    {
-      "id": "evaluation_xai::compute_temporal_variance_metrics",
-      "label": "compute_temporal_variance_metrics",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:693"
-    },
-    {
-      "id": "evaluation_xai::metricreport",
-      "label": "MetricReport",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:749"
-    },
-    {
-      "id": "evaluation_xai::evaluate_metrics",
-      "label": "evaluate_metrics",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:774"
-    },
-    {
-      "id": "evaluation_xai::plot_probabilistic_dashboard_3x3",
-      "label": "plot_probabilistic_dashboard_3x3",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:916"
-    },
-    {
-      "id": "evaluation_xai::spearman_dispersion_intensity",
-      "label": "spearman_dispersion_intensity",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:979"
-    },
-    {
-      "id": "evaluation_xai::plot_dag_heatmap",
-      "label": "plot_dag_heatmap",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1002"
-    },
-    {
-      "id": "evaluation_xai::export_dag_to_csv",
-      "label": "export_dag_to_csv",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1026"
-    },
-    {
-      "id": "evaluation_xai::export_dag_to_json",
-      "label": "export_dag_to_json",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1035"
-    },
-    {
-      "id": "evaluation_xai::compute_structural_hamming_distance",
-      "label": "compute_structural_hamming_distance",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1051"
-    },
-    {
       "id": "file::causal_rcn",
       "label": "causal_rcn.py",
       "fileType": "code",
@@ -4528,6 +4304,265 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:690"
+    },
+    {
+      "id": "file::evaluation_xai",
+      "label": "evaluation_xai.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1"
+    },
+    {
+      "id": "evaluation_xai::inferenceresult",
+      "label": "InferenceResult",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:40"
+    },
+    {
+      "id": "evaluation_xai::resize_tensor_bicubic_nonneg",
+      "label": "resize_tensor_bicubic_nonneg",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:55"
+    },
+    {
+      "id": "evaluation_xai::resize_diffusion_output_to_spatial",
+      "label": "resize_diffusion_output_to_spatial",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:71"
+    },
+    {
+      "id": "evaluation_xai::convert_sample_to_batch",
+      "label": "convert_sample_to_batch",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:100"
+    },
+    {
+      "id": "evaluation_xai::extract_target_baseline_and_mask",
+      "label": "extract_target_baseline_and_mask",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:120"
+    },
+    {
+      "id": "evaluation_xai::run_st_cdgm_inference",
+      "label": "run_st_cdgm_inference",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:150"
+    },
+    {
+      "id": "evaluation_xai::autoregressive_inference",
+      "label": "autoregressive_inference",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:226"
+    },
+    {
+      "id": "evaluation_xai::compute_ensemble_sigma_r",
+      "label": "compute_ensemble_sigma_r",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:273"
+    },
+    {
+      "id": "evaluation_xai::compute_mse",
+      "label": "compute_mse",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:327"
+    },
+    {
+      "id": "evaluation_xai::compute_mae",
+      "label": "compute_mae",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:338"
+    },
+    {
+      "id": "evaluation_xai::compute_histogram_distance",
+      "label": "compute_histogram_distance",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:349"
+    },
+    {
+      "id": "evaluation_xai::compute_crps_pixel_map",
+      "label": "compute_crps_pixel_map",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:361"
+    },
+    {
+      "id": "evaluation_xai::compute_spread_skill_ratio",
+      "label": "compute_spread_skill_ratio",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:379"
+    },
+    {
+      "id": "evaluation_xai::compute_rapsd_numpy",
+      "label": "compute_rapsd_numpy",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:391"
+    },
+    {
+      "id": "evaluation_xai::compute_crps",
+      "label": "compute_crps",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:407"
+    },
+    {
+      "id": "evaluation_xai::compute_fss",
+      "label": "compute_fss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:431"
+    },
+    {
+      "id": "evaluation_xai::compute_f1_extremes",
+      "label": "compute_f1_extremes",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:492"
+    },
+    {
+      "id": "evaluation_xai::compute_wasserstein_distance",
+      "label": "compute_wasserstein_distance",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:554"
+    },
+    {
+      "id": "evaluation_xai::compute_energy_score",
+      "label": "compute_energy_score",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:615"
+    },
+    {
+      "id": "evaluation_xai::_prepare_field",
+      "label": "_prepare_field",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:662"
+    },
+    {
+      "id": "evaluation_xai::compute_power_spectrum",
+      "label": "compute_power_spectrum",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:673"
+    },
+    {
+      "id": "evaluation_xai::compute_spectrum_distance",
+      "label": "compute_spectrum_distance",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:684"
+    },
+    {
+      "id": "evaluation_xai::compute_temporal_variance_metrics",
+      "label": "compute_temporal_variance_metrics",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:693"
+    },
+    {
+      "id": "evaluation_xai::metricreport",
+      "label": "MetricReport",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:749"
+    },
+    {
+      "id": "evaluation_xai::evaluate_metrics",
+      "label": "evaluate_metrics",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:774"
+    },
+    {
+      "id": "evaluation_xai::plot_probabilistic_dashboard_3x3",
+      "label": "plot_probabilistic_dashboard_3x3",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:918"
+    },
+    {
+      "id": "evaluation_xai::spearman_dispersion_intensity",
+      "label": "spearman_dispersion_intensity",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:981"
+    },
+    {
+      "id": "evaluation_xai::plot_dag_heatmap",
+      "label": "plot_dag_heatmap",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1004"
+    },
+    {
+      "id": "evaluation_xai::export_dag_to_csv",
+      "label": "export_dag_to_csv",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1028"
+    },
+    {
+      "id": "evaluation_xai::export_dag_to_json",
+      "label": "export_dag_to_json",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1037"
+    },
+    {
+      "id": "evaluation_xai::compute_structural_hamming_distance",
+      "label": "compute_structural_hamming_distance",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1053"
+    },
+    {
+      "id": "file::_patch_validation_for_drive",
+      "label": "_patch_validation_for_drive.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:1"
+    },
+    {
+      "id": "_patch_validation_for_drive::_find_cell",
+      "label": "_find_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:364"
+    },
+    {
+      "id": "_patch_validation_for_drive::_make_code_cell",
+      "label": "_make_code_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:373"
+    },
+    {
+      "id": "_patch_validation_for_drive::patch_notebook",
+      "label": "patch_notebook",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:384"
+    },
+    {
+      "id": "_patch_validation_for_drive::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:739"
     }
   ],
   "edges": [
@@ -7835,285 +7870,6 @@
       "weight": 1
     },
     {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::inferenceresult",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:40",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::resize_tensor_bicubic_nonneg",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:55",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::resize_diffusion_output_to_spatial",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:71",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::convert_sample_to_batch",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:100",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::extract_target_baseline_and_mask",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:120",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::run_st_cdgm_inference",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:150",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::autoregressive_inference",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:226",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_ensemble_sigma_r",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:273",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_mse",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:327",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_mae",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:338",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_histogram_distance",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:349",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_crps_pixel_map",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:361",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_spread_skill_ratio",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:379",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_rapsd_numpy",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:391",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_crps",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:407",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_fss",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:431",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_f1_extremes",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:492",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_wasserstein_distance",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:554",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_energy_score",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:615",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::_prepare_field",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:662",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_power_spectrum",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:673",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_spectrum_distance",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:684",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_temporal_variance_metrics",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:693",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::metricreport",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:749",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::evaluate_metrics",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:774",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::plot_probabilistic_dashboard_3x3",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:916",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::spearman_dispersion_intensity",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:979",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::plot_dag_heatmap",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1002",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::export_dag_to_csv",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1026",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::export_dag_to_json",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1035",
-      "weight": 1
-    },
-    {
-      "source": "file::evaluation_xai",
-      "target": "evaluation_xai::compute_structural_hamming_distance",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1051",
-      "weight": 1
-    },
-    {
       "source": "file::causal_rcn",
       "target": "causal_rcn::_mask_diagonal",
       "relation": "contains",
@@ -9633,12 +9389,327 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\training_loop.py:690",
       "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::inferenceresult",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:40",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::resize_tensor_bicubic_nonneg",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:55",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::resize_diffusion_output_to_spatial",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:71",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::convert_sample_to_batch",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:100",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::extract_target_baseline_and_mask",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:120",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::run_st_cdgm_inference",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:150",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::autoregressive_inference",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:226",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_ensemble_sigma_r",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:273",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_mse",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:327",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_mae",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:338",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_histogram_distance",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:349",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_crps_pixel_map",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:361",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_spread_skill_ratio",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:379",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_rapsd_numpy",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:391",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_crps",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:407",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_fss",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:431",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_f1_extremes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:492",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_wasserstein_distance",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:554",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_energy_score",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:615",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::_prepare_field",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:662",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_power_spectrum",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:673",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_spectrum_distance",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:684",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_temporal_variance_metrics",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:693",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::metricreport",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:749",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::evaluate_metrics",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:774",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::plot_probabilistic_dashboard_3x3",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:918",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::spearman_dispersion_intensity",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:981",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::plot_dag_heatmap",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1004",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::export_dag_to_csv",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1028",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::export_dag_to_json",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1037",
+      "weight": 1
+    },
+    {
+      "source": "file::evaluation_xai",
+      "target": "evaluation_xai::compute_structural_hamming_distance",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\evaluation\\evaluation_xai.py:1053",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_validation_for_drive",
+      "target": "_patch_validation_for_drive::_find_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:364",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_validation_for_drive",
+      "target": "_patch_validation_for_drive::_make_code_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:373",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_validation_for_drive",
+      "target": "_patch_validation_for_drive::patch_notebook",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:384",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_validation_for_drive",
+      "target": "_patch_validation_for_drive::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_validation_for_drive.py:739",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 81,
-    "nodes": 647,
-    "edges": 567,
-    "builtAt": "2026-04-28T14:43:27.367Z"
+    "files": 82,
+    "nodes": 652,
+    "edges": 571,
+    "builtAt": "2026-05-02T09:41:44.455Z"
   }
 }

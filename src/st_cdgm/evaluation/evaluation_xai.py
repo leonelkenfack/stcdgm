@@ -833,9 +833,9 @@ def evaluate_metrics(
 
         p0 = pred_single.detach().cpu().numpy()
         t0 = tg.squeeze(0).numpy()
-        if p0.ndim == 3:
+        while p0.ndim > 2:
             p0 = p0[0]
-        if t0.ndim == 3:
+        while t0.ndim > 2:
             t0 = t0[0]
         rp = compute_rapsd_numpy(p0)
         rt = compute_rapsd_numpy(t0)
@@ -856,6 +856,8 @@ def evaluate_metrics(
                 m_np = m_np[0]
             err_abs = np.abs(p0 - t0)
             std_map = ps_full[:, 0].numpy().std(axis=0) if ps_full.shape[1] >= 1 else np.zeros_like(p0)
+            while std_map.ndim > 2:
+                std_map = std_map[0]
             spread_skill = compute_spread_skill_ratio(std_map, err_abs, m_np)
             mse = float(np.mean(((p0 - t0) ** 2)[m_np]))
             mae = float(np.mean(err_abs[m_np]))
