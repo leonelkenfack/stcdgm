@@ -6,6 +6,7 @@ from .causal_rcn import RCNCell, RCNSequenceRunner
 from .diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
 from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig, SpatialConditioningProjector
 from .graph_builder import HeteroGraphBuilder
+from .regression_head import GraphToGridDecoder
 
 __all__ = [
     "RCNCell",
@@ -16,5 +17,6 @@ __all__ = [
     "IntelligibleVariableConfig",
     "SpatialConditioningProjector",
     "HeteroGraphBuilder",
+    "GraphToGridDecoder",
 ]
 
