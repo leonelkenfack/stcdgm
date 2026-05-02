@@ -1777,9 +1777,16 @@ def train_epoch_stage1(
                 # The seq_out provides per-step reconstructions if available;
                 # we use the mean over the sequence.
                 rec_loss = None
-                if seq_out.reconstructions is not None and len(seq_out.reconstructions) > 0:
-                    # reconstructions = list of [N, driver_dim] tensors per step
-                    recon_stack = torch.stack(seq_out.reconstructions, dim=0)
+                _recons = seq_out.reconstructions
+                if (
+                    _recons is not None
+                    and len(_recons) > 0
+                    and all(r is not None for r in _recons)
+                ):
+                    # reconstructions = list of [N, driver_dim] tensors per step.
+                    # When RCNCell has no reconstruction_decoder, every entry is
+                    # None and we skip L_rec entirely (beta_rec * 0 = 0).
+                    recon_stack = torch.stack(_recons, dim=0)
                     rec_loss = (recon_stack - lr_data).pow(2).mean()
 
                 # DAGMA penalty + L1 sparsity

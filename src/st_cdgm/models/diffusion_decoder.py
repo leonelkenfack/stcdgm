@@ -498,7 +498,11 @@ class CausalDiffusionDecoder(nn.Module):
         if self.edm_config is None:
             raise RuntimeError("compute_loss_edm requires scheduler_type='edm_karras'")
 
-        if not torch.isfinite(conditioning).all():
+        # In causal_concat mode (Two-Stage), conditioning is None — causality
+        # flows through the concatenated mu_HR / baseline_log channels and the
+        # cross-attn pathway is fed a zero placeholder by ``forward_edm``.
+        # Skip the finite-check for that branch.
+        if conditioning is not None and not torch.isfinite(conditioning).all():
             raise ValueError(
                 f"Conditioning contains NaN/Inf at compute_loss_edm entry. "
                 f"shape={conditioning.shape}"
@@ -614,7 +618,7 @@ class CausalDiffusionDecoder(nn.Module):
 
     def sample(
         self,
-        conditioning: Tensor,
+        conditioning: Optional[Tensor] = None,
         *,
         num_steps: Optional[int] = None,
         generator: Optional[torch.Generator] = None,
@@ -623,18 +627,32 @@ class CausalDiffusionDecoder(nn.Module):
         scheduler_type: Optional[str] = None,
         cfg_scale: float = 0.0,
         conditioning_spatial: Optional[Tensor] = None,
+        mu_HR: Optional[Tensor] = None,
+        baseline_log: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
-        
+
         Phase 3.2: Supports both DDPM and EDM (ODE-based) sampling.
         EDM uses fewer steps (15-50) via ODE solver for faster generation.
+
+        Two-Stage (causal_concat=True): pass ``mu_HR`` and ``baseline_log``;
+        ``conditioning`` may be None — causality flows through concat channels.
         """
-        conditioning = self._prepare_conditioning(conditioning)
-        
+        # In causal_concat mode the cross-attn pathway is unused; only EDM
+        # Karras supports the concat schedule. _sample_edm_karras handles
+        # ``conditioning is None`` correctly.
+        if self.causal_concat:
+            if mu_HR is None or baseline_log is None:
+                raise ValueError(
+                    "sample(causal_concat=True) requires mu_HR and baseline_log"
+                )
+        else:
+            conditioning = self._prepare_conditioning(conditioning)
+
         # Use provided scheduler_type or default to instance setting
         scheduler_type = scheduler_type or getattr(self, 'scheduler_type', 'ddpm')
-        
+
         # Phase 3.2: Use EDM ODE solver if requested
         # Phase E1: Use DPM-Solver++ if requested (faster than EDM)
         if scheduler_type == "edm_karras":
@@ -647,6 +665,8 @@ class CausalDiffusionDecoder(nn.Module):
                 baseline=baseline,
                 apply_constraints=apply_constraints,
                 conditioning_spatial=conditioning_spatial,
+                mu_HR=mu_HR,
+                baseline_log=baseline_log,
             )
         if scheduler_type == "edm":
             # Legacy: simple Euler ODE solver (kept for backward compat).
