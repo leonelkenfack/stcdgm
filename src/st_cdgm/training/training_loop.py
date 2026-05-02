@@ -1784,7 +1784,7 @@ def train_epoch_stage1(
 
                 # DAGMA penalty + L1 sparsity
                 rcn_eager = _eager_core(rcn_runner.cell)
-                A_masked = rcn_eager.get_dag(masked=True)
+                A_masked = rcn_eager.dag_matrix(masked=True)
                 if dag_method == "dagma":
                     L_dag = loss_dagma(A_masked, s=dagma_s)
                 else:
