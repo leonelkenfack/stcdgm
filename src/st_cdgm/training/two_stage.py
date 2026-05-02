@@ -64,18 +64,27 @@ def stage1_compute_loss(
     rcn_reconstruction_loss: Optional[Tensor] = None,
     dagma_loss: Optional[Tensor] = None,
     dag_l1_loss: Optional[Tensor] = None,
+    dag_prior_loss: Optional[Tensor] = None,
     valid_mask: Optional[Tensor] = None,
     lambda_reg: float = 1.0,
     beta_rec: float = 0.05,
     gamma_dag: float = 0.10,
     lambda_l1: float = 0.01,
+    lambda_dag_prior: float = 0.0,
 ) -> Tuple[Tensor, dict]:
     """Stage 1 composite loss.
 
     L_stage1 = lambda_reg · MSE(mu_HR, target_residual)
               + beta_rec · L_rec
-              + gamma_dag · L_dag
-              + lambda_l1 · L_l1_dag
+              + gamma_dag · L_dag                           (DAGMA acyclicity)
+              + lambda_l1 · L_l1_dag                        (sparsity)
+              + lambda_dag_prior · MSE(A_masked, prior)     (anti-collapse)
+
+    The ``dag_prior_loss`` term gives ``A_dag`` a positive supervision
+    target (the physically-motivated prior) so it does not collapse to
+    zero under the combined L1 + DAGMA centripetal pressure when the
+    SCM gradient path is detached. Mirrors the legacy ``train_epoch``
+    wiring at ``training_loop.py:1002-1004``.
 
     Both ``mu_HR`` and ``target_residual`` are expected in log1p space.
 
@@ -125,6 +134,9 @@ def stage1_compute_loss(
     if dag_l1_loss is not None:
         loss_total = loss_total + lambda_l1 * dag_l1_loss
         components["loss_l1"] = float(dag_l1_loss.detach().item())
+    if dag_prior_loss is not None and lambda_dag_prior > 0.0:
+        loss_total = loss_total + lambda_dag_prior * dag_prior_loss
+        components["loss_dag_prior"] = float(dag_prior_loss.detach().item())
 
     components["loss_total"] = float(loss_total.detach().item())
     return loss_total, components

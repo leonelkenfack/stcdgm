@@ -1694,6 +1694,11 @@ def train_epoch_stage1(
     gamma_dag_max: float = 0.10,
     gamma_dag_warmup_epochs: int = 5,
     lambda_l1: float = 0.01,
+    lambda_dag_prior: float = 0.0,
+    dag_prior: Optional[Tensor] = None,
+    dag_grad_gate_value: float = 1.0,
+    abort_on_collapse: bool = True,
+    collapse_threshold: float = 0.01,
     gradient_clipping: Optional[float] = None,
     log_interval: int = 20,
     verbose: bool = True,
@@ -1710,8 +1715,19 @@ def train_epoch_stage1(
 
     Loss = lambda_reg · MSE(μ_HR, log1p(HR) - log1p(baseline))
          + beta_rec · L_rec_RCN
-         + gamma_dag(t) · h_DAGMA(A) (linear warmup)
-         + lambda_l1 · ||A||_1
+         + gamma_dag(t) · h_DAGMA(A)              (linear warmup)
+         + lambda_l1 · ||A||_1                    (sparsity)
+         + lambda_dag_prior · MSE(A, prior)       (anti-collapse, NEW)
+
+    The ``dag_grad_gate_value`` (default 1.0) re-attaches A_dag to the SCM
+    forward path so L_rec **and** L_reg supervise A_dag through the
+    structural step. The paper's "DAG detachment" only targets L_gen
+    (diffusion loss), and Stage 1 has no L_gen — gate=1 is therefore
+    faithful to ``oracle.tex §sec:arch:rcn``.
+
+    The ``abort_on_collapse`` early-stop raises if ``||A_dag||_F``
+    falls below ``collapse_threshold`` after the first epoch — used to
+    catch DAG-decorative regressions before the O3 ablation gate.
 
     Both ``μ_HR`` and the target residual live in log1p space.
     """
@@ -1721,6 +1737,18 @@ def train_epoch_stage1(
     rcn_runner.cell.train()
     regression_head.train()
 
+    # B2: open the DAG grad gate so L_rec/L_reg gradients reach A_dag
+    # via the SCM forward path. Stage 2 freezes A_dag entirely (Stage 1
+    # frozen via freeze_stage1), so the gate value is irrelevant there.
+    rcn_eager_for_gate = _eager_core(rcn_runner.cell)
+    if hasattr(rcn_eager_for_gate, "set_dag_grad_gate"):
+        rcn_eager_for_gate.set_dag_grad_gate(float(dag_grad_gate_value))
+
+    # Move dag_prior to device once, ready to feed into stage1_compute_loss.
+    dag_prior_device: Optional[Tensor] = None
+    if dag_prior is not None and lambda_dag_prior > 0.0:
+        dag_prior_device = torch.as_tensor(dag_prior, dtype=torch.float32).to(device)
+
     amp_mode = resolve_train_amp_mode(device, use_amp)
     scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
 
@@ -1728,10 +1756,18 @@ def train_epoch_stage1(
         epoch_idx, max_value=gamma_dag_max, warmup_epochs=gamma_dag_warmup_epochs
     )
 
+    # Snapshot ||A||_F at epoch start so we can report drift.
+    with torch.no_grad():
+        A_now = rcn_eager_for_gate.dag_matrix(masked=True)
+        a_norm_start = float(A_now.norm().item())
+        a_max_start = float(A_now.abs().max().item())
+
     if verbose:
         print(
             f"\n📚 Stage 1 epoch {epoch_idx + 1} | "
             f"γ_dag={gamma_dag_eff:.4f} (warmup {gamma_dag_warmup_epochs} ep) | "
+            f"gate={float(dag_grad_gate_value):.2f} | "
+            f"||A||_F={a_norm_start:.4f} max|A|={a_max_start:.4f} | "
             f"amp={amp_mode}"
         )
 
@@ -1789,7 +1825,7 @@ def train_epoch_stage1(
                     recon_stack = torch.stack(_recons, dim=0)
                     rec_loss = (recon_stack - lr_data).pow(2).mean()
 
-                # DAGMA penalty + L1 sparsity
+                # DAGMA penalty + L1 sparsity + (optional) physical prior MSE
                 rcn_eager = _eager_core(rcn_runner.cell)
                 A_masked = rcn_eager.dag_matrix(masked=True)
                 if dag_method == "dagma":
@@ -1797,6 +1833,9 @@ def train_epoch_stage1(
                 else:
                     L_dag = loss_no_tears(A_masked)
                 L_l1 = A_masked.abs().sum()
+                L_prior = None
+                if dag_prior_device is not None:
+                    L_prior = nn.functional.mse_loss(A_masked, dag_prior_device)
 
                 loss_total, components = stage1_compute_loss(
                     mu_HR=mu_HR,
@@ -1804,10 +1843,12 @@ def train_epoch_stage1(
                     rcn_reconstruction_loss=rec_loss,
                     dagma_loss=L_dag,
                     dag_l1_loss=L_l1,
+                    dag_prior_loss=L_prior,
                     lambda_reg=lambda_reg,
                     beta_rec=beta_rec,
                     gamma_dag=gamma_dag_eff,
                     lambda_l1=lambda_l1,
+                    lambda_dag_prior=lambda_dag_prior,
                 )
                 # Average over micro-batches in the optimiser step
                 loss_for_backward = loss_total / max(len(batches), 1)
@@ -1861,6 +1902,32 @@ def train_epoch_stage1(
                 f"dag={step_dag / max(len(batches), 1):.5f}"
             )
 
+    # End-of-epoch DAG health snapshot + collapse early-abort.
+    with torch.no_grad():
+        A_end = rcn_eager_for_gate.dag_matrix(masked=True)
+        a_norm_end = float(A_end.norm().item())
+        a_max_end = float(A_end.abs().max().item())
+        a_sparsity_end = float((A_end.abs() < 1e-3).float().mean().item())
+
+    if verbose:
+        print(
+            f"  📐 DAG health | ||A||_F: {a_norm_start:.4f} → {a_norm_end:.4f} | "
+            f"max|A|: {a_max_start:.4f} → {a_max_end:.4f} | "
+            f"sparsity≈0: {a_sparsity_end:.1%}"
+        )
+
+    if (
+        abort_on_collapse
+        and epoch_idx >= 0  # keep gate active from the very first epoch
+        and a_norm_end < float(collapse_threshold)
+    ):
+        raise RuntimeError(
+            f"DAG collapse detected at end of Stage 1 epoch {epoch_idx + 1}: "
+            f"||A_dag||_F = {a_norm_end:.5f} < threshold {collapse_threshold}. "
+            "Re-check lambda_l1, lambda_dag_prior, dag_grad_gate_value, or "
+            "the dag_prior matrix. Aborting before O3 gate fails downstream."
+        )
+
     n_eff = max(n_batches, 1)
     return {
         "loss": total_loss / n_eff,
@@ -1870,6 +1937,10 @@ def train_epoch_stage1(
         "n_batches": float(n_batches),
         "n_micros": float(n_micros),
         "gamma_dag_eff": float(gamma_dag_eff),
+        "a_norm_F_start": a_norm_start,
+        "a_norm_F_end": a_norm_end,
+        "a_max_abs_end": a_max_end,
+        "a_sparsity_end": a_sparsity_end,
     }
 
 

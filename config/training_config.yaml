@@ -437,7 +437,7 @@ two_stage:
 
   # Stage 1 : training deterministe causal mean
   stage1:
-    epochs_max: 5                          # cap dur (hyperplan v2.0 décision 8)
+    epochs_max: 7                          # 5 → 7 (anti-collapse fix needs longer ramp)
     early_stop_patience: 3                 # plateau MSE val ≥ 3 epochs
     lr: 0.0003
     optimizer: "adamw"
@@ -445,12 +445,21 @@ two_stage:
     scheduler: "cosine"
     warmup_epochs: 1
     log_rapsd_each_epoch: true             # détection over-smoothing
-    # Loss weights (cf. paper §sec:arch:loss + Tab. 2)
+    # ====== Loss weights (paper §sec:arch:loss + Tab.2) ======
     lambda_reg: 1.0                        # MSE(mu_HR, residual)
     beta_rec: 0.05                         # RCN driver reconstruction
     gamma_dag_max: 0.10                    # DAGMA penalty target value
-    gamma_dag_warmup_epochs: 5             # linear ramp 0 -> gamma_dag_max
-    lambda_l1: 0.01                        # ||A||_1 sparsity
+    gamma_dag_warmup_epochs: 2             # 5 → 2 (atteint max avant fin Stage 1)
+    lambda_l1: 0.001                       # 0.01 → 0.001 (anti-collapse: L1 trop fort écrasait A_dag à zéro)
+    # ====== Anti-collapse fixes (BS12) ======
+    # Le commit 56aa5b5 a transposé la 2-stage du papier mais a préservé
+    # ``dag_grad_gate=0`` qui empêchait L_rec/L_reg d'entraîner A_dag.
+    # Combiné à l'absence de pull positif, A_dag s'effondrait vers zéro
+    # en epoch 1 (cf. logs Colab 2026-05-02). Trois leviers anti-collapse :
+    lambda_dag_prior: 0.05                 # MSE(A, prior) — pull positif vers le prior physique
+    dag_grad_gate_value: 1.0               # 0 → 1 (Stage 1 sans L_gen, détach inutile)
+    abort_on_collapse: true                # abort si ||A||_F < threshold
+    collapse_threshold: 0.05               # ||A||_F minimum après chaque epoch
 
   # Stage 2 : diffusion EDM sur résidu fin
   stage2:
