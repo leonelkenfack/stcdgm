@@ -1519,7 +1519,29 @@ def train_epoch(
                 print(f"[WARN] NaN gradients detected after clipping - this may indicate model divergence")
             
             if verbose and (batch_idx % log_interval == 0 or batch_idx == 0):
-                print(f"   - Gradient norms (clipped): RCN={grad_norm_rcn:.4f}, Diff={grad_norm_diff:.4f}, Enc={grad_norm_enc:.4f}")
+                # >>> EDM_LIVE_GRAD_RATIO
+                # Trace Trap monitor: in EDM mode (paper sec:arch:rcn) the
+                # diffusion loss must NOT pull on A_dag. We surface the
+                # ratio ||A_dag.grad|| / ||UNet.grad|| at each log step so a
+                # silent regression of dag_grad_gate is detected immediately.
+                _Adag_grad_norm = float("nan")
+                try:
+                    _rcn_for_log = _eager_core(rcn_runner.cell)
+                    if _rcn_for_log.A_dag.grad is not None:
+                        _Adag_grad_norm = _rcn_for_log.A_dag.grad.norm().item()
+                except (AttributeError, RuntimeError):
+                    pass
+                _ratio_str = (
+                    f"{_Adag_grad_norm / max(grad_norm_diff, 1e-12):.2e}"
+                    if _Adag_grad_norm == _Adag_grad_norm  # not NaN
+                    else "n/a"
+                )
+                print(
+                    f"   - Gradient norms (clipped): RCN={grad_norm_rcn:.4f}, "
+                    f"Diff={grad_norm_diff:.4f}, Enc={grad_norm_enc:.4f} | "
+                    f"||A_dag.g||={_Adag_grad_norm:.3e}, "
+                    f"ratio dag/unet={_ratio_str}"
+                )
 
         # Phase C1: Mixed Precision - Optimizer step with scaler (CUDA only)
         if amp_mode == "cuda_fp16":
