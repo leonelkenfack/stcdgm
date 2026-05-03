@@ -195,6 +195,36 @@ class CausalDiffusionDecoder(nn.Module):
         """Flatten conditioning [B, seq, dim] -> [B, seq*dim] for FiLM class_labels."""
         return conditioning.flatten(start_dim=1)
 
+    def _zero_class_labels_placeholder(self, B: int, ref: Tensor) -> Optional[Tensor]:
+        """Build a zero ``class_labels`` placeholder matching the UNet's
+        ``class_embed_type`` configuration.
+
+        Used in two-stage / causal_concat mode where ``conditioning`` is
+        ``None`` but the UNet was built with ``class_embed_type`` set
+        (e.g. "projection"). Returns ``None`` if no class embedding is
+        configured (UNet doesn't expect class_labels at all).
+        """
+        cfg = self.unet.config
+        ct = getattr(cfg, "class_embed_type", None)
+        if ct is None:
+            return None
+        if ct == "projection" or ct == "simple_projection":
+            dim = int(getattr(cfg, "projection_class_embeddings_input_dim", 0))
+            if dim <= 0:
+                return None
+            return ref.new_zeros((B, dim))
+        if ct == "identity":
+            dim = int(getattr(cfg, "time_embed_dim", 0))
+            if dim <= 0:
+                return None
+            return ref.new_zeros((B, dim))
+        if ct == "timestep":
+            # ``time_proj`` expects a 1-D tensor of timestep-like floats.
+            return ref.new_zeros((B,))
+        # Unknown type — return None and let diffusers complain explicitly
+        # rather than guessing the shape.
+        return None
+
     def forward(
         self,
         noisy_sample: Tensor,
@@ -453,9 +483,15 @@ class CausalDiffusionDecoder(nn.Module):
             # by zero by any cross-attention W_O at init and remains
             # benign throughout training (no gradient incentive to use it
             # since the real signal comes from concat channels).
-            class_labels = None
             B = unet_input.shape[0]
             hidden_states = unet_input.new_zeros((B, 1, self.conditioning_dim))
+            # BS16: when the UNet was built with ``class_embed_type``
+            # (e.g. "projection" with projection_class_embeddings_input_dim,
+            # the default in our YAML), it requires class_labels of the
+            # corresponding shape. Causality flows through concat channels,
+            # not through this path — provide a zero placeholder so the
+            # class-embedding contributes no signal but the API is satisfied.
+            class_labels = self._zero_class_labels_placeholder(B, unet_input)
         else:
             raise ValueError(
                 "Standard mode requires conditioning (cross-attn + class_labels)"
