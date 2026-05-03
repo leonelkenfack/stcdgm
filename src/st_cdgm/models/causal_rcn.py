@@ -527,6 +527,53 @@ class RCNCell(nn.Module):
         A.mul_(alpha)
         return alpha
 
+    @torch.no_grad()
+    def project_dag_floor(
+        self,
+        min_norm: float = 0.10,
+        prior: Optional[Tensor] = None,
+    ) -> float:
+        """
+        Hard floor projection: if ``||A_dag||_F < min_norm``, rescale A_dag
+        in place so that its Frobenius norm equals ``min_norm``. Mirror image
+        of ``project_dag_spectral`` (which caps the top of the norm).
+
+        This is a **hard** anti-collapse guarantee. After every optimiser
+        step + spectral projection, this method ensures A_dag never falls
+        below ``min_norm``, regardless of what the loss landscape says.
+
+        Two rescaling strategies depending on whether a ``prior`` is given:
+        - ``prior=None``: scale the current direction up to ``min_norm``
+          (preserves whatever structure is left).
+        - ``prior`` provided: blend ``min_norm * (prior / ||prior||)`` —
+          re-anchor to the physically-motivated prior. Recommended when
+          A_dag has fully collapsed (current direction is noise).
+
+        Returns the rescale factor applied (1.0 if no rescaling was needed),
+        for logging.
+        """
+        A = self.A_dag.data
+        A.fill_diagonal_(0.0)
+        cur_norm = float(A.norm().item())
+        if cur_norm >= min_norm:
+            return 1.0
+
+        if prior is not None and prior.shape == A.shape:
+            prior_t = prior.to(device=A.device, dtype=A.dtype)
+            prior_t = prior_t - torch.diag(torch.diagonal(prior_t))
+            prior_norm = float(prior_t.norm().item())
+            if prior_norm > 1e-9:
+                A.copy_(prior_t * (min_norm / prior_norm))
+                return min_norm / max(cur_norm, 1e-9)
+
+        if cur_norm > 1e-9:
+            A.mul_(min_norm / cur_norm)
+            return min_norm / cur_norm
+        # Fully zero matrix and no prior: random small init at the floor.
+        A.copy_(torch.randn_like(A) * (min_norm / math.sqrt(A.numel())))
+        A.fill_diagonal_(0.0)
+        return float("inf")
+
     def _prepare_reconstruction_features(self, tensor: Tensor, N: int) -> Tensor:
         """
         Mise en forme standard des caractéristiques utilisées pour la reconstruction.

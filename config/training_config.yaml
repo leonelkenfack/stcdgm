@@ -451,15 +451,19 @@ two_stage:
     gamma_dag_max: 0.10                    # DAGMA penalty target value
     gamma_dag_warmup_epochs: 2             # 5 → 2 (atteint max avant fin Stage 1)
     lambda_l1: 0.001                       # 0.01 → 0.001 (anti-collapse: L1 trop fort écrasait A_dag à zéro)
-    # ====== Anti-collapse fixes (BS12) ======
-    # Le commit 56aa5b5 a transposé la 2-stage du papier mais a préservé
-    # ``dag_grad_gate=0`` qui empêchait L_rec/L_reg d'entraîner A_dag.
-    # Combiné à l'absence de pull positif, A_dag s'effondrait vers zéro
-    # en epoch 1 (cf. logs Colab 2026-05-02). Trois leviers anti-collapse :
-    lambda_dag_prior: 0.05                 # MSE(A, prior) — pull positif vers le prior physique
+    # ====== Anti-collapse fixes (BS12 + BS14) ======
+    # BS12 (gate=1, prior pull, soft L1) was insufficient — at epoch 2, the
+    # γ_dag warmup fired and the prior MSE term (with mean()) was 36× too
+    # weak to counter the DAGMA-driven 2·A pull. ||A||_F: 0.66 → 0.0004.
+    # BS14 (B): switch prior pull from mean() to sum() — properly scaled.
+    # BS14 (C): add project_dag_floor — hard rescaling guarantee that
+    # ||A||_F can never drop below ``dag_floor_min_norm`` after any step.
+    lambda_dag_prior: 0.05                 # sum((A−prior)²) — anchor to physical prior
     dag_grad_gate_value: 1.0               # 0 → 1 (Stage 1 sans L_gen, détach inutile)
-    abort_on_collapse: true                # abort si ||A||_F < threshold
-    collapse_threshold: 0.05               # ||A||_F minimum après chaque epoch
+    abort_on_collapse: true                # safety net (rarely fires now thanks to floor)
+    collapse_threshold: 0.05               # ||A||_F minimum after each epoch
+    dag_floor_projection: true             # hard rescale to floor after each step
+    dag_floor_min_norm: 0.10               # ||A||_F minimum guaranteed by projection
 
   # Stage 2 : diffusion EDM sur résidu fin
   stage2:

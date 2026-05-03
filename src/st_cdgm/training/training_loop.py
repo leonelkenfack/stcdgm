@@ -1699,6 +1699,8 @@ def train_epoch_stage1(
     dag_grad_gate_value: float = 1.0,
     abort_on_collapse: bool = True,
     collapse_threshold: float = 0.01,
+    dag_floor_projection: bool = True,
+    dag_floor_min_norm: float = 0.10,
     gradient_clipping: Optional[float] = None,
     log_interval: int = 20,
     verbose: bool = True,
@@ -1857,7 +1859,13 @@ def train_epoch_stage1(
                 L_l1 = A_masked.abs().sum()
                 L_prior = None
                 if dag_prior_device is not None:
-                    L_prior = nn.functional.mse_loss(A_masked, dag_prior_device)
+                    # BS14-B: use sum() not mean() so the prior pull magnitude
+                    # does NOT depend on q² (number of DAG entries). With mean(),
+                    # ``lambda_dag_prior=0.05`` was implicitly divided by 36 and
+                    # was 64x weaker than DAGMA — leading to A_dag collapse at
+                    # epoch 2 the moment γ_dag turned on. With sum(), the
+                    # configured weight maps directly to per-entry gradient.
+                    L_prior = (A_masked - dag_prior_device).pow(2).sum()
 
                 loss_total, components = stage1_compute_loss(
                     mu_HR=mu_HR,
@@ -1907,6 +1915,17 @@ def train_epoch_stage1(
         if dag_spectral_projection:
             _eager_core(rcn_runner.cell).project_dag_spectral(
                 max_radius=dag_spectral_max_radius
+            )
+
+        # BS14-C: hard FLOOR projection (anti-collapse guarantee).
+        # Symmetric to project_dag_spectral (which caps the top): if
+        # ||A_dag||_F drops below ``dag_floor_min_norm`` after the optimiser
+        # step, rescale toward the prior at exactly the floor. A_dag can
+        # never collapse to zero regardless of what the loss does.
+        if dag_floor_projection:
+            _eager_core(rcn_runner.cell).project_dag_floor(
+                min_norm=dag_floor_min_norm,
+                prior=dag_prior_device if dag_prior_device is not None else None,
             )
 
         total_loss += step_loss / max(len(batches), 1)
