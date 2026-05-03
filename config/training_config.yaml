@@ -278,12 +278,20 @@ loss:
   dag_l1_regularization: true
   dag_l1_weight: 0.01
   lambda_dag_prior: 0.005
+  # 6×6 prior : 5 metapaths + 1 static (SP_HR → GP850 orographic forcing).
+  # Index order = order of encoder_configs in cell 35 :
+  #   0: GP850_spat_adj    1: GP850_to_GP500    2: GP500_spat_adj
+  #   3: GP500_to_GP250    4: GP250_spat_adj    5: static (SP_HR)
+  # Tridiagonal coupling between layers (0.2 each direction) +
+  # static → GP850 forcing (orographic effect on near-surface winds).
+  # Nothing affects static (orography is causal-prior, geographically fixed).
   dag_prior:
-    - [0.0, 0.2, 0.0, 0.0, 0.0]
-    - [0.2, 0.0, 0.2, 0.0, 0.0]
-    - [0.0, 0.2, 0.0, 0.2, 0.0]
-    - [0.0, 0.0, 0.2, 0.0, 0.2]
-    - [0.0, 0.0, 0.0, 0.2, 0.0]
+    - [0.0, 0.2, 0.0, 0.0, 0.0, 0.0]
+    - [0.2, 0.0, 0.2, 0.0, 0.0, 0.0]
+    - [0.0, 0.2, 0.0, 0.2, 0.0, 0.0]
+    - [0.0, 0.0, 0.2, 0.0, 0.2, 0.0]
+    - [0.0, 0.0, 0.0, 0.2, 0.0, 0.0]
+    - [0.2, 0.0, 0.0, 0.0, 0.0, 0.0]    # static → GP850
   
   # Focal Loss - CRITIQUE pour événements extrêmes
   use_focal_loss: true
