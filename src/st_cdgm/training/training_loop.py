@@ -2061,6 +2061,14 @@ def train_epoch_stage2(
             baseline_log = (
                 baseline_t if baseline_t is not None else torch.zeros_like(target_residual)
             )
+            # BS17: baseline_log and mu_HR have NaN at ocean voids (mirror of
+            # target_residual). When concatenated as UNet input channels the
+            # NaN poisons forward_edm and explodes D(y). Sanitise: replace NaN
+            # with 0 in the conditioning channels — the loss masks NaN in
+            # ``target`` separately, so contributions from these pixels are
+            # excluded from the gradient anyway.
+            mu_HR = torch.nan_to_num(mu_HR, nan=0.0, posinf=0.0, neginf=0.0)
+            baseline_log = torch.nan_to_num(baseline_log, nan=0.0, posinf=0.0, neginf=0.0)
 
             # Diffusion U-Net is the only thing receiving gradient.
             with _train_autocast(amp_mode):
