@@ -43,23 +43,40 @@ class FakeDecoder(nn.Module):
 
 
 def _persist_load_state_dict(m, sd):
-    """BS22 implementation copied from notebook cell 47."""
+    """BS22 + BS23 implementation copied from notebook cell 47."""
     if m is None or sd is None:
         return
     base = m.module if hasattr(m, "module") and not hasattr(m, "_orig_mod") else m
     base = getattr(base, "_orig_mod", base)
 
     stripped_sd = {k.replace("_orig_mod.", ""): v for k, v in sd.items()}
-    target_keys = list(base.state_dict().keys())
+    target_sd = base.state_dict()
+    target_keys = list(target_sd.keys())
     matched = {}
+    skipped_shape = []
     for tk in target_keys:
         norm_tk = tk.replace("_orig_mod.", "")
-        if norm_tk in stripped_sd:
-            matched[tk] = stripped_sd[norm_tk]
+        if norm_tk not in stripped_sd:
+            continue
+        v = stripped_sd[norm_tk]
+        live_shape = tuple(target_sd[tk].shape) if hasattr(target_sd[tk], "shape") else None
+        ckpt_shape = tuple(v.shape) if hasattr(v, "shape") else None
+        if live_shape is not None and ckpt_shape is not None and live_shape != ckpt_shape:
+            skipped_shape.append((tk, ckpt_shape, live_shape))
+            continue
+        matched[tk] = v
     n_target = len(target_keys)
     n_matched = len(matched)
-    if n_matched < n_target:
-        print(f"   ↳ matched {n_matched}/{n_target} weights")
+    n_skipped = len(skipped_shape)
+    if n_matched < n_target or n_skipped > 0:
+        msg = f"   ↳ matched {n_matched}/{n_target} weights"
+        if n_skipped:
+            msg += f", skipped {n_skipped} shape mismatches"
+        print(msg)
+        for tk, sshape, tshape in skipped_shape[:3]:
+            print(f"      • {tk}: ckpt{sshape} ≠ live{tshape}")
+        if n_skipped > 3:
+            print(f"      … (+{n_skipped - 3} more)")
     base.load_state_dict(matched, strict=False)
 
 
@@ -122,6 +139,29 @@ def case_partial_match():
     print("  ✓ partial: completed without error")
 
 
+def case_shape_mismatch():
+    """BS23 — checkpoint has different inner dims (architecture drift).
+
+    Mimics the user's case: old UNet had block_out_channels [256], new has [64].
+    """
+
+    class FakeDecoderBig(nn.Module):
+        def __init__(self):
+            super().__init__()
+            inner_unet = nn.Sequential(nn.Linear(8, 8), nn.Linear(8, 8))  # bigger
+            self.unet = FakeOrigMod(inner_unet)
+            self.head = nn.Linear(8, 1)
+
+    src = FakeDecoderBig()
+    dst = FakeDecoder(compiled=True)  # smaller [4]
+    sd = src.state_dict()
+    print(f"  source unet shape: {sd['unet._orig_mod.0.weight'].shape}")
+    print(f"  target unet shape: {dst.state_dict()['unet._orig_mod.0.weight'].shape}")
+    # Should NOT raise — should print warnings + drop incompatible tensors.
+    _persist_load_state_dict(dst, sd)
+    print("  ✓ shape-mismatch: completed without raising")
+
+
 if __name__ == "__main__":
     print("=== BS22 _persist_load_state_dict smoke tests ===\n")
     print("Case 1: compiled → compiled")
@@ -132,4 +172,6 @@ if __name__ == "__main__":
     case_compiled_save_uncompiled_load()
     print("\nCase 4: partial match (extra layer in target)")
     case_partial_match()
-    print("\n✅ All BS22 smoke tests passed.")
+    print("\nCase 5 (BS23): shape mismatch (architecture drift)")
+    case_shape_mismatch()
+    print("\n✅ All BS22+BS23 smoke tests passed.")
