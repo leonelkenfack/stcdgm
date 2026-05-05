@@ -43,7 +43,7 @@ class FakeDecoder(nn.Module):
 
 
 def _persist_load_state_dict(m, sd):
-    """BS22 + BS23 implementation copied from notebook cell 47."""
+    """BS22 + BS23 + BS24 implementation copied from notebook cell 47."""
     if m is None or sd is None:
         return
     base = m.module if hasattr(m, "module") and not hasattr(m, "_orig_mod") else m
@@ -59,7 +59,10 @@ def _persist_load_state_dict(m, sd):
         if norm_tk not in stripped_sd:
             continue
         v = stripped_sd[norm_tk]
-        live_shape = tuple(target_sd[tk].shape) if hasattr(target_sd[tk], "shape") else None
+        try:
+            live_shape = tuple(target_sd[tk].shape) if hasattr(target_sd[tk], "shape") else None
+        except (RuntimeError, ValueError):
+            live_shape = None
         ckpt_shape = tuple(v.shape) if hasattr(v, "shape") else None
         if live_shape is not None and ckpt_shape is not None and live_shape != ckpt_shape:
             skipped_shape.append((tk, ckpt_shape, live_shape))
@@ -139,6 +142,34 @@ def case_partial_match():
     print("  ✓ partial: completed without error")
 
 
+def case_lazy_param_uninit():
+    """BS24 — target has uninitialized LazyLinear (mimics SAGEConv in_channels=-1).
+
+    Accessing ``.shape`` on UninitializedParameter raises. Should not crash.
+    """
+    src_module = nn.Sequential(nn.Linear(8, 4), nn.Linear(4, 2))
+    sd = src_module.state_dict()
+
+    class WithLazy(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.fc1 = nn.LazyLinear(4)
+            self.fc2 = nn.Linear(4, 2)
+
+    dst = WithLazy()
+    # Re-key sd to match WithLazy structure: 0.* → fc1.*, 1.* → fc2.*
+    remap = {"0.weight": "fc1.weight", "0.bias": "fc1.bias",
+             "1.weight": "fc2.weight", "1.bias": "fc2.bias"}
+    sd = {remap[k]: v for k, v in sd.items()}
+    print(f"  fc1 type before load: {type(dst.fc1.weight).__name__}")
+    _persist_load_state_dict(dst, sd)
+    # After load, fc1 should be materialized.
+    print(f"  fc1 type after load:  {type(dst.fc1.weight).__name__}")
+    print(f"  fc1.weight.shape after load: {tuple(dst.fc1.weight.shape)}")
+    assert tuple(dst.fc1.weight.shape) == (4, 8), "lazy param did not materialize"
+    print("  ✓ lazy-param: materialized via load_state_dict without crash")
+
+
 def case_shape_mismatch():
     """BS23 — checkpoint has different inner dims (architecture drift).
 
@@ -174,4 +205,6 @@ if __name__ == "__main__":
     case_partial_match()
     print("\nCase 5 (BS23): shape mismatch (architecture drift)")
     case_shape_mismatch()
-    print("\n✅ All BS22+BS23 smoke tests passed.")
+    print("\nCase 6 (BS24): uninitialized lazy parameter")
+    case_lazy_param_uninit()
+    print("\n✅ All BS22+BS23+BS24 smoke tests passed.")
