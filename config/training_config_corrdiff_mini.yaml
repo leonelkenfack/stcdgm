@@ -65,3 +65,21 @@ diffusion:
 two_stage:
   stage2:
     epochs_max: 10
+
+# =============================================================================
+# torch.compile — désactivé pour ce run (BS32c).
+# Avec block_out_channels=[64,128,128] + batch_size=64, le pass
+# ``inductor.pad_mm.should_pad_bmm`` tente d'allouer un fake tensor
+# de bench de ~228 GiB sur la nouvelle shape (64, 3, 172, 179) →
+# faux OOM (le GPU est libre). Bug connu de torch._inductor sur des
+# shapes peu communes ; le contournement standard
+# (``torch._inductor.config.shape_padding = False``) marche aussi
+# mais désactiver compile entièrement est plus simple et plus sûr
+# pour ce run. Le gain compile était 10-20% au mieux, et BS32b
+# (forward batché bs=64) éclipse largement cet ordre de grandeur.
+# Re-tenter avec compile en mode ``default`` lors d'un run successeur
+# si vraiment nécessaire.
+# =============================================================================
+training:
+  compile:
+    enabled: false
