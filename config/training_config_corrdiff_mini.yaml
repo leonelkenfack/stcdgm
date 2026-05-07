@@ -1,0 +1,67 @@
+# =============================================================================
+# CorrDiff Mini override — BS31b (2026-05-08)
+# =============================================================================
+# Applies on top of ``training_config.yaml`` via ``OmegaConf.merge``.
+# Bumps the Stage 2 diffusion UNet from the diagnostic-sized [32, 64]
+# (~1-2 M params) to CorrDiff-Mini sizing [64, 128, 128] (~12-15 M
+# params), matching NVIDIA PhysicsNeMo's
+# ``examples/weather/corrdiff/conf/base/model_size/mini.yaml``
+# (model_channels=64, channel_mult=[1, 2, 2]).
+#
+# Motivation: the [32, 64] Stage 2 UNet collapsed to identity on μ_HR
+# (μ_HR ablation Δ/signal ≈ 96 %, F1 @ p99 = 0.036, RAPSD = 555).
+# Per Mardani et al. 2024 (CorrDiff, arXiv:2309.15214) and Karras et al.
+# 2022 (EDM, arXiv:2206.00364), insufficient capacity drives the residual
+# diffusion toward δ̂ ≈ 0 — the network outputs essentially μ_HR with no
+# refinement. See ``architecture_journey.md §6`` for the full rationale,
+# bibliography (DOIs), and the BS31 CHAINLOGIC plan.
+#
+# Stage 1 (encoder + rcn_cell + regression_head) is intentionally NOT
+# modified here — its weights load from epoch_last.pth via BS22-24, the
+# DAGMA constraint already converged (‖A‖_F ≈ 0.5-0.85), and there is
+# no published evidence that Stage 1 capacity must match Stage 2.
+# =============================================================================
+
+diffusion:
+  unet_kwargs:
+    # 3-level UNet, mirrors CorrDiff Mini's [1, 2, 2] channel_mult.
+    # Total ~12-18 M parameters (estimated; verify via dry-run).
+    layers_per_block: 2          # was 1 → 2 for richer block representations
+    block_out_channels: [64, 128, 128]
+
+    # Mirror the existing 2-level structure but extend by one level.
+    # Cross-attention is preserved at all non-edge levels for parity with
+    # the previous topology; in causal_concat mode it carries little
+    # signal (encoder_hidden_states is a placeholder), but the resnet /
+    # conv stacks within these blocks still contribute.
+    down_block_types:
+      - "DownBlock2D"
+      - "CrossAttnDownBlock2D"
+      - "CrossAttnDownBlock2D"
+    up_block_types:
+      - "CrossAttnUpBlock2D"
+      - "CrossAttnUpBlock2D"
+      - "UpBlock2D"
+    mid_block_type: "UNetMidBlock2D"
+
+    # GroupNorm groups must divide every channel count.
+    # 64 / 32 = 2, 128 / 32 = 4 → OK.
+    norm_num_groups: 32          # was 8 → 32, diffusers default
+    attention_head_dim: 32        # unchanged
+    only_cross_attention: [false, false, false]   # length-3 to match 3 levels
+
+    # ``projection_class_embeddings_input_dim`` stays at the auto-computed
+    # 768 (= hidden_dim × num_metapaths). In causal_concat mode the class
+    # embedding receives a zero placeholder anyway (BS16), so the value
+    # is mechanically irrelevant — but the layer must exist with the
+    # right shape for the UNet to instantiate.
+
+# =============================================================================
+# Stage 2 budget — keep at 20 epochs initially (same as v1) so the
+# wall-clock cost is comparable. If Phase-1 warmup (1 epoch) shows the
+# UNet learning a non-trivial residual (loss decreasing, ‖δ̂‖ growing),
+# extend to 30 in a follow-up override.
+# =============================================================================
+two_stage:
+  stage2:
+    epochs_max: 20
