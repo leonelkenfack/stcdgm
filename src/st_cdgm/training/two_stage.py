@@ -440,6 +440,209 @@ def causal_ablation_check(
     }
 
 
+# ---------------------------------------------------------------------
+# BS32b — pre-cache Stage 1 outputs + thin Stage 2 training loop
+# ---------------------------------------------------------------------
+
+
+@torch.no_grad()
+def precompute_stage1_outputs(
+    *,
+    encoder: nn.Module,
+    rcn_runner,
+    regression_head: nn.Module,
+    train_dataset,
+    iterate_batches_fn,
+    device: torch.device,
+) -> dict:
+    """Iterate ``train_dataset`` once, run Stage 1 forward per sample,
+    and stack outputs into a dict of CPU tensors.
+
+    Stage 1 modules must be frozen (``requires_grad=False``, ``eval()``).
+    Result keys: ``mu_HR``, ``baseline_log``, ``delta_target``,
+    ``valid_mask``. Each tensor is shape ``(N, C, H, W)``. ``valid_mask``
+    is ``bool`` (``True`` where the target is finite).
+
+    BS32b — eliminates per-batch Stage 1 forward (encoder + 16-step RCN
+    + regression_head) which on the production training loop is run
+    32×-64× per logical batch and re-runs the same deterministic forward
+    every epoch. Pre-caching collapses 14k×N_epochs forwards to 14k×1.
+
+    Parameters
+    ----------
+    encoder, rcn_runner, regression_head : torch.nn.Module
+        Frozen Stage 1 modules.
+    train_dataset : torch.utils.data.IterableDataset (or anything iterable)
+        Yields the same dict samples the legacy DataLoader yielded.
+    iterate_batches_fn : callable(sample, builder, device) -> dict
+        The notebook's ``convert_sample_to_batch`` (we accept it as a
+        callable rather than importing — it's defined per-notebook).
+    device : torch.device
+        Where Stage 1 forwards run.
+
+    Returns
+    -------
+    dict with keys ``mu_HR``, ``baseline_log``, ``delta_target``,
+    ``valid_mask`` — all stacked CPU tensors of shape ``(N, C, H, W)``.
+    """
+    encoder.eval()
+    if hasattr(rcn_runner, "cell"):
+        rcn_runner.cell.eval()
+    regression_head.eval()
+
+    mu_list: list[Tensor] = []
+    base_list: list[Tensor] = []
+    delta_list: list[Tensor] = []
+    mask_list: list[Tensor] = []
+
+    import time as _t
+    t0 = _t.time()
+    last_print = t0
+    n_seen = 0
+
+    for sample in train_dataset:
+        batch = iterate_batches_fn(sample)
+        lr_data = batch["lr"].to(device)
+        target = batch["residual"][-1].to(device)
+        if target.dim() == 3:
+            target = target.unsqueeze(0)
+
+        baseline_t = batch.get("baseline")
+        if baseline_t is not None:
+            baseline_t = baseline_t[-1].to(device)
+            if baseline_t.dim() == 3:
+                baseline_t = baseline_t.unsqueeze(0)
+
+        H_init = encoder.init_state(batch["hetero"]).to(device)
+        drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+        seq = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+        H_T = seq.states[-1]
+        mu_HR = regression_head(H_T)
+        if mu_HR.shape != target.shape:
+            mu_HR = F.interpolate(
+                mu_HR, size=target.shape[-2:],
+                mode="bilinear", align_corners=False,
+            )
+
+        baseline_log = baseline_t if baseline_t is not None else torch.zeros_like(target)
+        valid_mask = torch.isfinite(target)
+        delta_target = target - mu_HR
+
+        # Sanitize NaN — same logic as train_epoch_stage2 (BS17).
+        mu_HR = torch.nan_to_num(mu_HR, nan=0.0, posinf=0.0, neginf=0.0)
+        baseline_log = torch.nan_to_num(baseline_log, nan=0.0, posinf=0.0, neginf=0.0)
+        delta_target = torch.nan_to_num(delta_target, nan=0.0, posinf=0.0, neginf=0.0)
+
+        mu_list.append(mu_HR.detach().squeeze(0).cpu())
+        base_list.append(baseline_log.detach().squeeze(0).cpu())
+        delta_list.append(delta_target.detach().squeeze(0).cpu())
+        mask_list.append(valid_mask.detach().squeeze(0).cpu())
+
+        n_seen += 1
+        now = _t.time()
+        if (now - last_print) >= 5.0:
+            print(f"  precompute Stage 1 : {n_seen} samples | {now-t0:.0f}s "
+                  f"({(now-t0)/n_seen:.2f}s/sample)", flush=True)
+            last_print = now
+
+    print(f"  precompute Stage 1 : {n_seen} samples | total {_t.time()-t0:.0f}s "
+          f"({(_t.time()-t0)/max(1,n_seen):.2f}s/sample)", flush=True)
+
+    return {
+        "mu_HR": torch.stack(mu_list, dim=0) if mu_list else torch.empty(0),
+        "baseline_log": torch.stack(base_list, dim=0) if base_list else torch.empty(0),
+        "delta_target": torch.stack(delta_list, dim=0) if delta_list else torch.empty(0),
+        "valid_mask": torch.stack(mask_list, dim=0) if mask_list else torch.empty(0),
+    }
+
+
+def train_epoch_stage2_cached(
+    *,
+    diffusion_decoder: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    cached_dataloader,
+    device: torch.device,
+    use_amp: bool = True,
+    gradient_clipping: Optional[float] = None,
+    log_every: int = 20,
+    verbose: bool = True,
+) -> dict:
+    """Thin Stage 2 training loop that consumes a pre-cached dataset.
+
+    BS32b — the diffusion forward+backward runs at the *full batch
+    size* of the dataloader, not bs=1 in a per-micro loop. With
+    BATCH_SIZE=64, this is 64×-faster on A100 for the diffusion
+    portion than the original ``train_epoch_stage2`` which loops
+    ``for micro in batches:`` and calls the UNet at bs=1.
+
+    Expects ``cached_dataloader`` to yield dicts with keys
+    ``mu_HR``, ``baseline_log``, ``delta_target`` (each shape
+    ``(B, C, H, W)``). The default PyTorch collate stacks correctly
+    when the underlying dataset is a TensorDataset-like object.
+    """
+    # Local import to avoid hard dependency at module import time.
+    from st_cdgm.training.training_loop import (
+        resolve_train_amp_mode,
+        _train_autocast,
+    )
+
+    diffusion_decoder.train()
+    amp_mode = resolve_train_amp_mode(device, use_amp)
+    scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
+
+    if verbose:
+        print(f"\n📚 Stage 2 epoch (cached) | amp={amp_mode}", flush=True)
+
+    total_loss = 0.0
+    n_batches = 0
+
+    for batch_idx, batch in enumerate(cached_dataloader):
+        mu_HR = batch["mu_HR"].to(device, non_blocking=True)
+        baseline_log = batch["baseline_log"].to(device, non_blocking=True)
+        delta_target = batch["delta_target"].to(device, non_blocking=True)
+
+        optimizer.zero_grad(set_to_none=True)
+
+        with _train_autocast(amp_mode):
+            loss_diff = diffusion_decoder.compute_loss_edm(
+                target=delta_target,
+                conditioning=None,
+                conditioning_spatial=None,
+                mu_HR=mu_HR,
+                baseline_log=baseline_log,
+            )
+
+        if amp_mode == "cuda_fp16":
+            scaler.scale(loss_diff).backward()
+        else:
+            loss_diff.backward()
+
+        if gradient_clipping is not None and gradient_clipping > 0:
+            if amp_mode == "cuda_fp16":
+                scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(
+                diffusion_decoder.parameters(), gradient_clipping
+            )
+
+        if amp_mode == "cuda_fp16":
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
+
+        total_loss += float(loss_diff.detach().item())
+        n_batches += 1
+
+        if verbose and (batch_idx == 0 or (batch_idx + 1) % log_every == 0):
+            print(f"  S2 batch {batch_idx + 1} | loss_diff={float(loss_diff.detach()):.5f}",
+                  flush=True)
+
+    return {
+        "loss_diff": total_loss / max(1, n_batches),
+        "n_batches": n_batches,
+    }
+
+
 __all__ = [
     "gamma_dag_warmup",
     "stage1_compute_loss",
@@ -448,4 +651,6 @@ __all__ = [
     "stage1_inference_mode",
     "calibrate_sigma_data_two_stage",
     "causal_ablation_check",
+    "precompute_stage1_outputs",
+    "train_epoch_stage2_cached",
 ]
