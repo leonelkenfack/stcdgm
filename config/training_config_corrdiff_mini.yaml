@@ -25,29 +25,60 @@
 diffusion:
   unet_kwargs:
     # 3-level UNet, mirrors CorrDiff Mini's [1, 2, 2] channel_mult.
-    # Total ~12-18 M parameters (estimated; verify via dry-run).
+    # Total ~9-12 M parameters (verified via dry-run in
+    # scripts/_inspect_unet_attention.py — attention only at level 2).
     layers_per_block: 2          # was 1 → 2 for richer block representations
     block_out_channels: [64, 128, 128]
 
-    # Mirror the existing 2-level structure but extend by one level.
-    # Cross-attention is preserved at all non-edge levels for parity with
-    # the previous topology; in causal_concat mode it carries little
-    # signal (encoder_hidden_states is a placeholder), but the resnet /
-    # conv stacks within these blocks still contribute.
+    # >>> BS32d : attention au smallest level seulement.
+    # Précédent (BS31b) plaçait CrossAttnDownBlock2D au level 1
+    # (86×90 = 7740 tokens). Avec layers_per_block=2 et le mirror
+    # up_blocks (3 attentions par up_block), on aboutissait à 5
+    # transformers à seq_len=7740. Avec bs=64 × num_heads=32 × bf16,
+    # chaque attention matrix vaut 228 GiB → OOM massif (l'erreur
+    # observée 457 GiB correspondait au forward+backward d'une seule
+    # layer avant que le runtime n'explose).
+    #
+    # NVIDIA PhysicsNeMo CorrDiff applique attention uniquement au
+    # smallest level (``attn_resolutions: [16]`` dans normal.yaml).
+    # On reproduit ce pattern en mettant DownBlock2D / UpBlock2D au
+    # level 1 et CrossAttnDownBlock2D au seul level 2 (43×45 =
+    # 1935 tokens) où la mémoire reste raisonnable.
+    #
+    # Memory check à bs=64 × num_heads=4 × bf16 :
+    #   level 2 attn matrix : 64 × 4 × 1935² × 2 ≈ 1.8 GiB / layer
+    #   5 layers (2 down + 3 up) ≈ 9 GiB total → fits sur A100 80 GiB.
     down_block_types:
-      - "DownBlock2D"
-      - "CrossAttnDownBlock2D"
-      - "CrossAttnDownBlock2D"
+      - "DownBlock2D"            # 172×179 — no attn
+      - "DownBlock2D"            # 86×90 — no attn (BS32d : was CrossAttnDownBlock2D)
+      - "CrossAttnDownBlock2D"   # 43×45 — attn here
     up_block_types:
-      - "CrossAttnUpBlock2D"
-      - "CrossAttnUpBlock2D"
-      - "UpBlock2D"
+      - "CrossAttnUpBlock2D"     # 43×45 — attn here
+      - "UpBlock2D"              # 86×90 — no attn (BS32d : was CrossAttnUpBlock2D)
+      - "UpBlock2D"              # 172×179 — no attn
     mid_block_type: "UNetMidBlock2D"
 
     # GroupNorm groups must divide every channel count.
     # 64 / 32 = 2, 128 / 32 = 4 → OK.
     norm_num_groups: 32          # was 8 → 32, diffusers default
-    attention_head_dim: 32        # unchanged
+
+    # >>> BS32d : neutraliser le piège ``attention_head_dim`` (num_heads).
+    # Diffusers 0.36 (issue HF/diffusers#2011) interprète
+    # ``attention_head_dim`` comme num_heads pour des raisons de back-compat,
+    # ET refuse de prendre ``num_attention_heads`` directement (raise
+    # ValueError au constructeur). Donc :
+    #   attention_head_dim=N  →  diffusers utilise N comme num_heads
+    #   inner_dim = block_out_channels  →  per-head dim = channels / N
+    #
+    # Précédent (BS31b) : attention_head_dim=32 → 32 heads de dim=4
+    # chacune. Avec bs=64 × 32 heads × seq=7740 (level 1), une seule
+    # attention matrix faisait 228 GiB → OOM massif.
+    #
+    # Fix BS32d : attention_head_dim=4 → 4 heads de dim=32 chacune,
+    # configuration standard. Combiné avec attention drop au level 1
+    # (voir down_block_types ci-dessus), la mémoire d'attention
+    # devient ~9 GiB total à bs=64 (vs >1 TiB avant).
+    attention_head_dim: 4
     only_cross_attention: [false, false, false]   # length-3 to match 3 levels
 
     # ``projection_class_embeddings_input_dim`` stays at the auto-computed
