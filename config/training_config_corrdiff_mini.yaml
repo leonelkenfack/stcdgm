@@ -88,14 +88,25 @@ diffusion:
     # right shape for the UNet to instantiate.
 
 # =============================================================================
-# Stage 2 budget — 10 epochs (BS32+ diff-time fixes appliquées, on
-# itère plus court). Si la trajectoire de loss montre encore de la
-# marge à epoch 10 (loss_diff toujours en pente descendante régulière),
-# extend en repassant à 20 ou 30 dans un override successeur.
+# Stage 2 budget — bump 10 → 50 (2026-05-08).
+#
+# Verdict v2 à epoch 10 :
+#   - shortcut brisé (output/target = 0.76, vs 1.0 en v1)
+#   - mais F1@p99 = 0.0037 (10× pire que v1)
+#   - Spread/RMSE = 0.64 → ensemble très diversifié, moyenne imprécise
+#   - Loss trajectory à epoch 3 : 0.55, pas plateau
+#
+# Diagnostic : sous-entraînement. 10 cached epochs = 710 optimizer
+# steps, vs ~5640 steps effectifs du legacy v1 (buggy 8× duplication).
+# 50 cached epochs ≈ 3550 steps, comparable à v1 effectif.
+#
+# Coût : 40 epochs supplémentaires × ~37s = 25 min wall-clock.
+# BS18 resume + BS31d arch-drift detect : pas de restart, continuation
+# directe depuis epoch 11 puisque l'archi n'a pas changé.
 # =============================================================================
 two_stage:
   stage2:
-    epochs_max: 10
+    epochs_max: 50
 
 # =============================================================================
 # torch.compile — désactivé pour ce run (BS32c).
