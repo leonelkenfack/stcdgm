@@ -57,11 +57,11 @@ diffusion:
     # right shape for the UNet to instantiate.
 
 # =============================================================================
-# Stage 2 budget — keep at 20 epochs initially (same as v1) so the
-# wall-clock cost is comparable. If Phase-1 warmup (1 epoch) shows the
-# UNet learning a non-trivial residual (loss decreasing, ‖δ̂‖ growing),
-# extend to 30 in a follow-up override.
+# Stage 2 budget — 10 epochs (BS32+ diff-time fixes appliquées, on
+# itère plus court). Si la trajectoire de loss montre encore de la
+# marge à epoch 10 (loss_diff toujours en pente descendante régulière),
+# extend en repassant à 20 ou 30 dans un override successeur.
 # =============================================================================
 two_stage:
   stage2:
-    epochs_max: 20
+    epochs_max: 10
