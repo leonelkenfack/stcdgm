@@ -109,6 +109,28 @@ two_stage:
     epochs_max: 50
 
 # =============================================================================
+# Data sequencing — paper alignment (Bomgni 2026 oracle.tex L1511).
+#
+# Le papier dit : "Each training sample is a 16-step sequence with a
+# stride of 2, so that a single batch element covers 32 days of driver
+# history at a two-day cadence."
+#
+# Notre base config a stride=4 (commentaire : "Équilibre entre données
+# et mémoire"). Avec 38 ans × 365 jours / 4 ≈ 3469 samples, ça donne
+# ~4513 dans les faits (proche). Avec stride=2 → ~6927 samples (×2),
+# matchant le sample count du papier.
+#
+# Côté mémoire : le passage stride 4→2 ne change rien car chaque sample
+# fait 16 timesteps × LR_grid_size, indépendamment du stride. Seul le
+# nombre de samples par epoch double.
+#
+# Conséquence : invalider le cache /content/stage1_cache.pt avant le
+# prochain run, sinon BS32b chargera l'ancien cache 4513-samples.
+# =============================================================================
+data:
+  stride: 2
+
+# =============================================================================
 # torch.compile — désactivé pour ce run (BS32c).
 # Avec block_out_channels=[64,128,128] + batch_size=64, le pass
 # ``inductor.pad_mm.should_pad_bmm`` tente d'allouer un fake tensor
