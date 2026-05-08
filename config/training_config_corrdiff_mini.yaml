@@ -87,6 +87,15 @@ diffusion:
     # is mechanically irrelevant — but the layer must exist with the
     # right shape for the UNet to instantiate.
 
+  # BS34 — tail-aware EDM loss (see architecture_journey / oracle.tex gap closure).
+  edm:
+    tail_weight:
+      enabled: true
+      tau95_mmday: 15.0
+      tau99_mmday: 35.0
+      weight_p95: 5.0
+      weight_p99: 10.0
+
 # =============================================================================
 # Stage 2 budget — bump 10 → 50 (2026-05-08).
 #
@@ -107,6 +116,8 @@ diffusion:
 two_stage:
   stage2:
     epochs_max: 50
+  # BS35: 'causal' (RCN+DAGMA+decoder) | 'noncausal' (RegressionMeanPredictor baseline).
+  run_variant: causal
 
 # =============================================================================
 # Data sequencing — paper alignment (Bomgni 2026 oracle.tex L1511).
@@ -147,47 +158,3 @@ data:
 training:
   compile:
     enabled: false
-
-# =============================================================================
-# BS34 — tail-aware EDM loss (Phase 1 of the paper-gap closure plan).
-#
-# Multiplies the per-pixel score-matching MSE by a step function of
-# the FULL HR field reconstructed in log1p(mm/day) space:
-#
-#     w(x) = 1 + (w95-1) · 1[x > τ95] + (w99-w95) · 1[x > τ99]
-#
-# Counters the standard EDM loss's flat per-pixel weighting which
-# treats a 200 mm/day event identically to a 2 mm/day event — the
-# direct mechanism behind F1@p99 = 0.0037 in BS33b/v3.
-#
-# Refs : Ravuri et al. 2021 (DGMR Nature), Liu et al. 2024 (WassDiff
-# arXiv:2410.00381), Harris et al. 2022 (arXiv:2204.02028).
-#
-# Default thresholds (CHIRPS daily climatology, Bénin / West Africa):
-#   p95 ≈ 15 mm/day, p99 ≈ 35 mm/day. Recompute with
-#   ``scripts/measure_chirps_quantiles.py`` if domain or data swap.
-# =============================================================================
-diffusion:
-  edm:
-    tail_weight:
-      enabled: true
-      tau95_mmday: 15.0
-      tau99_mmday: 35.0
-      weight_p95: 5.0
-      weight_p99: 10.0
-
-# =============================================================================
-# BS35 — Causal-ablation experiment switch.
-#
-# 'causal'    : default. Stage 1 = encoder + RCN + DAGMA + decoder.
-# 'noncausal' : Stage 1 = RegressionMeanPredictor (UNet ~5M params,
-#               iso-capacity baseline). For the B2 ablation per
-#               Schölkopf et al. 2021 (arXiv:2102.11107).
-#
-# Recipe to launch the full ablation experiment (Option β, quick mode):
-#   1. Train V1 with run_variant=causal     ; checkpoint: epoch_last_v1.pth
-#   2. Train V2 with run_variant=noncausal  ; checkpoint: epoch_last_v2.pth
-#   3. Run BS35_ABLATION_SUITE notebook cell — produces side-by-side metrics.
-# =============================================================================
-two_stage:
-  run_variant: causal
