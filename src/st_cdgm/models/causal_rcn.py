@@ -126,6 +126,13 @@ class RCNCell(nn.Module):
         # Matrice DAG apprenable
         self.A_dag = nn.Parameter(torch.randn(num_vars, num_vars))
 
+        # >>> BS35_CAUSAL_ABLATION — inference-time DAG perturbation.
+        # ``dag_ablation_mode`` is a Python string attribute (not a
+        # buffer) used only at eval time to swap the DAG interpretation
+        # without mutating ``A_dag.data``. See ``set_dag_ablation_mode``.
+        self.dag_ablation_mode: str = "normal"
+        self.dag_ablation_seed: int = 42
+
         # Phase B-perf: MLPs d'assignation structurelle vectorisés.
         # Anciennement ``nn.ModuleList[nn.Sequential]`` itéré dans une boucle
         # Python — coûteux sur CPU. Stockés ici comme paramètres batchés
@@ -189,6 +196,69 @@ class RCNCell(nn.Module):
             raise ValueError(f"dag_grad_gate must be finite; got {value}")
         v = max(0.0, min(1.0, v))
         self.dag_grad_gate.fill_(v)
+
+    @torch.no_grad()
+    def set_dag_ablation_mode(self, mode: str, seed: int = 42) -> None:
+        """BS35 — inference-time perturbation of the DAG matrix.
+
+        Modes
+        -----
+        'normal'   : use the learned ``A_dag`` (default).
+        'zero'     : pass ``A_dag := 0``. Tests if any signal flows
+                     through the DAGMA pathway (paper's r_O3 gate).
+        'random'   : replace with a strictly-upper-triangular gaussian
+                     of matching Frobenius norm (acyclic by construction
+                     under the natural variable ordering). Tests if the
+                     specific topology matters vs any acyclic matrix.
+        'permute'  : per-row column shuffle. Preserves in-degree /
+                     sparsity but destroys learned directionality.
+                     Tests if the *learned causal order* is load-bearing.
+
+        Parameters
+        ----------
+        mode : str
+            One of {'normal', 'zero', 'random', 'permute'}.
+        seed : int
+            Determinism for 'random' / 'permute'.
+        """
+        valid = {"normal", "zero", "random", "permute"}
+        if mode not in valid:
+            raise ValueError(
+                f"dag_ablation_mode must be one of {valid}; got '{mode}'"
+            )
+        self.dag_ablation_mode = mode
+        self.dag_ablation_seed = int(seed)
+
+    @torch.no_grad()
+    def _apply_dag_ablation(self, A_masked: Tensor) -> Tensor:
+        """Returns the perturbed copy of ``A_masked`` for the current mode.
+
+        Detached on purpose : runtime ablation must not back-propagate
+        through ``A_dag``.
+        """
+        mode = self.dag_ablation_mode
+        if mode == "zero":
+            return torch.zeros_like(A_masked)
+        # Use a deterministic local generator so successive forward calls
+        # in eval don't drift across the held-out batch.
+        gen = torch.Generator(device=A_masked.device)
+        gen.manual_seed(self.dag_ablation_seed)
+        n = A_masked.shape[0]
+        if mode == "random":
+            R = torch.randn(n, n, generator=gen, device=A_masked.device,
+                            dtype=A_masked.dtype)
+            R = torch.triu(R, diagonal=1)              # strict upper -> acyclic
+            target_norm = A_masked.detach().norm()
+            R_norm = R.norm().clamp(min=1e-8)
+            return R * (target_norm / R_norm)
+        if mode == "permute":
+            A_p = A_masked.detach().clone()
+            for i in range(n):
+                perm = torch.randperm(n, generator=gen, device=A_masked.device)
+                A_p[i] = A_masked.detach()[i, perm]
+            # Re-mask diagonal in case permutation puts a value back on it.
+            return A_p - torch.diag(torch.diagonal(A_p))
+        return A_masked  # safety fallback (mode='normal' never reaches here)
 
     def reset_parameters(self) -> None:
         """
@@ -350,6 +420,13 @@ class RCNCell(nn.Module):
             raise ValueError("Dimension du driver incompatible.")
 
         A_masked = _mask_diagonal(self.A_dag)
+
+        # >>> BS35_CAUSAL_ABLATION — apply runtime perturbation if requested.
+        # Eval-time only ; the autograd graph is broken on the perturbed
+        # branch so this never affects training. Modes : 'normal' (default),
+        # 'zero', 'random', 'permute'.
+        if self.dag_ablation_mode != "normal":
+            A_masked = self._apply_dag_ablation(A_masked)
 
         # Phase DAG-decouple + Sprint 2 grad gate.
         # ``A_masked`` (attached) is always returned for L_dag / L_rec so

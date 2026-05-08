@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, Tuple
 
+import math
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -586,9 +587,30 @@ class CausalDiffusionDecoder(nn.Module):
         weights = lambda_weight(sigma, cfg.sigma_data)  # [B, 1, 1, 1]
         sq_err = (D_y - target_clean) ** 2  # [B, C, H, W]
 
-        # Apply mask + weight, then mean over valid elements only.
-        # Broadcast weights against [B, C, H, W].
-        weighted = weights * sq_err
+        # >>> BS34_TAIL_LOSS — multiplicative threshold weight on extreme
+        # pixels of the FULL HR reconstruction (Ravuri 2021, WassDiff 2024).
+        # Reconstructed field = target + μ_HR + baseline_log (log1p(mm/d)).
+        # When config disabled → identity, no behaviour change.
+        tw_cfg = getattr(cfg, "tail_weight", None)
+        if tw_cfg is not None and getattr(tw_cfg, "enabled", False):
+            with torch.no_grad():
+                hr_log_recon = target_clean
+                if mu_HR is not None:
+                    hr_log_recon = hr_log_recon + mu_HR
+                if baseline_log is not None:
+                    hr_log_recon = hr_log_recon + baseline_log
+                tau95 = math.log1p(float(tw_cfg.tau95_mmday))
+                tau99 = math.log1p(float(tw_cfg.tau99_mmday))
+                w95 = float(tw_cfg.weight_p95)
+                w99 = float(tw_cfg.weight_p99)
+                tail_w = (
+                    1.0
+                    + (w95 - 1.0) * (hr_log_recon > tau95).float()
+                    + (w99 - w95) * (hr_log_recon > tau99).float()
+                )
+            weighted = weights * tail_w * sq_err
+        else:
+            weighted = weights * sq_err
         masked = weighted * valid_mask.float()
         n_valid = valid_mask.float().sum().clamp(min=1.0)
         loss = masked.sum() / n_valid

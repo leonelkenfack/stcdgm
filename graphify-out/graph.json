@@ -3130,139 +3130,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\causal_rcn.py:569"
     },
     {
-      "id": "file::diffusion_decoder",
-      "label": "diffusion_decoder.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
-    },
-    {
-      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
-      "label": "_replace_conv_transpose_with_resize",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput",
-      "label": "DiffusionOutput",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput::composite",
-      "label": ".composite",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder",
-      "label": "CausalDiffusionDecoder",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
-      "label": ".enable_gradient_checkpointing",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
-      "label": ".disable_gradient_checkpointing",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:154"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
-      "label": "._pool_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:165"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
-      "label": ".forward",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:169"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
-      "label": ".compute_loss",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:200"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
-      "label": ".predict_x0_from_epsilon",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:338"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
-      "label": ".apply_physical_constraints",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:349"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
-      "label": ".sample",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:390"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
-      "label": "._sample_edm_ode",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:526"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
-      "label": "._sample_dpm_solver",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:626"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
-      "label": ".reconstruct_from_residual",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:761"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
-      "label": ".set_condition_adapter",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:791"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
-      "label": "._prepare_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:797"
-    },
-    {
       "id": "file::graph_builder",
       "label": "graph_builder.py",
       "fileType": "code",
@@ -4605,6 +4472,475 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_finitions.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_finitions.py:443"
+    },
+    {
+      "id": "file::_bench_stage1_repeated",
+      "label": "_bench_stage1_repeated.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:1"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakercncell",
+      "label": "FakeRCNCell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:23"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakercncell::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:27"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakercncell::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:36"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakeregressionhead",
+      "label": "FakeRegressionHead",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:50"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakeregressionhead::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:52"
+    },
+    {
+      "id": "_bench_stage1_repeated::fakeregressionhead::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:61"
+    },
+    {
+      "id": "_bench_stage1_repeated::time_stage1_per_micro",
+      "label": "time_stage1_per_micro",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:73"
+    },
+    {
+      "id": "_bench_stage1_repeated::time_stage1_oneshot",
+      "label": "time_stage1_oneshot",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:90"
+    },
+    {
+      "id": "_bench_stage1_repeated::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:100"
+    },
+    {
+      "id": "file::_bench_stage2_bottleneck",
+      "label": "_bench_stage2_bottleneck.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:1"
+    },
+    {
+      "id": "_bench_stage2_bottleneck::build_mock_unet",
+      "label": "build_mock_unet",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:30"
+    },
+    {
+      "id": "_bench_stage2_bottleneck::time_path_a_per_sample_loop",
+      "label": "time_path_A_per_sample_loop",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:58"
+    },
+    {
+      "id": "_bench_stage2_bottleneck::time_path_b_batched",
+      "label": "time_path_B_batched",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:88"
+    },
+    {
+      "id": "_bench_stage2_bottleneck::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:115"
+    },
+    {
+      "id": "file::_bench_stage2_bottleneck_fast",
+      "label": "_bench_stage2_bottleneck_fast.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:1"
+    },
+    {
+      "id": "_bench_stage2_bottleneck_fast::build_tiny_unet",
+      "label": "build_tiny_unet",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:17"
+    },
+    {
+      "id": "_bench_stage2_bottleneck_fast::time_path_a",
+      "label": "time_path_A",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:34"
+    },
+    {
+      "id": "_bench_stage2_bottleneck_fast::time_path_b",
+      "label": "time_path_B",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:51"
+    },
+    {
+      "id": "_bench_stage2_bottleneck_fast::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:67"
+    },
+    {
+      "id": "file::_diag_stage2_timing",
+      "label": "_diag_stage2_timing.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_diag_stage2_timing.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_diag_stage2_timing.py:1"
+    },
+    {
+      "id": "file::diffusion_decoder",
+      "label": "diffusion_decoder.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
+    },
+    {
+      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
+      "label": "_replace_conv_transpose_with_resize",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:35"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput",
+      "label": "DiffusionOutput",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:62"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput::composite",
+      "label": ".composite",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:74"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder",
+      "label": "CausalDiffusionDecoder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:79"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:84"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
+      "label": ".enable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:162"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
+      "label": ".disable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:184"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
+      "label": "._pool_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:195"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_zero_class_labels_placeholder",
+      "label": "._zero_class_labels_placeholder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:199"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:229"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
+      "label": ".compute_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:260"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::forward_edm",
+      "label": ".forward_edm",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:402"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss_edm",
+      "label": ".compute_loss_edm",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:515"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
+      "label": ".predict_x0_from_epsilon",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:625"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
+      "label": ".apply_physical_constraints",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:636"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
+      "label": ".sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:677"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_karras",
+      "label": "._sample_edm_karras",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:840"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
+      "label": "._sample_edm_ode",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:939"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
+      "label": "._sample_dpm_solver",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
+      "label": ".reconstruct_from_residual",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1174"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
+      "label": ".set_condition_adapter",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1204"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
+      "label": "._prepare_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1210"
+    },
+    {
+      "id": "file::edm_preconditioner",
+      "label": "edm_preconditioner.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:1"
+    },
+    {
+      "id": "edm_preconditioner::tailweightconfig",
+      "label": "TailWeightConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:51"
+    },
+    {
+      "id": "edm_preconditioner::edmconfig",
+      "label": "EDMConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:78"
+    },
+    {
+      "id": "edm_preconditioner::compute_preconditioning",
+      "label": "compute_preconditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:103"
+    },
+    {
+      "id": "edm_preconditioner::lambda_weight",
+      "label": "lambda_weight",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:148"
+    },
+    {
+      "id": "edm_preconditioner::sample_training_sigma",
+      "label": "sample_training_sigma",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:165"
+    },
+    {
+      "id": "edm_preconditioner::karras_sigma_schedule",
+      "label": "karras_sigma_schedule",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:185"
+    },
+    {
+      "id": "edm_preconditioner::stochastic_churn",
+      "label": "stochastic_churn",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:213"
+    },
+    {
+      "id": "file::_patch_two_stage_bs34_tail_loss",
+      "label": "_patch_two_stage_bs34_tail_loss.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:1"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::patch_edm_preconditioner",
+      "label": "patch_edm_preconditioner",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:148"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::patch_diffusion_decoder",
+      "label": "patch_diffusion_decoder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:205"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::patch_override_yaml",
+      "label": "patch_override_yaml",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:260"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::_find_cell",
+      "label": "_find_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:322"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::patch_notebook",
+      "label": "patch_notebook",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:331"
+    },
+    {
+      "id": "_patch_two_stage_bs34_tail_loss::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:358"
+    },
+    {
+      "id": "file::download_era5_benin",
+      "label": "download_era5_benin.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:1"
+    },
+    {
+      "id": "download_era5_benin::_build_request_plev",
+      "label": "_build_request_plev",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:120"
+    },
+    {
+      "id": "download_era5_benin::_build_request_slev",
+      "label": "_build_request_slev",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:134"
+    },
+    {
+      "id": "download_era5_benin::fetch_year",
+      "label": "fetch_year",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:147"
+    },
+    {
+      "id": "download_era5_benin::daily_aggregate",
+      "label": "daily_aggregate",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:186"
+    },
+    {
+      "id": "download_era5_benin::concat_years",
+      "label": "concat_years",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:231"
+    },
+    {
+      "id": "download_era5_benin::parse_year_range",
+      "label": "parse_year_range",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:249"
+    },
+    {
+      "id": "download_era5_benin::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:256"
     }
   ],
   "edges": [
@@ -8047,168 +8383,6 @@
       "weight": 1
     },
     {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::_replace_conv_transpose_with_resize",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:34",
-      "weight": 1
-    },
-    {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::diffusionoutput",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:61",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::diffusionoutput",
-      "target": "diffusion_decoder::diffusionoutput::composite",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:73",
-      "weight": 1
-    },
-    {
-      "source": "file::diffusion_decoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:78",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:83",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:132",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:154",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:165",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::forward",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:169",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:200",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:338",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:349",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::sample",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:390",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:526",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:626",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:761",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:791",
-      "weight": 1
-    },
-    {
-      "source": "diffusion_decoder::causaldiffusiondecoder",
-      "target": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:797",
-      "weight": 1
-    },
-    {
       "source": "file::graph_builder",
       "target": "graph_builder::graphbuildreport",
       "relation": "contains",
@@ -9791,12 +9965,543 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_finitions.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_colab_finitions.py:443",
       "weight": 1
+    },
+    {
+      "source": "file::_bench_stage1_repeated",
+      "target": "_bench_stage1_repeated::fakercncell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:23",
+      "weight": 1
+    },
+    {
+      "source": "_bench_stage1_repeated::fakercncell",
+      "target": "_bench_stage1_repeated::fakercncell::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:27",
+      "weight": 1
+    },
+    {
+      "source": "_bench_stage1_repeated::fakercncell",
+      "target": "_bench_stage1_repeated::fakercncell::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage1_repeated",
+      "target": "_bench_stage1_repeated::fakeregressionhead",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:50",
+      "weight": 1
+    },
+    {
+      "source": "_bench_stage1_repeated::fakeregressionhead",
+      "target": "_bench_stage1_repeated::fakeregressionhead::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:52",
+      "weight": 1
+    },
+    {
+      "source": "_bench_stage1_repeated::fakeregressionhead",
+      "target": "_bench_stage1_repeated::fakeregressionhead::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:61",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage1_repeated",
+      "target": "_bench_stage1_repeated::time_stage1_per_micro",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:73",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage1_repeated",
+      "target": "_bench_stage1_repeated::time_stage1_oneshot",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:90",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage1_repeated",
+      "target": "_bench_stage1_repeated::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage1_repeated.py:100",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck",
+      "target": "_bench_stage2_bottleneck::build_mock_unet",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:30",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck",
+      "target": "_bench_stage2_bottleneck::time_path_a_per_sample_loop",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:58",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck",
+      "target": "_bench_stage2_bottleneck::time_path_b_batched",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:88",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck",
+      "target": "_bench_stage2_bottleneck::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck.py:115",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck_fast",
+      "target": "_bench_stage2_bottleneck_fast::build_tiny_unet",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:17",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck_fast",
+      "target": "_bench_stage2_bottleneck_fast::time_path_a",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:34",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck_fast",
+      "target": "_bench_stage2_bottleneck_fast::time_path_b",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:51",
+      "weight": 1
+    },
+    {
+      "source": "file::_bench_stage2_bottleneck_fast",
+      "target": "_bench_stage2_bottleneck_fast::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_bench_stage2_bottleneck_fast.py:67",
+      "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::_replace_conv_transpose_with_resize",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:35",
+      "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::diffusionoutput",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:62",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::diffusionoutput",
+      "target": "diffusion_decoder::diffusionoutput::composite",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:74",
+      "weight": 1
+    },
+    {
+      "source": "file::diffusion_decoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:79",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:84",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:162",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:184",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:195",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_zero_class_labels_placeholder",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:199",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:229",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:260",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::forward_edm",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:402",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::compute_loss_edm",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:515",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:625",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:636",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::sample",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:677",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_karras",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:840",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:939",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1174",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1204",
+      "weight": 1
+    },
+    {
+      "source": "diffusion_decoder::causaldiffusiondecoder",
+      "target": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1210",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::tailweightconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:51",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::edmconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:78",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::compute_preconditioning",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:103",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::lambda_weight",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:148",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::sample_training_sigma",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:165",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::karras_sigma_schedule",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:185",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::stochastic_churn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:213",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_edm_preconditioner",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:148",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_diffusion_decoder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:205",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_override_yaml",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:260",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::_find_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:322",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_notebook",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:331",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:358",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::_build_request_plev",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:120",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::_build_request_slev",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:134",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::fetch_year",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:147",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::daily_aggregate",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:186",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::concat_years",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:231",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::parse_year_range",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:249",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:256",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 83,
-    "nodes": 658,
-    "edges": 576,
-    "builtAt": "2026-05-02T12:58:20.590Z"
+    "files": 90,
+    "nodes": 706,
+    "edges": 617,
+    "builtAt": "2026-05-08T10:52:40.661Z"
   }
 }

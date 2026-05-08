@@ -46,6 +46,34 @@ import torch
 from torch import Tensor
 
 
+# >>> BS34_TAIL_LOSS — tail-aware MSE config (Ravuri 2021, WassDiff 2024).
+@dataclass
+class TailWeightConfig:
+    """Threshold-weighted denoising loss for heavy-tailed targets.
+
+    The weight applied to ``(D - x0)²`` at each pixel is::
+
+        w(x) = 1 + (w95 - 1) · 1[x > τ95] + (w99 - w95) · 1[x > τ99]
+
+    where ``x`` is the FULL HR field reconstructed in log1p(mm/day) space
+    (``baseline_log + μ_HR + target``). Defaults match Bénin/West African
+    daily CHIRPS climatology; recompute via
+    ``scripts/measure_chirps_quantiles.py`` after data swap.
+
+    References
+    ----------
+    Ravuri et al. 2021, *Nature* (DGMR) — intensity-weighted nowcasting loss.
+    Liu et al. 2024, arXiv:2410.00381 (WassDiff) — extreme-precipitation
+    diffusion regularisation; this is the simplified weight-only ablation.
+    """
+
+    enabled: bool = False                 # OFF by default — opt-in via YAML
+    tau95_mmday: float = 15.0             # log1p applied internally
+    tau99_mmday: float = 35.0
+    weight_p95: float = 5.0
+    weight_p99: float = 10.0
+
+
 @dataclass
 class EDMConfig:
     """EDM hyper-parameters. Defaults are Karras 2022 Table 5 (CIFAR-10)
@@ -68,6 +96,8 @@ class EDMConfig:
     S_tmin: float = 0.0
     S_tmax: float = float("inf")
     S_noise: float = 1.0
+    # >>> BS34_TAIL_LOSS — optional tail-weighting (None = legacy MSE).
+    tail_weight: TailWeightConfig | None = None
 
 
 def compute_preconditioning(

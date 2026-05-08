@@ -13,6 +13,10 @@ from .models.intelligible_encoder import (
     CausalConditioningProjector,
     HRTargetIdentifiabilityHead,
 )
+from .models.regression_mean_predictor import (
+    RegressionMeanPredictor,
+    RegressionPredictorConfig,
+)
 from .models.graph_builder import HeteroGraphBuilder
 from .data.pipeline import NetCDFDataPipeline, ZarrDataPipeline, ResDiffIterableDataset
 from .data.netcdf_utils import NetCDFToDataFrame
@@ -33,6 +37,8 @@ __all__ = [
     "SpatialConditioningProjector",
     "CausalConditioningProjector",
     "HRTargetIdentifiabilityHead",
+    "RegressionMeanPredictor",
+    "RegressionPredictorConfig",
     "HeteroGraphBuilder",
     # Data
     "NetCDFDataPipeline",
