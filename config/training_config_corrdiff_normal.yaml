@@ -1,0 +1,156 @@
+# =============================================================================
+# CorrDiff Normal V2 override — BS36 (2026-05-09)
+# =============================================================================
+# Applies on top of ``training_config.yaml`` via ``OmegaConf.merge``.
+#
+# OBJECTIF V2 : franchir le palier Pearson 0.36 -> >= 0.75, F1@p99 0.0037
+# -> >= 0.20. Le Stage 2 Mini ([64,128,128], ~12 M params) sous-fitte
+# clairement les extrêmes ; on passe à un UNet 4 niveaux
+# [128,256,256,256] (~50 M params), aligné sur NVIDIA PhysicsNeMo
+# CorrDiff Normal (``examples/weather/corrdiff/conf/base/model_size/normal.yaml``,
+# model_channels=128, channel_mult=[1, 2, 2, 2]).
+#
+# DIFFÉRENCES vs CorrDiff Mini :
+#   - UNet 3 niveaux -> 4 niveaux (resolution chain 172 -> 86 -> 43 -> 21)
+#   - block_out_channels [64,128,128] -> [128,256,256,256] (~4x params)
+#   - tail_weight 5/10 -> 8/25 (boost extrêmes pluies)
+#   - use_gradient_checkpointing true (compense le 4x param count)
+#   - stage1.epochs_max 7 -> 10 (Stage 1 réentraîné from-scratch)
+#   - checkpoint.save_dir séparé pour préserver V1 intact
+#
+# STRATÉGIE CHECKPOINT : V2 = full retrain isolé. Stage 1 ET Stage 2 sont
+# entraînés depuis zéro dans ``ckpt_v2_corrdiff_normal/``. V1 (``ckpt/``,
+# Pearson 0.36) reste intact pour comparaison mémoire. Pas de seed depuis
+# V1 (zéro risque de mismatch state_dict CorrDiff Mini -> Normal).
+#
+# RÉFÉRENCES :
+#   - Mardani et al. 2024 — CorrDiff (arXiv:2309.15214) — Normal sizing
+#   - Karras et al. 2022 — EDM (arXiv:2206.00364) — capacity scaling
+#   - architecture_journey.md §6 — BS31/BS35 historique
+# =============================================================================
+
+# =============================================================================
+# Stage 2 diffusion UNet — CorrDiff Normal sizing
+# =============================================================================
+diffusion:
+  unet_kwargs:
+    layers_per_block: 2
+    # 4 niveaux : 172x179 -> 86x90 -> 43x45 -> 21x22.
+    # ~50 M parameters (verifier via dry-run scripts/_inspect_unet_attention.py).
+    block_out_channels: [128, 256, 256, 256]
+
+    # Attention au plus petit niveau seulement (NVIDIA CorrDiff pattern :
+    # ``attn_resolutions: [16]`` dans normal.yaml). Au level 3 (21x22 =
+    # 462 tokens), une attention matrix bs=64 x 8 heads x bf16 vaut
+    # ~0.45 GiB par layer -> 5 layers -> ~2.3 GiB total. Largement OK
+    # sur A100 80 GiB combiné avec gradient_checkpointing.
+    down_block_types:
+      - "DownBlock2D"            # 172x179 — no attn
+      - "DownBlock2D"            # 86x90   — no attn
+      - "DownBlock2D"            # 43x45   — no attn
+      - "CrossAttnDownBlock2D"   # 21x22   — attn ici (smallest level)
+    up_block_types:
+      - "CrossAttnUpBlock2D"     # 21x22   — attn ici
+      - "UpBlock2D"              # 43x45   — no attn
+      - "UpBlock2D"              # 86x90   — no attn
+      - "UpBlock2D"              # 172x179 — no attn
+    mid_block_type: "UNetMidBlock2D"
+
+    # GroupNorm groups must divide every channel count.
+    # 128 / 32 = 4, 256 / 32 = 8 -> OK.
+    norm_num_groups: 32
+
+    # 8 heads x 32 dim/head = 256 inner_dim au level 3 (block_out_channels[3]).
+    # diffusers 0.36 interprète attention_head_dim comme num_heads ; donc 8
+    # heads de dim 32 = configuration standard CorrDiff Normal.
+    attention_head_dim: 8
+
+    # Length-4 to match 4 levels (one per down/up block).
+    only_cross_attention: [false, false, false, false]
+
+  # BS36 : tail-loss renforcée. F1@p99=0.0037 en V1 indique que le réseau
+  # ignore les extrêmes ; on monte le poids des résidus correspondant à
+  # >= p95/p99 pour forcer l'apprentissage des queues de distribution.
+  edm:
+    tail_weight:
+      enabled: true
+      tau95_mmday: 15.0
+      tau99_mmday: 35.0
+      weight_p95: 8.0     # 5.0 -> 8.0 (Mini -> Normal)
+      weight_p99: 25.0    # 10.0 -> 25.0 (Mini -> Normal)
+
+  # Compense le 4x param count du nouveau UNet. Recompute activations
+  # pendant le backward -> ~30% plus lent mais ~50% moins de VRAM.
+  # Sans ça, batch_size=64 sur 4 niveaux de [128,256,256,256] OOM même
+  # sur A100 80 GiB.
+  use_gradient_checkpointing: true
+
+# =============================================================================
+# Two-stage training — full retrain V2
+# =============================================================================
+two_stage:
+  # Stage 1 réentraîné from-scratch dans ckpt_v2_corrdiff_normal/.
+  # Architecture identique à V1 (encoder/RCN/regression_head inchangés),
+  # seul le budget passe à 10 epochs (vs 7 en V1) pour garantir une
+  # convergence un peu plus poussée du DAG et de la regression head
+  # avant de geler Stage 1.
+  stage1:
+    epochs_max: 10
+
+  stage2:
+    epochs_max: 50
+    # BS35-CONTRASTIVE — bloc identique à mini (A+B+C failsafe).
+    # Force Stage 2 à utiliser réellement μ_HR(A_dag) en marge contre
+    # μ_HR(zero-DAG). Auto-disabled si run_variant != 'causal'.
+    contrastive_dag:
+      enabled: true
+      weight: 0.5
+      margin: 0.02
+      interval: 4
+      ablation_mode: zero
+      diagnostic:
+        decorative_threshold: 0.01
+        modest_threshold: 0.10
+      decay:
+        enabled: true
+        warmup_epochs: 2
+        decay_factor: 0.5
+        recovery_factor: 1.5
+        floor_ratio: 0.01
+      autotune_mode:
+        enabled: true
+        activate_after_epochs: 15
+        window_epochs: 3
+        sensitivity_threshold: 0.001
+        mode_progression: [zero, permute, random]
+
+  # BS35 : 'causal' (RCN+DAGMA+decoder) | 'noncausal' (RegressionMeanPredictor baseline).
+  run_variant: causal
+
+# =============================================================================
+# Data sequencing — paper alignment, identique à mini.
+# stride=2 -> ~6927 samples/epoch (vs ~3469 en stride=4).
+# =============================================================================
+data:
+  stride: 2
+
+# =============================================================================
+# torch.compile — désactivé (idem mini). torch._inductor.pad_mm.should_pad_bmm
+# tente d'allouer un fake bench tensor géant sur shapes 4D (172,179)
+# peu communes -> faux OOM. Désactiver compile entièrement est plus
+# simple et sûr ; le gain compile était 10-20% au mieux.
+# =============================================================================
+training:
+  compile:
+    enabled: false
+
+# =============================================================================
+# Checkpoint isolé V2 -> préserve V1 (Pearson 0.36, baseline mémoire).
+# =============================================================================
+# Path absolu Drive : bypass l'auto-redirect du notebook
+# (``if not str(CKPT_SAVE_DIR).startswith("/content/drive")`` -> false ici,
+# donc le YAML est respecté tel quel).
+# Local dev : remplacer manuellement par un chemin relatif (ex. "models_v2_corrdiff_normal")
+# avant le merge si besoin.
+checkpoint:
+  save_dir: "/content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal"

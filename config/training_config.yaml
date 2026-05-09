@@ -526,7 +526,11 @@ evaluation:
   #   inference cost (~14s → ~28s per sample on CPU) but recovers most
   #   of the RAPSD distance gap.
   num_samples: 8               # 16 → 8 : CRPS Monte-Carlo 2× plus rapide (bruit +41% acceptable)
-  eval_num_steps: 20
+  # BS36 (V2 CorrDiff Normal) : 20 → 32. DPM-Solver++ converge nettement
+  # mieux au-delà de 25 steps sur UNet de résidu plus capacitif.
+  # Coût inférence ×1.6 (~28s → ~45s par échantillon CPU) mais gain
+  # Pearson attendu +0.05 à +0.10 sans recalcul des poids.
+  eval_num_steps: 32
   eval_scheduler: "dpm_solver++"
   crps_max_ensemble_members: 32
   compute_f1_extremes: true
