@@ -116,6 +116,38 @@ diffusion:
 two_stage:
   stage2:
     epochs_max: 50
+    # BS35-CONTRASTIVE — force Stage 2 to actually USE μ_HR(A_dag).
+    # Pre-cache two μ_HR variants (normal + dagless) and add a margin
+    # loss so that EDM loss with real μ_HR beats EDM loss with the
+    # dagless μ_HR by at least ``margin``. Auto-disabled when
+    # run_variant != 'causal' (no DAG to contrast against).
+    contrastive_dag:
+      enabled: true
+      weight: 0.5
+      margin: 0.02
+      interval: 4               # 1 contrastive pass every N batches
+      ablation_mode: zero       # 'zero' | 'random' | 'permute'
+      # --- BS35-FAILSAFE (improve signal > cut signal) ---
+      # A) Upstream diagnostic thresholds on delta_mu = ||μ_normal − μ_dagless|| / ||μ_normal||
+      diagnostic:
+        decorative_threshold: 0.01     # < 1% → DAG decorative (warn)
+        modest_threshold: 0.10         # 1-10% → modest causal signal
+      # B) Progressive lambda decay/recovery based on dag_sensitivity
+      decay:
+        enabled: true
+        warmup_epochs: 2               # no decay during these initial epochs
+        decay_factor: 0.5              # λ ← λ * factor when sens < 0
+        recovery_factor: 1.5           # λ ← λ * factor when sens > margin (capped at λ_init)
+        floor_ratio: 0.01              # λ never below λ_init * floor_ratio
+      # C) Auto-tune ablation mode (zero → permute → random) when DAG signal too weak.
+      # Only fires when Stage 2 trains for more than ``activate_after_epochs`` epochs.
+      # On the quick 15-epoch run, this never activates by design.
+      autotune_mode:
+        enabled: true
+        activate_after_epochs: 15      # min Stage 2 epochs before C can fire
+        window_epochs: 3               # rolling window for sensitivity check
+        sensitivity_threshold: 0.001   # if avg dag_sens < this AND λ already decayed → swap mode
+        mode_progression: [zero, permute, random]
   # BS35: 'causal' (RCN+DAGMA+decoder) | 'noncausal' (RegressionMeanPredictor baseline).
   run_variant: causal
 

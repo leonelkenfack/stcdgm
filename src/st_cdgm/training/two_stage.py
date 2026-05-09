@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import math
 from contextlib import contextmanager
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -454,6 +454,8 @@ def precompute_stage1_outputs(
     train_dataset,
     iterate_batches_fn,
     device: torch.device,
+    dag_variants: Sequence[str] = ("normal",),
+    existing_cache: Optional[dict] = None,
 ) -> dict:
     """Iterate ``train_dataset`` once, run Stage 1 forward per sample,
     and stack outputs into a dict of CPU tensors.
@@ -462,6 +464,19 @@ def precompute_stage1_outputs(
     Result keys: ``mu_HR``, ``baseline_log``, ``delta_target``,
     ``valid_mask``. Each tensor is shape ``(N, C, H, W)``. ``valid_mask``
     is ``bool`` (``True`` where the target is finite).
+
+    BS35-CONTRASTIVE — ``dag_variants`` lets the caller request additional
+    Stage 1 forwards with the RCN ``A_dag`` perturbed at inference time
+    (``set_dag_ablation_mode``). For every non-``"normal"`` variant
+    ``v`` listed, the result also contains a ``mu_HR_<v>`` tensor of the
+    same shape. ``"normal"`` is always materialized as ``mu_HR`` and
+    drives ``delta_target = target - mu_HR``.
+
+    ``existing_cache``: if provided and already contains a variant
+    (``mu_HR`` for ``"normal"`` or ``mu_HR_<v>`` otherwise), that
+    variant is **not recomputed** — the cached tensors are reused.
+    This lets a contrastive run extend a legacy cache (only ``mu_HR``)
+    by computing solely the missing ablated variants.
 
     BS32b — eliminates per-batch Stage 1 forward (encoder + 16-step RCN
     + regression_head) which on the production training loop is run
@@ -490,70 +505,151 @@ def precompute_stage1_outputs(
         rcn_runner.cell.eval()
     regression_head.eval()
 
-    mu_list: list[Tensor] = []
-    base_list: list[Tensor] = []
-    delta_list: list[Tensor] = []
-    mask_list: list[Tensor] = []
+    rcn_cell = rcn_runner.cell if hasattr(rcn_runner, "cell") else None
+    can_ablate = rcn_cell is not None and hasattr(rcn_cell, "set_dag_ablation_mode")
+
+    variants: list[str] = []
+    seen: set[str] = set()
+    for v in dag_variants:
+        v = str(v).lower()
+        if v not in seen:
+            variants.append(v)
+            seen.add(v)
+    if "normal" not in variants:
+        variants.insert(0, "normal")
+
+    def _key_for(v: str) -> str:
+        return "mu_HR" if v == "normal" else f"mu_HR_{v}"
+
+    out: dict = {}
+    if existing_cache is not None:
+        for k in ("baseline_log", "delta_target", "valid_mask"):
+            if k in existing_cache:
+                out[k] = existing_cache[k]
+        for v in variants:
+            k = _key_for(v)
+            if k in existing_cache:
+                out[k] = existing_cache[k]
+
+    needed_variants = [v for v in variants if _key_for(v) not in out]
+
+    has_targets = all(k in out for k in ("baseline_log", "delta_target", "valid_mask"))
+    if not needed_variants and has_targets:
+        print(
+            f"  precompute Stage 1 : tous les variants {variants!r} "
+            f"déjà présents dans le cache → skip",
+            flush=True,
+        )
+        return out
+
+    if not needed_variants and not has_targets:
+        needed_variants = ["normal"]
+
+    if not can_ablate and any(v != "normal" for v in needed_variants):
+        raise RuntimeError(
+            "precompute_stage1_outputs: dag_variants demande une ablation "
+            "(non-'normal') mais rcn_runner.cell n'expose pas "
+            "set_dag_ablation_mode. Patch BS35 manquant ?"
+        )
 
     import time as _t
-    t0 = _t.time()
-    last_print = t0
-    n_seen = 0
 
-    for sample in train_dataset:
-        batch = iterate_batches_fn(sample)
-        lr_data = batch["lr"].to(device)
-        target = batch["residual"][-1].to(device)
-        if target.dim() == 3:
-            target = target.unsqueeze(0)
+    delta_target_for_normal: Optional[list[Tensor]] = None
 
-        baseline_t = batch.get("baseline")
-        if baseline_t is not None:
-            baseline_t = baseline_t[-1].to(device)
-            if baseline_t.dim() == 3:
-                baseline_t = baseline_t.unsqueeze(0)
+    for variant in needed_variants:
+        if can_ablate:
+            try:
+                rcn_cell.set_dag_ablation_mode(variant, seed=42)
+            except Exception as _e:
+                raise RuntimeError(
+                    f"precompute_stage1_outputs: échec set_dag_ablation_mode({variant!r}): {_e}"
+                ) from _e
 
-        H_init = encoder.init_state(batch["hetero"]).to(device)
-        drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-        seq = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
-        H_T = seq.states[-1]
-        mu_HR = regression_head(H_T)
-        if mu_HR.shape != target.shape:
-            mu_HR = F.interpolate(
-                mu_HR, size=target.shape[-2:],
-                mode="bilinear", align_corners=False,
+        mu_list: list[Tensor] = []
+        base_list: list[Tensor] = []
+        delta_list: list[Tensor] = []
+        mask_list: list[Tensor] = []
+
+        t0 = _t.time()
+        last_print = t0
+        n_seen = 0
+
+        for sample in train_dataset:
+            batch = iterate_batches_fn(sample)
+            lr_data = batch["lr"].to(device)
+            target = batch["residual"][-1].to(device)
+            if target.dim() == 3:
+                target = target.unsqueeze(0)
+
+            baseline_t = batch.get("baseline")
+            if baseline_t is not None:
+                baseline_t = baseline_t[-1].to(device)
+                if baseline_t.dim() == 3:
+                    baseline_t = baseline_t.unsqueeze(0)
+
+            H_init = encoder.init_state(batch["hetero"]).to(device)
+            drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+            seq = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+            H_T = seq.states[-1]
+            mu_HR = regression_head(H_T)
+            if mu_HR.shape != target.shape:
+                mu_HR = F.interpolate(
+                    mu_HR, size=target.shape[-2:],
+                    mode="bilinear", align_corners=False,
+                )
+
+            baseline_log = baseline_t if baseline_t is not None else torch.zeros_like(target)
+            valid_mask = torch.isfinite(target)
+            delta_target = target - mu_HR
+
+            mu_HR = torch.nan_to_num(mu_HR, nan=0.0, posinf=0.0, neginf=0.0)
+            baseline_log = torch.nan_to_num(baseline_log, nan=0.0, posinf=0.0, neginf=0.0)
+            delta_target = torch.nan_to_num(delta_target, nan=0.0, posinf=0.0, neginf=0.0)
+
+            mu_list.append(mu_HR.detach().squeeze(0).cpu())
+            base_list.append(baseline_log.detach().squeeze(0).cpu())
+            delta_list.append(delta_target.detach().squeeze(0).cpu())
+            mask_list.append(valid_mask.detach().squeeze(0).cpu())
+
+            n_seen += 1
+            now = _t.time()
+            if (now - last_print) >= 5.0:
+                print(
+                    f"  precompute Stage 1 [{variant}] : {n_seen} samples "
+                    f"| {now-t0:.0f}s ({(now-t0)/n_seen:.2f}s/sample)",
+                    flush=True,
+                )
+                last_print = now
+
+        print(
+            f"  precompute Stage 1 [{variant}] : {n_seen} samples | "
+            f"total {_t.time()-t0:.0f}s "
+            f"({(_t.time()-t0)/max(1,n_seen):.2f}s/sample)",
+            flush=True,
+        )
+
+        out[_key_for(variant)] = (
+            torch.stack(mu_list, dim=0) if mu_list else torch.empty(0)
+        )
+        if variant == "normal":
+            out["baseline_log"] = (
+                torch.stack(base_list, dim=0) if base_list else torch.empty(0)
             )
+            out["delta_target"] = (
+                torch.stack(delta_list, dim=0) if delta_list else torch.empty(0)
+            )
+            out["valid_mask"] = (
+                torch.stack(mask_list, dim=0) if mask_list else torch.empty(0)
+            )
+            delta_target_for_normal = delta_list
 
-        baseline_log = baseline_t if baseline_t is not None else torch.zeros_like(target)
-        valid_mask = torch.isfinite(target)
-        delta_target = target - mu_HR
+    if can_ablate:
+        try:
+            rcn_cell.set_dag_ablation_mode("normal", seed=42)
+        except Exception:
+            pass
 
-        # Sanitize NaN — same logic as train_epoch_stage2 (BS17).
-        mu_HR = torch.nan_to_num(mu_HR, nan=0.0, posinf=0.0, neginf=0.0)
-        baseline_log = torch.nan_to_num(baseline_log, nan=0.0, posinf=0.0, neginf=0.0)
-        delta_target = torch.nan_to_num(delta_target, nan=0.0, posinf=0.0, neginf=0.0)
-
-        mu_list.append(mu_HR.detach().squeeze(0).cpu())
-        base_list.append(baseline_log.detach().squeeze(0).cpu())
-        delta_list.append(delta_target.detach().squeeze(0).cpu())
-        mask_list.append(valid_mask.detach().squeeze(0).cpu())
-
-        n_seen += 1
-        now = _t.time()
-        if (now - last_print) >= 5.0:
-            print(f"  precompute Stage 1 : {n_seen} samples | {now-t0:.0f}s "
-                  f"({(now-t0)/n_seen:.2f}s/sample)", flush=True)
-            last_print = now
-
-    print(f"  precompute Stage 1 : {n_seen} samples | total {_t.time()-t0:.0f}s "
-          f"({(_t.time()-t0)/max(1,n_seen):.2f}s/sample)", flush=True)
-
-    return {
-        "mu_HR": torch.stack(mu_list, dim=0) if mu_list else torch.empty(0),
-        "baseline_log": torch.stack(base_list, dim=0) if base_list else torch.empty(0),
-        "delta_target": torch.stack(delta_list, dim=0) if delta_list else torch.empty(0),
-        "valid_mask": torch.stack(mask_list, dim=0) if mask_list else torch.empty(0),
-    }
+    return out
 
 
 def train_epoch_stage2_cached(
@@ -566,21 +662,36 @@ def train_epoch_stage2_cached(
     gradient_clipping: Optional[float] = None,
     log_every: int = 20,
     verbose: bool = True,
+    lambda_contrastive_dag: float = 0.0,
+    contrastive_dag_margin: float = 0.02,
+    contrastive_dag_interval: int = 4,
+    ablated_mu_key: str = "mu_HR_zero",
 ) -> dict:
     """Thin Stage 2 training loop that consumes a pre-cached dataset.
 
     BS32b — the diffusion forward+backward runs at the *full batch
-    size* of the dataloader, not bs=1 in a per-micro loop. With
-    BATCH_SIZE=64, this is 64×-faster on A100 for the diffusion
-    portion than the original ``train_epoch_stage2`` which loops
-    ``for micro in batches:`` and calls the UNet at bs=1.
+    size* of the dataloader, not bs=1 in a per-micro loop.
 
-    Expects ``cached_dataloader`` to yield dicts with keys
-    ``mu_HR``, ``baseline_log``, ``delta_target`` (each shape
-    ``(B, C, H, W)``). The default PyTorch collate stacks correctly
-    when the underlying dataset is a TensorDataset-like object.
+    BS35-CONTRASTIVE — when ``lambda_contrastive_dag > 0`` and the
+    batch contains an ablated mu_HR (key ``ablated_mu_key``, default
+    ``"mu_HR_zero"``), we add a margin loss every
+    ``contrastive_dag_interval`` batches:
+
+        L_c = lambda * max(0, margin - (loss_zero - loss_real))
+
+    where ``loss_real = compute_loss_edm(delta, mu_HR_real, ...)``
+    drives the gradient and ``loss_zero = compute_loss_edm(delta,
+    mu_HR_dagless, ...)`` is computed under no_grad on the same
+    (delta_target, baseline_log, sigma sample) batch. The margin
+    forces Stage 2 to perform measurably better when conditioned on
+    the causally-informed mu_HR. The diagnostic
+    ``dag_sensitivity = loss_zero - loss_real`` is averaged and
+    returned in the result dict.
+
+    Expects ``cached_dataloader`` to yield dicts with at least
+    ``mu_HR``, ``baseline_log``, ``delta_target``. The contrastive
+    branch is silently skipped when the ablated key is missing.
     """
-    # Local import to avoid hard dependency at module import time.
     from st_cdgm.training.training_loop import (
         resolve_train_amp_mode,
         _train_autocast,
@@ -590,21 +701,49 @@ def train_epoch_stage2_cached(
     amp_mode = resolve_train_amp_mode(device, use_amp)
     scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
 
+    contrastive_active = bool(lambda_contrastive_dag > 0.0)
+    interval = max(1, int(contrastive_dag_interval))
+
     if verbose:
-        print(f"\n📚 Stage 2 epoch (cached) | amp={amp_mode}", flush=True)
+        print(
+            f"\n📚 Stage 2 epoch (cached) | amp={amp_mode} "
+            f"| contrastive_dag={'on' if contrastive_active else 'off'}"
+            + (
+                f" (lambda={lambda_contrastive_dag}, margin={contrastive_dag_margin},"
+                f" every {interval} batches, key={ablated_mu_key!r})"
+                if contrastive_active
+                else ""
+            ),
+            flush=True,
+        )
 
     total_loss = 0.0
+    total_contrastive = 0.0
+    total_dag_sensitivity = 0.0
+    n_contrastive = 0
     n_batches = 0
+    contrastive_skipped_missing_key = 0
 
     for batch_idx, batch in enumerate(cached_dataloader):
         mu_HR = batch["mu_HR"].to(device, non_blocking=True)
         baseline_log = batch["baseline_log"].to(device, non_blocking=True)
         delta_target = batch["delta_target"].to(device, non_blocking=True)
 
+        do_contrastive = (
+            contrastive_active and (batch_idx % interval == 0)
+        )
+        mu_HR_ablated: Optional[Tensor] = None
+        if do_contrastive:
+            if ablated_mu_key in batch:
+                mu_HR_ablated = batch[ablated_mu_key].to(device, non_blocking=True)
+            else:
+                contrastive_skipped_missing_key += 1
+                do_contrastive = False
+
         optimizer.zero_grad(set_to_none=True)
 
         with _train_autocast(amp_mode):
-            loss_diff = diffusion_decoder.compute_loss_edm(
+            loss_real = diffusion_decoder.compute_loss_edm(
                 target=delta_target,
                 conditioning=None,
                 conditioning_spatial=None,
@@ -612,10 +751,40 @@ def train_epoch_stage2_cached(
                 baseline_log=baseline_log,
             )
 
+            loss_contrast_value = torch.tensor(
+                0.0, device=device, dtype=loss_real.dtype
+            )
+            dag_sens_step: Optional[float] = None
+
+            if do_contrastive and mu_HR_ablated is not None:
+                with torch.no_grad():
+                    loss_zero = diffusion_decoder.compute_loss_edm(
+                        target=delta_target,
+                        conditioning=None,
+                        conditioning_spatial=None,
+                        mu_HR=mu_HR_ablated,
+                        baseline_log=baseline_log,
+                    )
+                margin_t = torch.as_tensor(
+                    contrastive_dag_margin,
+                    device=device,
+                    dtype=loss_real.dtype,
+                )
+                gap = loss_zero.detach() - loss_real
+                loss_contrast_value = lambda_contrastive_dag * torch.clamp(
+                    margin_t - gap, min=0.0
+                )
+                dag_sens_step = float((loss_zero - loss_real).detach().item())
+                total_dag_sensitivity += dag_sens_step
+                total_contrastive += float(loss_contrast_value.detach().item())
+                n_contrastive += 1
+
+            loss_total = loss_real + loss_contrast_value
+
         if amp_mode == "cuda_fp16":
-            scaler.scale(loss_diff).backward()
+            scaler.scale(loss_total).backward()
         else:
-            loss_diff.backward()
+            loss_total.backward()
 
         if gradient_clipping is not None and gradient_clipping > 0:
             if amp_mode == "cuda_fp16":
@@ -630,16 +799,60 @@ def train_epoch_stage2_cached(
         else:
             optimizer.step()
 
-        total_loss += float(loss_diff.detach().item())
+        total_loss += float(loss_real.detach().item())
         n_batches += 1
 
         if verbose and (batch_idx == 0 or (batch_idx + 1) % log_every == 0):
-            print(f"  S2 batch {batch_idx + 1} | loss_diff={float(loss_diff.detach()):.5f}",
-                  flush=True)
+            extra = ""
+            if dag_sens_step is not None:
+                extra = (
+                    f" | L_contrast={float(loss_contrast_value.detach()):.5f}"
+                    f" | dag_sens={dag_sens_step:+.5f}"
+                )
+            print(
+                f"  S2 batch {batch_idx + 1} | loss_diff={float(loss_real.detach()):.5f}{extra}",
+                flush=True,
+            )
+
+    avg_dag_sens = (
+        total_dag_sensitivity / max(1, n_contrastive) if n_contrastive > 0 else 0.0
+    )
+    avg_contrast = (
+        total_contrastive / max(1, n_contrastive) if n_contrastive > 0 else 0.0
+    )
+
+    if verbose and contrastive_active:
+        if n_contrastive == 0:
+            warn = ""
+            if contrastive_skipped_missing_key > 0:
+                warn = (
+                    f" (⚠ {contrastive_skipped_missing_key} batches skipped: "
+                    f"clé {ablated_mu_key!r} absente du batch)"
+                )
+            print(f"  contrastive_dag : aucun pas exécuté{warn}", flush=True)
+        else:
+            verdict = (
+                "OK (DAG conditionne S2)"
+                if avg_dag_sens >= contrastive_dag_margin
+                else (
+                    "marge non atteinte"
+                    if avg_dag_sens > 0.0
+                    else "DAG ignoré par S2"
+                )
+            )
+            print(
+                f"  contrastive_dag : {n_contrastive} steps | "
+                f"avg_loss_contrast={avg_contrast:.5f} | "
+                f"avg_dag_sensitivity={avg_dag_sens:+.5f} → {verdict}",
+                flush=True,
+            )
 
     return {
         "loss_diff": total_loss / max(1, n_batches),
         "n_batches": n_batches,
+        "loss_contrastive_dag": avg_contrast,
+        "dag_sensitivity": avg_dag_sens,
+        "n_contrastive_steps": n_contrastive,
     }
 
 

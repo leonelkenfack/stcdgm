@@ -1,0 +1,661 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage[htt]{hyphenat}
+\geometry{margin=2.5cm}
+\setlist[itemize]{leftmargin=1.2cm}
+\setlist[enumerate]{leftmargin=1.2cm}
+\emergencystretch=4em
+\tolerance=2000
+\hbadness=4000
+\sloppy
+
+\title{Plan G\'en\'eral D\'etaill\'e du M\'emoire}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Contexte et positionnement du manuscrit}
+
+Le pr\'esent plan d\'efinit l'orientation g\'en\'erale d'un m\'emoire consacr\'e au d\'eveloppement de m\'ethodes d'apprentissage automatique pour la d\'esagr\'egation temporelle et la mise \`a l'\'echelle spatiale des donn\'ees climatiques destin\'ees aux communaut\'es locales.
+
+Le projet porte sur \textbf{Oracle}, une architecture causale et g\'en\'erative \`a deux \'etages pour le downscaling climatique probabiliste. Les axes structurants du manuscrit sont les suivants :
+\begin{itemize}
+    \item produire des champs climatiques haute r\'esolution \`a partir de pr\'edicteurs basse r\'esolution ;
+    \item am\'eliorer la robustesse hors distribution dans un contexte de changement climatique ;
+    \item limiter les hallucinations statistiques des mod\`eles purement corr\'elatifs par une structure causale explicite ;
+    \item combiner un pr\'edicteur causal de moyenne haute r\'esolution avec un d\'ecodeur de diffusion r\'esiduelle.
+\end{itemize}
+
+\section{Plan global propos\'e du m\'emoire}
+
+\subsection*{Pages pr\'eliminaire}
+\begin{itemize}
+    \item Page de garde
+    \item D\'edicace (optionnel)
+    \item Remerciements
+    \item R\'esum\'e (fran\c{c}ais) + mots-cl\'es
+    \item Abstract (anglais) + keywords
+    \item Liste des abr\'eviations/sigles
+    \item Table des mati\`eres
+    \item Liste des figures et des tableaux
+\end{itemize}
+
+\subsection*{Corps du m\'emoire}
+\begin{enumerate}
+    \item \textbf{Introduction g\'en\'erale}
+    \begin{itemize}
+        \item Contexte climatique, besoins locaux et limites des r\'esolutions disponibles
+        \item Probl\'ematique de g\'en\'eralisation hors distribution
+        \item Questions de recherche
+        \item Objectifs scientifiques et techniques
+        \item Hypoth\`eses de travail
+        \item M\'ethodologie globale
+        \item Contributions attendues
+        \item Organisation du document
+    \end{itemize}
+
+    \item \textbf{Chapitre 1 -- Fondements du downscaling climatique}
+    \begin{itemize}
+        \item Donn\'ees climatiques basse et haute r\'esolution
+        \item D\'esagr\'egation temporelle et mise \`a l'\'echelle spatiale
+        \item Mod\'elisation probabiliste des champs climatiques
+        \item M\'etriques d'\'evaluation climatiques et probabilistes
+        \item Trilemme : stabilit\'e, r\'ealisme des extr\^emes, robustesse OOD
+        \item Synth\`ese de positionnement pour la suite
+    \end{itemize}
+
+    \item \textbf{Chapitre 2 -- \'Etat de l'art du downscaling par apprentissage profond}
+    \begin{itemize}
+        \item Approches d\'eterministes et U-Net
+        \item Mod\`eles g\'en\'eratifs adversariaux et Residual cGAN
+        \item Diffusion r\'esiduelle et EDM
+        \item Contraintes physiques, XAI et causalit\'e
+        \item Limites des approches existantes et gap scientifique
+    \end{itemize}
+
+    \item \textbf{Chapitre 3 -- Proposition Oracle : architecture two-stage causale}
+    \begin{itemize}
+        \item Graphe atmosph\'erique h\'et\'erog\`ene
+        \item Encodeur intelligible de variables
+        \item RCN : SCM, GRU et DAGMA
+        \item Stage 1 : pr\'ediction de la moyenne causale
+        \item Stage 2 : diffusion r\'esiduelle EDM
+        \item Dynamique d'entra\^inement et propri\'et\'e (O3)
+    \end{itemize}
+
+    \item \textbf{Chapitre 4 -- Mat\'eriels, m\'ethodes, exp\'erimentations et discussion}
+    \begin{itemize}
+        \item Environnement logiciel et mat\'eriel (Python, PyTorch, Hydra, AMP, \texttt{torch.compile})
+        \item Donn\'ees ACCESS-CM2 historique, pr\'etraitements et s\'equences temporelles ($\texttt{seq\_len}=16$, $\texttt{stride}=4$)
+        \item Topologie Oracle : graphe h\'et\'erog\`ene, encodeur intelligible, RCN, Stage~1 (\texttt{GraphToGridDecoder}), Stage~2 (UNet EDM)
+        \item Optimisation two-stage : AdamW + cosine pour Stage~1, Adam + groupes s\'epar\'es pour Stage~2, pertes \texttt{huber+cosine} et focal
+        \item Diffusion EDM (Karras) : sampler de Heun, sigma calibr\'e
+        \item Protocole d'\'evaluation : MAE, MSE, corr\'elation, CRPS, FSS, RAPSD, F1@p95/p99
+        \item Diagnostic causal et v\'erification de la propri\'et\'e (O3) (ablation $A_{\text{dag}}$ vs $\mathbf{0}$)
+        \item R\'esultats observ\'es, discussion critique et menaces \`a la validit\'e
+    \end{itemize}
+
+    \item \textbf{Conclusion g\'en\'erale et perspectives}
+    \begin{itemize}
+        \item R\'ecapitulatif des contributions
+        \item R\'eponse \`a la probl\'ematique
+        \item Limites du travail
+        \item Perspectives de recherche et d'application
+    \end{itemize}
+\end{enumerate}
+
+\subsection*{Fin du document}
+\begin{itemize}
+    \item Bibliographie
+    \item Annexes (questionnaires, d\'etails techniques, r\'esultats compl\'ementaires)
+\end{itemize}
+
+\section{Plan d\'etaill\'e de l'Introduction g\'en\'erale}
+\textbf{Titre recommand\'e :} \emph{Introduction g\'en\'erale}.
+
+\subsection*{Objectif de l'introduction}
+Poser le probl\`eme de recherche : comment produire des simulations climatiques locales haute r\'esolution qui soient \`a la fois r\'ealistes, probabilistes, physiquement coh\'erentes et robustes face aux climats futurs hors distribution.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{I.1 Contexte g\'en\'eral}
+\begin{itemize}
+    \item Importance des donn\'ees climatiques locales pour l'agriculture, la gestion des risques, les infrastructures et l'adaptation communautaire.
+    \item Limitation pratique des mod\`eles globaux et r\'egionaux : r\'esolution souvent insuffisante pour les d\'ecisions locales.
+    \item R\^ole du downscaling : transformer des champs atmosph\'eriques grossiers en cartes plus fines et exploitables.
+\end{itemize}
+
+\subsubsection*{I.2 Motivation}
+\begin{itemize}
+    \item Les mod\`eles d\'eterministes produisent souvent des champs trop liss\'es et sous-estiment les extr\^emes.
+    \item Les mod\`eles g\'en\'eratifs am\'eliorent le r\'ealisme, mais peuvent rester instables, sous-dispersifs ou non interpr\'etables.
+    \item Le changement climatique rend fragile l'hypoth\`ese de stationnarit\'e : les corr\'elations du pass\'e ne suffisent plus.
+\end{itemize}
+
+\subsubsection*{I.3 Probl\'ematique}
+\begin{itemize}
+    \item Les approches profondes apprennent parfois des raccourcis statistiques qui fonctionnent sur les donn\'ees historiques mais se d\'egradent en climat futur.
+    \item La diffusion r\'esiduelle stabilise la g\'en\'eration, mais n'impose pas nativement de raisonnement causal ou physique.
+    \item La question centrale est de concevoir une architecture o\`u la causalit\'e n'est pas un simple diagnostic ajout\'e apr\`es coup, mais un chemin de calcul n\'ecessaire \`a la pr\'ediction.
+\end{itemize}
+
+\subsubsection*{I.4 Questions de recherche}
+\begin{itemize}
+    \item Q1 : Les architectures g\'en\'eratives existantes, notamment Residual cGAN et ResDiff, suffisent-elles \`a garantir une robustesse hors distribution ?
+    \item Q2 : Un mod\`ele causal structurel int\'egr\'e dans une dynamique r\'ecurrente permet-il de mieux guider le downscaling climatique ?
+    \item Q3 : Une architecture two-stage, combinant moyenne causale et diffusion r\'esiduelle, permet-elle de pr\'eserver les extr\^emes et la calibration probabiliste ?
+\end{itemize}
+
+\subsubsection*{I.5 Objectifs}
+\begin{itemize}
+    \item \textbf{Objectif g\'en\'eral :} concevoir et \'evaluer une architecture d'apprentissage profond causale et g\'en\'erative pour le downscaling climatique local.
+    \item \textbf{Objectifs sp\'ecifiques :}
+    \begin{enumerate}
+        \item analyser les limites des approches d\'eterministes, adversariales et diffusives ;
+        \item formaliser le probl\`eme de downscaling probabiliste sous contrainte causale ;
+        \item proposer une architecture Oracle \`a deux \'etages ;
+        \item \'evaluer la qualit\'e spatiale, probabiliste et extr\^eme des sorties produites.
+    \end{enumerate}
+\end{itemize}
+
+\subsubsection*{I.6 Hypoth\`eses de travail}
+\begin{itemize}
+    \item H1 : un mod\`ele qui apprend des relations causales invariantes g\'en\'eralise mieux qu'un mod\`ele purement corr\'elatif en contexte OOD.
+    \item H2 : la s\'eparation moyenne causale / r\'esidu stochastique stabilise l'apprentissage et am\'eliore la repr\'esentation des extr\^emes.
+    \item H3 : la propri\'et\'e d'indispensabilit\'e causale architecturale (O3) limite le risque de graphe causal simplement d\'ecoratif.
+\end{itemize}
+
+\subsubsection*{I.7 M\'ethodologie g\'en\'erale}
+\begin{itemize}
+    \item Revue critique des m\'ethodes de downscaling par apprentissage profond.
+    \item Formalisation du probl\`eme comme estimation d'une distribution conditionnelle haute r\'esolution.
+    \item Conception d'un graphe atmosph\'erique h\'et\'erog\`ene, d'un RCN et d'un d\'ecodeur de diffusion r\'esiduelle.
+    \item \'Evaluation sur donn\'ees ERA5 avec m\'etriques d'erreur, de calibration et d'\'ev\'enements extr\^emes.
+\end{itemize}
+
+\subsubsection*{I.8 Contributions attendues}
+\begin{itemize}
+    \item Une architecture causale two-stage pour le downscaling climatique probabiliste.
+    \item Un RCN associant SCM, GRU et contrainte d'acyclicit\'e DAGMA.
+    \item Une interface causale entre le pr\'edicteur de moyenne et le d\'ecodeur de diffusion r\'esiduelle.
+    \item Un protocole exp\'erimental centr\'e sur la calibration, les extr\^emes et les ablations causales.
+\end{itemize}
+
+\subsubsection*{I.9 Organisation du manuscrit}
+\begin{itemize}
+    \item R\'esumer en un paragraphe la fonction de chaque chapitre.
+    \item Assurer une transition naturelle vers le chapitre 1.
+\end{itemize}
+
+\subsection*{Livrables attendus pour l'introduction}
+\begin{itemize}
+    \item Une formulation claire du probl\`eme de downscaling OOD.
+    \item Trois questions de recherche directement reli\'ees \`a l'architecture propos\'ee.
+    \item Une liste courte de contributions scientifiques et techniques.
+    \item Un plan du manuscrit qui relie les fondements, l'\'etat de l'art, Oracle et l'\'evaluation.
+\end{itemize}
+
+\section{Plan d\'etaill\'e du Chapitre 1}
+\textbf{Titre recommand\'e :} \emph{Fondements du downscaling climatique et concepts cibles}.
+
+\subsection*{Objectif du chapitre}
+Installer les bases climatiques, statistiques et m\'ethodologiques n\'ecessaires \`a la compr\'ehension du downscaling probabiliste et du besoin de causalit\'e dans les mod\`eles profonds.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{1.1 Introduction du chapitre}
+\begin{itemize}
+    \item Situer le chapitre comme socle conceptuel du m\'emoire.
+    \item Annoncer les notions : donn\'ees climatiques, r\'esolution, downscaling, incertitude et OOD.
+    \item Pr\'eciser que la revue des architectures avanc\'ees est trait\'ee au chapitre 2.
+\end{itemize}
+
+\subsubsection*{1.2 Donn\'ees climatiques et niveaux de r\'esolution}
+\begin{itemize}
+    \item Pr\'esenter les mod\`eles globaux, les mod\`eles r\'egionaux, les r\'eanalyses et les observations.
+    \item Expliquer la diff\'erence entre basse r\'esolution et haute r\'esolution spatiale.
+    \item Introduire les champs atmosph\'eriques utiles : vent, humidit\'e, temp\'erature, pression, pr\'ecipitations.
+    \item Montrer l'int\'er\^et d'une repr\'esentation 3D de l'atmosph\`ere par niveaux de pression.
+\end{itemize}
+
+\subsubsection*{1.3 D\'esagr\'egation temporelle et mise \`a l'\'echelle spatiale}
+\begin{itemize}
+    \item D\'efinir la d\'esagr\'egation temporelle et la mise \`a l'\'echelle spatiale.
+    \item Distinguer downscaling statistique, dynamique et hybride.
+    \item Expliquer le passage typique d'une grille basse r\'esolution \`a une carte locale haute r\'esolution.
+    \item Pr\'eciser le cas d'\'etude : entr\'ees LR, cible HR et s\'equences temporelles.
+\end{itemize}
+
+\subsubsection*{1.4 Downscaling probabiliste}
+\begin{itemize}
+    \item Formaliser l'objectif : estimer $p(x_{\mathrm{HR}} \mid y_{\mathrm{LR}}, s_{\mathrm{HR}}, \mathcal{G})$.
+    \item Expliquer pourquoi une seule pr\'ediction moyenne est insuffisante pour les pr\'ecipitations et les extr\^emes.
+    \item Introduire les notions de r\'esidu, incertitude, ensemble et calibration probabiliste.
+\end{itemize}
+
+\subsubsection*{1.5 Changement climatique et robustesse hors distribution}
+\begin{itemize}
+    \item D\'efinir la notion de distribution d'entra\^inement et de d\'ecalage hors distribution.
+    \item Expliquer la fragilit\'e des corr\'elations apprises \`a partir du pass\'e.
+    \item Motiver la recherche de m\'ecanismes invariants, li\'es \`a la physique et \`a la causalit\'e.
+\end{itemize}
+
+\subsubsection*{1.6 M\'etriques d'\'evaluation}
+\begin{itemize}
+    \item M\'etriques ponctuelles : MAE, MSE, corr\'elation spatiale.
+    \item M\'etriques probabilistes : CRPS, spread--skill, calibration.
+    \item M\'etriques spatiales et spectrales : FSS, RAPSD.
+    \item M\'etriques d'extr\^emes : seuils p95/p99, pr\'ecision, rappel, F1-score.
+\end{itemize}
+
+\subsubsection*{1.7 Le trilemme du downscaling profond}
+\begin{itemize}
+    \item Stabilit\'e d'entra\^inement : \'eviter les \'echecs num\'eriques et les comportements adversariaux instables.
+    \item R\'ealisme : reproduire les structures fines, la variance et les \'ev\'enements extr\^emes.
+    \item Robustesse OOD : rester fiable lorsque les conditions climatiques futures diff\`erent de l'historique.
+\end{itemize}
+
+\subsubsection*{1.8 Synth\`ese et transition}
+\begin{itemize}
+    \item R\'esumer les concepts n\'ecessaires \`a la lecture de l'\'etat de l'art.
+    \item Montrer que le probl\`eme exige plus qu'une simple super-r\'esolution d'image.
+    \item Introduire les familles de mod\`eles profonds discut\'ees au chapitre 2.
+\end{itemize}
+
+\subsection*{Livrables attendus pour un Chapitre 1 solide}
+\begin{itemize}
+    \item Un sch\'ema basse r\'esolution vers haute r\'esolution.
+    \item Un glossaire des variables climatiques et des m\'etriques.
+    \item Un encadr\'e sur le probl\`eme OOD en climat.
+    \item Une synth\`ese du trilemme stabilit\'e--r\'ealisme--robustesse.
+\end{itemize}
+
+\subsection*{Orientation r\'edactionnelle}
+Le chapitre 1 doit rester \textbf{p\'edagogique et s\'electif} : il ne couvre pas toute la climatologie, mais fournit les bases n\'ecessaires \`a la compr\'ehension du probl\`eme et des choix m\'ethodologiques.
+
+\section{Plan d\'etaill\'e du Chapitre 2}
+\textbf{Titre recommand\'e :} \emph{\'Etat de l'art : approches d\'eterministes, g\'en\'eratives et causales pour le downscaling}.
+
+\subsection*{Objectif du chapitre}
+R\'ealiser une revue critique des approches de downscaling par apprentissage profond afin de faire appara\^itre le besoin d'une architecture causale, probabiliste et robuste hors distribution.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{2.1 Introduction du chapitre}
+\begin{itemize}
+    \item Rappeler le trilemme identifi\'e au chapitre 1.
+    \item Pr\'esenter les axes de comparaison : stabilit\'e, extr\^emes, incertitude, physique, explicabilit\'e et OOD.
+\end{itemize}
+
+\subsubsection*{2.2 Approches d\'eterministes de downscaling}
+\begin{itemize}
+    \item Pr\'esenter les r\'egressions statistiques, U-Net et architectures de super-r\'esolution.
+    \item Montrer leur capacit\'e \`a capturer les grandes structures.
+    \item Expliquer le probl\`eme du lissage et de la sous-estimation des extr\^emes.
+\end{itemize}
+
+\subsubsection*{2.3 Mod\`eles g\'en\'eratifs adversariaux}
+\begin{itemize}
+    \item Introduire le cGAN et le Residual cGAN appliqu\'es au downscaling.
+    \item Discuter les forces : textures plus fines, meilleure reproduction visuelle.
+    \item Discuter les limites : sensibilit\'e \`a $\lambda_{\mathrm{adv}}$, sous-dispersion, mode collapse, hallucinations.
+\end{itemize}
+
+\subsubsection*{2.4 Diffusion r\'esiduelle et EDM}
+\begin{itemize}
+    \item Pr\'esenter ResDiff : moyenne d\'eterministe puis diffusion sur le r\'esidu.
+    \item Expliquer l'int\'er\^et d'apprendre un r\'esidu de plus faible variance.
+    \item Introduire EDM, les solveurs de d\'ebruitage et la calibration probabiliste.
+    \item Montrer les limites : absence native de contrainte causale et risque de raccourcis statistiques.
+\end{itemize}
+
+\subsubsection*{2.5 Contraintes physiques et coh\'erence inter-variables}
+\begin{itemize}
+    \item Exemples de violations : $T_{\min} > T_{\max}$, incoh\'erences entre humidit\'e, pression et pr\'ecipitations.
+    \item Approches par p\'enalit\'es physiques ou param\'etrisation contrainte.
+    \item Limites des contraintes ajout\'ees sans structure causale interne.
+\end{itemize}
+
+\subsubsection*{2.6 Explicabilit\'e, causalit\'e et robustesse OOD}
+\begin{itemize}
+    \item Cartes de saillance et diagnostics post-hoc.
+    \item Causalit\'e structurelle : SCM, DAG, DAGMA, invariance causale.
+    \item Limite du graphe d\'ecoratif : un graphe peut exister sans devenir n\'ecessaire \`a la pr\'ediction.
+\end{itemize}
+
+\subsubsection*{2.7 Synth\`ese des limites P1--P5}
+\begin{itemize}
+    \item P1 : instabilit\'e ou sensibilit\'e d'entra\^inement.
+    \item P2 : mauvaise quantification de l'incertitude et sous-dispersion.
+    \item P3 : incoh\'erences physiques ou inter-variables.
+    \item P4 : hypoth\`ese de stationnarit\'e fragile.
+    \item P5 : causalit\'e non indispensable, ou graphe d\'ecoratif.
+\end{itemize}
+
+\subsubsection*{2.8 Gap de recherche et transition}
+\begin{itemize}
+    \item Formuler le besoin : une architecture o\`u le chemin causal gouverne la moyenne haute r\'esolution.
+    \item Justifier la combinaison d'un RCN causal et d'une diffusion r\'esiduelle.
+    \item Introduire Oracle comme r\'eponse architecturale au gap.
+\end{itemize}
+
+\subsection*{Livrables attendus pour le chapitre 2}
+\begin{itemize}
+    \item Un tableau comparatif des familles de mod\`eles : U-Net, cGAN, ResDiff, EDM, mod\`eles causaux.
+    \item Une synth\`ese P1--P5 des limites de la litt\'erature.
+    \item Une justification claire de l'architecture Oracle.
+\end{itemize}
+
+\section{Plan d\'etaill\'e du Chapitre 3}
+\textbf{Titre recommand\'e :} \emph{Proposition Oracle : architecture two-stage causale pour le downscaling}.
+
+\subsection*{Objectif du chapitre}
+Pr\'esenter la contribution centrale du m\'emoire : une architecture o\`u un chemin causal construit une moyenne haute r\'esolution indispensable, puis une diffusion EDM mod\'elise uniquement le r\'esidu stochastique.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{3.1 Introduction du chapitre}
+\begin{itemize}
+    \item Rappeler les limites identifi\'ees dans l'\'etat de l'art.
+    \item Introduire le principe two-stage : moyenne causale puis r\'esidu diffusif.
+    \item Pr\'esenter la propri\'et\'e (O3) d'indispensabilit\'e causale architecturale.
+\end{itemize}
+
+\subsubsection*{3.2 Vue d'ensemble de l'architecture}
+\begin{itemize}
+    \item Pipeline global : graphe h\'et\'erog\`ene, encodeur intelligible, RCN, pr\'edicteur de moyenne, d\'ecodeur EDM.
+    \item Entr\'ees basse r\'esolution, variables statiques haute r\'esolution et cible pr\'ecipitation.
+    \item Sortie finale : $x_{\mathrm{HR}} = \mu_{\mathrm{HR}} + \delta$.
+\end{itemize}
+
+\subsubsection*{3.3 Graphe atmosph\'erique h\'et\'erog\`ene}
+\begin{itemize}
+    \item N\oe uds associ\'es aux niveaux de pression 850, 500 et 250 hPa.
+    \item N\oe uds de surface et variables statiques haute r\'esolution.
+    \item Ar\^etes spatiales, verticales, temporelles et statiques.
+    \item Utilisation d'une structure compatible avec des donn\'ees climatiques multi-\'echelles.
+\end{itemize}
+
+\subsubsection*{3.4 Encodeur intelligible de variables}
+\begin{itemize}
+    \item Objectif : produire des repr\'esentations s\'emantiques lisibles par type de variable.
+    \item M\'eta-chemins et agr\'egation de type SAGEConv.
+    \item R\'eduction vers un ensemble restreint de variables causales interpr\'etables.
+\end{itemize}
+
+\subsubsection*{3.5 Recurrent Causal Network}
+\begin{itemize}
+    \item SCM : transition causale guid\'ee par une matrice d'adjacence acyclique.
+    \item GRU : fusion entre plan causal et observation \`a l'instant courant.
+    \item Perte de reconstruction et stabilisation temporelle de l'\'etat cach\'e.
+    \item R\^ole du RCN : devenir le moteur logique de la simulation, et non un module d'explication externe.
+\end{itemize}
+
+\subsubsection*{3.6 DAGMA et projection spectrale}
+\begin{itemize}
+    \item Contrainte d'acyclicit\'e pour apprendre un DAG valide.
+    \item P\'enalit\'e douce pendant l'entra\^inement.
+    \item Projection dure pour rendre la structure causale certifiable.
+\end{itemize}
+
+\subsubsection*{3.7 Stage 1 : pr\'ediction de la moyenne causale}
+\begin{itemize}
+    \item Construction de $\mu_{\mathrm{HR}}$ \`a partir des \'etats causaux.
+    \item Cross-attention vers une grille haute r\'esolution apprise.
+    \item D\'ecodeur CNN Graph-to-Grid.
+    \item Fonction de perte du stage 1 : erreur de moyenne, \'eventuelles contraintes physiques, r\'egularisation causale.
+\end{itemize}
+
+\subsubsection*{3.8 Interface inter-\'etages}
+\begin{itemize}
+    \item Calcul du r\'esidu initial $\delta_0 = x_{\mathrm{HR}} - \mu_{\mathrm{HR}}$.
+    \item Recalibration de $\sigma_{\mathrm{data}}$ par estimation de type Welford.
+    \item Gel du stage 1 pour emp\^echer la diffusion de court-circuiter le chemin causal.
+    \item Gate d'ablation (O3) pour tester l'indispensabilit\'e de la causalit\'e.
+\end{itemize}
+
+\subsubsection*{3.9 Stage 2 : diffusion r\'esiduelle EDM}
+\begin{itemize}
+    \item Apprentissage du r\'esidu plut\^ot que du champ complet.
+    \item Conditionnement par concat\'enation de canaux : r\'esidu bruit\'e, moyenne causale et baseline transform\'ee.
+    \item Absence d'acc\`es direct \`a l'\'etat cach\'e causal dans le d\'ecodeur diffusif.
+    \item Sampling EDM avec solveur de type Heun.
+\end{itemize}
+
+\subsubsection*{3.10 Pertes composites et dynamique d'entra\^inement}
+\begin{itemize}
+    \item Pertes causales, r\'ecurrentes, d\'eterministes, diffusives, physiques et de parcimonie.
+    \item Entra\^inement s\'equentiel du stage 1 puis du stage 2.
+    \item Gestion des gradients, clipping, pr\'ecision mixte et stabilit\'e num\'erique.
+\end{itemize}
+
+\subsubsection*{3.11 Synth\`ese et transition}
+\begin{itemize}
+    \item R\'ecapituler l'architecture Oracle.
+    \item Relier chaque composant \`a une limite de la litt\'erature.
+    \item Introduire le protocole exp\'erimental du chapitre 4.
+\end{itemize}
+
+\subsection*{Livrables attendus pour le chapitre 3}
+\begin{itemize}
+    \item Un sch\'ema global de l'architecture Oracle.
+    \item Un algorithme d'entra\^inement en deux \'etages.
+    \item Une description math\'ematique de $\mu_{\mathrm{HR}}$, $\delta_0$ et du conditionnement EDM.
+    \item Une explication claire de la propri\'et\'e (O3).
+\end{itemize}
+
+\section{Plan d\'etaill\'e du Chapitre 4}
+\textbf{Titre recommand\'e :} \emph{Mat\'eriels, m\'ethodes, exp\'erimentations et discussion}.
+
+\subsection*{Objectif du chapitre}
+Documenter les donn\'ees, l'environnement exp\'erimental, les hyperparam\`etres et les r\'esultats utilis\'es pour \'evaluer Oracle.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{4.1 Introduction du chapitre}
+\begin{itemize}
+    \item Rappeler les hypoth\`eses test\'ees (downscaling probabiliste, robustesse OOD, indispensabilit\'e causale (O3)).
+    \item Annoncer les dimensions d'\'evaluation : erreur ponctuelle, calibration probabiliste, structure spectrale, extr\^emes (p95/p99) et ablations causales.
+    \item Pr\'eciser que les choix exp\'erimentaux refl\`etent la configuration r\'eelle du d\'ep\^ot, pilot\'ee par Hydra (\texttt{config/training\_config.yaml}) et le point d'entr\'ee \texttt{ops/train\_st\_cdgm.py}.
+\end{itemize}
+
+\subsubsection*{4.2 Environnement logiciel et mat\'eriel}
+\begin{itemize}
+    \item Plateforme cible de r\'ef\'erence : Colab Pro avec GPU T4 (16 Go VRAM, 4--8 vCPU, 15--50 Go RAM) ; profil A100 80~Go support\'e via surcharge Hydra.
+    \item Repli CPU : option d\'edi\'ee (\texttt{training.device=cpu, training.use\_amp=false, training.compile.enabled=false}).
+    \item Pr\'ecision : entra\^inement en \emph{fp16} via AMP (\texttt{autocast} + \texttt{GradScaler}) sur GPU.
+    \item Optimisation runtime : \texttt{torch.compile} activ\'e en mode \emph{default} pour encodeur, RCN et UNet ; \texttt{cudnn.benchmark=True} ; TF32 lorsque support\'e.
+    \item Pile logicielle : Python 3.10, PyTorch $\geq 2.0$, PyTorch Geometric $\geq 2.3$, \texttt{diffusers} $\geq 0.21$, \texttt{accelerate}, \texttt{transformers}.
+    \item Donn\'ees et calcul : NetCDF (\texttt{xarray}, \texttt{netCDF4}, \texttt{h5netcdf}), \texttt{dask} pour le chargement paresseux et \texttt{xbatcher} pour les batches spatiaux ; orchestration via \texttt{hydra-core} et \texttt{omegaconf}.
+    \item Reproductibilit\'e : configuration s\'erialis\'ee par Hydra et persistance des checkpoints (\texttt{epoch\_last.pth}, \texttt{epoch\_best.pth}) avec \texttt{persist\_every=1}.
+\end{itemize}
+
+\subsubsection*{4.3 Jeux de donn\'ees et pr\'eparation}
+\begin{itemize}
+    \item Source : champs climatiques au format NetCDF, partition train avec \texttt{predictor\_ACCESS-CM2\_hist.nc} (LR) et \texttt{pr\_ACCESS-CM2\_hist.nc} (HR), pr\'edicteurs statiques ERA5 \texttt{ERA5\_eval\_ccam\_12km}.
+    \item Entr\'ees LR : 15 champs dynamiques sur grille $23 \times 26$ : composantes $u$, $v$, $w$ du vent, humidit\'e sp\'ecifique $q$ et temp\'erature $t$ aux niveaux pression 850, 500 et 250~hPa.
+    \item Champs statiques : orographie (\texttt{orog}), \'el\'evation effective (\texttt{he}) et indice de v\'eg\'etation (\texttt{vegt}), inject\'es dans le n\oe ud \texttt{SP\_HR} du graphe h\'et\'erog\`ene.
+    \item Cible HR : pr\'ecipitations \texttt{pr} sur grille $172 \times 179$.
+    \item Pr\'etraitements : standardisation moyenne/\'ecart-type des pr\'edicteurs, transformation $\log(1+p)$ des pr\'ecipitations (avec $\delta=0{,}01$~mm), strat\'egie de remplissage des NaN \texttt{mean}.
+    \item Baseline interm\'ediaire : strat\'egie \texttt{hr\_smoothing} avec facteur 4, fournissant un champ de r\'ef\'erence dont le r\'esidu HR est ensuite mod\'elis\'e.
+    \item S\'equences temporelles : \texttt{seq\_len}=16 et \texttt{stride}=4, charg\'ees \emph{lazy} (\texttt{eager\_load\_datasets=false}) pour limiter la pression m\'emoire NetCDF.
+    \item Pipeline orient\'e graphe : conversion grille LR vers n\oe uds via \texttt{HeteroGraphBuilder} avec couches GP850/GP500/GP250 (\texttt{include\_mid\_layer=true}).
+\end{itemize}
+
+\subsubsection*{4.4 Topologie du mod\`ele}
+\begin{itemize}
+    \item M\'eta-chemins de l'encodeur intelligible : $5$ chemins dynamiques (\texttt{GP850\_spat\_adj}, \texttt{GP850\_to\_GP500}, \texttt{GP500\_spat\_adj}, \texttt{GP500\_to\_GP250}, \texttt{GP250\_spat\_adj}) plus, lorsque les statiques sont disponibles, le chemin causal \texttt{SP\_HR}~$\rightarrow$~\texttt{GP850} (for\c{c}age orographique).
+    \item Encodeur : \texttt{hidden\_dim}=128, \texttt{conditioning\_dim}=128, m\'ecanisme \texttt{causal\_conditioning} actif avec \texttt{num\_dag\_tokens}=2 inject\'es dans la cross-attention.
+    \item RCN : \texttt{hidden\_dim}=128, \texttt{driver\_dim}=15 (align\'e sur les variables LR), \texttt{dropout}=0{,}1, BPTT avec \texttt{detach\_interval}=8.
+    \item Initialisation de $A_{\mathrm{dag}}$ : amorcage depuis le prior physique 6$\times$6 (couplage tridiagonal vertical + for\c{c}age orographique), avec un bruit gaussien $\sigma=0{,}02$.
+    \item Stage~1 (\texttt{GraphToGridDecoder}) : architecture \texttt{graph\_to\_grid\_xattn} avec $d_\text{model}=128$, $4$ t\^etes d'attention, grille interm\'ediaire $43\times 45$ et raffinement CNN $128 \rightarrow 64 \rightarrow 32 \rightarrow 1$.
+    \item Stage~2 (d\'ecodeur de diffusion) : UNet \texttt{diffusers} compact, \texttt{block\_out\_channels}=[32, 64], \texttt{layers\_per\_block}=1, blocs \texttt{DownBlock2D} puis \texttt{CrossAttnDownBlock2D}, mid-block \texttt{UNetMidBlock2D} (sans cross-attn), remont\'ee miroir, \texttt{attention\_head\_dim}=32, \texttt{norm\_num\_groups}=8.
+    \item Conditionnement spatial : \texttt{SpatialConditioningProjector} (n\oe uds RCN $\rightarrow$ tenseur spatial $6\times 7$ projet\'e dans la cross-attention).
+\end{itemize}
+
+\subsubsection*{4.5 Protocole d'optimisation et hyperparam\`etres}
+\begin{itemize}
+    \item Architecture two-stage activ\'ee (\texttt{two\_stage.enabled=true}).
+    \item \textbf{Stage~1 -- pr\'edicteur causal de moyenne :}
+    \begin{itemize}
+        \item Optimiseur \texttt{AdamW}, \texttt{weight\_decay}=$10^{-4}$, planificateur \texttt{cosine} avec 1 \'epoque de warmup.
+        \item Taux d'apprentissage initial : $3 \times 10^{-4}$.
+        \item Pertes pond\'er\'ees : $\lambda_{\text{reg}}=1{,}0$ (MSE sur $\mu_{\mathrm{HR}}$), $\beta_{\text{rec}}=0{,}05$ (reconstruction RCN), $\gamma_{\text{dag}}^{\max}=0{,}10$ avec rampe sur 2 \'epoques (DAGMA), $\lambda_{\text{L1}}=10^{-3}$, $\lambda_{\text{prior}}=0{,}05$ (ancrage sur le prior physique en \texttt{sum}).
+        \item Plafond \texttt{epochs\_max}=7, early stopping plateau MSE (\texttt{patience}=3).
+        \item Garde-fous anti-collapse : grad-gate $A_{\text{dag}}=1{,}0$, projection plancher $\|A\|_F \geq 0{,}10$, abort si $\|A\|_F < 0{,}05$.
+        \item Diagnostic RAPSD log\'e \`a chaque \'epoque pour d\'etecter le sur-lissage.
+    \end{itemize}
+    \item \textbf{Stage~2 -- d\'ecodeur de diffusion r\'esiduelle :}
+    \begin{itemize}
+        \item Optimiseur \texttt{Adam} avec deux groupes : $A_{\text{dag}}$ \`a un \texttt{lr} multipli\'e (\texttt{dag\_lr\_mult}=5{,}0, betas $(0{,}5, 0{,}9)$) et reste du r\'eseau \`a $2 \times 10^{-4}$.
+        \item Stage~1 gel\'e (\texttt{freeze\_stage1=true}), encodeur, RCN et r\'egression sans gradient.
+        \item Plafond \texttt{epochs\_max}=15, soit 22 \'epoques au total (7 + 15).
+        \item Mode \texttt{causal\_concat\_mode=true} : entr\'ee UNet = concat\'enation $(\delta, \mu_{\mathrm{HR}}, \texttt{baseline\_log})$.
+        \item Recalibration obligatoire de $\sigma_{\text{data}}$ post-Stage~1 (\texttt{sigma\_data\_recalibrate=true}, \texttt{sigma\_min\_scale\_factor}=0{,}02).
+    \end{itemize}
+    \item \textbf{Param\`etres de la diffusion EDM (Karras 2022) :} planificateur \texttt{edm\_karras}, $\sigma_{\text{data}}=0{,}1$, $\sigma_{\min}=0{,}002$, $\sigma_{\max}=80$, $\rho=7$, $P_{\text{mean}}=-1{,}2$, $P_{\text{std}}=1{,}2$, sampler de Heun d\'eterministe ($S_{\text{churn}}=0$).
+    \item \textbf{Pertes communes :} reconstruction \texttt{huber+cosine}, focal loss activ\'ee ($\alpha=1{,}0$, $\gamma=2{,}5$), pond\'eration des extr\^emes $\times 2$ aux seuils $p95$ et $p99$ ; $\lambda_\phi=0$ (loss physique inter-vectorielle d\'esactiv\'ee pour 1 canal de pr\'ecipitations) ; classifier-free guidance d\'esactiv\'ee (\texttt{cfg\_scale}=1{,}0) avec \texttt{conditioning\_dropout\_prob}=0{,}1.
+    \item \textbf{R\'eglages d'entra\^inement :} \texttt{batch\_size}=64 effectif (micro-batch 16, gradient accumulation 2), 10~\'epoques par d\'efaut (extensible \`a 30 selon le profil mat\'eriel), \texttt{num\_workers}=8, \texttt{pin\_memory}, \texttt{prefetch\_factor}=2, gradient clipping \`a $1{,}0$, planificateur \texttt{ReduceLROnPlateau} (\texttt{factor}=0{,}5, \texttt{patience}=10, \texttt{min\_lr}=$10^{-7}$), early stopping global (\texttt{patience}=15, \texttt{restore\_best=true}).
+\end{itemize}
+
+\subsubsection*{4.6 Protocole d'\'evaluation}
+\begin{itemize}
+    \item Erreurs ponctuelles : MAE, MSE, corr\'elation spatiale.
+    \item Calibration probabiliste : CRPS estim\'e par \'echantillonnage Monte-Carlo (\texttt{num\_samples}=8 par d\'efaut, jusqu'\`a 32 membres pour CRPS exact) et diagnostic \emph{spread--skill}.
+    \item Structure spatiale et spectrale : FSS multi-seuils, RAPSD log\'e \`a chaque \'epoque.
+    \item \'Ev\'enements extr\^emes : F1-score aux percentiles $p95$ et $p99$ (\texttt{compute\_f1\_extremes=true}).
+    \item Sampler d'\'evaluation : \texttt{dpm\_solver++} avec \texttt{eval\_num\_steps}=20 (Heun \texttt{eval\_num\_steps}=18 disponible pour le profil EDM strict).
+    \item Seuils op\'erationnels d\'eclar\'es dans la configuration : \texttt{MSE\_MAX}=0{,}15, \texttt{MAE\_MAX}=0{,}20, \texttt{CORR\_MIN}=0{,}91.
+    \item Sorties : visualisations sauvegard\'ees (\texttt{save\_visualizations=true}) dans \texttt{results/}.
+\end{itemize}
+
+\subsubsection*{4.7 Diagnostic causal et v\'erification de la propri\'et\'e (O3)}
+\begin{itemize}
+    \item Ablation causale automatis\'ee post-Stage~1 (\texttt{causal\_ablation.enabled=true}, \texttt{n\_samples}=100).
+    \item Crit\`ere : $|\mu(A_{\text{dag}}) - \mu(\mathbf{0})| / |\mu(A_{\text{dag}})| > 0{,}05$ ; abort de la \emph{run} si \'echec (\texttt{abort\_if\_fail=true}), garantie op\'erationnelle de l'indispensabilit\'e causale.
+    \item Comparaisons compl\'ementaires : DAG appris vs DAG nul vs DAG al\'eatoire vs prior physique seul.
+    \item Suivi continu de $\|A_{\text{dag}}\|_F$ et de la sparsit\'e induite par DAGMA + L1 + projection spectrale.
+\end{itemize}
+
+\subsubsection*{4.8 R\'esultats observ\'es (snapshot exp\'erimental)}
+\begin{itemize}
+    \item Corr\'elation spatiale : 0,896.
+    \item MAE : 0,170.
+    \item MSE : 0,119.
+    \item CRPS : 0,145.
+    \item F1-score $p95$ : 0,837.
+    \item F1-score $p99$ : 0,754.
+    \item Temps moyen par \'echantillon : 163,8~s.
+    \item Pr\'eciser que ces valeurs sont issues d'une session de r\'ef\'erence du d\'ep\^ot ; les ex\'ecutions futures seront r\'eestim\'ees avec intervalles de confiance et r\'ep\'etitions \texttt{seed} multiples.
+\end{itemize}
+
+\subsubsection*{4.9 Analyse des r\'esultats}
+\begin{itemize}
+    \item Lire la corr\'elation spatiale comme un indicateur de localisation des structures pluvieuses produites.
+    \item Discuter le CRPS comme mesure conjointe de calibration et de finesse de l'ensemble (avec \'ecart \emph{spread--skill}).
+    \item Justifier l'apport du focal loss et de la pond\'eration des extr\^emes pour les scores $F1@p95$ et $F1@p99$.
+    \item Relier les r\'esultats au r\^ole du RCN (m\'emoire causale), du Stage~1 (champ moyen explicite) et du d\'ecodeur EDM (variabilit\'e fine).
+    \item Discuter le compromis temps d'inf\'erence vs nombre de pas (\texttt{eval\_num\_steps}) et nombre de membres CRPS.
+\end{itemize}
+
+\subsubsection*{4.10 Discussion critique}
+\begin{itemize}
+    \item Risque de \emph{collapse} du r\'esidu si $\mu_{\mathrm{HR}}$ absorbe une fraction trop importante du signal HR ; le d\'eclenchement du garde-fou \texttt{abort\_on\_collapse} et de \texttt{dag\_floor\_projection} doit \^etre report\'e.
+    \item Limite d'une baseline lissage HR pour certains r\'egimes convectifs ; \'evolution potentielle vers des baselines bicubiques calibr\'ees ou apprises.
+    \item Difficult\'e des queues lourdes de pr\'ecipitations et int\'er\^et de variantes $t$-EDM ou WassDiff comme perspectives.
+    \item Co\^ut d'inf\'erence dominant : compromis vitesse/pr\'ecision \`a r\'egler via \texttt{eval\_num\_steps}, \texttt{num\_samples} et \texttt{eval\_scheduler}.
+    \item Sensibilit\'e des m\'etriques au choix du seuil de pr\'ecipitations et \`a la transformation $\log(1+p)$.
+\end{itemize}
+
+\subsubsection*{4.11 Menaces \`a la validit\'e}
+\begin{itemize}
+    \item Validit\'e interne : qualit\'e des splits temporels, choix de normalisation, traitement des NaN (strat\'egie \texttt{mean}), reproductibilit\'e des graines.
+    \item Validit\'e externe : couverture limit\'ee aux donn\'ees ACCESS-CM2 historique, n\'ecessit\'e d'\'evaluations sur d'autres r\'eanalyses (ERA5) et sur les sc\'enarios CMIP6/CORDEX.
+    \item Validit\'e statistique : incertitude des m\'etriques mono-run, n\'ecessit\'e de r\'ep\'etitions et d'intervalles bootstrap.
+    \item Validit\'e op\'erationnelle : passage de l'apprentissage en climat historique au d\'eploiement sur sc\'enarios futurs (OOD), avec recalibration potentielle de $\sigma_{\text{data}}$ et v\'erification de stabilit\'e du DAG.
+\end{itemize}
+
+\subsubsection*{4.12 Synth\`ese du chapitre}
+\begin{itemize}
+    \item R\'esumer ce que les r\'esultats confirment vis-\`a-vis des hypoth\`eses Q1--Q3.
+    \item Identifier les points encore \`a consolider (r\'ep\'etitions, OOD, baselines suppl\'ementaires).
+    \item Pr\'eparer la transition vers la conclusion g\'en\'erale.
+\end{itemize}
+
+\subsection*{Livrables attendus pour le chapitre 4}
+\begin{itemize}
+    \item Tableau exhaustif des donn\'ees, des variables et des hyperparam\`etres effectivement utilis\'es (issu de \texttt{config/training\_config.yaml}).
+    \item Tableau de r\'esultats principaux (point estimate + r\'ep\'etitions \`a venir).
+    \item Figures comparatives : champs HR pr\'edits, observations, baseline, r\'esidu et $\mu_{\mathrm{HR}}$.
+    \item Tableau d'ablations causales : DAG appris, DAG nul, DAG al\'eatoire, prior physique seul.
+    \item Section de discussion critique, limites et menaces \`a la validit\'e.
+\end{itemize}
+
+\section{Plan d\'etaill\'e de la Conclusion g\'en\'erale}
+\textbf{Titre recommand\'e :} \emph{Conclusion g\'en\'erale et perspectives}.
+
+\subsection*{Objectif de la conclusion}
+Fermer l'argument scientifique : revenir sur la probl\'ematique, synth\'etiser les apports valid\'es, expliciter les limites et ouvrir des perspectives r\'ealistes.
+
+\subsection*{Structure d\'etaill\'ee propos\'ee}
+
+\subsubsection*{C.1 R\'ecapitulatif de la probl\'ematique}
+\begin{itemize}
+    \item Reprendre le probl\`eme : produire un downscaling local probabiliste fiable en climat futur.
+    \item Rappeler le fil directeur : du trilemme OOD \`a l'architecture Oracle.
+\end{itemize}
+
+\subsubsection*{C.2 Synth\`ese des contributions}
+\begin{itemize}
+    \item Contribution conceptuelle : formulation du besoin de causalit\'e indispensable, au-del\`a de l'explicabilit\'e post-hoc.
+    \item Contribution architecturale : graphe h\'et\'erog\`ene, encodeur intelligible, RCN, DAGMA et projection spectrale.
+    \item Contribution g\'en\'erative : d\'ecomposition moyenne causale / r\'esidu EDM.
+    \item Contribution exp\'erimentale : protocole centr\'e sur calibration, extr\^emes et ablations causales.
+\end{itemize}
+
+\subsubsection*{C.3 R\'eponses aux questions de recherche}
+\begin{itemize}
+    \item R\'eponse \`a Q1 : positionner les limites des mod\`eles adversariaux et diffusifs non causaux.
+    \item R\'eponse \`a Q2 : expliquer le r\^ole du RCN comme moteur causal r\'ecurrent.
+    \item R\'eponse \`a Q3 : relier les r\'esultats aux m\'etriques de calibration et d'extr\^emes.
+\end{itemize}
+
+\subsubsection*{C.4 Limites du travail}
+\begin{itemize}
+    \item Domaine climatique et volume de donn\'ees encore limit\'es.
+    \item Validation OOD \`a consolider avec des sc\'enarios climatiques futurs.
+    \item Baseline non causale \`a am\'eliorer pour certains usages op\'erationnels.
+    \item Co\^ut d'inf\'erence de la diffusion \`a optimiser.
+\end{itemize}
+
+\subsubsection*{C.5 Perspectives}
+\begin{itemize}
+    \item Extension multivariable avec pertes physiques inter-variables.
+    \item \'Evaluation sur plusieurs domaines climatiques et jeux CORDEX/CMIP.
+    \item Variantes de diffusion pour queues lourdes : $t$-EDM, WassDiff ou sch\'emas hybrides.
+    \item Couplage avec correction de biais et cha\^ines d'impact pour les communaut\'es locales.
+    \item Outils de visualisation XAI pour auditer les chemins causaux appris.
+\end{itemize}
+
+\subsubsection*{C.6 Mot de cl\^oture}
+\begin{itemize}
+    \item Rappeler la valeur scientifique : passer d'un mod\`ele qui reproduit des motifs climatiques \`a un mod\`ele qui exploite des m\'ecanismes causaux invariants.
+    \item Rappeler la valeur pratique : produire des cartes locales plus fiables pour l'adaptation climatique.
+\end{itemize}
+
+\subsection*{Livrables attendus pour la conclusion}
+\begin{itemize}
+    \item Un tableau ``Questions de recherche vs r\'eponses apport\'ees''.
+    \item Une section limites courte, explicite et honn\^ete.
+    \item Une liste de perspectives prioris\'ees pour poursuite en article ou th\`ese.
+\end{itemize}
+
+\end{document}
