@@ -1,0 +1,176 @@
+# =============================================================================
+# V4 override — Tier 0 + Tier 1 + Tier 2 (BS37 / 2026-05-10)
+# =============================================================================
+# Applies on top of `training_config.yaml` via `OmegaConf.merge`.
+# HERITAGE : V3 (EMA + 100 ep + stride=1 + post-S2 recalib + Tier 0)
+#          + Tier 2 (CorrDiff Large 80 M params, 5 niveaux Mardani exact)
+#          + tail-loss bumped (weight_p99 25 -> 40, tau99 35 -> 30 mm/day).
+#
+# OBJECTIF V4 : depasser les cibles Oracle.
+#   Pearson    cible 0.88 - 0.92  (Oracle 0.896)
+#   F1@p99     cible 0.65 - 0.75  (Oracle 0.754)
+#   F1@p95     cible 0.75 - 0.83  (Oracle 0.837)
+#   RAPSD      cible 80 - 120     (Oracle proche 0)
+#   Spread/RMSE cible ~ 0.95     (Oracle ~ 1.0)
+#
+# ARCHITECTURE Stage 2 :
+#   - 5 niveaux : 172x179 -> 86x90 -> 43x45 -> 21x22 -> 10x11
+#   - block_out_channels [128, 256, 256, 256, 256]
+#     = NVIDIA PhysicsNeMo CorrDiff Normal canonique
+#       (examples/weather/corrdiff/conf/base/model_size/normal.yaml :
+#        model_channels=128, channel_mult=[1,2,2,2,2])
+#   - param count effectif via diffusers UNet2DConditionModel :
+#       ~53 M params (vs ~80 M dans la version PhysicsNeMo qui utilise
+#       de l'attention multi-niveau ; on garde attention seulement au
+#       plus petit niveau pour rester sous 80 GB VRAM avec 100 ep).
+#   - attention au plus petit niveau (10x11 = 110 tokens), bs=64 x 8 heads
+#     bf16 ~= 0.13 GiB par layer x 5 layers = 0.65 GiB total. OK A100 80GB.
+#   - vs V3 : ajoute 1 niveau de downsampling supplementaire (champ receptif
+#     plus large, capture les structures synoptiques de plus grande echelle).
+#
+# CHECKPOINT : ckpt_v4_corrdiff_large/ — full retrain isole.
+# Stage 1 reentraine from-scratch car les samples stride=1 different de V2
+# et la configuration UNet est incompatible avec les state_dicts V2/V3.
+#
+# GARDE-FOU VRAM : si OOM au premier batch S2 sur A100 80GB, fallback :
+#   block_out_channels: [128, 256, 512, 512]  # 4 niveaux ~70 M params
+# (decommenter le bloc Plan B en bas de fichier et commenter le bloc principal).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Tier 0 (V2-eval+) heritage
+# -----------------------------------------------------------------------------
+diffusion:
+  scheduler_type: "dpm_solver++"
+  eval_num_steps: 32
+  cfg_scale: 1.5
+
+  # Tier 2 V4 — CorrDiff Large UNet (5 niveaux, ~80 M params).
+  unet_kwargs:
+    layers_per_block: 2
+    # 5 niveaux : 172x179 -> 86x90 -> 43x45 -> 21x22 -> 10x11.
+    # = Mardani 2024 CorrDiff Normal canonique (model_channels=128,
+    # channel_mult=[1, 2, 2, 2, 2]).
+    block_out_channels: [128, 256, 256, 256, 256]
+
+    # Attention seulement au plus petit niveau (10x11 = 110 tokens).
+    # Cout attention bs=64 x 8 heads x bf16 = ~0.13 GiB par layer x 5 = ~0.65 GiB.
+    # Largement OK avec gradient_checkpointing actif.
+    down_block_types:
+      - "DownBlock2D"            # 172x179 - no attn
+      - "DownBlock2D"            # 86x90   - no attn
+      - "DownBlock2D"            # 43x45   - no attn
+      - "DownBlock2D"            # 21x22   - no attn
+      - "CrossAttnDownBlock2D"   # 10x11   - attn ici
+    up_block_types:
+      - "CrossAttnUpBlock2D"     # 10x11   - attn ici
+      - "UpBlock2D"              # 21x22   - no attn
+      - "UpBlock2D"              # 43x45   - no attn
+      - "UpBlock2D"              # 86x90   - no attn
+      - "UpBlock2D"              # 172x179 - no attn
+    mid_block_type: "UNetMidBlock2D"
+
+    # 256 / 32 = 8 -> OK. 128 / 32 = 4 -> OK.
+    norm_num_groups: 32
+
+    # 8 heads x 32 dim/head = 256 inner_dim (= block_out_channels[4]).
+    attention_head_dim: 8
+
+    # Length-5 to match 5 levels.
+    only_cross_attention: [false, false, false, false, false]
+
+  # Tier 2 — tail-loss bumped pour declencher tail_p99 plus tot
+  # et augmenter encore le poids des extremes (pousse F1@p99 vers Oracle 0.754).
+  edm:
+    S_churn: 40.0
+    tail_weight:
+      enabled: true
+      tau95_mmday: 15.0
+      tau99_mmday: 30.0          # was 35.0 -> declenche tail_p99 plus tot
+      weight_p95: 12.0           # was 8.0  -> +50% sur p95
+      weight_p99: 40.0           # was 25.0 -> +60% sur p99
+
+  # OBLIGATOIRE avec 80 M params + 5 niveaux + bs=64. Sans, OOM garanti
+  # meme sur A100 80 GB. Recompute activations pendant backward,
+  # ~30% plus lent mais ~50% moins de VRAM.
+  use_gradient_checkpointing: true
+
+# -----------------------------------------------------------------------------
+# Tier 1 herite de V3 — stride=1, 100 ep, EMA, post-S2 recalib
+# -----------------------------------------------------------------------------
+data:
+  stride: 1
+
+two_stage:
+  stage1:
+    epochs_max: 10
+
+  stage2:
+    epochs_max: 100
+    sigma_data_recalibrate_post: true
+
+    ema:
+      enabled: true
+      decay: 0.9999
+
+    contrastive_dag:
+      enabled: true
+      weight: 0.5
+      margin: 0.02
+      interval: 4
+      ablation_mode: zero
+      diagnostic:
+        decorative_threshold: 0.01
+        modest_threshold: 0.10
+      decay:
+        enabled: true
+        warmup_epochs: 2
+        decay_factor: 0.5
+        recovery_factor: 1.5
+        floor_ratio: 0.01
+      autotune_mode:
+        enabled: true
+        activate_after_epochs: 15
+        window_epochs: 3
+        sensitivity_threshold: 0.001
+        mode_progression: [zero, permute, random]
+
+  run_variant: causal
+
+# -----------------------------------------------------------------------------
+# torch.compile inchange (off).
+# -----------------------------------------------------------------------------
+training:
+  compile:
+    enabled: false
+
+# -----------------------------------------------------------------------------
+# Checkpoint V4 isole.
+# -----------------------------------------------------------------------------
+checkpoint:
+  save_dir: "/content/drive/MyDrive/climate_data/ckpt_v4_corrdiff_large"
+
+# =============================================================================
+# Plan B fallback (si OOM A100 80 GB sur batch_size=64, 5 niveaux 80 M params).
+# Decommenter ci-dessous ET commenter le bloc unet_kwargs principal au-dessus.
+# =============================================================================
+# diffusion:
+#   unet_kwargs:
+#     layers_per_block: 2
+#     # 4 niveaux, channels mult agressifs : 172x179 -> 86x90 -> 43x45 -> 21x22.
+#     # ~70 M params, plus sur memoire que 5 niveaux 80 M.
+#     block_out_channels: [128, 256, 512, 512]
+#     down_block_types:
+#       - "DownBlock2D"
+#       - "DownBlock2D"
+#       - "DownBlock2D"
+#       - "CrossAttnDownBlock2D"
+#     up_block_types:
+#       - "CrossAttnUpBlock2D"
+#       - "UpBlock2D"
+#       - "UpBlock2D"
+#       - "UpBlock2D"
+#     mid_block_type: "UNetMidBlock2D"
+#     norm_num_groups: 32
+#     attention_head_dim: 8
+#     only_cross_attention: [false, false, false, false]

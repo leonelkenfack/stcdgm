@@ -33,6 +33,15 @@
 # Stage 2 diffusion UNet — CorrDiff Normal sizing
 # =============================================================================
 diffusion:
+  # BS37 (Sprint A V2-eval+) — Tier 0 flags : sampler stochastique +
+  # DPM-Solver++ + classifier-free guidance. Activent du gain "gratuit"
+  # (zero retrain) sur la qualite d'inference du checkpoint V2 deja entraine.
+  scheduler_type: "dpm_solver++"   # was "edm_karras"
+  eval_num_steps: 32                # was 18 (clef diffusion.eval_num_steps,
+                                     # utilisee par la cellule FINAL_VALIDATION)
+  cfg_scale: 1.5                    # was 1.0 — CFG branche dans _sample_dpm_solver,
+                                     # conditioning_dropout=0.1 deja actif
+
   unet_kwargs:
     layers_per_block: 2
     # 4 niveaux : 172x179 -> 86x90 -> 43x45 -> 21x22.
@@ -71,7 +80,11 @@ diffusion:
   # BS36 : tail-loss renforcée. F1@p99=0.0037 en V1 indique que le réseau
   # ignore les extrêmes ; on monte le poids des résidus correspondant à
   # >= p95/p99 pour forcer l'apprentissage des queues de distribution.
+  # BS37 (Sprint A) : S_churn=40 — sampler stochastique Heun (Karras 2022
+  # Table 5 sweet-spot). Injecte du bruit a chaque step pour recuperer
+  # les hautes frequences (RAPSD) et diversifier l'ensemble (Spread/RMSE).
   edm:
+    S_churn: 40.0       # was 0.0 — sampler stochastique
     tail_weight:
       enabled: true
       tau95_mmday: 15.0
@@ -89,13 +102,13 @@ diffusion:
 # Two-stage training — full retrain V2
 # =============================================================================
 two_stage:
-  # Stage 1 réentraîné from-scratch dans ckpt_v2_corrdiff_normal/.
-  # Architecture identique à V1 (encoder/RCN/regression_head inchangés),
-  # seul le budget passe à 10 epochs (vs 7 en V1) pour garantir une
-  # convergence un peu plus poussée du DAG et de la regression head
-  # avant de geler Stage 1.
+  # Stage 1 dans ckpt_v2_corrdiff_normal/ — budget 15 epochs (extension BS38
+  # possible depuis un run 10/10 via EXTEND_STAGE1_RESTART_STAGE2).
+  # Architecture identique à V1 (encoder/RCN/regression_head inchangés).
   stage1:
-    epochs_max: 10
+    # BS38 : 15 époques pour permettre la continuation 11…15 après un run 10/10
+    # (voir EXTEND_STAGE1_RESTART_STAGE2 dans le notebook).
+    epochs_max: 15
 
   stage2:
     epochs_max: 50

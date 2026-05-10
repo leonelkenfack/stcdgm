@@ -1,0 +1,136 @@
+# =============================================================================
+# V3 override — Tier 0 + Tier 1 (BS37 / 2026-05-10)
+# =============================================================================
+# Applies on top of `training_config.yaml` via `OmegaConf.merge`.
+# HERITAGE : V2 + Tier 0 (V2-eval+) + Tier 1 (EMA + 100 ep + stride=1 + post-S2 recalib).
+#
+# OBJECTIF V3 : Pearson 0.84-0.86, F1@p99 0.55-0.65 (cible Oracle 0.896 / 0.754).
+# Le checkpoint V2 actuel plafonne autour de 0.71 / 0.29 a 50 ep avec stride=2.
+# Hypothese : (1) doubler les samples/ep via stride=1 + (2) EMA des poids
+# diffusion + (3) doubler le budget epochs ferme l'essentiel du gap V2->Oracle.
+#
+# ARCHITECTURE : Stage 2 reste CorrDiff Normal (4 niveaux, ~50 M params).
+# La capacite n'a pas ete identifiee comme bottleneck par les diagnostics V2 ;
+# c'est le budget de training et la stabilite des poids qui dominent. La
+# montee en taille (V4 CorrDiff Large 80 M) est gardee pour le Sprint C.
+#
+# CHECKPOINT : ckpt_v3_ema_long/ — full retrain isole pour preserver V2.
+# Stage 1 reentraine from-scratch (10 ep) car les samples differents en
+# stride=1 modifient l'optimum atteint par le DAG + regression head.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Tier 0 herite de V2-eval+ (deja dans corrdiff_normal.yaml apres Sprint A,
+# mais on les re-affirme ici pour rendre v3.yaml self-contained et eviter
+# une dependance ordonnee de merge).
+# -----------------------------------------------------------------------------
+diffusion:
+  scheduler_type: "dpm_solver++"
+  eval_num_steps: 32
+  cfg_scale: 1.5
+
+  unet_kwargs:
+    layers_per_block: 2
+    block_out_channels: [128, 256, 256, 256]
+    down_block_types:
+      - "DownBlock2D"
+      - "DownBlock2D"
+      - "DownBlock2D"
+      - "CrossAttnDownBlock2D"
+    up_block_types:
+      - "CrossAttnUpBlock2D"
+      - "UpBlock2D"
+      - "UpBlock2D"
+      - "UpBlock2D"
+    mid_block_type: "UNetMidBlock2D"
+    norm_num_groups: 32
+    attention_head_dim: 8
+    only_cross_attention: [false, false, false, false]
+
+  edm:
+    S_churn: 40.0
+    tail_weight:
+      enabled: true
+      tau95_mmday: 15.0
+      tau99_mmday: 35.0
+      weight_p95: 8.0
+      weight_p99: 25.0
+
+  use_gradient_checkpointing: true
+
+# -----------------------------------------------------------------------------
+# Tier 1 V3 — stride=1, 100 epochs, EMA, post-S2 recalibration
+# -----------------------------------------------------------------------------
+data:
+  # stride=2 -> ~6927 samples/ep ; stride=1 -> ~14000 samples/ep.
+  # Double le wall-clock par ep mais aussi double l'exposition du modele
+  # aux gradients. Critique pour pousser la convergence Stage 2 au-dela
+  # de la limite observee en V2 a 50 ep.
+  stride: 1
+
+two_stage:
+  stage1:
+    # 10 epochs comme V2 — Stage 1 atteint son plateau autour de 8-10 ep.
+    epochs_max: 10
+
+  stage2:
+    # 50 -> 100 epochs. EMA decay=0.9999 avec 100 ep x ~219 batches/ep
+    # (stride=1 -> ~14000 samples / bs=64 ~= 219 batches) = ~21900 steps,
+    # ce qui est suffisant pour que l'EMA converge vers une moyenne
+    # representative (1 - 0.9999)^(-1) = 10000 steps de half-life.
+    epochs_max: 100
+
+    # BS37_SIGMA_RECALIB_POST_S2 — sanity-check sigma_data sur les
+    # delta_target caches a la fin de Stage 2. Si drift > 10%, applique
+    # le nouveau sigma au noise_scheduler. Stage 1 fige donc l'attendu
+    # est "no drift" — c'est un filet de securite pour detecter une
+    # eventuelle deviation non vue.
+    sigma_data_recalibrate_post: true
+
+    # BS37_EMA — Exponential Moving Average des poids Stage 2.
+    # Standard CorrDiff/EDM (Karras 2022 Sec 5, EDM2 Appendix B.7).
+    # Decay 0.9999 = effective averaging window de ~10000 steps.
+    # FINAL_VALIDATION utilisera automatiquement les poids EMA si
+    # le checkpoint en contient (clef diffusion_ema_state_dict).
+    ema:
+      enabled: true
+      decay: 0.9999
+
+    # BS35-CONTRASTIVE inchange (heritage V2).
+    contrastive_dag:
+      enabled: true
+      weight: 0.5
+      margin: 0.02
+      interval: 4
+      ablation_mode: zero
+      diagnostic:
+        decorative_threshold: 0.01
+        modest_threshold: 0.10
+      decay:
+        enabled: true
+        warmup_epochs: 2
+        decay_factor: 0.5
+        recovery_factor: 1.5
+        floor_ratio: 0.01
+      autotune_mode:
+        enabled: true
+        activate_after_epochs: 15
+        window_epochs: 3
+        sensitivity_threshold: 0.001
+        mode_progression: [zero, permute, random]
+
+  run_variant: causal
+
+# -----------------------------------------------------------------------------
+# torch.compile inchange (off — voir corrdiff_normal.yaml pour la motivation).
+# -----------------------------------------------------------------------------
+training:
+  compile:
+    enabled: false
+
+# -----------------------------------------------------------------------------
+# Checkpoint V3 isole — preserve V2 et V1.
+# Local dev : remplacer manuellement par "models_v3_ema_long" si besoin.
+# -----------------------------------------------------------------------------
+checkpoint:
+  save_dir: "/content/drive/MyDrive/climate_data/ckpt_v3_ema_long"

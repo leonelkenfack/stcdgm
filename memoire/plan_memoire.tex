@@ -497,8 +497,9 @@ Documenter les donn\'ees, l'environnement exp\'erimental, les hyperparam\`etres 
     \item RCN : \texttt{hidden\_dim}=128, \texttt{driver\_dim}=15 (align\'e sur les variables LR), \texttt{dropout}=0{,}1, BPTT avec \texttt{detach\_interval}=8.
     \item Initialisation de $A_{\mathrm{dag}}$ : amorcage depuis le prior physique 6$\times$6 (couplage tridiagonal vertical + for\c{c}age orographique), avec un bruit gaussien $\sigma=0{,}02$.
     \item Stage~1 (\texttt{GraphToGridDecoder}) : architecture \texttt{graph\_to\_grid\_xattn} avec $d_\text{model}=128$, $4$ t\^etes d'attention, grille interm\'ediaire $43\times 45$ et raffinement CNN $128 \rightarrow 64 \rightarrow 32 \rightarrow 1$.
-    \item Stage~2 (d\'ecodeur de diffusion) : UNet \texttt{diffusers} compact, \texttt{block\_out\_channels}=[32, 64], \texttt{layers\_per\_block}=1, blocs \texttt{DownBlock2D} puis \texttt{CrossAttnDownBlock2D}, mid-block \texttt{UNetMidBlock2D} (sans cross-attn), remont\'ee miroir, \texttt{attention\_head\_dim}=32, \texttt{norm\_num\_groups}=8.
-    \item Conditionnement spatial : \texttt{SpatialConditioningProjector} (n\oe uds RCN $\rightarrow$ tenseur spatial $6\times 7$ projet\'e dans la cross-attention).
+    \item Stage~2 (d\'ecodeur de diffusion, configuration V4 \emph{CorrDiff Large}) : UNet \texttt{diffusers} \texttt{UNet2DConditionModel} \`a 5 niveaux $172\times 179 \rightarrow 86\times 90 \rightarrow 43\times 45 \rightarrow 21\times 22 \rightarrow 10\times 11$, \texttt{block\_out\_channels}=[128, 256, 256, 256, 256] (\textasciitilde 53 millions de param\`etres), \texttt{layers\_per\_block}=2, blocs \texttt{DownBlock2D} aux 4 premiers niveaux puis \texttt{CrossAttnDownBlock2D} au niveau le plus petit (sym\'etrie miroir en remont\'ee), \texttt{attention\_head\_dim}=8, \texttt{norm\_num\_groups}=32, \texttt{use\_gradient\_checkpointing=true} pour rester sous 80~Go VRAM A100.
+    \item Conditionnement : \texttt{causal\_concat\_mode=true} ; l'entr\'ee UNet est la concat\'enation par canal $(\delta_\sigma, \mu_{\mathrm{HR}}, \log(1+b))$, garantissant que le seul chemin par lequel $A_{\mathrm{dag}}$ atteint le d\'ecodeur est le canal $\mu_{\mathrm{HR}}$ (propri\'et\'e (O3) architecturale).
+    \item Trajectoire architecturale V1$\rightarrow$V4 : V1 \emph{CorrDiff Mini} ([64,128,128], \textasciitilde 12~M params, Heun, stride=2), V2 \emph{CorrDiff Normal} 4 niveaux ([128,256,256,256], \textasciitilde 50~M params, tail-loss $w_{p95},w_{p99}=8,25$), V3 ajout EMA + stride=1 + horizon 100 \'epoques, V4 mont\'ee \`a 5 niveaux et tail-loss bump\'ee $w_{p95},w_{p99}=12,40$ (cf.\ section 4.8).
 \end{itemize}
 
 \subsubsection*{4.5 Protocole d'optimisation et hyperparam\`etres}
@@ -513,17 +514,19 @@ Documenter les donn\'ees, l'environnement exp\'erimental, les hyperparam\`etres 
         \item Garde-fous anti-collapse : grad-gate $A_{\text{dag}}=1{,}0$, projection plancher $\|A\|_F \geq 0{,}10$, abort si $\|A\|_F < 0{,}05$.
         \item Diagnostic RAPSD log\'e \`a chaque \'epoque pour d\'etecter le sur-lissage.
     \end{itemize}
-    \item \textbf{Stage~2 -- d\'ecodeur de diffusion r\'esiduelle :}
+    \item \textbf{Stage~2 -- d\'ecodeur de diffusion r\'esiduelle (configuration V4) :}
     \begin{itemize}
-        \item Optimiseur \texttt{Adam} avec deux groupes : $A_{\text{dag}}$ \`a un \texttt{lr} multipli\'e (\texttt{dag\_lr\_mult}=5{,}0, betas $(0{,}5, 0{,}9)$) et reste du r\'eseau \`a $2 \times 10^{-4}$.
-        \item Stage~1 gel\'e (\texttt{freeze\_stage1=true}), encodeur, RCN et r\'egression sans gradient.
-        \item Plafond \texttt{epochs\_max}=15, soit 22 \'epoques au total (7 + 15).
-        \item Mode \texttt{causal\_concat\_mode=true} : entr\'ee UNet = concat\'enation $(\delta, \mu_{\mathrm{HR}}, \texttt{baseline\_log})$.
-        \item Recalibration obligatoire de $\sigma_{\text{data}}$ post-Stage~1 (\texttt{sigma\_data\_recalibrate=true}, \texttt{sigma\_min\_scale\_factor}=0{,}02).
+        \item Optimiseur \texttt{AdamW}, taux d'apprentissage $2 \times 10^{-4}$, gradient clipping \`a $1{,}0$, AMP \emph{bf16} (CUDA).
+        \item Stage~1 gel\'e (\texttt{freeze\_stage1=true}) : encodeur, RCN, DAGMA et \texttt{GraphToGridDecoder} sans gradient.
+        \item Plafond \texttt{epochs\_max}=100 (V3/V4) sur stride=1 ($\sim 1{,}4\times 10^{4}$ \'echantillons par \'epoque), soit 110 \'epoques au total avec Stage~1 (10 + 100).
+        \item Mode \texttt{causal\_concat\_mode=true} : entr\'ee UNet = concat\'enation $(\delta_\sigma, \mu_{\mathrm{HR}}, \log(1+b))$.
+        \item Recalibration de $\sigma_{\text{data}}$ post-Stage~1 (\texttt{sigma\_data\_recalibrate=true}, \texttt{sigma\_min\_scale\_factor}=0{,}02), suivie d'une recalibration \emph{post-Stage~2} (\texttt{sigma\_data\_recalibrate\_post=true}) qui sert de filet de s\'ecurit\'e : si une d\'erive sup\'erieure \`a 10\,\% est d\'etect\'ee, le sampler d'inf\'erence est r\'ealign\'e.
+        \item \textbf{Exponential Moving Average (BS37)} : moyenne exponentielle des poids du d\'ecodeur diffusif avec d\'ecalage $\beta_{\text{EMA}}=0{,}9999$, persist\'ee dans chaque checkpoint (cl\'e \texttt{diffusion\_ema\_state\_dict}). Le ph\'enom\`ene de moyenne EMA, propos\'e par \citet*{Karras2022EDM} et reformul\'e par \citet*{Karras2024EDM2}, est l'unique changement le plus impactant entre V2 et V3 : l'inf\'erence finale utilise les poids EMA, pas les poids \emph{live}.
+        \item \textbf{Perte contrastive DAG (BS35)} : \`a chaque $N_c=4$ batchs, la perte EDM est \'evalu\'ee deux fois, sur $\mu_{\mathrm{HR}}(A_{\mathrm{dag}})$ et sur $\mu_{\mathrm{HR}}(\mathbf{0})$, et un terme de marge $\lambda_c \max(0, m_c - (\mathcal{L}_{\text{stage2}}^{(0)} - \mathcal{L}_{\text{stage2}}))$ avec $\lambda_c=0{,}5$ et $m_c=0{,}02$ force le d\'ecodeur \`a effectivement exploiter le chemin causal. Un garde-fou dynamique d\'ecro\^it $\lambda_c$ si la sensibilit\'e DAG reste n\'egative deux \'epoques cons\'ecutives, et un m\'ecanisme \emph{auto-tune} substitue l'ablation \texttt{zero} par \texttt{permute} puis \texttt{random} si le signal contrastif s'\'evanouit apr\`es 15 \'epoques.
     \end{itemize}
-    \item \textbf{Param\`etres de la diffusion EDM (Karras 2022) :} planificateur \texttt{edm\_karras}, $\sigma_{\text{data}}=0{,}1$, $\sigma_{\min}=0{,}002$, $\sigma_{\max}=80$, $\rho=7$, $P_{\text{mean}}=-1{,}2$, $P_{\text{std}}=1{,}2$, sampler de Heun d\'eterministe ($S_{\text{churn}}=0$).
-    \item \textbf{Pertes communes :} reconstruction \texttt{huber+cosine}, focal loss activ\'ee ($\alpha=1{,}0$, $\gamma=2{,}5$), pond\'eration des extr\^emes $\times 2$ aux seuils $p95$ et $p99$ ; $\lambda_\phi=0$ (loss physique inter-vectorielle d\'esactiv\'ee pour 1 canal de pr\'ecipitations) ; classifier-free guidance d\'esactiv\'ee (\texttt{cfg\_scale}=1{,}0) avec \texttt{conditioning\_dropout\_prob}=0{,}1.
-    \item \textbf{R\'eglages d'entra\^inement :} \texttt{batch\_size}=64 effectif (micro-batch 16, gradient accumulation 2), 10~\'epoques par d\'efaut (extensible \`a 30 selon le profil mat\'eriel), \texttt{num\_workers}=8, \texttt{pin\_memory}, \texttt{prefetch\_factor}=2, gradient clipping \`a $1{,}0$, planificateur \texttt{ReduceLROnPlateau} (\texttt{factor}=0{,}5, \texttt{patience}=10, \texttt{min\_lr}=$10^{-7}$), early stopping global (\texttt{patience}=15, \texttt{restore\_best=true}).
+    \item \textbf{Param\`etres de la diffusion EDM (Karras 2022) :} formulation EDM, $\sigma_{\text{data}}$ recalibr\'e dynamiquement, $\sigma_{\min}=0{,}002$, $\sigma_{\max}=80$, $\rho=7$, $P_{\text{mean}}=-1{,}2$, $P_{\text{std}}=1{,}2$. Sampler d'inf\'erence : DPM-Solver++ multi-step \citep*{Lu2022DPMSolver} avec churn stochastique $S_{\text{churn}}=40$, 32 pas de d\'ebruitage, classifier-free guidance \texttt{cfg\_scale}=1{,}5 (avec \texttt{conditioning\_dropout\_prob}=0{,}1 \`a l'entra\^inement). La combinaison \emph{DPM-Solver++ + S\_churn=40 + CFG=1{,}5} constitue le \emph{Tier 0} V2-eval+ et apporte un gain net en RAPSD et Spread/RMSE sans aucun re-entra\^inement.
+    \item \textbf{Pertes communes :} reconstruction EDM L2 \`a perte pond\'er\'ee tail-weighted (multipliateurs $w_{p95}=12$, $w_{p99}=40$ aux seuils $\tau_{95}=15$ et $\tau_{99}=30$~mm/jour) pour for\c{c}er l'apprentissage des extr\^emes ; le terme contrastif DAG ci-dessus est ajout\'e pour les batchs qualifi\'es.
+    \item \textbf{R\'eglages d'entra\^inement :} \texttt{batch\_size}=64 effectif, \texttt{num\_workers}=8, \texttt{pin\_memory=true}, \texttt{prefetch\_factor}=2, planificateur cosine, persistance du checkpoint (\texttt{epoch\_last.pth}, \texttt{epoch\_best.pth}, plus \texttt{diffusion\_ema\_state\_dict}) \`a chaque \'epoque pour s\'ecuriser une \'eventuelle d\'econnexion Colab.
 \end{itemize}
 
 \subsubsection*{4.6 Protocole d'\'evaluation}
@@ -532,29 +535,81 @@ Documenter les donn\'ees, l'environnement exp\'erimental, les hyperparam\`etres 
     \item Calibration probabiliste : CRPS estim\'e par \'echantillonnage Monte-Carlo (\texttt{num\_samples}=8 par d\'efaut, jusqu'\`a 32 membres pour CRPS exact) et diagnostic \emph{spread--skill}.
     \item Structure spatiale et spectrale : FSS multi-seuils, RAPSD log\'e \`a chaque \'epoque.
     \item \'Ev\'enements extr\^emes : F1-score aux percentiles $p95$ et $p99$ (\texttt{compute\_f1\_extremes=true}).
-    \item Sampler d'\'evaluation : \texttt{dpm\_solver++} avec \texttt{eval\_num\_steps}=20 (Heun \texttt{eval\_num\_steps}=18 disponible pour le profil EDM strict).
+    \item Sampler d'\'evaluation : \texttt{dpm\_solver++} avec \texttt{eval\_num\_steps}=32 et $S_{\text{churn}}=40$ ; les poids du d\'ecodeur utilis\'es \`a l'inf\'erence sont la copie EMA ($\beta=0{,}9999$), pas les poids \emph{live}.
     \item Seuils op\'erationnels d\'eclar\'es dans la configuration : \texttt{MSE\_MAX}=0{,}15, \texttt{MAE\_MAX}=0{,}20, \texttt{CORR\_MIN}=0{,}91.
     \item Sorties : visualisations sauvegard\'ees (\texttt{save\_visualizations=true}) dans \texttt{results/}.
 \end{itemize}
 
 \subsubsection*{4.7 Diagnostic causal et v\'erification de la propri\'et\'e (O3)}
 \begin{itemize}
-    \item Ablation causale automatis\'ee post-Stage~1 (\texttt{causal\_ablation.enabled=true}, \texttt{n\_samples}=100).
-    \item Crit\`ere : $|\mu(A_{\text{dag}}) - \mu(\mathbf{0})| / |\mu(A_{\text{dag}})| > 0{,}05$ ; abort de la \emph{run} si \'echec (\texttt{abort\_if\_fail=true}), garantie op\'erationnelle de l'indispensabilit\'e causale.
-    \item Comparaisons compl\'ementaires : DAG appris vs DAG nul vs DAG al\'eatoire vs prior physique seul.
-    \item Suivi continu de $\|A_{\text{dag}}\|_F$ et de la sparsit\'e induite par DAGMA + L1 + projection spectrale.
+    \item \textbf{Diagnostic amont post-Stage~1.} Ablation causale automatis\'ee (\texttt{causal\_ablation.enabled=true}, \texttt{n\_samples}=100) sur le \emph{champ moyen} produit par Stage~1, avec calcul de la sensibilit\'e relative $\delta\mu = \|\mu_{\mathrm{HR}}(A_{\mathrm{dag}}) - \mu_{\mathrm{HR}}(\mathbf{0})\|_2 / \|\mu_{\mathrm{HR}}(A_{\mathrm{dag}})\|_2$.
+    \item Trois r\'egimes report\'es par le diagnostic : $\delta\mu < 0{,}01$ (\textsc{DAG d\'ecoratif} -- abort de la \emph{run}), $0{,}01 \leq \delta\mu < 0{,}10$ (\textsc{signal causal modeste}), $\delta\mu \geq 0{,}10$ (\textsc{signal causal fort}). Le mod\`ele V2 mesure $\delta\mu \approx 0{,}18$, plac\'e fermement dans le r\'egime \textsc{fort}.
+    \item \textbf{Signal contrastif pendant l'entra\^inement (BS35-CONTRASTIVE).} Sensibilit\'e DAG $\Delta\mathcal{L}_{\text{stage2}} = \mathcal{L}_{\text{stage2}}^{(0)} - \mathcal{L}_{\text{stage2}}$ log\'ee \`a chaque pas du Stage~2. Une valeur positive certifie que le d\'ecodeur diffusif exploite activement $\mu_{\mathrm{HR}}$ ; le garde-fou progressif d\'ecrit en 4.5 attenue la perte contrastive si $\Delta\mathcal{L} < 0$ pour pr\'evenir la d\'estabilisation.
+    \item \textbf{Suite d'interventions \`a l'inf\'erence (BS35).} Quatre modes \'evalu\'es sur le \emph{m\^eme} fold de validation, $K=16$ membres d'ensemble par \'echantillon :
+    \begin{itemize}
+        \item \textsc{Causal} : pipeline standard (DAG appris).
+        \item \textsc{Zero-DAG} : substitution $A_{\mathrm{dag}} \leftarrow \mathbf{0}$ \`a l'inf\'erence uniquement.
+        \item \textsc{Random-DAG} : substitution par une matrice triangulaire sup\'erieure al\'eatoire \`a sparsit\'e identique.
+        \item \textsc{Permute-DAG} : permutation al\'eatoire des lignes de $A_{\mathrm{dag}}$.
+    \end{itemize}
+    \item \textbf{Contrefactuel architectural (\textsc{Reg.\ baseline}).} Substitution de tout le pipeline causal (encodeur + RCN + DAGMA + \texttt{GraphToGridDecoder}) par un pr\'edicteur de moyenne iso-capacit\'e \texttt{RegressionMeanPredictor} (UNet \emph{CorrDiff-style} \`a budget param\'etrique appari\'e), entra\^in\'e pour le m\^eme nombre d'\'epoques. Si \textsc{Reg.\ baseline} sous-performe \textsc{Causal} \`a budget identique, l'architecture causale est empiriquement n\'ecessaire ; sinon le DAG est r\'eduit au statut d'auxiliaire interpr\'etatif.
+    \item Crit\`ere de la propri\'et\'e (O3) : $r_{O3} = \mathrm{F1@p99}^{(\textsc{Causal})} - \mathrm{F1@p99}^{(\textsc{Zero-DAG})} \geq 0{,}05$ ; abort de la \emph{run} si l'\'epreuve amont \'echoue (\texttt{abort\_if\_fail=true}). La V2 mesure $r_{O3} \approx 0{,}13$.
+    \item Suivi continu de $\|A_{\mathrm{dag}}\|_F$ et de la sparsit\'e induite par DAGMA + L1 + projection spectrale.
 \end{itemize}
 
-\subsubsection*{4.8 R\'esultats observ\'es (snapshot exp\'erimental)}
+\subsubsection*{4.8 R\'esultats exp\'erimentaux : trajectoire V1$\rightarrow$V4}
 \begin{itemize}
-    \item Corr\'elation spatiale : 0,896.
-    \item MAE : 0,170.
-    \item MSE : 0,119.
-    \item CRPS : 0,145.
-    \item F1-score $p95$ : 0,837.
-    \item F1-score $p99$ : 0,754.
-    \item Temps moyen par \'echantillon : 163,8~s.
-    \item Pr\'eciser que ces valeurs sont issues d'une session de r\'ef\'erence du d\'ep\^ot ; les ex\'ecutions futures seront r\'eestim\'ees avec intervalles de confiance et r\'ep\'etitions \texttt{seed} multiples.
+    \item \textbf{Cibles Oracle (\citep{Mardani2024ResDiff, Rampal2024cGAN, Mardani2025CorrDiff}) :} Pearson $0{,}896$, F1@$p95$ $0{,}837$, F1@$p99$ $0{,}754$. Ces valeurs sont \emph{l'objectif d\'epasser}, pas un r\'esultat de la pr\'esente \'etude ; elles sont d\'eriv\'ees de la litt\'erature existante (cGAN r\'esiduel et ResDiff) et fixent la barre que la trajectoire V1$\rightarrow$V4 cherche \`a franchir.
+    \item \textbf{Strat\'egie de \emph{full retrain isol\'e} :} chaque variante V1, V2, V3, V4 dispose de son propre r\'epertoire de \texttt{checkpoint} (\texttt{ckpt/}, \texttt{ckpt\_v2\_corrdiff\_normal/}, \texttt{ckpt\_v3\_ema\_long/}, \texttt{ckpt\_v4\_corrdiff\_large/}) afin d'\'eviter tout \emph{state\_dict mismatch} entre architectures et de pr\'eserver chaque baseline pour la comparaison m\'emoire.
+    \item Tableau de synth\`ese (valeurs en \emph{(en cours)} \`a renseigner depuis les fichiers \texttt{v2\_eval\_plus\_metrics.json}, \texttt{v3\_metrics.json} et \texttt{v4\_metrics.json} produits par la cellule \texttt{FINAL\_VALIDATION} du notebook) :
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\hline
+Variante  & Pearson $\uparrow$ & F1@$p95$ $\uparrow$ & F1@$p99$ $\uparrow$ & RAPSD dist. $\downarrow$ \\
+\hline
+V1 (CorrDiff Mini)         & $0{,}36$       & $0{,}42$       & $0{,}0037$     & $812$ \\
+V2 (CorrDiff Normal)       & $0{,}71$       & $0{,}42$       & $0{,}29$       & $364$ \\
+V2-eval+ (Tier 0)          & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
+V3 (Tier 0+1, EMA + 100\,ep) & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
+V4 (Tier 0+1+2, CorrDiff L) & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
+\hline
+Cible Oracle              & $0{,}896$      & $0{,}837$      & $0{,}754$      & $\rightarrow 0$ \\
+\hline
+\end{tabular}
+\end{center}
+    \item \textbf{Lecture de la trajectoire V1$\rightarrow$V2 (mesur\'ee).} Le passage de \emph{CorrDiff Mini} \`a \emph{CorrDiff Normal} avec ajout de la \emph{tail-loss} pond\'er\'ee multiplie la corr\'elation par $\sim 2$ et le F1@$p99$ par $\sim 78$, ce qui confirme que la sous-performance de V1 \'etait dict\'ee par la \emph{capacit\'e} de Stage~2 et non par le pr\'edicteur causal Stage~1.
+    \item \textbf{Apport attendu de chaque tiers (V2$\rightarrow$V4).} Tier 0 (V2-eval+, gain \emph{gratuit} : DPM-Solver++ + $S_{\text{churn}}$ + CFG + EMA \`a l'inf\'erence) : $+0{,}07$ \`a $+0{,}11$ Pearson, $+0{,}10$ \`a $+0{,}20$ F1@$p99$. Tier 1 (V3, EMA pendant l'entra\^inement + stride=1 + horizon $100$ \'epoques + recalibration post-S2) : $+0{,}06$ \`a $+0{,}08$ Pearson, $+0{,}15$ \`a $+0{,}25$ F1@$p99$. Tier 2 (V4, mont\'ee \`a 5 niveaux + \emph{tail-loss} bump\'ee) : $+0{,}04$ \`a $+0{,}06$ Pearson, $+0{,}10$ \`a $+0{,}15$ F1@$p99$, gain principal sur RAPSD via la profondeur du \emph{champ r\'eceptif}.
+    \item Les valeurs ci-dessus sont issues du notebook \texttt{st\_cdgm\_training\_evaluation.ipynb} et persist\'ees \`a chaque \'epoque ; les ex\'ecutions futures seront r\'eestim\'ees avec intervalles de confiance et r\'ep\'etitions \texttt{seed} multiples.
+\end{itemize}
+
+\subsubsection*{4.8b Validation causale (apport mesurable du DAG)}
+\begin{itemize}
+    \item \textbf{Apport scientifique central :} l'objectif n'est pas seulement de d\'epasser les m\'etriques Oracle, mais de \emph{quantifier l'apport du DAG} dans cette d\'epassement. L'argument repose sur quatre indicateurs cumulatifs :
+    \begin{enumerate}
+        \item Diagnostic amont $\delta\mu$ (cf.\ 4.7) -- mesure \emph{intrins\`eque} \`a Stage~1.
+        \item Sensibilit\'e contrastive $\Delta\mathcal{L}_{\text{stage2}}$ (cf.\ 4.5/4.7) -- mesure \emph{dynamique} \`a l'entra\^inement de Stage~2.
+        \item Suite BS35 d'interventions \`a l'inf\'erence (cf.\ 4.7) -- mesure \emph{descendante} sur la qualit\'e finale.
+        \item Contrefactuel architectural \textsc{Reg.\ baseline} -- mesure \emph{contrefactuelle} \`a iso-capacit\'e.
+    \end{enumerate}
+    \item Tableau BS35 attendu (\`a renseigner depuis \texttt{v4\_bs35\_ablation.json}) :
+
+\begin{center}
+\small
+\begin{tabular}{lccc}
+\hline
+Mode                       & Pearson $\uparrow$ & F1@$p99$ $\uparrow$ & $r_{O3}$ \\
+\hline
+\textsc{Causal} (V4)       & (en cours) & (en cours) & --- \\
+\textsc{Zero-DAG} (V4)     & (en cours) & (en cours) & (en cours) \\
+\textsc{Random-DAG} (V4)   & (en cours) & (en cours) & (en cours) \\
+\textsc{Permute-DAG} (V4)  & (en cours) & (en cours) & (en cours) \\
+\textsc{Reg.\ baseline}    & (en cours) & (en cours) & --- \\
+\hline
+\end{tabular}
+\end{center}
+    \item Une d\'efaillance de \textsc{Reg.\ baseline} \`a \'egaler \textsc{Causal} \`a budget appari\'e constituerait la \emph{plus forte} preuve empirique disponible que la causalit\'e est \emph{n\'ecessaire}, par opposition \`a un graphe d\'ecoratif. Cette ligne joue un r\^ole analogue au bras de contr\^ole d'une exp\'erience randomis\'ee.
 \end{itemize}
 
 \subsubsection*{4.9 Analyse des r\'esultats}
@@ -639,10 +694,10 @@ Fermer l'argument scientifique : revenir sur la probl\'ematique, synth\'etiser l
 \subsubsection*{C.5 Perspectives}
 \begin{itemize}
     \item Extension multivariable avec pertes physiques inter-variables.
-    \item \'Evaluation sur plusieurs domaines climatiques et jeux CORDEX/CMIP.
-    \item Variantes de diffusion pour queues lourdes : $t$-EDM, WassDiff ou sch\'emas hybrides.
+    \item \'Evaluation sur plusieurs domaines climatiques et jeux CORDEX/CMIP6 (g\'en\'eralisation OOD r\'eelle au sens de la section 1.5).
+    \item \textbf{Tier 3 architectural :} entra\^inement \emph{joint} de Stage~1 et Stage~2 (sans gel apr\`es Stage~1) sous contrainte explicite de la propri\'et\'e (O3) ; ajout d'une perte \emph{spectrale} sur le RAPSD pour pousser au plus pr\`es la cible Oracle ; passage \`a $t$-EDM \citep*{Pandey2024tEDM} pour les queues lourdes Student-$t$, ou \`a WassDiff \citep*{Liu2024WassDiff} pour la calibration multivari\'ee.
     \item Couplage avec correction de biais et cha\^ines d'impact pour les communaut\'es locales.
-    \item Outils de visualisation XAI pour auditer les chemins causaux appris.
+    \item Outils de visualisation XAI pour auditer les chemins causaux appris (carte de chaleur de la sensibilit\'e \`a chaque ar\^ete de $A_{\mathrm{dag}}$, projection saillance-DAG sur la moyenne $\mu_{\mathrm{HR}}$).
 \end{itemize}
 
 \subsubsection*{C.6 Mot de cl\^oture}

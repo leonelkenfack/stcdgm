@@ -666,6 +666,13 @@ def train_epoch_stage2_cached(
     contrastive_dag_margin: float = 0.02,
     contrastive_dag_interval: int = 4,
     ablated_mu_key: str = "mu_HR_zero",
+    # BS37 (Sprint B / V3) — EMA des poids Stage 2.
+    # Si ``ema_model`` est fourni, on met a jour ses parametres apres
+    # chaque optimizer.step() avec :
+    #   ema_p <- decay * ema_p + (1 - decay) * live_p
+    # Standard CorrDiff/EDM : decay 0.9999 (averaging effectif sur ~10000 steps).
+    ema_model: Optional[nn.Module] = None,
+    ema_decay: float = 0.9999,
 ) -> dict:
     """Thin Stage 2 training loop that consumes a pre-cached dataset.
 
@@ -704,6 +711,13 @@ def train_epoch_stage2_cached(
     contrastive_active = bool(lambda_contrastive_dag > 0.0)
     interval = max(1, int(contrastive_dag_interval))
 
+    ema_active = ema_model is not None
+    ema_steps = 0
+    if ema_active:
+        ema_model.eval()
+        for _p in ema_model.parameters():
+            _p.requires_grad_(False)
+
     if verbose:
         print(
             f"\n📚 Stage 2 epoch (cached) | amp={amp_mode} "
@@ -713,7 +727,8 @@ def train_epoch_stage2_cached(
                 f" every {interval} batches, key={ablated_mu_key!r})"
                 if contrastive_active
                 else ""
-            ),
+            )
+            + (f" | EMA on (decay={ema_decay})" if ema_active else " | EMA off"),
             flush=True,
         )
 
@@ -799,6 +814,22 @@ def train_epoch_stage2_cached(
         else:
             optimizer.step()
 
+        # BS37 — EMA update (in-place on ema_model parameters AND buffers).
+        # Buffers (running stats des GroupNorm si non-affine, etc.) sont
+        # copies tels quels du live model, pas moyennes — c'est la convention
+        # Karras EDM2 (Karras et al. 2024 Appendix B).
+        if ema_active:
+            with torch.no_grad():
+                for ep, lp in zip(
+                    ema_model.parameters(), diffusion_decoder.parameters()
+                ):
+                    ep.data.mul_(ema_decay).add_(lp.data, alpha=1.0 - ema_decay)
+                for eb, lb in zip(
+                    ema_model.buffers(), diffusion_decoder.buffers()
+                ):
+                    eb.data.copy_(lb.data)
+            ema_steps += 1
+
         total_loss += float(loss_real.detach().item())
         n_batches += 1
 
@@ -853,6 +884,9 @@ def train_epoch_stage2_cached(
         "loss_contrastive_dag": avg_contrast,
         "dag_sensitivity": avg_dag_sens,
         "n_contrastive_steps": n_contrastive,
+        "ema_active": ema_active,
+        "ema_steps": ema_steps,
+        "ema_decay": ema_decay if ema_active else None,
     }
 
 
