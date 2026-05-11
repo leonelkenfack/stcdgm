@@ -111,7 +111,7 @@ two_stage:
     epochs_max: 15
 
   stage2:
-    epochs_max: 50
+    epochs_max: 100
     # BS35-CONTRASTIVE — bloc identique à mini (A+B+C failsafe).
     # Force Stage 2 à utiliser réellement μ_HR(A_dag) en marge contre
     # μ_HR(zero-DAG). Auto-disabled si run_variant != 'causal'.
