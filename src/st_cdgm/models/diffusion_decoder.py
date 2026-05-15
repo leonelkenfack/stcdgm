@@ -697,9 +697,8 @@ class CausalDiffusionDecoder(nn.Module):
         Two-Stage (causal_concat=True): pass ``mu_HR`` and ``baseline_log``;
         ``conditioning`` may be None — causality flows through concat channels.
         """
-        # In causal_concat mode the cross-attn pathway is unused; only EDM
-        # Karras supports the concat schedule. _sample_edm_karras handles
-        # ``conditioning is None`` correctly.
+        # Two-stage causal_concat: mu_HR + baseline_log are required for all
+        # sampler backends (EDM Karras and DPM-Solver++).
         if self.causal_concat:
             if mu_HR is None or baseline_log is None:
                 raise ValueError(
@@ -752,6 +751,8 @@ class CausalDiffusionDecoder(nn.Module):
                 apply_constraints=apply_constraints,
                 conditioning_spatial=conditioning_spatial,
                 cfg_scale=cfg_scale,
+                mu_HR=mu_HR,
+                baseline_log=baseline_log,
             )
         
         # Original DDPM sampling
@@ -1038,24 +1039,32 @@ class CausalDiffusionDecoder(nn.Module):
     
     def _sample_dpm_solver(
         self,
-        conditioning: Tensor,
+        conditioning: Optional[Tensor],
         num_steps: int = 15,
         generator: Optional[torch.Generator] = None,
         baseline: Optional[Tensor] = None,
         apply_constraints: bool = True,
         conditioning_spatial: Optional[Tensor] = None,
         cfg_scale: float = 0.0,
+        mu_HR: Optional[Tensor] = None,
+        baseline_log: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase E1: DPM-Solver++ sampling for ultra-fast inference.
         
         DPM-Solver++ is a high-order solver that can achieve high-quality results
         in 15-20 steps (compared to 25-50 for EDM and 1000 for DDPM).
+
+        In ``causal_concat`` mode (Two-Stage), builds UNet input as
+        ``[delta_noisy, mu_HR, baseline_log]`` (same channel layout as
+        ``forward_edm`` without EDM preconditioning). CFG null branch uses
+        ``mu_HR=0`` and keeps ``baseline_log`` (joint dropout at train time
+        primarily zeros the cross-attn path; concat mu is the main lever).
         
         Parameters
         ----------
         conditioning : Tensor
-            Conditioning tensor
+            Conditioning tensor (optional when ``causal_concat=True``)
         num_steps : int
             Number of sampling steps (15-20 recommended for DPM-Solver++)
         generator : Optional[torch.Generator]
@@ -1064,6 +1073,8 @@ class CausalDiffusionDecoder(nn.Module):
             Baseline to add to residual
         apply_constraints : bool
             Whether to apply physical constraints
+        mu_HR, baseline_log : Optional[Tensor]
+            Required when ``causal_concat=True``.
         
         Returns
         -------
@@ -1079,11 +1090,26 @@ class CausalDiffusionDecoder(nn.Module):
                 "DPM-Solver++ is not available. Please update diffusers: "
                 "pip install --upgrade diffusers"
             )
-        
-        device = conditioning.device
-        batch_size = conditioning.shape[0]
-        
-        # Initialize with noise
+
+        if self.causal_concat:
+            if mu_HR is None or baseline_log is None:
+                raise ValueError(
+                    "_sample_dpm_solver with causal_concat requires "
+                    "mu_HR and baseline_log"
+                )
+            ref = mu_HR
+        else:
+            if conditioning is None:
+                raise ValueError(
+                    "_sample_dpm_solver requires conditioning in standard mode"
+                )
+            conditioning = self._prepare_conditioning(conditioning)
+            ref = conditioning
+
+        device = ref.device
+        batch_size = ref.shape[0]
+
+        # Initialize with noise on the residual channel(s) only.
         sample = torch.randn(
             batch_size,
             self.in_channels,
@@ -1092,28 +1118,25 @@ class CausalDiffusionDecoder(nn.Module):
             device=device,
             generator=generator,
         )
-        
+
         # Create DPM-Solver scheduler (configured for fast sampling)
         dpm_scheduler = DPMSolverMultistepScheduler(
             num_train_timesteps=self.num_diffusion_steps,
-            algorithm_type="dpmsolver++",  # Use DPM-Solver++ algorithm
-            solver_order=2,  # Second-order solver for balance of speed and quality
-            use_karras_sigmas=True,  # Karras noise schedule for better quality
+            algorithm_type="dpmsolver++",
+            solver_order=2,
+            use_karras_sigmas=True,
         )
         dpm_scheduler.set_timesteps(num_steps, device=device)
 
-        # Sprint 3: classifier-free guidance for DPM-Solver++.
-        # The DDPM branch already supported CFG, but the production config
-        # uses DPM-Solver++ at inference — CFG was silently ignored, which
-        # made ``cfg_scale`` in the YAML a no-op. We replicate the same
-        # dual-stream (class_labels + encoder_hidden_states) null-branch
-        # logic here. Training already drops both streams jointly under
-        # ``conditioning_dropout_prob`` (see training_loop.py), so the
-        # model has learned an unconditional branch we can legitimately
-        # extrapolate away from.
         use_cfg = bool(cfg_scale) and cfg_scale > 0.0
-        if use_cfg:
-            prepared_cond = self._prepare_conditioning(conditioning)
+
+        if self.causal_concat:
+            # Placeholders for cross-attn API (signal via concat channels).
+            hidden_states = sample.new_zeros((batch_size, 1, self.conditioning_dim))
+            class_labels = self._zero_class_labels_placeholder(batch_size, sample)
+            mu_uncond = torch.zeros_like(mu_HR)
+        elif use_cfg:
+            prepared_cond = conditioning
             class_labels_cond = self._pool_conditioning(prepared_cond)
             hidden_cond = (
                 conditioning_spatial
@@ -1125,27 +1148,52 @@ class CausalDiffusionDecoder(nn.Module):
 
         # Sampling loop with DPM-Solver++
         for t in dpm_scheduler.timesteps:
-            cond_out = self.forward(
-                sample, t, conditioning,
-                conditioning_spatial=conditioning_spatial,
-            )
-            if use_cfg:
-                uncond_out = self.unet(
-                    sample=sample,
+            if self.causal_concat:
+                unet_input = torch.cat([sample, mu_HR, baseline_log], dim=1)
+                cond_out = self.unet(
+                    sample=unet_input,
                     timestep=t,
-                    encoder_hidden_states=null_hidden,
-                    class_labels=null_class,
+                    encoder_hidden_states=hidden_states,
+                    class_labels=class_labels,
                 ).sample
-                model_output = uncond_out + cfg_scale * (cond_out - uncond_out)
+                if use_cfg:
+                    unet_input_u = torch.cat(
+                        [sample, mu_uncond, baseline_log], dim=1
+                    )
+                    uncond_out = self.unet(
+                        sample=unet_input_u,
+                        timestep=t,
+                        encoder_hidden_states=hidden_states,
+                        class_labels=class_labels,
+                    ).sample
+                    model_output = uncond_out + cfg_scale * (
+                        cond_out - uncond_out
+                    )
+                else:
+                    model_output = cond_out
             else:
-                model_output = cond_out
-            # CFG safety net: same reasoning as the DDPM branch above —
-            # under-trained uncond + high cfg_scale can saturate; clamp to
-            # a finite range so DPM-Solver++ never ingests a NaN.
+                cond_out = self.forward(
+                    sample, t, conditioning,
+                    conditioning_spatial=conditioning_spatial,
+                )
+                if use_cfg:
+                    uncond_out = self.unet(
+                        sample=sample,
+                        timestep=t,
+                        encoder_hidden_states=null_hidden,
+                        class_labels=null_class,
+                    ).sample
+                    model_output = uncond_out + cfg_scale * (
+                        cond_out - uncond_out
+                    )
+                else:
+                    model_output = cond_out
             model_output = torch.nan_to_num(
                 model_output, nan=0.0, posinf=1e4, neginf=-1e4
             )
-            sample = dpm_scheduler.step(model_output, t, sample, return_dict=False)[0]
+            sample = dpm_scheduler.step(
+                model_output, t, sample, return_dict=False
+            )[0]
         
         residual = sample
         if baseline is not None:

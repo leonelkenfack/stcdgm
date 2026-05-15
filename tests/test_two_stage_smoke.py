@@ -178,6 +178,56 @@ def test_T12_channel_concat_unet():
 
 
 # ----------------------------------------------------------------------
+# T12b — DPM-Solver++ sampling with causal_concat (BS39 / V4 Tier 0)
+# ----------------------------------------------------------------------
+
+def test_T12b_dpm_solver_causal_concat_sample():
+    """Regression: DPM++ must accept 3-channel UNet input in two-stage mode.
+
+    Previously ``_sample_dpm_solver`` fed 1-channel ``sample`` into a UNet
+    built with ``in_channels=3``, causing RuntimeError at inference.
+    """
+    pytest.importorskip("diffusers")
+
+    from st_cdgm.models.diffusion_decoder import CausalDiffusionDecoder
+    from st_cdgm.models.edm_preconditioner import EDMConfig
+
+    cfg = EDMConfig(sigma_data=0.05)
+    decoder = CausalDiffusionDecoder(
+        in_channels=1,
+        conditioning_dim=8,
+        height=32,
+        width=32,
+        scheduler_type="edm_karras",
+        edm_config=cfg,
+        causal_concat=True,
+        unet_kwargs=dict(
+            layers_per_block=1,
+            block_out_channels=(8, 16),
+            down_block_types=("DownBlock2D", "DownBlock2D"),
+            up_block_types=("UpBlock2D", "UpBlock2D"),
+            mid_block_type="UNetMidBlock2D",
+            norm_num_groups=4,
+        ),
+    )
+
+    mu_HR = torch.randn(2, 1, 32, 32) * 0.1
+    baseline_log = torch.randn(2, 1, 32, 32) * 0.5
+
+    out = decoder.sample(
+        conditioning=None,
+        mu_HR=mu_HR,
+        baseline_log=baseline_log,
+        scheduler_type="dpm_solver++",
+        num_steps=4,
+        cfg_scale=1.5,
+        apply_constraints=False,
+    )
+    assert out.residual.shape == (2, 1, 32, 32), f"residual shape: {out.residual.shape}"
+    assert torch.isfinite(out.residual).all()
+
+
+# ----------------------------------------------------------------------
 # T13 — Stage 1 backward propagates to A_dag.grad
 # ----------------------------------------------------------------------
 

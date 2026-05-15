@@ -570,10 +570,11 @@ Documenter les donn\'ees, l'environnement exp\'erimental, les hyperparam\`etres 
 Variante  & Pearson $\uparrow$ & F1@$p95$ $\uparrow$ & F1@$p99$ $\uparrow$ & RAPSD dist. $\downarrow$ \\
 \hline
 V1 (CorrDiff Mini)         & $0{,}36$       & $0{,}42$       & $0{,}0037$     & $812$ \\
-V2 (CorrDiff Normal)       & $0{,}71$       & $0{,}42$       & $0{,}29$       & $364$ \\
-V2-eval+ (Tier 0)          & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
-V3 (Tier 0+1, EMA + 100\,ep) & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
-V4 (Tier 0+1+2, CorrDiff L) & (en cours)     & (en cours)     & (en cours)     & (en cours) \\
+V2 (CorrDiff Normal, 50\,ep) & $0{,}71$       & $0{,}42$       & $0{,}29$       & $364$ \\
+V2 étendu (200\,ep, stride=2) & $0{,}82$       & $0{,}65$       & $0{,}53$       & $258$ \\
+V2-eval+ (Tier 0, inf.)    & (post-run)     & (post-run)     & (post-run)     & (post-run) \\
+V3 (Tier 0+1, EMA + 100\,ep) & (post-run Colab) & (post-run Colab) & (post-run Colab) & (post-run Colab) \\
+V4 (Tier 0+1+2, CorrDiff L) & (post-run Colab) & (post-run Colab) & (post-run Colab) & (post-run Colab) \\
 \hline
 Cible Oracle              & $0{,}896$      & $0{,}837$      & $0{,}754$      & $\rightarrow 0$ \\
 \hline

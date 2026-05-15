@@ -1,0 +1,17 @@
+{
+  "_comment": "Remplacer par la sortie de ckpt_v4_corrdiff_large/final_validation_metrics.json apres run Colab V4",
+  "checkpoint": "epoch_last.pth",
+  "causal_concat": true,
+  "pearson_global": null,
+  "pearson_per_sample_avg": null,
+  "rmse_ensemble_mean": null,
+  "spread_ensemble_std": null,
+  "rapsd_distance": null,
+  "p95": null,
+  "p99": null,
+  "shortcut_verdict": null,
+  "mu_HR_ablation_delta_pct": null,
+  "eval_scheduler": "dpm_solver++",
+  "eval_num_steps": 32,
+  "cfg_scale": 1.5
+}
