@@ -844,6 +844,9 @@ class NetCDFDataPipeline:
         stride: int = 1,
         drop_last: bool = True,
         as_torch: bool = True,
+        # V5 — Track D3 : augmentation params (default off => backward compat).
+        training: bool = False,
+        hflip_prob: float = 0.0,
     ) -> "ResDiffIterableDataset":
         seq_len = seq_len or self.seq_len
         if as_torch and torch is None:
@@ -862,6 +865,8 @@ class NetCDFDataPipeline:
             stride=max(1, stride),
             drop_last=drop_last,
             as_torch=as_torch,
+            training=training,
+            hflip_prob=hflip_prob,
         )
 
 
@@ -893,6 +898,13 @@ class ResDiffIterableDataset(IterableDataset):
         stride: int,
         drop_last: bool,
         as_torch: bool,
+        # V5 — Track D3 : augmentation. Activable seulement en train ; le
+        # builder passera ``training=False`` pour le val_dataloader.
+        # PAS de rotation : variables intelligibles ont une orientation
+        # physique (vent zonal/meridien). vflip aussi interdit (gradient
+        # geopotentiel oriente N/S). Seul hflip (lon) preserve la physique.
+        training: bool = False,
+        hflip_prob: float = 0.0,
     ) -> None:
         if IterableDataset is None:
             raise ImportError("PyTorch IterableDataset unavailable. Install torch to use ResDiffIterableDataset.")
@@ -904,6 +916,9 @@ class ResDiffIterableDataset(IterableDataset):
         self.dims = dims
         self.static_tensor_np = static_tensor_np
         self.static_tensor_torch = static_tensor_torch
+        # V5 — augmentation flags.
+        self.training = bool(training)
+        self.hflip_prob = float(hflip_prob) if self.training else 0.0
 
         overlap = max(seq_len - self.stride, 0)
         batch_kwargs = dict(
@@ -927,13 +942,41 @@ class ResDiffIterableDataset(IterableDataset):
             if not self._window_has_required_length(lr_window):
                 if self.drop_last:
                     continue
-            yield self._format_sample(lr_window, baseline_window, residual_window, hr_window)
+            sample = self._format_sample(
+                lr_window, baseline_window, residual_window, hr_window
+            )
+            # V5 — Track D3 : apply hflip with proba on the last (lon) axis
+            # for all spatial tensors AND static if present. Use a single
+            # Bernoulli draw to keep lr/baseline/residual/hr/valid_mask
+            # consistent (same orientation per sample).
+            if self.training and self.hflip_prob > 0.0 and self.as_torch and torch is not None:
+                if float(torch.rand(()).item()) < self.hflip_prob:
+                    sample = self._apply_hflip(sample)
+            yield sample
 
     # ------------------------------------------------------------------
     # Helper utilities
     # ------------------------------------------------------------------
     def _window_has_required_length(self, window: xr.Dataset) -> bool:
         return window.sizes.get(self.dims.time, 0) == self.seq_len
+
+    def _apply_hflip(self, sample: Dict[str, object]) -> Dict[str, object]:
+        """V5 — Track D3 : horizontal flip on the last (longitude) axis.
+
+        Applied to lr/baseline/residual/hr/valid_mask consistently. ``static``
+        is a per-sample 3D tensor [C, H, W] and is also flipped to keep
+        topography/static features aligned with the rotated LR/HR fields.
+        ``time`` is unaffected.
+        """
+        if torch is None:
+            return sample
+        for k in ("lr", "baseline", "residual", "hr", "valid_mask", "static"):
+            v = sample.get(k)
+            if v is None:
+                continue
+            if torch.is_tensor(v):
+                sample[k] = torch.flip(v, dims=[-1])
+        return sample
 
     def _format_sample(
         self,
@@ -1091,10 +1134,13 @@ class ZarrDataPipeline:
         stride: int = 1,
         drop_last: bool = True,
         as_torch: bool = True,
+        # V5 — Track D3 : augmentation params.
+        training: bool = False,
+        hflip_prob: float = 0.0,
     ) -> "ResDiffIterableDataset":
         """
         Build an IterableDataset for training.
-        
+
         Parameters
         ----------
         seq_len :
@@ -1105,7 +1151,14 @@ class ZarrDataPipeline:
             Whether to drop the last incomplete sequence.
         as_torch :
             Whether to return PyTorch tensors.
-        
+        training :
+            V5 — pass ``True`` to enable data augmentation. Validation /
+            inference loaders should keep the default ``False``.
+        hflip_prob :
+            V5 — probability of horizontal flip (lon axis) when training.
+            CorrDiff-style. PAS de rotation : variables ont une orientation
+            physique.
+
         Returns
         -------
         ResDiffIterableDataset
@@ -1128,6 +1181,8 @@ class ZarrDataPipeline:
             stride=max(1, stride),
             drop_last=drop_last,
             as_torch=as_torch,
+            training=training,
+            hflip_prob=hflip_prob,
         )
     
     def get_lr_dataset(self) -> xr.Dataset:

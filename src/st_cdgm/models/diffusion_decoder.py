@@ -519,6 +519,8 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        *,
+        return_components: bool = False,
     ) -> Tensor:
         """EDM training loss (Karras Eq. 8) — ``E[lambda(sigma) ||D - x0||^2]``.
 
@@ -529,6 +531,19 @@ class CausalDiffusionDecoder(nn.Module):
 
         NaN handling is identical to the DDPM path: pixels with NaN in
         ``target`` are excluded from the loss via a finite-mask.
+
+        BS40 (V5) — Track C1/C2: optional FACL spectral loss + Sliced
+        Wasserstein-1D regularisation are added on top of the EDM term when
+        enabled via ``cfg.spectral_loss`` / ``cfg.wasserstein_reg``. Both
+        operate on the **denoiser output** ``D_y`` versus ``target_clean``
+        so the gradient pathway is identical (avoids double-noising).
+
+        Parameters
+        ----------
+        return_components : bool
+            If True, returns ``(total_loss, {"edm": L_edm, "facl": L_facl,
+            "swd": L_sw})`` for logging. Default False keeps backward
+            compatibility (returns scalar).
         """
         from .edm_preconditioner import lambda_weight, sample_training_sigma
 
@@ -613,14 +628,58 @@ class CausalDiffusionDecoder(nn.Module):
             weighted = weights * sq_err
         masked = weighted * valid_mask.float()
         n_valid = valid_mask.float().sum().clamp(min=1.0)
-        loss = masked.sum() / n_valid
+        loss_edm = masked.sum() / n_valid
 
-        if not torch.isfinite(loss):
+        if not torch.isfinite(loss_edm):
             raise ValueError(
-                f"EDM loss is NaN/Inf: {loss.item()}. "
+                f"EDM loss is NaN/Inf: {loss_edm.item()}. "
                 f"sigma_range=[{sigma.min().item():.4g}, {sigma.max().item():.4g}]"
             )
-        return loss
+
+        # >>> V5 — Track C1 : FACL spectral loss (Yang 2024 arXiv:2410.23159).
+        # Drives RAPSD distance + Pearson via amplitude + correlation in
+        # Fourier space. Computed on the denoiser output (D_y) which is the
+        # x0 estimate at sigma=current, so we compare like-for-like with
+        # target_clean. Skipped silently if cfg.spectral_loss missing/disabled.
+        loss_facl = target.new_zeros(())
+        sl_cfg = getattr(cfg, "spectral_loss", None)
+        if sl_cfg is not None and getattr(sl_cfg, "enabled", False):
+            from st_cdgm.training.spectral_loss import facl_loss
+            loss_facl = facl_loss(
+                D_y,
+                target_clean,
+                alpha_amplitude=float(getattr(sl_cfg, "alpha_amplitude", 0.5)),
+                beta_correlation=float(getattr(sl_cfg, "beta_correlation", 0.5)),
+                valid_mask=valid_mask.float(),
+            )
+
+        # >>> V5 — Track C2 : Sliced Wasserstein-1D regularization.
+        # Enforces distributional match of the residual marginal (heavy tail).
+        loss_sw = target.new_zeros(())
+        wr_cfg = getattr(cfg, "wasserstein_reg", None)
+        if wr_cfg is not None and getattr(wr_cfg, "enabled", False):
+            from st_cdgm.training.wasserstein_reg import sliced_wasserstein_1d
+            loss_sw = sliced_wasserstein_1d(
+                D_y,
+                target_clean,
+                n_slices=int(getattr(wr_cfg, "n_slices", 64)),
+                valid_mask=valid_mask.float(),
+            )
+
+        # Aggregate with config-provided weights (default 0 if unspecified).
+        lam_facl = float(getattr(sl_cfg, "lambda_weight", 0.0)) if sl_cfg is not None else 0.0
+        lam_sw = float(getattr(wr_cfg, "lambda_weight", 0.0)) if wr_cfg is not None else 0.0
+        loss_total = loss_edm + lam_facl * loss_facl + lam_sw * loss_sw
+
+        if return_components:
+            return loss_total, {
+                "edm": loss_edm.detach(),
+                "facl": loss_facl.detach() if isinstance(loss_facl, Tensor) else loss_facl,
+                "swd": loss_sw.detach() if isinstance(loss_sw, Tensor) else loss_sw,
+                "lambda_facl": lam_facl,
+                "lambda_sw": lam_sw,
+            }
+        return loss_total
 
     def predict_x0_from_epsilon(
         self,
@@ -724,6 +783,22 @@ class CausalDiffusionDecoder(nn.Module):
                 conditioning_spatial=conditioning_spatial,
                 mu_HR=mu_HR,
                 baseline_log=baseline_log,
+            )
+        if scheduler_type == "edm_restart":
+            # V5 Track A4 — Restart sampling (Xu 2023, arXiv:2306.14878).
+            # Same Heun base with periodic forward-noise restarts in the
+            # mid-sigma regime. Improves Pearson + spread at +(K-1) compute.
+            num_steps = num_steps or 32
+            return self._sample_edm_karras(
+                conditioning=conditioning,
+                num_steps=num_steps,
+                generator=generator,
+                baseline=baseline,
+                apply_constraints=apply_constraints,
+                conditioning_spatial=conditioning_spatial,
+                mu_HR=mu_HR,
+                baseline_log=baseline_log,
+                use_restart=True,
             )
         if scheduler_type == "edm":
             # Legacy: simple Euler ODE solver (kept for backward compat).
@@ -848,6 +923,11 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        *,
+        use_restart: bool = False,
+        restart_cycles: int = 2,
+        restart_inner_steps: int = 3,
+        restart_sigma_threshold: float = 0.1,
     ) -> DiffusionOutput:
         """Heun ODE sampler over the Karras sigma schedule.
 
@@ -858,8 +938,13 @@ class CausalDiffusionDecoder(nn.Module):
         ``baseline_log`` instead of (or in addition to) ``conditioning``.
         ``baseline`` argument is then optional since the baseline is
         already captured in ``baseline_log`` for the channel-concat input.
+
+        V5 — Track A4: when ``use_restart=True`` the standard Heun trajectory
+        is replaced with the Restart sampler (Xu 2023). Hyperparameters
+        ``restart_cycles``, ``restart_inner_steps`` and
+        ``restart_sigma_threshold`` control the burst-noise schedule.
         """
-        from .edm_sampler import heun_sample
+        from .edm_sampler import heun_sample, restart_sample
 
         if self.edm_config is None:
             raise RuntimeError("_sample_edm_karras requires scheduler_type='edm_karras'")
@@ -897,15 +982,29 @@ class CausalDiffusionDecoder(nn.Module):
                 baseline_log=baseline_log,
             )
 
-        residual = heun_sample(
-            denoiser_fn,
-            shape=(B, self.in_channels, self.height, self.width),
-            cfg=self.edm_config,
-            num_steps=num_steps,
-            device=device,
-            dtype=dtype,
-            generator=generator,
-        )
+        if use_restart:
+            residual = restart_sample(
+                denoiser_fn,
+                shape=(B, self.in_channels, self.height, self.width),
+                cfg=self.edm_config,
+                num_steps=num_steps,
+                device=device,
+                dtype=dtype,
+                generator=generator,
+                restart_cycles=restart_cycles,
+                restart_inner_steps=restart_inner_steps,
+                restart_sigma_threshold=restart_sigma_threshold,
+            )
+        else:
+            residual = heun_sample(
+                denoiser_fn,
+                shape=(B, self.in_channels, self.height, self.width),
+                cfg=self.edm_config,
+                num_steps=num_steps,
+                device=device,
+                dtype=dtype,
+                generator=generator,
+            )
 
         if baseline is not None:
             if baseline.shape != residual.shape:

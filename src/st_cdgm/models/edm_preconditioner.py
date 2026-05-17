@@ -47,6 +47,41 @@ from torch import Tensor
 
 
 # >>> BS34_TAIL_LOSS — tail-aware MSE config (Ravuri 2021, WassDiff 2024).
+# >>> V5 — Track C1 : FACL spectral loss config.
+@dataclass
+class SpectralLossConfig:
+    """Fourier Amplitude + Correlation Loss (Yang 2024, arXiv:2410.23159).
+
+    Adds two FFT-based regularisers to the EDM denoiser output:
+      * FAL : ``E[(|F(D_y)| - |F(target)|)^2]`` — drives RAPSD distance.
+      * FCL : ``E[1 - <F(D_y), F(target)> / (||F(D_y)|| ||F(target)||)]``
+              — drives Pearson correlation via phase alignment.
+
+    Both are parameter-free and BF16-safe. See
+    ``st_cdgm.training.spectral_loss.facl_loss``.
+    """
+
+    enabled: bool = False
+    alpha_amplitude: float = 0.5
+    beta_correlation: float = 0.5
+    lambda_weight: float = 0.5     # weight in the total loss
+
+
+# >>> V5 — Track C2 : Sliced Wasserstein-1D regularisation config.
+@dataclass
+class WassersteinRegConfig:
+    """Sliced 1D Wasserstein-2 regulariser on the residual distribution.
+
+    Reference : Liu 2024 (WassDiff, arXiv:2410.00381) — distributional
+    consistency for heavy-tailed precipitation. See
+    ``st_cdgm.training.wasserstein_reg.sliced_wasserstein_1d``.
+    """
+
+    enabled: bool = False
+    n_slices: int = 64
+    lambda_weight: float = 0.2     # weight in the total loss
+
+
 @dataclass
 class TailWeightConfig:
     """Threshold-weighted denoising loss for heavy-tailed targets.
@@ -98,6 +133,84 @@ class EDMConfig:
     S_noise: float = 1.0
     # >>> BS34_TAIL_LOSS — optional tail-weighting (None = legacy MSE).
     tail_weight: TailWeightConfig | None = None
+    # >>> V5 Track C1 — optional FACL spectral loss (None = disabled).
+    spectral_loss: SpectralLossConfig | None = None
+    # >>> V5 Track C2 — optional Sliced Wasserstein-1D regulariser.
+    wasserstein_reg: WassersteinRegConfig | None = None
+
+    @classmethod
+    def from_yaml_dict(cls, edm_dict) -> "EDMConfig":
+        """Build an EDMConfig from a dict-like (OmegaConf / DictConfig / plain dict).
+
+        Handles all nested sub-configs (tail_weight, spectral_loss,
+        wasserstein_reg) with proper enabled gating. Missing keys fall back to
+        Karras 2022 defaults. Designed to be the single entry point used by
+        the notebook and CLI launchers — so that future loss additions only
+        require one place to update.
+
+        Parameters
+        ----------
+        edm_dict :
+            ``CONFIG.diffusion.edm`` block. Supports ``.get()`` (OmegaConf
+            DictConfig) or plain dict.
+        """
+        if edm_dict is None:
+            return cls()
+        # Uniform getter that works for dict, DictConfig, or attr-style.
+        def _g(d, k, default=None):
+            try:
+                return d.get(k, default)
+            except AttributeError:
+                return getattr(d, k, default)
+
+        # tail_weight
+        tw_raw = _g(edm_dict, "tail_weight", None)
+        tail_w = None
+        if tw_raw is not None and bool(_g(tw_raw, "enabled", False)):
+            tail_w = TailWeightConfig(
+                enabled=True,
+                tau95_mmday=float(_g(tw_raw, "tau95_mmday", 15.0)),
+                tau99_mmday=float(_g(tw_raw, "tau99_mmday", 35.0)),
+                weight_p95=float(_g(tw_raw, "weight_p95", 5.0)),
+                weight_p99=float(_g(tw_raw, "weight_p99", 10.0)),
+            )
+
+        # spectral_loss (V5)
+        sl_raw = _g(edm_dict, "spectral_loss", None)
+        sl_w = None
+        if sl_raw is not None and bool(_g(sl_raw, "enabled", False)):
+            sl_w = SpectralLossConfig(
+                enabled=True,
+                alpha_amplitude=float(_g(sl_raw, "alpha_amplitude", 0.5)),
+                beta_correlation=float(_g(sl_raw, "beta_correlation", 0.5)),
+                lambda_weight=float(_g(sl_raw, "lambda_weight", 0.5)),
+            )
+
+        # wasserstein_reg (V5)
+        wr_raw = _g(edm_dict, "wasserstein_reg", None)
+        wr_w = None
+        if wr_raw is not None and bool(_g(wr_raw, "enabled", False)):
+            wr_w = WassersteinRegConfig(
+                enabled=True,
+                n_slices=int(_g(wr_raw, "n_slices", 64)),
+                lambda_weight=float(_g(wr_raw, "lambda_weight", 0.2)),
+            )
+
+        return cls(
+            sigma_data=float(_g(edm_dict, "sigma_data", 0.1)),
+            sigma_min=float(_g(edm_dict, "sigma_min", 0.002)),
+            sigma_max=float(_g(edm_dict, "sigma_max", 80.0)),
+            rho=float(_g(edm_dict, "rho", 7.0)),
+            P_mean=float(_g(edm_dict, "P_mean", -1.2)),
+            P_std=float(_g(edm_dict, "P_std", 1.2)),
+            S_churn=float(_g(edm_dict, "S_churn", 0.0)),
+            S_tmin=float(_g(edm_dict, "S_tmin", 0.0)),
+            S_tmax=float(_g(edm_dict, "S_tmax", float("inf"))),
+            S_noise=float(_g(edm_dict, "S_noise", 1.0)),
+            tail_weight=tail_w,
+            spectral_loss=sl_w,
+            wasserstein_reg=wr_w,
+        )
 
 
 def compute_preconditioning(

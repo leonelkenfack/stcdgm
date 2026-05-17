@@ -1,0 +1,206 @@
+# =============================================================================
+# V5 — Pearson 0.90+ override — BS40 (2026-05-17)
+# =============================================================================
+# Applies on top of ``training_config.yaml`` via ``OmegaConf.merge`` and
+# REPLACES ``training_config_corrdiff_normal.yaml``. Full retrain Stage 1 + 2.
+#
+# OBJECTIF V5 : franchir le palier Pearson 0.81 -> >= 0.90 en consolidant
+# dans un seul run A100 :
+#
+#   TRACK A — Inference fixes (sampler EDM-Karras, CFG=1.0, ensemble K=64)
+#   TRACK B — Training correctness (EMA, conditioning_dropout, sigma_sampling)
+#   TRACK C — Loss enhancement (FACL spectral, Sliced W-1D, tail-w souple)
+#   TRACK D — Capacity (Stage 1 1.2M -> 6M, augmentation hflip + jitter)
+#
+# RÉFÉRENCES :
+#   - CorrDiff (Mardani 2024, arXiv:2309.15214) : EMA η=0.5, dropout=0.13,
+#     EDM Heun 18 steps, σ ~ LogN(0, 1.2²), bs=512, 100M steps
+#   - EDM (Karras 2022, arXiv:2206.00364) : preconditioning, S_churn=40 Heun
+#   - EDM2 (Karras 2024 CVPR, arXiv:2312.02696) : EMA decay 0.9999 (déjà câblé)
+#   - CFG (Ho & Salimans 2022, arXiv:2207.12598) : conditioning_dropout requis
+#   - FACL (Yang 2024, arXiv:2410.23159) : Fourier amplitude + correlation
+#   - WassDiff (Liu 2024, arXiv:2410.00381) : sliced Wasserstein α=0.2
+#   - Plan : C:/Users/reall/.claude/plans/faire-un-extraplan-complet-transient-lollipop.md
+# =============================================================================
+
+# =============================================================================
+# Stage 2 diffusion UNet — CorrDiff Normal sizing avec tracks B/C
+# =============================================================================
+diffusion:
+  # TRACK A — Sampler EDM-Karras (revert depuis dpm_solver++ qui était
+  # incompatible avec un modèle EDM-préconditionné — cf. diagnostic v4 P1).
+  scheduler_type: "edm_karras"
+  eval_num_steps: 32                # Karras Heun second-order, 32 steps
+  cfg_scale: 1.0                    # Track A2 — pas de CFG tant que dropout
+                                     # n'est pas validé (sera 1.5 après ablation
+                                     # post-run via override CLI au besoin).
+
+  # Track B2 : conditioning dropout pour entraîner la branche unconditional
+  # (CFG-compatible). CorrDiff utilise 0.13. Sans ça, cfg_scale > 1 produit
+  # des artefacts (branche uncond jamais vue au training).
+  conditioning_dropout_prob: 0.13
+
+  unet_kwargs:
+    layers_per_block: 2
+    # 4 niveaux : 172x179 -> 86x90 -> 43x45 -> 21x22. ~50 M params.
+    block_out_channels: [128, 256, 256, 256]
+    down_block_types:
+      - "DownBlock2D"            # 172x179 — no attn
+      - "DownBlock2D"            # 86x90   — no attn
+      - "DownBlock2D"            # 43x45   — no attn
+      - "CrossAttnDownBlock2D"   # 21x22   — attn ici (smallest level)
+    up_block_types:
+      - "CrossAttnUpBlock2D"     # 21x22
+      - "UpBlock2D"              # 43x45
+      - "UpBlock2D"              # 86x90
+      - "UpBlock2D"              # 172x179
+    mid_block_type: "UNetMidBlock2D"
+    norm_num_groups: 32
+    attention_head_dim: 8
+    only_cross_attention: [false, false, false, false]
+
+  edm:
+    # Track A4 : S_churn=40 maintenant que le sampler est bien EDM Heun
+    # (et non DPM-Solver++ qui ignorait ce paramètre — v4 P6).
+    S_churn: 40.0
+    S_tmin: 0.0
+    S_tmax: 1.0e10
+    S_noise: 1.0
+
+    # Track C3 — tail_weight assoupli (8/25 -> 4/8) car la régularisation
+    # distributionnelle (Wasserstein) prend le relais sur la calibration
+    # de la queue. Le tail_weight v4 était trop agressif et créait des
+    # "hot pixels" sur p99 sans améliorer la distribution globale.
+    tail_weight:
+      enabled: true
+      tau95_mmday: 15.0
+      tau99_mmday: 35.0
+      weight_p95: 4.0     # 8.0 -> 4.0
+      weight_p99: 8.0     # 25.0 -> 8.0
+
+    # Track B3 — sigma sampling exact CorrDiff : ln σ ~ N(0, 1.2²).
+    # Default Karras est P_mean=-1.2 (privilégie σ faibles) ; CorrDiff
+    # utilise P_mean=0.0 qui couvre mieux les σ médians-hauts utiles
+    # à la reconstruction des extrêmes.
+    P_mean: 0.0
+    P_std: 1.2
+
+    sigma_data: 0.18                 # init ; recalibré post-Stage 1
+    sigma_min: 0.002
+    sigma_max: 80.0
+    rho: 7.0
+
+    # Track C1 — FACL spectral loss (Fourier Amplitude + Correlation).
+    spectral_loss:
+      enabled: true
+      alpha_amplitude: 0.5
+      beta_correlation: 0.5
+      lambda_weight: 0.5             # poids du terme dans la loss totale
+
+    # Track C2 — Sliced Wasserstein-1D regularization sur le résidu.
+    wasserstein_reg:
+      enabled: true
+      n_slices: 64
+      lambda_weight: 0.2
+
+  # Compense le 4x param count vs Mini. Recompute activations pendant le
+  # backward -> ~30% plus lent mais ~50% moins de VRAM.
+  use_gradient_checkpointing: true
+
+# =============================================================================
+# Track D1 — Stage 1 enlargement (full retrain from scratch).
+# Capacite encoder + RCN + regression_head : 1.2M -> ~6M params via YAML
+# overrides (pas de refacto Python necessaire — tout est deja parametrise).
+# =============================================================================
+encoder:
+  hidden_dim: 192                        # 128 -> 192 (+50% capacite encoder)
+
+rcn:
+  hidden_dim: 192                        # match encoder.hidden_dim
+
+# =============================================================================
+# Two-stage training — full retrain V5
+# =============================================================================
+two_stage:
+  regression_head:
+    architecture: "graph_to_grid_xattn"
+    d_model: 192                         # = encoder.hidden_dim (CRITIQUE)
+    n_heads: 8                           # 4 -> 8 (192/8=24 dim/head, plus de parallelisme)
+    intermediate_h: 43
+    intermediate_w: 45
+    refine_channels: 128                 # 64 -> 128 (CNN refine plus profond)
+    spatial_query_init: "normal_0.02"
+
+  stage1:
+    # Track D1 : Stage 1 enlarged (1.2M -> ~6M) necessite retrain from scratch.
+    # 30 epochs (vs 15 v4) pour converger la capacite supplementaire.
+    epochs_max: 30
+
+  stage2:
+    epochs_max: 250                 # 200 v4 + 50 marge convergence
+    # BS37 Sprint B / V3 — EMA Stage 2 (déjà câblé two_stage.py:817-831).
+    # ema.enabled=true active le passage dans la fonction.
+    ema:
+      enabled: true                 # Track B1 — CORRECTION CRITIQUE v4 P3
+      decay: 0.9999                 # Karras EDM convention
+      warmup_steps: 1000            # ne start EMA qu'après 1000 batches
+                                     # pour éviter pollution par grad bruité.
+
+    # BS35-CONTRASTIVE — conservé identique à v4 (efficace, ne change pas).
+    contrastive_dag:
+      enabled: true
+      weight: 0.5
+      margin: 0.02
+      interval: 4
+      ablation_mode: zero
+      diagnostic:
+        decorative_threshold: 0.01
+        modest_threshold: 0.10
+      decay:
+        enabled: true
+        warmup_epochs: 2
+        decay_factor: 0.5
+        recovery_factor: 1.5
+        floor_ratio: 0.01
+      autotune_mode:
+        enabled: true
+        activate_after_epochs: 15
+        window_epochs: 3
+        sensitivity_threshold: 0.001
+        mode_progression: [zero, permute, random]
+
+    # Track B4 — σ_data live recalibration toutes les 20 epochs.
+    # Lit le σ_data effectif sur 100 batches val, met à jour EDMConfig.
+    sigma_data_recalibrate_every: 20
+
+  # BS35 : 'causal' (RCN+DAGMA+decoder) conservé.
+  run_variant: causal
+
+# =============================================================================
+# Data sequencing + augmentation
+# =============================================================================
+data:
+  stride: 2
+  # Track D3 — augmentation (actuellement aucune dans ResDiffIterableDataset).
+  # PAS de rotation : variables intelligibles ont une orientation physique
+  # (vent zonal/méridien, gradient géopotentiel). Hflip OK car symétrie
+  # gauche/droite cohérente. temporal_jitter = décalage aléatoire ±N jours
+  # sur la fenêtre lr/baseline/residual au moment du windowing.
+  augmentation:
+    enabled: true
+    hflip_prob: 0.5                 # flip horizontal (lon)
+    vflip_prob: 0.0                 # PAS de flip vertical (lat) — orientation N/S physique
+    temporal_jitter_days: 0         # mis à 0 par défaut ; activer après validation
+
+# =============================================================================
+# torch.compile — désactivé (idem v4).
+# =============================================================================
+training:
+  compile:
+    enabled: false
+
+# =============================================================================
+# Checkpoint isolé V5 — préserve V4 intact pour comparaison mémoire.
+# =============================================================================
+checkpoint:
+  save_dir: "/content/drive/MyDrive/climate_data/ckpt_v5_pearson_090"

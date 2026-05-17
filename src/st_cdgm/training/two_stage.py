@@ -673,6 +673,15 @@ def train_epoch_stage2_cached(
     # Standard CorrDiff/EDM : decay 0.9999 (averaging effectif sur ~10000 steps).
     ema_model: Optional[nn.Module] = None,
     ema_decay: float = 0.9999,
+    ema_warmup_steps: int = 0,
+    # V5 — Track B2 : conditioning_dropout pour CFG-compatibility.
+    # Avec proba p le mu_HR est zeroe avant compute_loss_edm, entrainant
+    # ainsi la branche "uncond" indispensable pour cfg_scale > 1 a l'inference.
+    # CorrDiff utilise 0.13 (cf. Mardani 2024 §4.2). Pas le contrastive_dag
+    # qui a sa propre logique d'ablation.
+    conditioning_dropout_prob: float = 0.0,
+    # V5 — Track C : log FACL + Sliced-W si compute_loss_edm les retourne.
+    log_loss_components: bool = True,
 ) -> dict:
     """Thin Stage 2 training loop that consumes a pre-cached dataset.
 
@@ -710,9 +719,12 @@ def train_epoch_stage2_cached(
 
     contrastive_active = bool(lambda_contrastive_dag > 0.0)
     interval = max(1, int(contrastive_dag_interval))
+    cond_drop_active = bool(conditioning_dropout_prob > 0.0)
+    cond_drop_p = float(conditioning_dropout_prob)
 
     ema_active = ema_model is not None
     ema_steps = 0
+    ema_skip_warmup = max(0, int(ema_warmup_steps))
     if ema_active:
         ema_model.eval()
         for _p in ema_model.parameters():
@@ -728,16 +740,26 @@ def train_epoch_stage2_cached(
                 if contrastive_active
                 else ""
             )
-            + (f" | EMA on (decay={ema_decay})" if ema_active else " | EMA off"),
+            + (
+                f" | EMA on (decay={ema_decay}"
+                + (f", warmup={ema_skip_warmup}" if ema_skip_warmup > 0 else "")
+                + ")"
+                if ema_active else " | EMA off"
+            )
+            + (f" | cond_drop p={cond_drop_p}" if cond_drop_active else ""),
             flush=True,
         )
 
     total_loss = 0.0
+    total_facl = 0.0
+    total_swd = 0.0
+    n_facl_steps = 0
     total_contrastive = 0.0
     total_dag_sensitivity = 0.0
     n_contrastive = 0
     n_batches = 0
     contrastive_skipped_missing_key = 0
+    n_cond_dropped = 0
 
     for batch_idx, batch in enumerate(cached_dataloader):
         mu_HR = batch["mu_HR"].to(device, non_blocking=True)
@@ -755,16 +777,41 @@ def train_epoch_stage2_cached(
                 contrastive_skipped_missing_key += 1
                 do_contrastive = False
 
+        # >>> V5 — Track B2 : conditioning_dropout pour CFG-compatibility.
+        # On droppe mu_HR au niveau du sample (Bernoulli p) avant la loss EDM.
+        # baseline_log reste intact car il porte le seul signal LR utile dans
+        # la branche uncond. Quand do_contrastive=True le contrastive utilise
+        # mu_HR_ablated separement — pas de double-drop.
+        mu_HR_used = mu_HR
+        if cond_drop_active and not do_contrastive:
+            B = mu_HR.shape[0]
+            mask = (torch.rand(B, device=device) < cond_drop_p).view(B, 1, 1, 1)
+            if mask.any():
+                mu_HR_used = torch.where(mask, torch.zeros_like(mu_HR), mu_HR)
+                n_cond_dropped += int(mask.sum().item())
+
         optimizer.zero_grad(set_to_none=True)
 
         with _train_autocast(amp_mode):
-            loss_real = diffusion_decoder.compute_loss_edm(
+            _loss_out = diffusion_decoder.compute_loss_edm(
                 target=delta_target,
                 conditioning=None,
                 conditioning_spatial=None,
-                mu_HR=mu_HR,
+                mu_HR=mu_HR_used,
                 baseline_log=baseline_log,
+                return_components=log_loss_components,
             )
+            if log_loss_components and isinstance(_loss_out, tuple):
+                loss_real, loss_components = _loss_out
+                facl_val = loss_components.get("facl", None)
+                swd_val = loss_components.get("swd", None)
+                if facl_val is not None and torch.is_tensor(facl_val):
+                    total_facl += float(facl_val.item())
+                if swd_val is not None and torch.is_tensor(swd_val):
+                    total_swd += float(swd_val.item())
+                n_facl_steps += 1
+            else:
+                loss_real = _loss_out
 
             loss_contrast_value = torch.tensor(
                 0.0, device=device, dtype=loss_real.dtype
@@ -818,7 +865,9 @@ def train_epoch_stage2_cached(
         # Buffers (running stats des GroupNorm si non-affine, etc.) sont
         # copies tels quels du live model, pas moyennes — c'est la convention
         # Karras EDM2 (Karras et al. 2024 Appendix B).
-        if ema_active:
+        # V5 — ema_warmup_steps : skip EMA update pour les premiers steps
+        # (live model encore tres bruite, polluerait la moyenne).
+        if ema_active and (ema_steps >= ema_skip_warmup or ema_skip_warmup == 0):
             with torch.no_grad():
                 for ep, lp in zip(
                     ema_model.parameters(), diffusion_decoder.parameters()
@@ -828,6 +877,7 @@ def train_epoch_stage2_cached(
                     ema_model.buffers(), diffusion_decoder.buffers()
                 ):
                     eb.data.copy_(lb.data)
+        if ema_active:
             ema_steps += 1
 
         total_loss += float(loss_real.detach().item())
@@ -851,6 +901,20 @@ def train_epoch_stage2_cached(
     avg_contrast = (
         total_contrastive / max(1, n_contrastive) if n_contrastive > 0 else 0.0
     )
+    avg_facl = total_facl / max(1, n_facl_steps) if n_facl_steps > 0 else 0.0
+    avg_swd = total_swd / max(1, n_facl_steps) if n_facl_steps > 0 else 0.0
+
+    if verbose and (avg_facl > 0 or avg_swd > 0):
+        print(
+            f"  V5 loss components : avg_FACL={avg_facl:.5f} | "
+            f"avg_SW1={avg_swd:.5f}",
+            flush=True,
+        )
+    if verbose and cond_drop_active and n_cond_dropped > 0:
+        print(
+            f"  cond_drop : {n_cond_dropped} mu_HR samples zeroed (p={cond_drop_p})",
+            flush=True,
+        )
 
     if verbose and contrastive_active:
         if n_contrastive == 0:
@@ -887,6 +951,13 @@ def train_epoch_stage2_cached(
         "ema_active": ema_active,
         "ema_steps": ema_steps,
         "ema_decay": ema_decay if ema_active else None,
+        # V5 — Track C : loss components for monitoring.
+        "loss_facl": avg_facl,
+        "loss_swd": avg_swd,
+        # V5 — Track B2 : conditioning_dropout stats.
+        "cond_drop_active": cond_drop_active,
+        "cond_drop_prob": cond_drop_p,
+        "n_samples_cond_dropped": n_cond_dropped,
     }
 
 

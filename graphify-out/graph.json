@@ -2626,391 +2626,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\netcdf_utils.py:963"
     },
     {
-      "id": "file::pipeline",
-      "label": "pipeline.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1"
-    },
-    {
-      "id": "pipeline::gridmetadata",
-      "label": "GridMetadata",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:64"
-    },
-    {
-      "id": "pipeline::_infer_dim",
-      "label": "_infer_dim",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:74"
-    },
-    {
-      "id": "pipeline::_ensure_callable_transform",
-      "label": "_ensure_callable_transform",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:86"
-    },
-    {
-      "id": "pipeline::_dataset_to_numpy",
-      "label": "_dataset_to_numpy",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:113"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline",
-      "label": "NetCDFDataPipeline",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:298"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:331"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_open_dataset",
-      "label": "._open_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:451"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_load_dataset_robust",
-      "label": "._load_dataset_robust",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:470"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_convert_cftime_to_datetime",
-      "label": "._convert_cftime_to_datetime",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:553"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_align_time",
-      "label": "._align_time",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:593"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_clean_nan_values",
-      "label": "._clean_nan_values",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:614"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_normalise_lr_dataset",
-      "label": "._normalise_lr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:642"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_compute_baseline",
-      "label": "._compute_baseline",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:661"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_detect_precipitation_vars",
-      "label": "._detect_precipitation_vars",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:704"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_apply_target_transform",
-      "label": "._apply_target_transform",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:722"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::_prepare_static_tensor",
-      "label": "._prepare_static_tensor",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:750"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_lr_dataset",
-      "label": ".get_lr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:797"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_lr_stats",
-      "label": ".get_lr_stats",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:800"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_hr_dataset",
-      "label": ".get_hr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:803"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_baseline_dataset",
-      "label": ".get_baseline_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:806"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_residual_dataset",
-      "label": ".get_residual_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:809"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_static_dataset",
-      "label": ".get_static_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:812"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::get_target_inverse_transform",
-      "label": ".get_target_inverse_transform",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:815"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::export_lr_metadata_to_json",
-      "label": ".export_lr_metadata_to_json",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:821"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::export_lr_metadata_to_csv",
-      "label": ".export_lr_metadata_to_csv",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:825"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::export_hr_metadata_to_json",
-      "label": ".export_hr_metadata_to_json",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:829"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::export_hr_metadata_to_csv",
-      "label": ".export_hr_metadata_to_csv",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:833"
-    },
-    {
-      "id": "pipeline::netcdfdatapipeline::build_sequence_dataset",
-      "label": ".build_sequence_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:840"
-    },
-    {
-      "id": "pipeline::resdiffiterabledataset",
-      "label": "ResDiffIterableDataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:868"
-    },
-    {
-      "id": "pipeline::resdiffiterabledataset::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:882"
-    },
-    {
-      "id": "pipeline::resdiffiterabledataset::__iter__",
-      "label": ".__iter__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:923"
-    },
-    {
-      "id": "pipeline::resdiffiterabledataset::_window_has_required_length",
-      "label": "._window_has_required_length",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:935"
-    },
-    {
-      "id": "pipeline::resdiffiterabledataset::_format_sample",
-      "label": "._format_sample",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:938"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline",
-      "label": "ZarrDataPipeline",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:990"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1005"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::_prepare_static_tensor",
-      "label": "._prepare_static_tensor",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1054"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::build_sequence_dataset",
-      "label": ".build_sequence_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1087"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::get_lr_dataset",
-      "label": ".get_lr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1133"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::get_hr_dataset",
-      "label": ".get_hr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1137"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::get_baseline_dataset",
-      "label": ".get_baseline_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1141"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::get_residual_dataset",
-      "label": ".get_residual_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1145"
-    },
-    {
-      "id": "pipeline::zarrdatapipeline::get_static_dataset",
-      "label": ".get_static_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1149"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline",
-      "label": "WebDatasetDataPipeline",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1154"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1170"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::build_sequence_dataset",
-      "label": ".build_sequence_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1217"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::get_lr_dataset",
-      "label": ".get_lr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1252"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::get_hr_dataset",
-      "label": ".get_hr_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1256"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::get_baseline_dataset",
-      "label": ".get_baseline_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1260"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::get_residual_dataset",
-      "label": ".get_residual_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1264"
-    },
-    {
-      "id": "pipeline::webdatasetdatapipeline::get_static_dataset",
-      "label": ".get_static_dataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1268"
-    },
-    {
-      "id": "pipeline::webdatasetiterabledataset",
-      "label": "WebDatasetIterableDataset",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1273"
-    },
-    {
-      "id": "pipeline::webdatasetiterabledataset::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1289"
-    },
-    {
-      "id": "pipeline::webdatasetiterabledataset::_format_sample",
-      "label": "._format_sample",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1337"
-    },
-    {
-      "id": "pipeline::webdatasetiterabledataset::__iter__",
-      "label": ".__iter__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1365"
-    },
-    {
       "id": "file::__init__",
       "label": "__init__.py",
       "fileType": "code",
@@ -4621,223 +4236,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_diag_stage2_timing.py:1"
     },
     {
-      "id": "file::diffusion_decoder",
-      "label": "diffusion_decoder.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
-    },
-    {
-      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
-      "label": "_replace_conv_transpose_with_resize",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:35"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput",
-      "label": "DiffusionOutput",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:62"
-    },
-    {
-      "id": "diffusion_decoder::diffusionoutput::composite",
-      "label": ".composite",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:74"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder",
-      "label": "CausalDiffusionDecoder",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:79"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
-      "label": ".__init__",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:84"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
-      "label": ".enable_gradient_checkpointing",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:162"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
-      "label": ".disable_gradient_checkpointing",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:184"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
-      "label": "._pool_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:195"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_zero_class_labels_placeholder",
-      "label": "._zero_class_labels_placeholder",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:199"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
-      "label": ".forward",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:229"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
-      "label": ".compute_loss",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:260"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::forward_edm",
-      "label": ".forward_edm",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:402"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss_edm",
-      "label": ".compute_loss_edm",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:515"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
-      "label": ".predict_x0_from_epsilon",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:625"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
-      "label": ".apply_physical_constraints",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:636"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
-      "label": ".sample",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:677"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_karras",
-      "label": "._sample_edm_karras",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:840"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
-      "label": "._sample_edm_ode",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:939"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
-      "label": "._sample_dpm_solver",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
-      "label": ".reconstruct_from_residual",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1174"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
-      "label": ".set_condition_adapter",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1204"
-    },
-    {
-      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
-      "label": "._prepare_conditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1210"
-    },
-    {
-      "id": "file::edm_preconditioner",
-      "label": "edm_preconditioner.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:1"
-    },
-    {
-      "id": "edm_preconditioner::tailweightconfig",
-      "label": "TailWeightConfig",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:51"
-    },
-    {
-      "id": "edm_preconditioner::edmconfig",
-      "label": "EDMConfig",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:78"
-    },
-    {
-      "id": "edm_preconditioner::compute_preconditioning",
-      "label": "compute_preconditioning",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:103"
-    },
-    {
-      "id": "edm_preconditioner::lambda_weight",
-      "label": "lambda_weight",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:148"
-    },
-    {
-      "id": "edm_preconditioner::sample_training_sigma",
-      "label": "sample_training_sigma",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:165"
-    },
-    {
-      "id": "edm_preconditioner::karras_sigma_schedule",
-      "label": "karras_sigma_schedule",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:185"
-    },
-    {
-      "id": "edm_preconditioner::stochastic_churn",
-      "label": "stochastic_churn",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:213"
-    },
-    {
       "id": "file::_patch_two_stage_bs34_tail_loss",
       "label": "_patch_two_stage_bs34_tail_loss.py",
       "fileType": "code",
@@ -4941,6 +4339,818 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:256"
+    },
+    {
+      "id": "file::pipeline",
+      "label": "pipeline.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1"
+    },
+    {
+      "id": "pipeline::gridmetadata",
+      "label": "GridMetadata",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:64"
+    },
+    {
+      "id": "pipeline::_infer_dim",
+      "label": "_infer_dim",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:74"
+    },
+    {
+      "id": "pipeline::_ensure_callable_transform",
+      "label": "_ensure_callable_transform",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:86"
+    },
+    {
+      "id": "pipeline::_dataset_to_numpy",
+      "label": "_dataset_to_numpy",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:113"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline",
+      "label": "NetCDFDataPipeline",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:298"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:331"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_open_dataset",
+      "label": "._open_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:451"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_load_dataset_robust",
+      "label": "._load_dataset_robust",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:470"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_convert_cftime_to_datetime",
+      "label": "._convert_cftime_to_datetime",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:553"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_align_time",
+      "label": "._align_time",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:593"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_clean_nan_values",
+      "label": "._clean_nan_values",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:614"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_normalise_lr_dataset",
+      "label": "._normalise_lr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:642"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_compute_baseline",
+      "label": "._compute_baseline",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:661"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_detect_precipitation_vars",
+      "label": "._detect_precipitation_vars",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:704"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_apply_target_transform",
+      "label": "._apply_target_transform",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:722"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::_prepare_static_tensor",
+      "label": "._prepare_static_tensor",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:750"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_lr_dataset",
+      "label": ".get_lr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:797"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_lr_stats",
+      "label": ".get_lr_stats",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:800"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_hr_dataset",
+      "label": ".get_hr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:803"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_baseline_dataset",
+      "label": ".get_baseline_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:806"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_residual_dataset",
+      "label": ".get_residual_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:809"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_static_dataset",
+      "label": ".get_static_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:812"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::get_target_inverse_transform",
+      "label": ".get_target_inverse_transform",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:815"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::export_lr_metadata_to_json",
+      "label": ".export_lr_metadata_to_json",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:821"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::export_lr_metadata_to_csv",
+      "label": ".export_lr_metadata_to_csv",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:825"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::export_hr_metadata_to_json",
+      "label": ".export_hr_metadata_to_json",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:829"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::export_hr_metadata_to_csv",
+      "label": ".export_hr_metadata_to_csv",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:833"
+    },
+    {
+      "id": "pipeline::netcdfdatapipeline::build_sequence_dataset",
+      "label": ".build_sequence_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:840"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset",
+      "label": "ResDiffIterableDataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:873"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:887"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset::__iter__",
+      "label": ".__iter__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:938"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset::_window_has_required_length",
+      "label": "._window_has_required_length",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:960"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset::_apply_hflip",
+      "label": "._apply_hflip",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:963"
+    },
+    {
+      "id": "pipeline::resdiffiterabledataset::_format_sample",
+      "label": "._format_sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:981"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline",
+      "label": "ZarrDataPipeline",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1033"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1048"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::_prepare_static_tensor",
+      "label": "._prepare_static_tensor",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1097"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::build_sequence_dataset",
+      "label": ".build_sequence_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1130"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::get_lr_dataset",
+      "label": ".get_lr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1188"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::get_hr_dataset",
+      "label": ".get_hr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1192"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::get_baseline_dataset",
+      "label": ".get_baseline_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1196"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::get_residual_dataset",
+      "label": ".get_residual_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1200"
+    },
+    {
+      "id": "pipeline::zarrdatapipeline::get_static_dataset",
+      "label": ".get_static_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1204"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline",
+      "label": "WebDatasetDataPipeline",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1209"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1225"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::build_sequence_dataset",
+      "label": ".build_sequence_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1272"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::get_lr_dataset",
+      "label": ".get_lr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1307"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::get_hr_dataset",
+      "label": ".get_hr_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1311"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::get_baseline_dataset",
+      "label": ".get_baseline_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1315"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::get_residual_dataset",
+      "label": ".get_residual_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1319"
+    },
+    {
+      "id": "pipeline::webdatasetdatapipeline::get_static_dataset",
+      "label": ".get_static_dataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1323"
+    },
+    {
+      "id": "pipeline::webdatasetiterabledataset",
+      "label": "WebDatasetIterableDataset",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1328"
+    },
+    {
+      "id": "pipeline::webdatasetiterabledataset::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1344"
+    },
+    {
+      "id": "pipeline::webdatasetiterabledataset::_format_sample",
+      "label": "._format_sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1392"
+    },
+    {
+      "id": "pipeline::webdatasetiterabledataset::__iter__",
+      "label": ".__iter__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1420"
+    },
+    {
+      "id": "file::diffusion_decoder",
+      "label": "diffusion_decoder.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1"
+    },
+    {
+      "id": "diffusion_decoder::_replace_conv_transpose_with_resize",
+      "label": "_replace_conv_transpose_with_resize",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:35"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput",
+      "label": "DiffusionOutput",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:62"
+    },
+    {
+      "id": "diffusion_decoder::diffusionoutput::composite",
+      "label": ".composite",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:74"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder",
+      "label": "CausalDiffusionDecoder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:79"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:84"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::enable_gradient_checkpointing",
+      "label": ".enable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:162"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::disable_gradient_checkpointing",
+      "label": ".disable_gradient_checkpointing",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:184"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_pool_conditioning",
+      "label": "._pool_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:195"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_zero_class_labels_placeholder",
+      "label": "._zero_class_labels_placeholder",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:199"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:229"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss",
+      "label": ".compute_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:260"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::forward_edm",
+      "label": ".forward_edm",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:402"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::compute_loss_edm",
+      "label": ".compute_loss_edm",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:515"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::predict_x0_from_epsilon",
+      "label": ".predict_x0_from_epsilon",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:684"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::apply_physical_constraints",
+      "label": ".apply_physical_constraints",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:695"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::sample",
+      "label": ".sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:736"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_karras",
+      "label": "._sample_edm_karras",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:916"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_edm_ode",
+      "label": "._sample_edm_ode",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_sample_dpm_solver",
+      "label": "._sample_dpm_solver",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1139"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::reconstruct_from_residual",
+      "label": ".reconstruct_from_residual",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1321"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::set_condition_adapter",
+      "label": ".set_condition_adapter",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1351"
+    },
+    {
+      "id": "diffusion_decoder::causaldiffusiondecoder::_prepare_conditioning",
+      "label": "._prepare_conditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1357"
+    },
+    {
+      "id": "file::edm_preconditioner",
+      "label": "edm_preconditioner.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:1"
+    },
+    {
+      "id": "edm_preconditioner::spectrallossconfig",
+      "label": "SpectralLossConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:52"
+    },
+    {
+      "id": "edm_preconditioner::wassersteinregconfig",
+      "label": "WassersteinRegConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:72"
+    },
+    {
+      "id": "edm_preconditioner::tailweightconfig",
+      "label": "TailWeightConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:86"
+    },
+    {
+      "id": "edm_preconditioner::edmconfig",
+      "label": "EDMConfig",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:113"
+    },
+    {
+      "id": "edm_preconditioner::edmconfig::from_yaml_dict",
+      "label": ".from_yaml_dict",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:142"
+    },
+    {
+      "id": "edm_preconditioner::compute_preconditioning",
+      "label": "compute_preconditioning",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:216"
+    },
+    {
+      "id": "edm_preconditioner::lambda_weight",
+      "label": "lambda_weight",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:261"
+    },
+    {
+      "id": "edm_preconditioner::sample_training_sigma",
+      "label": "sample_training_sigma",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:278"
+    },
+    {
+      "id": "edm_preconditioner::karras_sigma_schedule",
+      "label": "karras_sigma_schedule",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:298"
+    },
+    {
+      "id": "edm_preconditioner::stochastic_churn",
+      "label": "stochastic_churn",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:326"
+    },
+    {
+      "id": "file::edm_sampler",
+      "label": "edm_sampler.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:1"
+    },
+    {
+      "id": "edm_sampler::heun_sample",
+      "label": "heun_sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:21"
+    },
+    {
+      "id": "edm_sampler::restart_sample",
+      "label": "restart_sample",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:117"
+    },
+    {
+      "id": "file::two_stage",
+      "label": "two_stage.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:1"
+    },
+    {
+      "id": "two_stage::gamma_dag_warmup",
+      "label": "gamma_dag_warmup",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:49"
+    },
+    {
+      "id": "two_stage::stage1_compute_loss",
+      "label": "stage1_compute_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:60"
+    },
+    {
+      "id": "two_stage::freeze_stage1",
+      "label": "freeze_stage1",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:150"
+    },
+    {
+      "id": "two_stage::unfreeze_stage1",
+      "label": "unfreeze_stage1",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:169"
+    },
+    {
+      "id": "two_stage::stage1_inference_mode",
+      "label": "stage1_inference_mode",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:182"
+    },
+    {
+      "id": "two_stage::calibrate_sigma_data_two_stage",
+      "label": "calibrate_sigma_data_two_stage",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:207"
+    },
+    {
+      "id": "two_stage::causal_ablation_check",
+      "label": "causal_ablation_check",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:332"
+    },
+    {
+      "id": "two_stage::precompute_stage1_outputs",
+      "label": "precompute_stage1_outputs",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:449"
+    },
+    {
+      "id": "two_stage::train_epoch_stage2_cached",
+      "label": "train_epoch_stage2_cached",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:655"
+    },
+    {
+      "id": "file::_patch_notebook_v5_runbook",
+      "label": "_patch_notebook_v5_runbook.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:1"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_find_line_in_source",
+      "label": "_find_line_in_source",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:134"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_find_block_in_source",
+      "label": "_find_block_in_source",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:141"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_single_line",
+      "label": "_replace_single_line",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:150"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_block",
+      "label": "_replace_block",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:158"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_line_in_string",
+      "label": "_replace_line_in_string",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:175"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:186"
+    },
+    {
+      "id": "file::spectral_loss",
+      "label": "spectral_loss.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:1"
+    },
+    {
+      "id": "spectral_loss::_zero_nans",
+      "label": "_zero_nans",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41"
+    },
+    {
+      "id": "spectral_loss::facl_loss",
+      "label": "facl_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46"
+    },
+    {
+      "id": "spectral_loss::facl_components",
+      "label": "facl_components",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114"
+    },
+    {
+      "id": "file::wasserstein_reg",
+      "label": "wasserstein_reg.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py:1"
+    },
+    {
+      "id": "wasserstein_reg::sliced_wasserstein_1d",
+      "label": "sliced_wasserstein_1d",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py:38"
     }
   ],
   "edges": [
@@ -7762,492 +7972,6 @@
       "weight": 1
     },
     {
-      "source": "file::pipeline",
-      "target": "pipeline::gridmetadata",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:64",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::_infer_dim",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:74",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::_ensure_callable_transform",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:86",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::_dataset_to_numpy",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:113",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::netcdfdatapipeline",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:298",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:331",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_open_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:451",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_load_dataset_robust",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:470",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_convert_cftime_to_datetime",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:553",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_align_time",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:593",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_clean_nan_values",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:614",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_normalise_lr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:642",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_compute_baseline",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:661",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_detect_precipitation_vars",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:704",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_apply_target_transform",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:722",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::_prepare_static_tensor",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:750",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_lr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:797",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_lr_stats",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:800",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_hr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:803",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_baseline_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:806",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_residual_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:809",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_static_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:812",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::get_target_inverse_transform",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:815",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::export_lr_metadata_to_json",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:821",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::export_lr_metadata_to_csv",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:825",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::export_hr_metadata_to_json",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:829",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::export_hr_metadata_to_csv",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:833",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::netcdfdatapipeline",
-      "target": "pipeline::netcdfdatapipeline::build_sequence_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:840",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::resdiffiterabledataset",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:868",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::resdiffiterabledataset",
-      "target": "pipeline::resdiffiterabledataset::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:882",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::resdiffiterabledataset",
-      "target": "pipeline::resdiffiterabledataset::__iter__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:923",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::resdiffiterabledataset",
-      "target": "pipeline::resdiffiterabledataset::_window_has_required_length",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:935",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::resdiffiterabledataset",
-      "target": "pipeline::resdiffiterabledataset::_format_sample",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:938",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::zarrdatapipeline",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:990",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1005",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::_prepare_static_tensor",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1054",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::build_sequence_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1087",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::get_lr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1133",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::get_hr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1137",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::get_baseline_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1141",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::get_residual_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1145",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::zarrdatapipeline",
-      "target": "pipeline::zarrdatapipeline::get_static_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1149",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::webdatasetdatapipeline",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1154",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1170",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::build_sequence_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1217",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::get_lr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1252",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::get_hr_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1256",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::get_baseline_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1260",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::get_residual_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1264",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetdatapipeline",
-      "target": "pipeline::webdatasetdatapipeline::get_static_dataset",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1268",
-      "weight": 1
-    },
-    {
-      "source": "file::pipeline",
-      "target": "pipeline::webdatasetiterabledataset",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1273",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetiterabledataset",
-      "target": "pipeline::webdatasetiterabledataset::__init__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1289",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetiterabledataset",
-      "target": "pipeline::webdatasetiterabledataset::_format_sample",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1337",
-      "weight": 1
-    },
-    {
-      "source": "pipeline::webdatasetiterabledataset",
-      "target": "pipeline::webdatasetiterabledataset::__iter__",
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1365",
-      "weight": 1
-    },
-    {
       "source": "file::causal_rcn",
       "target": "causal_rcn::_mask_diagonal",
       "relation": "contains",
@@ -10120,6 +9844,618 @@
       "weight": 1
     },
     {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_edm_preconditioner",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:148",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_diffusion_decoder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:205",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_override_yaml",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:260",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::_find_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:322",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::patch_notebook",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:331",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_two_stage_bs34_tail_loss",
+      "target": "_patch_two_stage_bs34_tail_loss::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:358",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::_build_request_plev",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:120",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::_build_request_slev",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:134",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::fetch_year",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:147",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::daily_aggregate",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:186",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::concat_years",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:231",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::parse_year_range",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:249",
+      "weight": 1
+    },
+    {
+      "source": "file::download_era5_benin",
+      "target": "download_era5_benin::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:256",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::gridmetadata",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:64",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::_infer_dim",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:74",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::_ensure_callable_transform",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:86",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::_dataset_to_numpy",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:113",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::netcdfdatapipeline",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:298",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:331",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_open_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:451",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_load_dataset_robust",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:470",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_convert_cftime_to_datetime",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:553",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_align_time",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:593",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_clean_nan_values",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:614",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_normalise_lr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:642",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_compute_baseline",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:661",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_detect_precipitation_vars",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:704",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_apply_target_transform",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:722",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::_prepare_static_tensor",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:750",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_lr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:797",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_lr_stats",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:800",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_hr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:803",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_baseline_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:806",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_residual_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:809",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_static_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:812",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::get_target_inverse_transform",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:815",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::export_lr_metadata_to_json",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:821",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::export_lr_metadata_to_csv",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:825",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::export_hr_metadata_to_json",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:829",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::export_hr_metadata_to_csv",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:833",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::netcdfdatapipeline",
+      "target": "pipeline::netcdfdatapipeline::build_sequence_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:840",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::resdiffiterabledataset",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:873",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::resdiffiterabledataset",
+      "target": "pipeline::resdiffiterabledataset::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:887",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::resdiffiterabledataset",
+      "target": "pipeline::resdiffiterabledataset::__iter__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:938",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::resdiffiterabledataset",
+      "target": "pipeline::resdiffiterabledataset::_window_has_required_length",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:960",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::resdiffiterabledataset",
+      "target": "pipeline::resdiffiterabledataset::_apply_hflip",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:963",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::resdiffiterabledataset",
+      "target": "pipeline::resdiffiterabledataset::_format_sample",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:981",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::zarrdatapipeline",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1033",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1048",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::_prepare_static_tensor",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1097",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::build_sequence_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1130",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::get_lr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1188",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::get_hr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1192",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::get_baseline_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1196",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::get_residual_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1200",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::zarrdatapipeline",
+      "target": "pipeline::zarrdatapipeline::get_static_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1204",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::webdatasetdatapipeline",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1209",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1225",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::build_sequence_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1272",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::get_lr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1307",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::get_hr_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1311",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::get_baseline_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1315",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::get_residual_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1319",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetdatapipeline",
+      "target": "pipeline::webdatasetdatapipeline::get_static_dataset",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1323",
+      "weight": 1
+    },
+    {
+      "source": "file::pipeline",
+      "target": "pipeline::webdatasetiterabledataset",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1328",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetiterabledataset",
+      "target": "pipeline::webdatasetiterabledataset::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1344",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetiterabledataset",
+      "target": "pipeline::webdatasetiterabledataset::_format_sample",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1392",
+      "weight": 1
+    },
+    {
+      "source": "pipeline::webdatasetiterabledataset",
+      "target": "pipeline::webdatasetiterabledataset::__iter__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\data\\pipeline.py:1420",
+      "weight": 1
+    },
+    {
       "source": "file::diffusion_decoder",
       "target": "diffusion_decoder::_replace_conv_transpose_with_resize",
       "relation": "contains",
@@ -10242,7 +10578,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:625",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:684",
       "weight": 1
     },
     {
@@ -10251,7 +10587,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:636",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:695",
       "weight": 1
     },
     {
@@ -10260,7 +10596,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:677",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:736",
       "weight": 1
     },
     {
@@ -10269,7 +10605,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:840",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:916",
       "weight": 1
     },
     {
@@ -10278,7 +10614,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:939",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039",
       "weight": 1
     },
     {
@@ -10287,7 +10623,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1039",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1139",
       "weight": 1
     },
     {
@@ -10296,7 +10632,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1174",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1321",
       "weight": 1
     },
     {
@@ -10305,7 +10641,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1204",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1351",
       "weight": 1
     },
     {
@@ -10314,7 +10650,25 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1210",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\diffusion_decoder.py:1357",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::spectrallossconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:52",
+      "weight": 1
+    },
+    {
+      "source": "file::edm_preconditioner",
+      "target": "edm_preconditioner::wassersteinregconfig",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:72",
       "weight": 1
     },
     {
@@ -10323,7 +10677,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:51",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:86",
       "weight": 1
     },
     {
@@ -10332,7 +10686,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:78",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:113",
+      "weight": 1
+    },
+    {
+      "source": "edm_preconditioner::edmconfig",
+      "target": "edm_preconditioner::edmconfig::from_yaml_dict",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:142",
       "weight": 1
     },
     {
@@ -10341,7 +10704,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:103",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:216",
       "weight": 1
     },
     {
@@ -10350,7 +10713,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:148",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:261",
       "weight": 1
     },
     {
@@ -10359,7 +10722,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:165",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:278",
       "weight": 1
     },
     {
@@ -10368,7 +10731,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:185",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:298",
       "weight": 1
     },
     {
@@ -10377,131 +10740,203 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:213",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_preconditioner.py:326",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::patch_edm_preconditioner",
+      "source": "file::edm_sampler",
+      "target": "edm_sampler::heun_sample",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:148",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:21",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::patch_diffusion_decoder",
+      "source": "file::edm_sampler",
+      "target": "edm_sampler::restart_sample",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:205",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:117",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::patch_override_yaml",
+      "source": "file::two_stage",
+      "target": "two_stage::gamma_dag_warmup",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:260",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:49",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::_find_cell",
+      "source": "file::two_stage",
+      "target": "two_stage::stage1_compute_loss",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:322",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:60",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::patch_notebook",
+      "source": "file::two_stage",
+      "target": "two_stage::freeze_stage1",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:331",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:150",
       "weight": 1
     },
     {
-      "source": "file::_patch_two_stage_bs34_tail_loss",
-      "target": "_patch_two_stage_bs34_tail_loss::main",
+      "source": "file::two_stage",
+      "target": "two_stage::unfreeze_stage1",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_two_stage_bs34_tail_loss.py:358",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:169",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::_build_request_plev",
+      "source": "file::two_stage",
+      "target": "two_stage::stage1_inference_mode",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:120",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:182",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::_build_request_slev",
+      "source": "file::two_stage",
+      "target": "two_stage::calibrate_sigma_data_two_stage",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:134",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:207",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::fetch_year",
+      "source": "file::two_stage",
+      "target": "two_stage::causal_ablation_check",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:147",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:332",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::daily_aggregate",
+      "source": "file::two_stage",
+      "target": "two_stage::precompute_stage1_outputs",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:186",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:449",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::concat_years",
+      "source": "file::two_stage",
+      "target": "two_stage::train_epoch_stage2_cached",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:231",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:655",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::parse_year_range",
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_find_line_in_source",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:249",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:134",
       "weight": 1
     },
     {
-      "source": "file::download_era5_benin",
-      "target": "download_era5_benin::main",
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_find_block_in_source",
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\download_era5_benin.py:256",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:141",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_single_line",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:150",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_block",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:158",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_line_in_string",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:175",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:186",
+      "weight": 1
+    },
+    {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::_zero_nans",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41",
+      "weight": 1
+    },
+    {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::facl_loss",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46",
+      "weight": 1
+    },
+    {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::facl_components",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114",
+      "weight": 1
+    },
+    {
+      "source": "file::wasserstein_reg",
+      "target": "wasserstein_reg::sliced_wasserstein_1d",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\wasserstein_reg.py:38",
       "weight": 1
     }
   ],
   "metadata": {
-    "files": 90,
-    "nodes": 706,
-    "edges": 617,
-    "builtAt": "2026-05-08T10:52:40.661Z"
+    "files": 95,
+    "nodes": 736,
+    "edges": 642,
+    "builtAt": "2026-05-17T20:21:43.919Z"
   }
 }

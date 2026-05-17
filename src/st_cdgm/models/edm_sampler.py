@@ -110,3 +110,110 @@ def heun_sample(
             x = x_pred
 
     return x
+
+
+# >>> V5 — Track A4 : Restart sampling (Xu et al. NeurIPS 2023, arXiv:2306.14878).
+@torch.no_grad()
+def restart_sample(
+    denoiser_fn: Callable[[Tensor, Tensor], Tensor],
+    *,
+    shape: tuple,
+    cfg: EDMConfig,
+    num_steps: int,
+    device: torch.device,
+    dtype: torch.dtype = torch.float32,
+    generator: Optional[torch.Generator] = None,
+    init_noise: Optional[Tensor] = None,
+    restart_cycles: int = 2,
+    restart_inner_steps: int = 3,
+    restart_sigma_threshold: float = 0.1,
+) -> Tensor:
+    """Restart sampling on top of Heun ODE — alternates ODE backward with
+    bursts of forward noise to escape solver bias in mid-sigma regimes.
+
+    Algorithm (Xu 2023, simplified for EDM Heun base) :
+      1. Run a standard Heun trajectory from ``sigma_max`` down to a chosen
+         pivot ``sigma_restart`` (here pivot = step where sigma crosses
+         ``restart_sigma_threshold * sigma_max`` from above).
+      2. Inject noise of magnitude ``sigma_restart`` (forward SDE).
+      3. Re-run Heun from there down to 0.
+      4. Repeat (2-3) ``restart_cycles`` times.
+
+    Empirically (Xu 2023 Table 3) Restart adds 1–2% FID gain over standard
+    Heun for the same compute, by reducing the discretisation bias
+    accumulated in the high-sigma half of the trajectory. On climate
+    downscaling we expect ↑ Pearson + ↑ spread (better ensemble calibration)
+    at the cost of ``(1 + restart_cycles * restart_inner_steps / num_steps)``
+    extra forward passes.
+
+    Compatible with the same ``denoiser_fn`` closure as ``heun_sample``.
+    """
+    sigmas = karras_sigma_schedule(
+        num_steps, cfg.sigma_min, cfg.sigma_max, cfg.rho,
+        device=device, dtype=dtype,
+    )
+
+    if init_noise is None:
+        x = torch.randn(*shape, device=device, dtype=dtype, generator=generator)
+    else:
+        x = init_noise.to(device=device, dtype=dtype)
+    x = x * sigmas[0]
+
+    # Find the index where sigma first drops below the pivot threshold.
+    pivot_sigma = float(restart_sigma_threshold) * float(cfg.sigma_max)
+    pivot_idx = int((sigmas <= pivot_sigma).nonzero(as_tuple=False)[0].item())
+    pivot_idx = max(1, min(pivot_idx, num_steps - 1))
+
+    def _heun_segment(x_in: Tensor, start: int, end: int) -> Tensor:
+        """Run Heun from sigmas[start] down to sigmas[end] (end ≤ num_steps)."""
+        x_cur = x_in
+        for i in range(start, end):
+            sigma_i = sigmas[i]
+            sigma_next = sigmas[i + 1]
+            gamma_i = stochastic_churn(
+                sigma_i,
+                S_churn=cfg.S_churn,
+                S_tmin=cfg.S_tmin,
+                S_tmax=cfg.S_tmax,
+                num_steps=num_steps,
+            )
+            sigma_hat = sigma_i * (1.0 + gamma_i)
+            if gamma_i > 0:
+                eps = torch.randn(
+                    *shape, device=device, dtype=dtype, generator=generator
+                ) * cfg.S_noise
+                x_cur = x_cur + (sigma_hat ** 2 - sigma_i ** 2).sqrt() * eps
+            D_x = denoiser_fn(x_cur, sigma_hat)
+            d_i = (x_cur - D_x) / sigma_hat
+            x_pred = x_cur + (sigma_next - sigma_hat) * d_i
+            if sigma_next > 0:
+                D_x_next = denoiser_fn(x_pred, sigma_next)
+                d_i_prime = (x_pred - D_x_next) / sigma_next
+                x_cur = x_cur + (sigma_next - sigma_hat) * 0.5 * (d_i + d_i_prime)
+            else:
+                x_cur = x_pred
+        return x_cur
+
+    # Phase 1 : full backward to the pivot.
+    x = _heun_segment(x, 0, pivot_idx)
+
+    # Phase 2..N : restart cycles. Each cycle adds forward noise then re-runs
+    # the tail of the Heun schedule. The inner step count overrides the
+    # default tail length when restart_inner_steps > 0, to balance compute.
+    for c in range(int(restart_cycles)):
+        # Inject noise scaled to bring sigma back up to sigmas[pivot_idx].
+        eps = torch.randn(*shape, device=device, dtype=dtype, generator=generator)
+        sigma_pivot = sigmas[pivot_idx]
+        # x is currently at sigma ≈ 0 (or sigmas[num_steps-1]); we lift it
+        # back to sigma_pivot. Variance preserving lift: x_new = x + s_pivot*eps.
+        # (Xu 2023 §3 — additive Gaussian preserves marginals up to first order.)
+        x = x + sigma_pivot * eps
+        # Re-run the tail with optionally tighter step density.
+        tail_end = min(num_steps, pivot_idx + max(int(restart_inner_steps), 1))
+        # If restart_inner_steps < (num_steps - pivot_idx), we still iterate
+        # over the existing schedule indices (no resample), which keeps the
+        # noise schedule consistent with training.
+        x = _heun_segment(x, pivot_idx, tail_end if tail_end <= num_steps else num_steps)
+
+    return x
+
