@@ -133,8 +133,8 @@ two_stage:
 
   stage1:
     # Track D1 : Stage 1 enlarged (1.2M -> ~6M) necessite retrain from scratch.
-    # 30 epochs (vs 15 v4) pour converger la capacite supplementaire.
-    epochs_max: 30
+    # 22 epochs (vs 15 v4) pour converger la capacite supplementaire.
+    epochs_max: 22
 
   stage2:
     epochs_max: 250                 # 200 v4 + 50 marge convergence
