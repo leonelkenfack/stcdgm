@@ -131,6 +131,38 @@ S2_CALL_NEW_LINES = [
 S2_CALL_MARKER_NEW = "            log_loss_components=True,\n"
 
 
+# ---------------------------------------------------------------------------
+# Patch 5 (BS41) — FINAL_VALIDATION : add bypass-EMA flag when EMA is suspected
+# stale (V5 EMA bug F1). Default behaviour unchanged ; user opts in by setting
+# ``BS41_FORCE_LIVE_INFERENCE = True`` in globals() before running the cell.
+# ---------------------------------------------------------------------------
+EMA_LOAD_OLD_LINES = [
+    "_ema_sd_eval = _ckpt.get(\"diffusion_ema_state_dict\")\n",
+    "if _ema_sd_eval is not None:\n",
+    "    print(\"  🌗 BS37 EMA detected in checkpoint — loading EMA weights for FINAL_VALIDATION\")\n",
+    "    _persist_load_state_dict(diffusion, _ema_sd_eval)\n",
+    "else:\n",
+    "    _persist_load_state_dict(diffusion, _ckpt.get(\"diffusion_state_dict\"))\n",
+]
+EMA_LOAD_NEW_LINES = [
+    "_ema_sd_eval = _ckpt.get(\"diffusion_ema_state_dict\")\n",
+    "# >>> BS41 FIX F4 — bypass-EMA escape hatch. Set this global to True\n",
+    "# *before* running the FINAL_VALIDATION cell to load the LIVE diffusion\n",
+    "# weights instead of the EMA shadow (useful when the EMA is suspected to\n",
+    "# be stale due to the V5 ema_steps reset bug).\n",
+    "_bs41_force_live = bool(globals().get(\"BS41_FORCE_LIVE_INFERENCE\", False))\n",
+    "if _ema_sd_eval is not None and not _bs41_force_live:\n",
+    "    print(\"  🌗 BS37 EMA detected in checkpoint — loading EMA weights for FINAL_VALIDATION\")\n",
+    "    _persist_load_state_dict(diffusion, _ema_sd_eval)\n",
+    "elif _bs41_force_live:\n",
+    "    print(\"  ⚠️  BS41 FORCE_LIVE_INFERENCE=True — bypass EMA, loading live diffusion weights\")\n",
+    "    _persist_load_state_dict(diffusion, _ckpt.get(\"diffusion_state_dict\"))\n",
+    "else:\n",
+    "    _persist_load_state_dict(diffusion, _ckpt.get(\"diffusion_state_dict\"))\n",
+]
+EMA_LOAD_MARKER_NEW = "_bs41_force_live = bool(globals().get(\"BS41_FORCE_LIVE_INFERENCE\", False))\n"
+
+
 def _find_line_in_source(source: List[str], line: str) -> int:
     for idx, src_line in enumerate(source):
         if src_line == line:
@@ -196,10 +228,12 @@ def main() -> None:
     p2_done = False
     p3_done = False
     p4_done = False
+    p5_done = False
+    p1_status = "marker not found - manual review"
     p2_status = "marker not found - manual review"
     p3_status = "marker not found - manual review"
     p4_status = "marker not found - manual review"
-    p1_status = "marker not found - manual review"
+    p5_status = "marker not found - manual review"
 
     for cell in nb.get("cells", []):
         if cell.get("cell_type") != "code":
@@ -262,11 +296,25 @@ def main() -> None:
                 p4_done = True
                 p4_status = status
 
+        # Patch 5 (BS41) — FINAL_VALIDATION EMA bypass flag.
+        if not p5_done:
+            changed, status = _replace_block(
+                source, EMA_LOAD_OLD_LINES, EMA_LOAD_NEW_LINES,
+                EMA_LOAD_MARKER_NEW,
+            )
+            if status == "already applied":
+                p5_done = True
+                p5_status = status
+            elif changed:
+                p5_done = True
+                p5_status = status
+
     for label, done, status in [
         ("default override -> V5", p1_done, p1_status),
         ("EDMConfig builder -> from_yaml", p2_done, p2_status),
         ("K_SAMPLES 16 -> 64", p3_done, p3_status),
         ("Stage 2 call -> V5 kwargs", p4_done, p4_status),
+        ("BS41 FINAL_VAL EMA bypass", p5_done, p5_status),
     ]:
         if status == "applied":
             applied.append(label)

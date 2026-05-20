@@ -4992,6 +4992,83 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\edm_sampler.py:117"
     },
     {
+      "id": "file::spectral_loss",
+      "label": "spectral_loss.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:1"
+    },
+    {
+      "id": "spectral_loss::_zero_nans",
+      "label": "_zero_nans",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41"
+    },
+    {
+      "id": "spectral_loss::facl_loss",
+      "label": "facl_loss",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46"
+    },
+    {
+      "id": "spectral_loss::facl_components",
+      "label": "facl_components",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114"
+    },
+    {
+      "id": "file::_patch_notebook_v5_runbook",
+      "label": "_patch_notebook_v5_runbook.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:1"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_find_line_in_source",
+      "label": "_find_line_in_source",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:166"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_find_block_in_source",
+      "label": "_find_block_in_source",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:173"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_single_line",
+      "label": "_replace_single_line",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:182"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_block",
+      "label": "_replace_block",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:190"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::_replace_line_in_string",
+      "label": "_replace_line_in_string",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:207"
+    },
+    {
+      "id": "_patch_notebook_v5_runbook::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:218"
+    },
+    {
       "id": "file::two_stage",
       "label": "two_stage.py",
       "fileType": "code",
@@ -5060,83 +5137,6 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\two_stage.py:655"
-    },
-    {
-      "id": "file::_patch_notebook_v5_runbook",
-      "label": "_patch_notebook_v5_runbook.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:1"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::_find_line_in_source",
-      "label": "_find_line_in_source",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:134"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::_find_block_in_source",
-      "label": "_find_block_in_source",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:141"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::_replace_single_line",
-      "label": "_replace_single_line",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:150"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::_replace_block",
-      "label": "_replace_block",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:158"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::_replace_line_in_string",
-      "label": "_replace_line_in_string",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:175"
-    },
-    {
-      "id": "_patch_notebook_v5_runbook::main",
-      "label": "main",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:186"
-    },
-    {
-      "id": "file::spectral_loss",
-      "label": "spectral_loss.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:1"
-    },
-    {
-      "id": "spectral_loss::_zero_nans",
-      "label": "_zero_nans",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41"
-    },
-    {
-      "id": "spectral_loss::facl_loss",
-      "label": "facl_loss",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46"
-    },
-    {
-      "id": "spectral_loss::facl_components",
-      "label": "facl_components",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114"
     },
     {
       "id": "file::wasserstein_reg",
@@ -10762,6 +10762,87 @@
       "weight": 1
     },
     {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::_zero_nans",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41",
+      "weight": 1
+    },
+    {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::facl_loss",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46",
+      "weight": 1
+    },
+    {
+      "source": "file::spectral_loss",
+      "target": "spectral_loss::facl_components",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_find_line_in_source",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:166",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_find_block_in_source",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:173",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_single_line",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:182",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_block",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:190",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::_replace_line_in_string",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:207",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_notebook_v5_runbook",
+      "target": "_patch_notebook_v5_runbook::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:218",
+      "weight": 1
+    },
+    {
       "source": "file::two_stage",
       "target": "two_stage::gamma_dag_warmup",
       "relation": "contains",
@@ -10843,87 +10924,6 @@
       "weight": 1
     },
     {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::_find_line_in_source",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:134",
-      "weight": 1
-    },
-    {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::_find_block_in_source",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:141",
-      "weight": 1
-    },
-    {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::_replace_single_line",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:150",
-      "weight": 1
-    },
-    {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::_replace_block",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:158",
-      "weight": 1
-    },
-    {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::_replace_line_in_string",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:175",
-      "weight": 1
-    },
-    {
-      "source": "file::_patch_notebook_v5_runbook",
-      "target": "_patch_notebook_v5_runbook::main",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_notebook_v5_runbook.py:186",
-      "weight": 1
-    },
-    {
-      "source": "file::spectral_loss",
-      "target": "spectral_loss::_zero_nans",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:41",
-      "weight": 1
-    },
-    {
-      "source": "file::spectral_loss",
-      "target": "spectral_loss::facl_loss",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:46",
-      "weight": 1
-    },
-    {
-      "source": "file::spectral_loss",
-      "target": "spectral_loss::facl_components",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\spectral_loss.py:114",
-      "weight": 1
-    },
-    {
       "source": "file::wasserstein_reg",
       "target": "wasserstein_reg::sliced_wasserstein_1d",
       "relation": "contains",
@@ -10937,6 +10937,6 @@
     "files": 95,
     "nodes": 736,
     "edges": 642,
-    "builtAt": "2026-05-17T20:21:43.919Z"
+    "builtAt": "2026-05-20T16:03:53.896Z"
   }
 }

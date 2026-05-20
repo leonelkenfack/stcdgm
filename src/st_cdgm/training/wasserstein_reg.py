@@ -39,31 +39,46 @@ def sliced_wasserstein_1d(
     pred: Tensor,
     target: Tensor,
     *,
-    n_slices: int = 64,
+    n_slices: int = 64,        # kept for API compat ; ignored (no projection needed in 1D)
     valid_mask: Tensor | None = None,
     generator: torch.Generator | None = None,
 ) -> Tensor:
-    """Sliced 1D Wasserstein-2 distance between per-sample pixel histograms.
+    """Per-sample 1D Wasserstein-2 distance between pred & target pixel histograms.
+
+    V5 FIX F3 (BS41) — the previous version sorted along the BATCH axis
+    (``p_proj.sort(dim=0)``), which compared the empirical distribution of
+    *batch-level projection scalars* (B=64 values per slice) rather than the
+    *pixel-intensity distribution per image* (B*H*W ~ 1.9M values). That was
+    a statistically weak and conceptually wrong estimator.
+
+    For grayscale residual fields (C=1) the natural 1D Wasserstein is the
+    sort of pixel values WITHIN each sample. The random-projection trick
+    from classical Sliced Wasserstein is unnecessary when the underlying
+    distribution is already 1-D (single channel intensity). For multi-channel
+    inputs we still process each channel independently.
+
+    Formula::
+
+        W_2(P, T)^2 \\approx (1/N) \\sum_i (P_sorted[i] - T_sorted[i])^2
+
+    averaged over channels and batch.
 
     Parameters
     ----------
     pred, target : Tensor
         ``[B, C, H, W]`` tensors in the same space.
     n_slices : int
-        Number of random 1D projections. 32-128 is a reasonable range.
-        Higher = lower variance of the estimator, more VRAM.
+        Ignored (kept for backward compat with existing config files).
     valid_mask : Tensor, optional
-        ``[B, C, H, W]`` float mask. Invalid pixels are zero-imputed *before*
-        projection so they contribute nothing to the dot product (they then
-        appear as 0-valued samples in the sorted CDF — acceptable because
-        both pred and target see the same 0 imputation).
+        ``[B, C, H, W]`` float mask ; invalid pixels are zero-imputed before
+        sorting so both tensors see identical "0" entries at the same ranks.
     generator : torch.Generator, optional
-        For reproducibility of the random projections.
+        Unused (no randomness left). Kept for API compatibility.
 
     Returns
     -------
     Tensor
-        Scalar mean over batch and slices of the squared CDF distance.
+        Scalar squared 1D Wasserstein-2 distance averaged over (B, C).
     """
     if pred.shape != target.shape:
         raise ValueError(
@@ -78,28 +93,12 @@ def sliced_wasserstein_1d(
         p = p * valid_mask
         t = t * valid_mask
 
-    B = p.shape[0]
-    # Flatten each sample to a [B, D] matrix of pixel values (D = C*H*W).
-    p_flat = p.reshape(B, -1)
-    t_flat = t.reshape(B, -1)
-    D = p_flat.shape[1]
-
-    # Random unit-vector projections, redrawn every call. Using same projection
-    # for pred and target ensures the sorted CDF comparison is meaningful.
-    proj = torch.randn(
-        n_slices, D, device=p_flat.device, dtype=p_flat.dtype, generator=generator
-    )
-    proj = proj / (proj.norm(dim=1, keepdim=True) + 1e-8)
-
-    # [B, n_slices] projected scalars per sample.
-    p_proj = p_flat @ proj.T
-    t_proj = t_flat @ proj.T
-
-    # Sort each [B,] slice column independently → equivalent to comparing
-    # empirical CDFs after the 1D projection.
-    p_sorted, _ = p_proj.sort(dim=0)
-    t_sorted, _ = t_proj.sort(dim=0)
-
+    B, C = p.shape[0], p.shape[1]
+    # Per-sample, per-channel pixel intensity sort along the spatial axis.
+    p_flat = p.reshape(B * C, -1)
+    t_flat = t.reshape(B * C, -1)
+    p_sorted, _ = p_flat.sort(dim=1)
+    t_sorted, _ = t_flat.sort(dim=1)
     return ((p_sorted - t_sorted) ** 2).mean()
 
 

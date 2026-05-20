@@ -723,12 +723,23 @@ def train_epoch_stage2_cached(
     cond_drop_p = float(conditioning_dropout_prob)
 
     ema_active = ema_model is not None
-    ema_steps = 0
     ema_skip_warmup = max(0, int(ema_warmup_steps))
+    # V5 FIX F1 (BS41) — ema_step_counter PERSISTANT sur ema_model pour eviter
+    # le reset per-epoch qui rendait warmup_steps=1000 inatteignable (141
+    # batches/epoch < 1000 => 0 update EMA, le shadow restait fige a son init).
+    # On stocke comme attribut Python sur ema_model : conserve entre epochs
+    # dans une meme session. Pour la persistance cross-session/checkpoint,
+    # voir le block resume EMA dans le notebook.
     if ema_active:
         ema_model.eval()
         for _p in ema_model.parameters():
             _p.requires_grad_(False)
+        # Initialise le compteur s'il n'existe pas, sinon on reprend la valeur
+        # accumulee aux epochs precedentes.
+        if not hasattr(ema_model, "_ema_step_counter"):
+            ema_model._ema_step_counter = 0
+    ema_steps = getattr(ema_model, "_ema_step_counter", 0) if ema_active else 0
+    ema_steps_at_entry = ema_steps
 
     if verbose:
         print(
@@ -742,7 +753,10 @@ def train_epoch_stage2_cached(
             )
             + (
                 f" | EMA on (decay={ema_decay}"
-                + (f", warmup={ema_skip_warmup}" if ema_skip_warmup > 0 else "")
+                + (
+                    f", warmup={ema_skip_warmup}, step_counter={ema_steps_at_entry}"
+                    if ema_skip_warmup > 0 else ""
+                )
                 + ")"
                 if ema_active else " | EMA off"
             )
@@ -782,19 +796,35 @@ def train_epoch_stage2_cached(
         # baseline_log reste intact car il porte le seul signal LR utile dans
         # la branche uncond. Quand do_contrastive=True le contrastive utilise
         # mu_HR_ablated separement — pas de double-drop.
+        #
+        # V5 FIX F2 (BS41) — quand on zero mu_HR on doit AUSSI ajuster la cible :
+        # delta_target = (HR - baseline) - mu_HR_real. Si on prive le modele
+        # de mu_HR_real (entree=0) sans modifier la cible, on lui demande de
+        # predire une quantite qui depend de l'inconnue mu_HR_real -> tache
+        # imitable + gradients degeneres sur 13% du batch (pollue le live et
+        # l'EMA). Le fix : pour les samples drop-es, target_used = delta + mu_HR
+        # (= HR - baseline). Le modele apprend alors la VRAIE branche
+        # unconditional : "predire le residu apres baseline sans Stage 1".
+        # Reference : Ho & Salimans 2022 (CFG) §3.2 — la branche uncond
+        # doit predire une cible independante du conditionnement droppe.
         mu_HR_used = mu_HR
+        delta_target_used = delta_target
         if cond_drop_active and not do_contrastive:
             B = mu_HR.shape[0]
             mask = (torch.rand(B, device=device) < cond_drop_p).view(B, 1, 1, 1)
             if mask.any():
                 mu_HR_used = torch.where(mask, torch.zeros_like(mu_HR), mu_HR)
+                # CRITIQUE : ajuste la cible de la branche unconditional.
+                delta_target_used = torch.where(
+                    mask, delta_target + mu_HR, delta_target
+                )
                 n_cond_dropped += int(mask.sum().item())
 
         optimizer.zero_grad(set_to_none=True)
 
         with _train_autocast(amp_mode):
             _loss_out = diffusion_decoder.compute_loss_edm(
-                target=delta_target,
+                target=delta_target_used,
                 conditioning=None,
                 conditioning_spatial=None,
                 mu_HR=mu_HR_used,
@@ -865,8 +895,9 @@ def train_epoch_stage2_cached(
         # Buffers (running stats des GroupNorm si non-affine, etc.) sont
         # copies tels quels du live model, pas moyennes — c'est la convention
         # Karras EDM2 (Karras et al. 2024 Appendix B).
-        # V5 — ema_warmup_steps : skip EMA update pour les premiers steps
-        # (live model encore tres bruite, polluerait la moyenne).
+        # V5 FIX F1 (BS41) — ema_steps est maintenant le compteur GLOBAL repris
+        # depuis ema_model._ema_step_counter (persiste entre epochs). warmup
+        # est respecte si total accumule > seuil.
         if ema_active and (ema_steps >= ema_skip_warmup or ema_skip_warmup == 0):
             with torch.no_grad():
                 for ep, lp in zip(
@@ -894,6 +925,12 @@ def train_epoch_stage2_cached(
                 f"  S2 batch {batch_idx + 1} | loss_diff={float(loss_real.detach()):.5f}{extra}",
                 flush=True,
             )
+
+    # V5 FIX F1 (BS41) — persiste le compteur EMA sur l'objet ema_model pour
+    # que le prochain appel reprenne ce nombre cumule (au lieu de remettre a 0).
+    if ema_active:
+        ema_model._ema_step_counter = int(ema_steps)
+        ema_updates_this_epoch = max(0, ema_steps - max(ema_steps_at_entry, ema_skip_warmup))
 
     avg_dag_sens = (
         total_dag_sensitivity / max(1, n_contrastive) if n_contrastive > 0 else 0.0
@@ -950,6 +987,7 @@ def train_epoch_stage2_cached(
         "n_contrastive_steps": n_contrastive,
         "ema_active": ema_active,
         "ema_steps": ema_steps,
+        "ema_updates_this_epoch": int(ema_updates_this_epoch) if ema_active else 0,
         "ema_decay": ema_decay if ema_active else None,
         # V5 — Track C : loss components for monitoring.
         "loss_facl": avg_facl,
