@@ -7,6 +7,7 @@
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage[htt]{hyphenat}
+\usepackage{natbib}
 \geometry{margin=2.5cm}
 \setlist[itemize]{leftmargin=1.2cm}
 \setlist[enumerate]{leftmargin=1.2cm}
@@ -39,7 +40,7 @@ Le projet porte sur \textbf{Oracle}, une architecture causale et g\'en\'erative 
 \subsection*{Pages pr\'eliminaire}
 \begin{itemize}
     \item Page de garde
-    \item D\'edicace (optionnel)
+    \item D\'edicace
     \item Remerciements
     \item R\'esum\'e (fran\c{c}ais) + mots-cl\'es
     \item Abstract (anglais) + keywords
@@ -74,10 +75,14 @@ Le projet porte sur \textbf{Oracle}, une architecture causale et g\'en\'erative 
 
     \item \textbf{Chapitre 2 -- \'Etat de l'art du downscaling par apprentissage profond}
     \begin{itemize}
-        \item Approches d\'eterministes et U-Net
+        \item Approches d\'eterministes : r\'egression, U-Net, super-r\'esolution, op\'erateurs neuronaux de Fourier (FNO/SFNO) et Transformers de vision (SwinIR, PrecipFormer)
         \item Mod\`eles g\'en\'eratifs adversariaux et Residual cGAN
-        \item Diffusion r\'esiduelle et EDM
-        \item Contraintes physiques, XAI et causalit\'e
+        \item Mod\`eles \`a vraisemblance : flots de normalisation et auto-encodeurs variationnels
+        \item Diffusion et mod\`eles score-based : ResDiff, EDM/EDM2, CorrDiff, diffusion latente, Diffusion Transformers et diffusion spatio-temporelle
+        \item Flow matching, interpolants stochastiques et \'echantillonnage acc\'el\'er\'e (consistency models)
+        \item Fonctions de perte avanc\'ees : pertes spectrales (FACL), r\'egularisation Wasserstein, pond\'eration des extr\^emes
+        \item Contraintes physiques, explicabilit\'e (XAI), causalit\'e et robustesse hors distribution
+        \item \'Evaluation probabiliste et cadres de benchmark standardis\'es
         \item Limites des approches existantes et gap scientifique
     \end{itemize}
 
@@ -297,41 +302,86 @@ R\'ealiser une revue critique des approches de downscaling par apprentissage pro
 
 \subsubsection*{2.2 Approches d\'eterministes de downscaling}
 \begin{itemize}
-    \item Pr\'esenter les r\'egressions statistiques, U-Net et architectures de super-r\'esolution.
-    \item Montrer leur capacit\'e \`a capturer les grandes structures.
-    \item Expliquer le probl\`eme du lissage et de la sous-estimation des extr\^emes.
+    \item R\'egressions statistiques classiques (BCSD, BCCA, analogues) et limites de la stationnarit\'e.
+    \item R\'eseaux convolutifs et super-r\'esolution : SRCNN, EDSR, ESRGAN adapt\'es aux champs climatiques.
+    \item Architectures U-Net et encodeur-d\'ecodeur \`a sauts de connexion.
+    \item Op\'erateurs neuronaux de Fourier (FNO) : downscaling \`a r\'esolution arbitraire et adaptation \emph{zero-shot} \`a des facteurs de mont\'ee en r\'esolution non vus (Yang et al., 2024, JMLR).
+    \item Op\'erateurs de Fourier sph\'eriques (SFNO) pour \'emulateurs climatiques globaux (l\'egers, type LUCIE).
+    \item Variantes contraintes par la physique : perte de Clausius--Clapeyron pour les variables thermiques (Jiang et al., 2023, JAMES).
+    \item Transformers de vision pour la super-r\'esolution : SwinIR, Swin~v2, PrecipFormer ; comparaison \emph{full-domain} vs approches par tuiles (\emph{tiling}).
+    \item Limite transverse : lissage spatial, perte des hautes fr\'equences (RAPSD d\'egrad\'ee) et sous-estimation syst\'ematique des extr\^emes.
 \end{itemize}
 
 \subsubsection*{2.3 Mod\`eles g\'en\'eratifs adversariaux}
 \begin{itemize}
     \item Introduire le cGAN et le Residual cGAN appliqu\'es au downscaling.
-    \item Discuter les forces : textures plus fines, meilleure reproduction visuelle.
-    \item Discuter les limites : sensibilit\'e \`a $\lambda_{\mathrm{adv}}$, sous-dispersion, mode collapse, hallucinations.
+    \item GAN fiables et extrapolation climatique : architectures CNN d\'eterministe + GAN sur le r\'esidu pour mieux extrapoler vers des climats plus chauds (Rampal et al., 2025, JAMES).
+    \item Discuter les forces : textures plus fines, restitution des hautes fr\'equences, meilleure reproduction visuelle.
+    \item Discuter les limites : sensibilit\'e \`a $\lambda_{\mathrm{adv}}$, sous-dispersion, \emph{mode collapse}, instabilit\'e d'entra\^inement et hallucinations.
 \end{itemize}
 
-\subsubsection*{2.4 Diffusion r\'esiduelle et EDM}
+\subsubsection*{2.4 Mod\`eles \`a vraisemblance : flots de normalisation et VAE}
 \begin{itemize}
-    \item Pr\'esenter ResDiff : moyenne d\'eterministe puis diffusion sur le r\'esidu.
-    \item Expliquer l'int\'er\^et d'apprendre un r\'esidu de plus faible variance.
-    \item Introduire EDM, les solveurs de d\'ebruitage et la calibration probabiliste.
-    \item Montrer les limites : absence native de contrainte causale et risque de raccourcis statistiques.
+    \item Flots de normalisation pour le downscaling : ClimAlign (downscaling statistique non supervis\'e) et flots de normalisation conditionnels (Groenke et al., 2020 ; Winkler et al., 2024).
+    \item Int\'er\^et : vraisemblance exacte, \'echantillonnage probabiliste et lien avec le transport optimal.
+    \item Auto-encodeurs variationnels (VAE) et r\'egularisation de l'espace latent (divergence de Kullback--Leibler).
+    \item Limites : qualit\'e d'\'echantillon souvent inf\'erieure \`a la diffusion, contraintes architecturales d'inversibilit\'e des flots.
 \end{itemize}
 
-\subsubsection*{2.5 Contraintes physiques et coh\'erence inter-variables}
+\subsubsection*{2.5 Diffusion et mod\`eles score-based}
+\begin{itemize}
+    \item Cadres fondateurs : DDPM, mod\`eles score-based / SDE et \'echantillonnage Predictor--Corrector.
+    \item ResDiff : moyenne d\'eterministe puis diffusion sur le r\'esidu de plus faible variance.
+    \item EDM (Karras et al., 2022) : pr\'econditionnement, \'echantillonnage de Heun, calibration de $\sigma_{\mathrm{data}}$ ; EDM2 (Karras et al., 2024) pour la dynamique d'entra\^inement et l'EMA.
+    \item CorrDiff (Mardani et al., 2024) : downscaling km-\'echelle r\'egression + correcteur diffusif, r\'ef\'erence NVIDIA.
+    \item Diffusion latente : mimer des simulations km-\'echelle (COSMO5.0\_CLM9) \`a co\^ut r\'eduit (Tomasi et al., 2025, GMD).
+    \item Diffusion Transformers (DiT) et g\'en\'eration d'ensembles probabilistes (GenCast, DeepMind, 2024).
+    \item Diffusion spatio-temporelle et vid\'eo : guidage par flot optique (OF-Diff), \'emulation 3D temp\'erature/pr\'ecipitations (DiffESM).
+    \item Correction de biais et downscaling conjoints par espace d'embedding partag\'e (Aich et al., 2025).
+    \item Limites : co\^ut d'\'echantillonnage \'elev\'e, absence native de contrainte causale et risque de raccourcis statistiques.
+\end{itemize}
+
+\subsubsection*{2.6 Flow matching, interpolants stochastiques et \'echantillonnage acc\'el\'er\'e}
+\begin{itemize}
+    \item Flow matching et \emph{rectified flow} : Physics-Constrained Adaptive Flow Matching (PC-AFM) avec contraintes de conservation douces.
+    \item Interpolants stochastiques (CDSI) : trajectoires \'evoluant directement de la basse r\'esolution vers la cible, sans partir d'un bruit pur.
+    \item Acc\'el\'eration de l'\'echantillonnage : \emph{consistency models}, flow map matching, distillation de score, Restart sampling (Xu et al., 2023).
+    \item Int\'er\^et : r\'eduction drastique du nombre d'\'etapes d'inf\'erence tout en conservant le r\'ealisme.
+\end{itemize}
+
+\subsubsection*{2.7 Fonctions de perte avanc\'ees et transport optimal}
+\begin{itemize}
+    \item Pertes spectrales et de Fourier : FACL (amplitude + corr\'elation) pour restaurer les hautes fr\'equences (Yang et al., 2024).
+    \item R\'egularisation par distance de Wasserstein : WassDiff pour la fid\'elit\'e des extr\^emes de pr\'ecipitations (Liu et al., 2024).
+    \item Pertes pond\'er\'ees sur les extr\^emes (\emph{tail-weighted} / \emph{intensity-weighted}, Ravuri et al., 2021).
+    \item Lien avec le transport optimal et la calibration distributionnelle.
+\end{itemize}
+
+\subsubsection*{2.8 Contraintes physiques et coh\'erence inter-variables}
 \begin{itemize}
     \item Exemples de violations : $T_{\min} > T_{\max}$, incoh\'erences entre humidit\'e, pression et pr\'ecipitations.
-    \item Approches par p\'enalit\'es physiques ou param\'etrisation contrainte.
+    \item Approches par p\'enalit\'es physiques, conservation de masse/\'energie et param\'etrisation contrainte.
+    \item R\'eseaux informs\'es par la physique (PINN) et relations thermodynamiques (Clausius--Clapeyron).
     \item Limites des contraintes ajout\'ees sans structure causale interne.
 \end{itemize}
 
-\subsubsection*{2.6 Explicabilit\'e, causalit\'e et robustesse OOD}
+\subsubsection*{2.9 Explicabilit\'e, causalit\'e et robustesse OOD}
 \begin{itemize}
-    \item Cartes de saillance et diagnostics post-hoc.
+    \item Cartes de saillance et diagnostics post-hoc (XAI).
     \item Causalit\'e structurelle : SCM, DAG, DAGMA, invariance causale.
+    \item R\^ole de la variabilit\'e interne dans les projections fines des extr\^emes (Hess et al., 2025).
     \item Limite du graphe d\'ecoratif : un graphe peut exister sans devenir n\'ecessaire \`a la pr\'ediction.
 \end{itemize}
 
-\subsubsection*{2.7 Synth\`ese des limites P1--P5}
+\subsubsection*{2.10 \'Evaluation probabiliste et cadres de benchmark}
+\begin{itemize}
+    \item M\'etriques d\'eterministes et de structure : MAE, RMSE, corr\'elation de Pearson, RAPSD.
+    \item M\'etriques probabilistes : CRPS (par pixel et \emph{max-pooled}), diagramme \emph{spread--skill}, FSS.
+    \item M\'etriques d'extr\^emes : F1@p95/p99, indices de pr\'ecipitations intenses.
+    \item Cadres de benchmark standardis\'es \'emergents pour comparer \'equitablement les m\'ethodes.
+\end{itemize}
+
+\subsubsection*{2.11 Synth\`ese des limites P1--P5}
 \begin{itemize}
     \item P1 : instabilit\'e ou sensibilit\'e d'entra\^inement.
     \item P2 : mauvaise quantification de l'incertitude et sous-dispersion.
@@ -340,7 +390,7 @@ R\'ealiser une revue critique des approches de downscaling par apprentissage pro
     \item P5 : causalit\'e non indispensable, ou graphe d\'ecoratif.
 \end{itemize}
 
-\subsubsection*{2.8 Gap de recherche et transition}
+\subsubsection*{2.12 Gap de recherche et transition}
 \begin{itemize}
     \item Formuler le besoin : une architecture o\`u le chemin causal gouverne la moyenne haute r\'esolution.
     \item Justifier la combinaison d'un RCN causal et d'une diffusion r\'esiduelle.
@@ -349,7 +399,8 @@ R\'ealiser une revue critique des approches de downscaling par apprentissage pro
 
 \subsection*{Livrables attendus pour le chapitre 2}
 \begin{itemize}
-    \item Un tableau comparatif des familles de mod\`eles : U-Net, cGAN, ResDiff, EDM, mod\`eles causaux.
+    \item Un tableau comparatif \'etendu des familles de mod\`eles : r\'egression/U-Net, FNO/SFNO, Transformers, cGAN, flots de normalisation/VAE, ResDiff, EDM/EDM2, CorrDiff, diffusion latente, DiT, flow matching/interpolants stochastiques, mod\`eles causaux.
+    \item Une grille d'analyse selon les axes : stabilit\'e, extr\^emes, incertitude, physique, explicabilit\'e, OOD et co\^ut d'inf\'erence.
     \item Une synth\`ese P1--P5 des limites de la litt\'erature.
     \item Une justification claire de l'architecture Oracle.
 \end{itemize}
