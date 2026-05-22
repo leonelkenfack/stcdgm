@@ -33,14 +33,15 @@
 # Stage 2 diffusion UNet — CorrDiff Normal sizing
 # =============================================================================
 diffusion:
-  # BS37 (Sprint A V2-eval+) — Tier 0 flags : sampler stochastique +
-  # DPM-Solver++ + classifier-free guidance. Activent du gain "gratuit"
-  # (zero retrain) sur la qualite d'inference du checkpoint V2 deja entraine.
-  scheduler_type: "dpm_solver++"   # was "edm_karras"
-  eval_num_steps: 32                # was 18 (clef diffusion.eval_num_steps,
-                                     # utilisee par la cellule FINAL_VALIDATION)
-  cfg_scale: 1.5                    # was 1.0 — CFG branche dans _sample_dpm_solver,
-                                     # conditioning_dropout=0.1 deja actif
+  # BS42 (2026-05-22) — FIX : repasse en edm_karras. Le v4 a Pearson 0.815
+  # (results/new3.md) a ete obtenu avec le sampler EDM Heun (edm_karras), pas
+  # avec dpm_solver++ : new3.md forcait l'override "dpm_solver++ -> edm_karras"
+  # en mode causal_concat. Cet override a ete retire (BS39), donc on remet
+  # edm_karras directement ici. Le chemin dpm_solver++ en causal_concat
+  # hang/rame a l'inference (K=64 x CFG x 32 pas) ET ne reproduit pas 0.815.
+  scheduler_type: "edm_karras"     # was "dpm_solver++" — sampler du run 0.815
+  eval_num_steps: 32                # identique a new3.md (run 0.815)
+  cfg_scale: 1.5                    # identique a new3.md (run 0.815)
 
   unet_kwargs:
     layers_per_block: 2
