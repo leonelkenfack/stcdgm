@@ -27,6 +27,11 @@ from .evaluation_xai import (
     MetricReport,
     InferenceResult,
 )
+from .two_stage_inference import (
+    build_two_stage_batch,
+    build_two_stage_inputs,
+    sample_once_edm,
+)
 
 __all__ = [
     "autoregressive_inference",
@@ -52,5 +57,8 @@ __all__ = [
     "export_dag_to_json",
     "MetricReport",
     "InferenceResult",
+    "build_two_stage_batch",
+    "build_two_stage_inputs",
+    "sample_once_edm",
 ]
 

@@ -36,6 +36,7 @@ BS35_CAUSAL_ABLATION sentinel.
 """
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
@@ -74,7 +75,7 @@ class RegressionMeanPredictor(nn.Module):
         # the larger of (lr_h, lr_w) since downsampling will be square-ish
         # and we'll upsample externally to HR shape afterwards.
         sample_size = max(cfg.lr_height, cfg.lr_width)
-        self.unet = UNet2DModel(
+        unet_kwargs = dict(
             sample_size=sample_size,
             in_channels=cfg.in_channels,
             out_channels=cfg.in_channels,           # same channels back; we project after
@@ -87,6 +88,11 @@ class RegressionMeanPredictor(nn.Module):
             class_embed_type=None,
             addition_embed_type=None,
         )
+        # Diffusers versions differ slightly; filter unsupported optional keys
+        # instead of pinning notebook execution to one constructor signature.
+        supported = set(inspect.signature(UNet2DModel.__init__).parameters)
+        unet_kwargs = {k: v for k, v in unet_kwargs.items() if k in supported}
+        self.unet = UNet2DModel(**unet_kwargs)
 
         # HR projection : 3x3 conv after bilinear upsample.
         self.hr_proj = nn.Sequential(
@@ -209,6 +215,13 @@ class RegressionMeanPredictor(nn.Module):
             )
 
         B = lr_grid.shape[0]
+        # UNet skip connections require spatial sizes divisible by the total
+        # downsampling factor. Pad on the right/bottom, then trim back below.
+        down_factor = 2 ** max(0, len(self.cfg.block_out_channels) - 1)
+        pad_h = (-lr_grid.shape[-2]) % down_factor
+        pad_w = (-lr_grid.shape[-1]) % down_factor
+        if pad_h or pad_w:
+            lr_grid = F.pad(lr_grid, (0, pad_w, 0, pad_h), mode="replicate")
         # diffusers UNet2DModel wants a per-sample timestep.
         t = self._t_zero.expand(B)
         h = self.unet(lr_grid, t).sample           # (B, C_LR, H_LR_padded, W_LR_padded)

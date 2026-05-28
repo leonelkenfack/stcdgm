@@ -25,6 +25,14 @@ from .training.training_loop import (
     compute_rapsd_metric_from_batch,
     resolve_train_amp_mode,
 )
+from .training.stage1_paths import (
+    calibrate_sigma_data_variant,
+    predict_mu_hr,
+    precompute_stage1_outputs_variant,
+    resolve_run_variant,
+    train_epoch_stage1_noncausal,
+    validate_stage1_gate,
+)
 
 __all__ = [
     # Models
@@ -49,5 +57,11 @@ __all__ = [
     "train_epoch",
     "compute_rapsd_metric_from_batch",
     "resolve_train_amp_mode",
+    "calibrate_sigma_data_variant",
+    "predict_mu_hr",
+    "precompute_stage1_outputs_variant",
+    "resolve_run_variant",
+    "train_epoch_stage1_noncausal",
+    "validate_stage1_gate",
 ]
 

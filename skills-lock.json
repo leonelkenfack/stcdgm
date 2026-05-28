@@ -25,6 +25,18 @@
       "source": "basicmachines-co/basic-memory-skills",
       "sourceType": "github",
       "computedHash": "13a8931191a6898af1d8f9f09dee437e8ef43556ccff0da63e15781c028414b8"
+    },
+    "microservices-architect": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/microservices-architect/SKILL.md",
+      "computedHash": "c7e6f0ae69484d03083217cbcae342a23f6555f156917c54630bd20e63ace1ad"
+    },
+    "microservices-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/backend-development/skills/microservices-patterns/SKILL.md",
+      "computedHash": "d0851a64dbe56bef0d80b5f426d58d37e1018e29ed90b1d676e6601d1a23b899"
     }
   }
 }

@@ -20,6 +20,16 @@ import torch
 import torch.nn as nn
 
 from st_cdgm.models.regression_head import GraphToGridDecoder
+from st_cdgm.models.regression_mean_predictor import (
+    RegressionMeanPredictor,
+    RegressionPredictorConfig,
+)
+from st_cdgm.training.stage1_paths import (
+    predict_mu_hr,
+    precompute_stage1_outputs_variant,
+    train_epoch_stage1_noncausal,
+    validate_stage1_gate,
+)
 from st_cdgm.training.two_stage import (
     causal_ablation_check,
     calibrate_sigma_data_two_stage,
@@ -382,6 +392,90 @@ def test_gamma_dag_warmup_curve():
     assert gamma_dag_warmup(10, 0.10, warmup_epochs=5) == pytest.approx(0.10)  # clipped
     # Halfway
     assert gamma_dag_warmup(2, 0.10, warmup_epochs=5) == pytest.approx(0.04)
+
+
+# ----------------------------------------------------------------------
+# T16-T19 — Non-causal CorrDiff baseline path
+# ----------------------------------------------------------------------
+
+def _tiny_regression_mean_predictor():
+    pytest.importorskip("diffusers")
+    return RegressionMeanPredictor(
+        RegressionPredictorConfig(
+            in_channels=3,
+            out_channels=1,
+            lr_height=4,
+            lr_width=5,
+            hr_height=16,
+            hr_width=18,
+            block_out_channels=(8, 16),
+            layers_per_block=1,
+            norm_num_groups=4,
+        )
+    )
+
+
+def _tiny_noncausal_sample():
+    return {
+        "lr": torch.randn(2, 3, 4, 5),
+        "residual": torch.randn(2, 1, 16, 18) * 0.05,
+        "baseline": torch.zeros(2, 1, 16, 18),
+    }
+
+
+def test_T16_predict_mu_hr_noncausal_from_lr_grid():
+    reg = _tiny_regression_mean_predictor()
+    sample = _tiny_noncausal_sample()
+    with torch.no_grad():
+        mu = predict_mu_hr(
+            sample,
+            variant="noncausal",
+            regression_head=reg,
+            device=torch.device("cpu"),
+            target_shape=(16, 18),
+        )
+    assert mu.shape == (1, 1, 16, 18)
+    assert torch.isfinite(mu).all()
+
+
+def test_T17_train_epoch_stage1_noncausal_has_no_dag_params():
+    reg = _tiny_regression_mean_predictor()
+    opt = torch.optim.AdamW(reg.parameters(), lr=1e-3)
+    metrics = train_epoch_stage1_noncausal(
+        regression_head=reg,
+        optimizer=opt,
+        data_loader=[_tiny_noncausal_sample()],
+        device=torch.device("cpu"),
+        use_amp=False,
+        verbose=False,
+    )
+    assert metrics["loss"] >= 0.0
+    assert all("A_dag" not in name for name, _ in reg.named_parameters())
+
+
+def test_T18_validate_stage1_gate_skips_noncausal():
+    report = validate_stage1_gate(
+        variant="noncausal",
+        regression_head=nn.Linear(1, 1),
+        device=torch.device("cpu"),
+    )
+    assert report["passes"] is True
+    assert report["skipped"] is True
+    assert report["reason"] == "noncausal_run_variant"
+
+
+def test_T19_precompute_stage1_outputs_variant_noncausal_keys():
+    reg = _tiny_regression_mean_predictor()
+    cache = precompute_stage1_outputs_variant(
+        variant="noncausal",
+        regression_head=reg,
+        train_dataset=[_tiny_noncausal_sample(), _tiny_noncausal_sample()],
+        iterate_batches_fn=lambda sample: sample,
+        device=torch.device("cpu"),
+    )
+    assert set(cache) == {"mu_HR", "baseline_log", "delta_target", "valid_mask"}
+    assert cache["mu_HR"].shape == (2, 1, 16, 18)
+    assert "mu_HR_zero" not in cache
 
 
 if __name__ == "__main__":

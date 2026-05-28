@@ -22,6 +22,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from ..models.causal_rcn import RCNSequenceRunner
 from ..models.diffusion_decoder import CausalDiffusionDecoder
 from ..models.intelligible_encoder import IntelligibleVariableEncoder
+from .stage1_paths import predict_mu_hr
 
 
 def _train_autocast(amp_mode: str):
@@ -1998,6 +1999,8 @@ def train_epoch_stage2(
     log_interval: int = 20,
     verbose: bool = True,
     use_amp: bool = True,
+    run_variant: str = "causal",
+    builder=None,
 ) -> Dict[str, float]:
     """Stage 2 of the Two-Stage Causal Architecture.
 
@@ -2040,20 +2043,20 @@ def train_epoch_stage2(
             if baseline_t is not None and baseline_t.dim() == 3:
                 baseline_t = baseline_t.unsqueeze(0)
 
-            # Stage 1 forward — completely no_grad, modules already eval()
+            # Stage 1 forward — completely no_grad, modules already eval().
+            # ``predict_mu_hr`` keeps the causal path unchanged while allowing
+            # the non-causal CorrDiff baseline to use the LR grid directly.
             with torch.no_grad():
-                H_init = encoder.init_state(micro["hetero"]).to(device)
-                drivers = [lr_data[t] for t in range(lr_data.shape[0])]
-                seq_out = rcn_runner.run(
-                    H_init, drivers, reconstruction_sources=None
+                mu_HR = predict_mu_hr(
+                    micro,
+                    variant=run_variant,
+                    encoder=encoder,
+                    rcn_runner=rcn_runner,
+                    regression_head=regression_head,
+                    builder=builder,
+                    device=device,
+                    target_shape=target_residual.shape[-2:],
                 )
-                H_T = seq_out.states[-1]
-                mu_HR = regression_head(H_T)
-                if mu_HR.shape != target_residual.shape:
-                    mu_HR = torch.nn.functional.interpolate(
-                        mu_HR, size=target_residual.shape[-2:],
-                        mode="bilinear", align_corners=False,
-                    )
 
             delta_target = target_residual - mu_HR
             # baseline_log : the baseline already lives in log1p space because
