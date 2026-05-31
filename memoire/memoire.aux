@@ -1,0 +1,500 @@
+\relax 
+\providecommand \babel@aux [2]{\global \let \babel@toc \@gobbletwo }
+\@nameuse{bbl@beforestart}
+\catcode `:\active 
+\catcode `;\active 
+\catcode `!\active 
+\catcode `?\active 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{ipcc_ar6_2021}
+\citation{eyring_cmip6_2016}
+\babel@aux{french}{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {I}Fondements du downscaling climatique}{1}{chapter.1}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{chap:fondements}{{I}{1}{Fondements du downscaling climatique}{chapter.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {I.1}Introduction}{1}{section.1.1}\protected@file@percent }
+\newlabel{sec:intro}{{I.1}{1}{Introduction}{section.1.1}{}}
+\citation{mardani_corrdiff_2023}
+\citation{ipcc_ar6_2021}
+\citation{ipcc_ar6_2021,almazroui_2020}
+\@writefile{toc}{\contentsline {section}{\numberline {I.2}Contexte climatique et besoin de désagrégation}{2}{section.1.2}\protected@file@percent }
+\newlabel{sec:contexte}{{I.2}{2}{Contexte climatique et besoin de désagrégation}{section.1.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2.1}Changement climatique et impacts régionaux}{2}{subsection.1.2.1}\protected@file@percent }
+\newlabel{ssec:cc-regional}{{I.2.1}{2}{Changement climatique et impacts régionaux}{subsection.1.2.1}{}}
+\citation{eyring_cmip6_2016}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2.2}Modèles climatiques globaux et régionaux}{3}{subsection.1.2.2}\protected@file@percent }
+\newlabel{ssec:gcm-rcm}{{I.2.2}{3}{Modèles climatiques globaux et régionaux}{subsection.1.2.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Comparaison de trois niveaux de résolution spatiale sur la même région : grille GCM ($\sim $~250~km), grille RCM ($\sim $~25~km), grille cible HR ($\sim $~5~km).}}{5}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:resolutions}{{1}{5}{Comparaison de trois niveaux de résolution spatiale sur la même région : grille GCM ($\sim $~250~km), grille RCM ($\sim $~25~km), grille cible HR ($\sim $~5~km)}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2.3}Besoin de données haute résolution pour les communautés locales}{5}{subsection.1.2.3}\protected@file@percent }
+\newlabel{ssec:besoin-local}{{I.2.3}{5}{Besoin de données haute résolution pour les communautés locales}{subsection.1.2.3}{}}
+\citation{maraun_widmann_2018,vandal_deepsd_2017}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2.4}Cas illustratif : la précipitation comme variable critique}{6}{subsection.1.2.4}\protected@file@percent }
+\newlabel{ssec:cas-precipitation}{{I.2.4}{6}{Cas illustratif : la précipitation comme variable critique}{subsection.1.2.4}{}}
+\citation{wmo_gcos_2022}
+\citation{hersbach_era5_2020}
+\@writefile{toc}{\contentsline {paragraph}{Encart : vers une généralisation multivariable.}{7}{paragraph*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {I.3}Données climatiques et leurs propriétés}{7}{section.1.3}\protected@file@percent }
+\newlabel{sec:donnees}{{I.3}{7}{Données climatiques et leurs propriétés}{section.1.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.3.1}Sources de données}{7}{subsection.1.3.1}\protected@file@percent }
+\newlabel{ssec:sources}{{I.3.1}{7}{Sources de données}{subsection.1.3.1}{}}
+\citation{eyring_cmip6_2016}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.3.2}Variables, formats et conventions}{8}{subsection.1.3.2}\protected@file@percent }
+\newlabel{ssec:formats}{{I.3.2}{8}{Variables, formats et conventions}{subsection.1.3.2}{}}
+\citation{maraun_widmann_2018}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.3.3}Propriétés statistiques de la précipitation}{9}{subsection.1.3.3}\protected@file@percent }
+\newlabel{ssec:stats-precip}{{I.3.3}{9}{Propriétés statistiques de la précipitation}{subsection.1.3.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Distribution empirique de la précipitation quotidienne sur un point d'observation. La barre à zéro illustre l'intermittence ; la queue lourde à droite motive une modélisation probabiliste à queue longue.}}{10}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:lognormal}{{2}{10}{Distribution empirique de la précipitation quotidienne sur un point d'observation. La barre à zéro illustre l'intermittence ; la queue lourde à droite motive une modélisation probabiliste à queue longue}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.3.4}Pipeline de données générique}{10}{subsection.1.3.4}\protected@file@percent }
+\newlabel{ssec:pipeline}{{I.3.4}{10}{Pipeline de données générique}{subsection.1.3.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Pipeline générique de données pour le downscaling probabiliste : sources, prétraitements, modèle, sortie. Les détails du couple ACCESS-CM2 $\to $ Nouvelle-Zélande sont précisés dans le chapitre dédié aux matériels et méthodes.}}{10}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:pipeline}{{3}{10}{Pipeline générique de données pour le downscaling probabiliste : sources, prétraitements, modèle, sortie. Les détails du couple ACCESS-CM2 $\to $ Nouvelle-Zélande sont précisés dans le chapitre dédié aux matériels et méthodes}{figure.caption.4}{}}
+\citation{wilby_wigley_1997,maraun_widmann_2018}
+\@writefile{toc}{\contentsline {section}{\numberline {I.4}Approches classiques de downscaling}{11}{section.1.4}\protected@file@percent }
+\newlabel{sec:classiques}{{I.4}{11}{Approches classiques de downscaling}{section.1.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.4.1}Désagrégation spatiale}{11}{subsection.1.4.1}\protected@file@percent }
+\newlabel{ssec:disagg-spatiale}{{I.4.1}{11}{Désagrégation spatiale}{subsection.1.4.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{Statistique classique}{11}{subsubsection*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{Dynamique (RCM)}{12}{subsubsection*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{Apprentissage supervisé déterministe}{12}{subsubsection*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.4.2}Désagrégation temporelle}{13}{subsection.1.4.2}\protected@file@percent }
+\newlabel{ssec:disagg-temporelle}{{I.4.2}{13}{Désagrégation temporelle}{subsection.1.4.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{Problème et enjeux}{13}{subsubsection*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{Méthodes statistiques}{13}{subsubsection*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{Méthodes par apprentissage}{14}{subsubsection*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{État actuel et limites}{14}{subsubsection*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Encart de transparence.}{14}{paragraph*.12}\protected@file@percent }
+\citation{rampal_cgan_2024}
+\@writefile{toc}{\contentsline {section}{\numberline {I.5}Approches probabilistes et génératives}{15}{section.1.5}\protected@file@percent }
+\newlabel{sec:generatifs}{{I.5}{15}{Approches probabilistes et génératives}{section.1.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.5.1}Du déterministe au probabiliste}{15}{subsection.1.5.1}\protected@file@percent }
+\newlabel{ssec:det-vs-proba}{{I.5.1}{15}{Du déterministe au probabiliste}{subsection.1.5.1}{}}
+\newlabel{eq:objectif-proba}{{I.1}{15}{Du déterministe au probabiliste}{equation.1.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.5.2}Modèles génératifs adversariaux}{16}{subsection.1.5.2}\protected@file@percent }
+\newlabel{ssec:gan}{{I.5.2}{16}{Modèles génératifs adversariaux}{subsection.1.5.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Illustration de la sous-dispersion : la distribution de précipitation prédite par un modèle adversarial concentre la masse vers les valeurs modérées et manque la queue lourde de la distribution observée.}}{16}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:subdispersion}{{4}{16}{Illustration de la sous-dispersion : la distribution de précipitation prédite par un modèle adversarial concentre la masse vers les valeurs modérées et manque la queue lourde de la distribution observée}{figure.caption.13}{}}
+\citation{ho_ddpm_2020}
+\citation{karras_edm_2022}
+\citation{mardani_corrdiff_2023}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.5.3}Modèles de diffusion}{17}{subsection.1.5.3}\protected@file@percent }
+\newlabel{ssec:diffusion}{{I.5.3}{17}{Modèles de diffusion}{subsection.1.5.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.5.4}Le paradigme deux étages : CorrDiff}{17}{subsection.1.5.4}\protected@file@percent }
+\newlabel{ssec:corrdiff}{{I.5.4}{17}{Le paradigme deux étages : CorrDiff}{subsection.1.5.4}{}}
+\citation{mardani_corrdiff_2023}
+\citation{mardani_corrdiff_2023}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Paradigme deux étages du downscaling probabiliste de Mardani et al.~\cite  {mardani_corrdiff_2023}. Le premier étage régresse la moyenne haute résolution $\ensuremath  {\mu _{\ensuremath  {\text  {HR}}}}$ ; le second échantillonne par diffusion le résiduel $\delta $.}}{18}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:corrdiff}{{5}{18}{Paradigme deux étages du downscaling probabiliste de Mardani et al.~\cite {mardani_corrdiff_2023}. Le premier étage régresse la moyenne haute résolution $\muHR $ ; le second échantillonne par diffusion le résiduel $\delta $}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.5.5}Encart : évaluation probabiliste}{18}{subsection.1.5.5}\protected@file@percent }
+\newlabel{ssec:eval-encart}{{I.5.5}{18}{Encart : évaluation probabiliste}{subsection.1.5.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {I.6}Causalité et modèles structurels}{19}{section.1.6}\protected@file@percent }
+\newlabel{sec:causalite}{{I.6}{19}{Causalité et modèles structurels}{section.1.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.6.1}Pourquoi la causalité en downscaling climatique}{19}{subsection.1.6.1}\protected@file@percent }
+\newlabel{ssec:why-causal}{{I.6.1}{19}{Pourquoi la causalité en downscaling climatique}{subsection.1.6.1}{}}
+\citation{pearl_causality_2009,pearl_book_of_why_2018}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.6.2}Modèles causaux structurels et graphes acycliques dirigés}{20}{subsection.1.6.2}\protected@file@percent }
+\newlabel{ssec:scm-dag}{{I.6.2}{20}{Modèles causaux structurels et graphes acycliques dirigés}{subsection.1.6.2}{}}
+\newlabel{eq:scm}{{I.2}{20}{Modèles causaux structurels et graphes acycliques dirigés}{equation.1.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Exemple de modèle causal structurel sur un mini-système atmosphérique. Les n\oe uds représentent des variables observables ; les arcs représentent des liens fonctionnels parent $\to $ enfant. L'absence de cycle (DAG) est une condition d'identifiabilité.}}{21}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:scm-dag}{{6}{21}{Exemple de modèle causal structurel sur un mini-système atmosphérique. Les n\oe uds représentent des variables observables ; les arcs représentent des liens fonctionnels parent $\to $ enfant. L'absence de cycle (DAG) est une condition d'identifiabilité}{figure.caption.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.6.3}Intervention et identifiabilité}{21}{subsection.1.6.3}\protected@file@percent }
+\newlabel{ssec:intervention}{{I.6.3}{21}{Intervention et identifiabilité}{subsection.1.6.3}{}}
+\citation{bello_dagma_2022}
+\citation{rampal_cgan_2024}
+\citation{karras_edm_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.6.4}Graphes causaux appris et lien avec le downscaling}{22}{subsection.1.6.4}\protected@file@percent }
+\newlabel{ssec:learned-dag}{{I.6.4}{22}{Graphes causaux appris et lien avec le downscaling}{subsection.1.6.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {I.7}Verrous scientifiques et trilemme}{22}{section.1.7}\protected@file@percent }
+\newlabel{sec:verrous}{{I.7}{22}{Verrous scientifiques et trilemme}{section.1.7}{}}
+\citation{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.7.1}Verrou 1 : stabilité d'entraînement}{23}{subsection.1.7.1}\protected@file@percent }
+\newlabel{ssec:verrou-stabilite}{{I.7.1}{23}{Verrou 1 : stabilité d'entraînement}{subsection.1.7.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.7.2}Verrou 2 : réalisme des extrêmes et sub-dispersion}{23}{subsection.1.7.2}\protected@file@percent }
+\newlabel{ssec:verrou-extremes}{{I.7.2}{23}{Verrou 2 : réalisme des extrêmes et sub-dispersion}{subsection.1.7.2}{}}
+\citation{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}
+\citation{rampal_cgan_2024}
+\citation{mardani_corrdiff_2023}
+\citation{harris_2022}
+\citation{rampal_cgan_2024}
+\citation{mardani_corrdiff_2023}
+\citation{harris_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.7.3}Verrou 3 : robustesse hors-distribution}{24}{subsection.1.7.3}\protected@file@percent }
+\newlabel{ssec:verrou-ood}{{I.7.3}{24}{Verrou 3 : robustesse hors-distribution}{subsection.1.7.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.7.4}Trilemme : tension entre les trois verrous}{24}{subsection.1.7.4}\protected@file@percent }
+\newlabel{ssec:trilemme}{{I.7.4}{24}{Trilemme : tension entre les trois verrous}{subsection.1.7.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Trilemme du downscaling génératif : tension typique entre stabilité d'entraînement, réalisme des extrêmes et robustesse hors-distribution. Constat agrégé à partir des travaux de Rampal et al.~\cite  {rampal_cgan_2024}, Mardani et al.~\cite  {mardani_corrdiff_2023} et Harris et al.~\cite  {harris_2022}.}}{25}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:trilemme}{{7}{25}{Trilemme du downscaling génératif : tension typique entre stabilité d'entraînement, réalisme des extrêmes et robustesse hors-distribution. Constat agrégé à partir des travaux de Rampal et al.~\cite {rampal_cgan_2024}, Mardani et al.~\cite {mardani_corrdiff_2023} et Harris et al.~\cite {harris_2022}}{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.7.5}Positionnement d'Oracle dans ce paysage}{25}{subsection.1.7.5}\protected@file@percent }
+\newlabel{ssec:positionnement-oracle}{{I.7.5}{25}{Positionnement d'Oracle dans ce paysage}{subsection.1.7.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Cartouche conceptuel du modèle \textsc  {Oracle}{} proposé : version causalisée du paradigme deux étages de \textsc  {CorrDiff}{}. L'étage 1 estime la moyenne haute résolution $\ensuremath  {\mu _{\ensuremath  {\text  {HR}}}}$ par un passage à travers un graphe causal appris ; l'étage 2 échantillonne par diffusion le résiduel $\delta $.}}{25}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:cartouche-oracle}{{8}{25}{Cartouche conceptuel du modèle \Oracle {} proposé : version causalisée du paradigme deux étages de \CorrDiff {}. L'étage 1 estime la moyenne haute résolution $\muHR $ par un passage à travers un graphe causal appris ; l'étage 2 échantillonne par diffusion le résiduel $\delta $}{figure.caption.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {I.8}Synthèse}{26}{section.1.8}\protected@file@percent }
+\newlabel{sec:synthese}{{I.8}{26}{Synthèse}{section.1.8}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {II}État de l'art du downscaling par apprentissage profond}{27}{chapter.2}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{chap:etatdelart}{{II}{27}{État de l'art du downscaling par apprentissage profond}{chapter.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.1}Introduction}{27}{section.2.1}\protected@file@percent }
+\newlabel{sec:soa-intro}{{II.1}{27}{Introduction}{section.2.1}{}}
+\citation{dong_srcnn_2014}
+\citation{lim_edsr_2017}
+\citation{vandal_deepsd_2017}
+\citation{ronneberger_unet_2015}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Frise chronologique des principales contributions du downscaling climatique profond. Le glissement progressif du paradigme déterministe vers le paradigme génératif à deux étages est visible à partir de 2020.}}{29}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:frise}{{1}{29}{Frise chronologique des principales contributions du downscaling climatique profond. Le glissement progressif du paradigme déterministe vers le paradigme génératif à deux étages est visible à partir de 2020}{figure.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.2}Approches déterministes}{29}{section.2.2}\protected@file@percent }
+\newlabel{sec:soa-det}{{II.2}{29}{Approches déterministes}{section.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.2.1}Régression statistique classique}{29}{subsection.2.2.1}\protected@file@percent }
+\newlabel{ssec:soa-reg-classique}{{II.2.1}{29}{Régression statistique classique}{subsection.2.2.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.2.2}Réseaux convolutifs et super-résolution}{29}{subsection.2.2.2}\protected@file@percent }
+\newlabel{ssec:soa-cnn}{{II.2.2}{29}{Réseaux convolutifs et super-résolution}{subsection.2.2.2}{}}
+\citation{pan_pan_2019}
+\citation{li_fno_2021}
+\citation{bonev_sfno_2023}
+\citation{liang_swinir_2021}
+\citation{lopezgomez_precipformer_2023}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.2.3}Architectures déterministes avancées}{30}{subsection.2.2.3}\protected@file@percent }
+\newlabel{ssec:soa-avancees}{{II.2.3}{30}{Architectures déterministes avancées}{subsection.2.2.3}{}}
+\citation{goodfellow_gan_2014}
+\citation{mirza_cgan_2014}
+\citation{rampal_cgan_2024}
+\@writefile{toc}{\contentsline {section}{\numberline {II.3}Approches probabilistes adversariales}{31}{section.2.3}\protected@file@percent }
+\newlabel{sec:soa-adv}{{II.3}{31}{Approches probabilistes adversariales}{section.2.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.3.1}Réseaux antagonistes génératifs conditionnels}{31}{subsection.2.3.1}\protected@file@percent }
+\newlabel{ssec:soa-cgan}{{II.3.1}{31}{Réseaux antagonistes génératifs conditionnels}{subsection.2.3.1}{}}
+\citation{rampal_cgan_2024}
+\citation{rampal_cgan_2024}
+\citation{harris_2022}
+\citation{price_rasp_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.3.2}cGAN résiduel pour le downscaling climatique}{32}{subsection.2.3.2}\protected@file@percent }
+\newlabel{ssec:soa-rampal}{{II.3.2}{32}{cGAN résiduel pour le downscaling climatique}{subsection.2.3.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Architecture du cGAN résiduel de Rampal et al.~\cite  {rampal_cgan_2024} appliqué au downscaling de précipitations en Nouvelle-Zélande. Le générateur reçoit comme entrées le champ basse résolution GCM, l'élévation et un vecteur de bruit ; il produit une carte résiduelle que l'on ajoute à la prédiction déterministe d'un U-Net pré-entraîné.}}{32}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:cgan-rampal}{{2}{32}{Architecture du cGAN résiduel de Rampal et al.~\cite {rampal_cgan_2024} appliqué au downscaling de précipitations en Nouvelle-Zélande. Le générateur reçoit comme entrées le champ basse résolution GCM, l'élévation et un vecteur de bruit ; il produit une carte résiduelle que l'on ajoute à la prédiction déterministe d'un U-Net pré-entraîné}{figure.caption.19}{}}
+\citation{rampal_cgan_2024}
+\citation{mardani_corrdiff_2023}
+\citation{kingma_vae_2014}
+\citation{lange_vae_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.3.3}Limites empiriques des cGAN appliqués au downscaling}{33}{subsection.2.3.3}\protected@file@percent }
+\newlabel{ssec:soa-cgan-limites}{{II.3.3}{33}{Limites empiriques des cGAN appliqués au downscaling}{subsection.2.3.3}{}}
+\citation{groenke_flow_2020}
+\@writefile{toc}{\contentsline {section}{\numberline {II.4}Approches à vraisemblance explicite}{34}{section.2.4}\protected@file@percent }
+\newlabel{sec:soa-vrai}{{II.4}{34}{Approches à vraisemblance explicite}{section.2.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.4.1}Auto-encodeurs variationnels}{34}{subsection.2.4.1}\protected@file@percent }
+\newlabel{ssec:soa-vae}{{II.4.1}{34}{Auto-encodeurs variationnels}{subsection.2.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.4.2}Flots de normalisation}{34}{subsection.2.4.2}\protected@file@percent }
+\newlabel{ssec:soa-flow}{{II.4.2}{34}{Flots de normalisation}{subsection.2.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.4.3}Bilan}{34}{subsection.2.4.3}\protected@file@percent }
+\newlabel{ssec:soa-vrai-bilan}{{II.4.3}{34}{Bilan}{subsection.2.4.3}{}}
+\citation{ho_ddpm_2020}
+\citation{karras_edm_2022}
+\@writefile{toc}{\contentsline {section}{\numberline {II.5}Modèles de diffusion}{35}{section.2.5}\protected@file@percent }
+\newlabel{sec:soa-diff}{{II.5}{35}{Modèles de diffusion}{section.2.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.5.1}Denoising Diffusion Probabilistic Models}{35}{subsection.2.5.1}\protected@file@percent }
+\newlabel{ssec:soa-ddpm}{{II.5.1}{35}{Denoising Diffusion Probabilistic Models}{subsection.2.5.1}{}}
+\newlabel{eq:ddpm-forward}{{II.1}{35}{Denoising Diffusion Probabilistic Models}{equation.2.1}{}}
+\newlabel{eq:ddpm-loss}{{II.2}{35}{Denoising Diffusion Probabilistic Models}{equation.2.2}{}}
+\citation{saharia_sr3_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.5.2}Formalisme EDM de Karras et al.}{36}{subsection.2.5.2}\protected@file@percent }
+\newlabel{ssec:soa-edm}{{II.5.2}{36}{Formalisme EDM de Karras et al}{subsection.2.5.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Schéma des modèles de diffusion. Le processus forward bruite progressivement un échantillon par une équation différentielle stochastique (SDE) directe ; le processus inverse, appris par le réseau, reconstruit l'échantillon en intégrant la SDE inverse.}}{36}{figure.caption.20}\protected@file@percent }
+\newlabel{fig:diffusion}{{3}{36}{Schéma des modèles de diffusion. Le processus forward bruite progressivement un échantillon par une équation différentielle stochastique (SDE) directe ; le processus inverse, appris par le réseau, reconstruit l'échantillon en intégrant la SDE inverse}{figure.caption.20}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.5.3}Premières applications au climat : SR3, ResShift, ResDiff}{36}{subsection.2.5.3}\protected@file@percent }
+\newlabel{ssec:soa-sr3-resdiff}{{II.5.3}{36}{Premières applications au climat : SR3, ResShift, ResDiff}{subsection.2.5.3}{}}
+\citation{yue_resshift_2023}
+\citation{mardani_corrdiff_2023}
+\citation{lipman_flow_2023}
+\citation{song_consistency_2023}
+\citation{rombach_latent_2022}
+\@writefile{toc}{\contentsline {paragraph}{Note de nomenclature.}{37}{paragraph*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.5.4}Évolutions récentes des génératifs profonds}{37}{subsection.2.5.4}\protected@file@percent }
+\newlabel{ssec:soa-flow-matching}{{II.5.4}{37}{Évolutions récentes des génératifs profonds}{subsection.2.5.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Encart : approches émergentes.}{37}{paragraph*.22}\protected@file@percent }
+\citation{mardani_corrdiff_2023}
+\citation{mardani_corrdiff_2023}
+\citation{mardani_corrdiff_2023}
+\@writefile{toc}{\contentsline {section}{\numberline {II.6}Le paradigme à deux étages : CorrDiff}{38}{section.2.6}\protected@file@percent }
+\newlabel{sec:soa-corrdiff}{{II.6}{38}{Le paradigme à deux étages : CorrDiff}{section.2.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.6.1}Idée fondatrice}{38}{subsection.2.6.1}\protected@file@percent }
+\newlabel{ssec:soa-corrdiff-idee}{{II.6.1}{38}{Idée fondatrice}{subsection.2.6.1}{}}
+\newlabel{eq:corrdiff}{{II.3}{38}{Idée fondatrice}{equation.2.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.6.2}Architecture détaillée}{38}{subsection.2.6.2}\protected@file@percent }
+\newlabel{ssec:soa-corrdiff-archi}{{II.6.2}{38}{Architecture détaillée}{subsection.2.6.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Architecture détaillée de \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023}. Le premier étage régresse de manière déterministe la moyenne haute résolution $\ensuremath  {\mu _{\ensuremath  {\text  {HR}}}}$ ; le second étage échantillonne par diffusion EDM le résiduel $\delta $ conditionnellement à l'étage 1.}}{39}{figure.caption.23}\protected@file@percent }
+\newlabel{fig:corrdiff-archi}{{4}{39}{Architecture détaillée de \CorrDiff {}~\cite {mardani_corrdiff_2023}. Le premier étage régresse de manière déterministe la moyenne haute résolution $\muHR $ ; le second étage échantillonne par diffusion EDM le résiduel $\delta $ conditionnellement à l'étage 1}{figure.caption.23}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.6.3}Forces du paradigme à deux étages}{39}{subsection.2.6.3}\protected@file@percent }
+\newlabel{ssec:soa-corrdiff-forces}{{II.6.3}{39}{Forces du paradigme à deux étages}{subsection.2.6.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.6.4}Limites identifiées de CorrDiff}{39}{subsection.2.6.4}\protected@file@percent }
+\newlabel{ssec:soa-corrdiff-limites}{{II.6.4}{39}{Limites identifiées de CorrDiff}{subsection.2.6.4}{}}
+\citation{saharia_sr3_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.6.5}Pourquoi CorrDiff plutôt que SR3 ?}{40}{subsection.2.6.5}\protected@file@percent }
+\newlabel{ssec:soa-corrdiff-choix}{{II.6.5}{40}{Pourquoi CorrDiff plutôt que SR3 ?}{subsection.2.6.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.7}Fonctions de perte et contraintes physiques}{41}{section.2.7}\protected@file@percent }
+\newlabel{sec:soa-pertes}{{II.7}{41}{Fonctions de perte et contraintes physiques}{section.2.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.7.1}Pertes adaptées à la précipitation}{41}{subsection.2.7.1}\protected@file@percent }
+\newlabel{ssec:soa-pertes-precip}{{II.7.1}{41}{Pertes adaptées à la précipitation}{subsection.2.7.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.7.2}Contraintes physiques et explicabilité}{41}{subsection.2.7.2}\protected@file@percent }
+\newlabel{ssec:soa-physics-xai}{{II.7.2}{41}{Contraintes physiques et explicabilité}{subsection.2.7.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Encart court.}{41}{paragraph*.24}\protected@file@percent }
+\citation{rasp_weatherbench2_2023}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Principales fonctions de perte et contraintes utilisées en downscaling climatique profond.}}{42}{table.caption.25}\protected@file@percent }
+\newlabel{tab:pertes}{{1}{42}{Principales fonctions de perte et contraintes utilisées en downscaling climatique profond}{table.caption.25}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.8}Cadres d'évaluation et foundation models}{42}{section.2.8}\protected@file@percent }
+\newlabel{sec:soa-benchmarks}{{II.8}{42}{Cadres d'évaluation et foundation models}{section.2.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.8.1}Benchmarks standardisés}{42}{subsection.2.8.1}\protected@file@percent }
+\newlabel{ssec:soa-benchmarks-std}{{II.8.1}{42}{Benchmarks standardisés}{subsection.2.8.1}{}}
+\citation{watson_climatebench_2022}
+\citation{nathaniel_chaosbench_2024}
+\citation{nguyen_climax_2023}
+\citation{lam_graphcast_2023}
+\citation{price_gencast_2024}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.8.2}Foundation models climat}{43}{subsection.2.8.2}\protected@file@percent }
+\newlabel{ssec:soa-foundation}{{II.8.2}{43}{Foundation models climat}{subsection.2.8.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.9}Synthèse, tableau comparatif et gap scientifique}{44}{section.2.9}\protected@file@percent }
+\newlabel{sec:soa-synthese}{{II.9}{44}{Synthèse, tableau comparatif et gap scientifique}{section.2.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.9.1}Tableau comparatif modèle × verrou}{44}{subsection.2.9.1}\protected@file@percent }
+\newlabel{ssec:soa-tableau}{{II.9.1}{44}{Tableau comparatif modèle × verrou}{subsection.2.9.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Confrontation des principales approches du downscaling profond aux verrous du trilemme. Légende : \text  {$\mathsurround \z@ \mathchar "458$}{} = bien traité, $\triangle $ = partiellement traité, $\times $ = non traité. La colonne \textbf  {Causal} renvoie à l'indispensabilité structurelle (propriété~(O3)) qui sera formalisée au chapitre suivant.}}{44}{table.caption.26}\protected@file@percent }
+\newlabel{tab:modele-verrou}{{2}{44}{Confrontation des principales approches du downscaling profond aux verrous du trilemme. Légende : \checkmark {} = bien traité, $\triangle $ = partiellement traité, $\times $ = non traité. La colonne \textbf {Causal} renvoie à l'indispensabilité structurelle (propriété~(O3)) qui sera formalisée au chapitre suivant}{table.caption.26}{}}
+\citation{mardani_corrdiff_2023}
+\citation{bello_dagma_2022}
+\citation{karras_edm_2022}
+\citation{mardani_corrdiff_2023}
+\citation{bello_dagma_2022}
+\citation{karras_edm_2022}
+\citation{mardani_corrdiff_2023}
+\citation{bello_dagma_2022}
+\citation{pearl_causality_2009}
+\citation{karras_edm_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.9.2}Gap scientifique}{45}{subsection.2.9.2}\protected@file@percent }
+\newlabel{ssec:soa-gap}{{II.9.2}{45}{Gap scientifique}{subsection.2.9.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.9.3}Positionnement d'Oracle dans le paysage}{45}{subsection.2.9.3}\protected@file@percent }
+\newlabel{ssec:soa-oracle-position}{{II.9.3}{45}{Positionnement d'Oracle dans le paysage}{subsection.2.9.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Cartouche conceptuel revisité du modèle \textsc  {Oracle}{} avec ancrage bibliographique. Le premier étage causalise \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023} en y intégrant un graphe causal appris par contrainte DAGMA~\cite  {bello_dagma_2022} ; le second étage conserve la diffusion EDM~\cite  {karras_edm_2022}.}}{46}{figure.caption.27}\protected@file@percent }
+\newlabel{fig:oracle-revisite}{{5}{46}{Cartouche conceptuel revisité du modèle \Oracle {} avec ancrage bibliographique. Le premier étage causalise \CorrDiff {}~\cite {mardani_corrdiff_2023} en y intégrant un graphe causal appris par contrainte DAGMA~\cite {bello_dagma_2022} ; le second étage conserve la diffusion EDM~\cite {karras_edm_2022}}{figure.caption.27}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {II.9.4}Transition vers le Chapitre III}{46}{subsection.2.9.4}\protected@file@percent }
+\newlabel{ssec:soa-transition}{{II.9.4}{46}{Transition vers le Chapitre III}{subsection.2.9.4}{}}
+\citation{mardani_corrdiff_2023}
+\@writefile{toc}{\contentsline {chapter}{\numberline {III}Proposition : Oracle, architecture causale à deux étages}{47}{chapter.3}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{chap:oracle}{{III}{47}{Proposition : Oracle, architecture causale à deux étages}{chapter.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.1}Introduction}{47}{section.3.1}\protected@file@percent }
+\newlabel{sec:oracle-intro}{{III.1}{47}{Introduction}{section.3.1}{}}
+\citation{karras_edm_2022}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.1.1}Notations}{48}{subsection.3.1.1}\protected@file@percent }
+\newlabel{ssec:oracle-notations}{{III.1.1}{48}{Notations}{subsection.3.1.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Notations utilisées dans le présent chapitre.}}{49}{table.caption.28}\protected@file@percent }
+\newlabel{tab:notations}{{1}{49}{Notations utilisées dans le présent chapitre}{table.caption.28}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.1.2}Objectifs O1-O6}{49}{subsection.3.1.2}\protected@file@percent }
+\newlabel{ssec:oracle-objectifs}{{III.1.2}{49}{Objectifs O1-O6}{subsection.3.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.2}Vue d'ensemble et différence avec CorrDiff}{50}{section.3.2}\protected@file@percent }
+\newlabel{sec:oracle-overview}{{III.2}{50}{Vue d'ensemble et différence avec CorrDiff}{section.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.2.1}Architecture en quatre blocs fonctionnels}{50}{subsection.3.2.1}\protected@file@percent }
+\newlabel{ssec:oracle-blocs}{{III.2.1}{50}{Architecture en quatre blocs fonctionnels}{subsection.3.2.1}{}}
+\newlabel{eq:oracle-decomposition}{{III.1}{51}{Architecture en quatre blocs fonctionnels}{equation.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Vue d'ensemble simplifiée du modèle \textsc  {Oracle}{} : quatre blocs fonctionnels articulés autour de l'équation centrale~\eqref  {eq:oracle-decomposition}. La causalité est concentrée dans le bloc CRM ; la stochasticité réside dans le bloc EDM.}}{51}{figure.caption.29}\protected@file@percent }
+\newlabel{fig:oracle-overview-simple}{{1}{51}{Vue d'ensemble simplifiée du modèle \Oracle {} : quatre blocs fonctionnels articulés autour de l'équation centrale~\eqref {eq:oracle-decomposition}. La causalité est concentrée dans le bloc CRM ; la stochasticité réside dans le bloc EDM}{figure.caption.29}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.2.2}Écart avec CorrDiff : la causalisation du premier étage}{51}{subsection.3.2.2}\protected@file@percent }
+\newlabel{ssec:oracle-diff-corrdiff}{{III.2.2}{51}{Écart avec CorrDiff : la causalisation du premier étage}{subsection.3.2.2}{}}
+\citation{mardani_corrdiff_2023}
+\citation{mardani_corrdiff_2023}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Comparaison côte à côte des pipelines \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023} et \textsc  {Oracle}{}. Le seul écart se situe au niveau du premier étage : le réseau de régression générique de \textsc  {CorrDiff}{} est remplacé par un module structurellement causal dans \textsc  {Oracle}{}. Le second étage de diffusion EDM est conservé tel quel.}}{52}{figure.caption.30}\protected@file@percent }
+\newlabel{fig:oracle-vs-corrdiff}{{2}{52}{Comparaison côte à côte des pipelines \CorrDiff {}~\cite {mardani_corrdiff_2023} et \Oracle {}. Le seul écart se situe au niveau du premier étage : le réseau de régression générique de \CorrDiff {} est remplacé par un module structurellement causal dans \Oracle {}. Le second étage de diffusion EDM est conservé tel quel}{figure.caption.30}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.3}Graphe atmosphérique hétérogène}{52}{section.3.3}\protected@file@percent }
+\newlabel{sec:oracle-graphe}{{III.3}{52}{Graphe atmosphérique hétérogène}{section.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.1}Types de nœuds et hiérarchie verticale}{52}{subsection.3.3.1}\protected@file@percent }
+\newlabel{ssec:oracle-types-noeuds}{{III.3.1}{52}{Types de nœuds et hiérarchie verticale}{subsection.3.3.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.2}Types d'arêtes et physique encodée}{53}{subsection.3.3.2}\protected@file@percent }
+\newlabel{ssec:oracle-types-aretes}{{III.3.2}{53}{Types d'arêtes et physique encodée}{subsection.3.3.2}{}}
+\citation{rampal_cgan_2024}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Vue conceptuelle du graphe atmosphérique hétérogène d'\textsc  {Oracle}{}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant.}}{54}{figure.caption.31}\protected@file@percent }
+\newlabel{fig:graphe-conceptuel}{{3}{54}{Vue conceptuelle du graphe atmosphérique hétérogène d'\Oracle {}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant}{figure.caption.31}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.3}Drivers statiques et acheminement causal}{54}{subsection.3.3.3}\protected@file@percent }
+\newlabel{ssec:oracle-statics}{{III.3.3}{54}{Drivers statiques et acheminement causal}{subsection.3.3.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.4}Encodeur intelligible des variables}{55}{section.3.4}\protected@file@percent }
+\newlabel{sec:oracle-encoder}{{III.4}{55}{Encodeur intelligible des variables}{section.3.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.1}Motivation : préserver l'identité physique des variables}{55}{subsection.3.4.1}\protected@file@percent }
+\newlabel{ssec:oracle-encoder-motivation}{{III.4.1}{55}{Motivation : préserver l'identité physique des variables}{subsection.3.4.1}{}}
+\citation{hamilton_sage_2017}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.2}Architecture par variable et normalisation}{56}{subsection.3.4.2}\protected@file@percent }
+\newlabel{ssec:oracle-encoder-archi}{{III.4.2}{56}{Architecture par variable et normalisation}{subsection.3.4.2}{}}
+\newlabel{eq:sageconv}{{III.2}{56}{Architecture par variable et normalisation}{equation.3.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.5}Réseau causal récurrent (RCN)}{56}{section.3.5}\protected@file@percent }
+\newlabel{sec:oracle-rcn}{{III.5}{56}{Réseau causal récurrent (RCN)}{section.3.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.1}Principe : SCM dynamique enchaîné à une mise à jour temporelle}{56}{subsection.3.5.1}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-principe}{{III.5.1}{56}{Principe : SCM dynamique enchaîné à une mise à jour temporelle}{subsection.3.5.1}{}}
+\citation{cho_gru_2014}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.2}Équations du SCM dynamique}{57}{subsection.3.5.2}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-scm}{{III.5.2}{57}{Équations du SCM dynamique}{subsection.3.5.2}{}}
+\newlabel{eq:scm-update}{{III.3}{57}{Équations du SCM dynamique}{equation.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.3}Mise à jour temporelle GRU}{57}{subsection.3.5.3}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-gru}{{III.5.3}{57}{Mise à jour temporelle GRU}{subsection.3.5.3}{}}
+\newlabel{eq:gru-z}{{III.4}{58}{Mise à jour temporelle GRU}{equation.3.4}{}}
+\newlabel{eq:gru-r}{{III.5}{58}{Mise à jour temporelle GRU}{equation.3.5}{}}
+\newlabel{eq:gru-h-tilde}{{III.6}{58}{Mise à jour temporelle GRU}{equation.3.6}{}}
+\newlabel{eq:gru-h}{{III.7}{58}{Mise à jour temporelle GRU}{equation.3.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Architecture de la cellule \emph  {Recurrent Causal Network} (RCN). Le bloc SCM (à gauche) produit une prédiction causale $\hat  {H}_t$ à partir de l'état précédent et du DAG. Le bloc GRU (à droite) fusionne cette prédiction avec l'observation courante $x_t$ pour produire le nouvel état $H_t$, qui est réinjecté au pas suivant.}}{58}{figure.caption.32}\protected@file@percent }
+\newlabel{fig:rcn-cellule}{{4}{58}{Architecture de la cellule \emph {Recurrent Causal Network} (RCN). Le bloc SCM (à gauche) produit une prédiction causale $\hat {H}_t$ à partir de l'état précédent et du DAG. Le bloc GRU (à droite) fusionne cette prédiction avec l'observation courante $x_t$ pour produire le nouvel état $H_t$, qui est réinjecté au pas suivant}{figure.caption.32}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.4}Pseudo-code de la passe avant}{58}{subsection.3.5.4}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-pseudocode}{{III.5.4}{58}{Pseudo-code de la passe avant}{subsection.3.5.4}{}}
+\citation{zheng_notears_2018}
+\citation{bello_dagma_2022}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Passe avant du RCN}}{59}{algorithm.1}\protected@file@percent }
+\newlabel{algo:rcn-forward}{{1}{59}{Passe avant du RCN}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.6}Apprentissage du DAG par contrainte DAGMA}{59}{section.3.6}\protected@file@percent }
+\newlabel{sec:oracle-dagma}{{III.6}{59}{Apprentissage du DAG par contrainte DAGMA}{section.3.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.1}Problème de l'apprentissage de graphes acycliques}{59}{subsection.3.6.1}\protected@file@percent }
+\newlabel{ssec:oracle-dag-problem}{{III.6.1}{59}{Problème de l'apprentissage de graphes acycliques}{subsection.3.6.1}{}}
+\newlabel{eq:notears}{{III.8}{59}{Problème de l'apprentissage de graphes acycliques}{equation.3.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.2}Caractérisation DAGMA}{60}{subsection.3.6.2}\protected@file@percent }
+\newlabel{ssec:oracle-dagma-caract}{{III.6.2}{60}{Caractérisation DAGMA}{subsection.3.6.2}{}}
+\newlabel{eq:dagma}{{III.9}{60}{Caractérisation DAGMA}{equation.3.9}{}}
+\newlabel{eq:loss-dag}{{III.10}{60}{Caractérisation DAGMA}{equation.3.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Intuition de la contrainte DAGMA. À gauche, un graphe initial dense et cyclique pour lequel $h_{\mathrm  {DAGMA}}(A) > 0$. À droite, le graphe obtenu après convergence de l'optimisation sous contrainte d'acyclicité différentiable et de sparsité $L_1$ : la matrice d'adjacence est creuse, acyclique, et auditable.}}{60}{figure.caption.33}\protected@file@percent }
+\newlabel{fig:dagma-intuition}{{5}{60}{Intuition de la contrainte DAGMA. À gauche, un graphe initial dense et cyclique pour lequel $h_{\mathrm {DAGMA}}(A) > 0$. À droite, le graphe obtenu après convergence de l'optimisation sous contrainte d'acyclicité différentiable et de sparsité $L_1$ : la matrice d'adjacence est creuse, acyclique, et auditable}{figure.caption.33}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.3}Portée et limites de la causalité apprise}{61}{subsection.3.6.3}\protected@file@percent }
+\newlabel{ssec:oracle-causal-limits}{{III.6.3}{61}{Portée et limites de la causalité apprise}{subsection.3.6.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.7}Décodeur graphe-à-grille et moyenne haute résolution}{62}{section.3.7}\protected@file@percent }
+\newlabel{sec:oracle-decoder}{{III.7}{62}{Décodeur graphe-à-grille et moyenne haute résolution}{section.3.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.1}Du tenseur de graphe à la grille de pixels}{62}{subsection.3.7.1}\protected@file@percent }
+\newlabel{ssec:oracle-decoder-principe}{{III.7.1}{62}{Du tenseur de graphe à la grille de pixels}{subsection.3.7.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.2}Cross-attention à résolution intermédiaire}{62}{subsection.3.7.2}\protected@file@percent }
+\newlabel{ssec:oracle-cross-attn}{{III.7.2}{62}{Cross-attention à résolution intermédiaire}{subsection.3.7.2}{}}
+\newlabel{eq:cross-attention}{{III.11}{62}{Cross-attention à résolution intermédiaire}{equation.3.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.3}Raffinement convolutif et projection finale}{63}{subsection.3.7.3}\protected@file@percent }
+\newlabel{ssec:oracle-refine}{{III.7.3}{63}{Raffinement convolutif et projection finale}{subsection.3.7.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.8}Interface inter-étages et propriété (O3)}{63}{section.3.8}\protected@file@percent }
+\newlabel{sec:oracle-o3}{{III.8}{63}{Interface inter-étages et propriété (O3)}{section.3.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.1}Pré-calcul et mise en cache des sorties de Stage 1}{63}{subsection.3.8.1}\protected@file@percent }
+\newlabel{ssec:oracle-cache}{{III.8.1}{63}{Pré-calcul et mise en cache des sorties de Stage 1}{subsection.3.8.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.2}Recalibration de l'écart-type des résiduels}{64}{subsection.3.8.2}\protected@file@percent }
+\newlabel{ssec:oracle-recalib}{{III.8.2}{64}{Recalibration de l'écart-type des résiduels}{subsection.3.8.2}{}}
+\newlabel{eq:residu}{{III.12}{64}{Recalibration de l'écart-type des résiduels}{equation.3.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.3}Définition formelle de la propriété (O3)}{64}{subsection.3.8.3}\protected@file@percent }
+\newlabel{ssec:oracle-o3-def}{{III.8.3}{64}{Définition formelle de la propriété (O3)}{subsection.3.8.3}{}}
+\newlabel{def:o3}{{III.1}{64}{Indispensabilité causale, O3}{definition.3.1}{}}
+\newlabel{eq:delta-o3}{{III.13}{64}{Indispensabilité causale, O3}{equation.3.13}{}}
+\newlabel{eq:o3-criterion}{{III.14}{64}{Indispensabilité causale, O3}{equation.3.14}{}}
+\citation{karras_edm_2022}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Schéma de la procédure d'ablation pour la propriété (O3). Deux évaluations du Stage 1 sur les mêmes données : l'une avec la matrice $\ensuremath  {A_{\mathrm  {dag}}}$ apprise, l'autre avec $\ensuremath  {A_{\mathrm  {dag}}}= \mathbf  {0}$. L'écart d'erreur quadratique entre les deux mesure l'indispensabilité du chemin causal.}}{65}{figure.caption.34}\protected@file@percent }
+\newlabel{fig:o3-gate}{{6}{65}{Schéma de la procédure d'ablation pour la propriété (O3). Deux évaluations du Stage 1 sur les mêmes données : l'une avec la matrice $\Adag $ apprise, l'autre avec $\Adag = \mathbf {0}$. L'écart d'erreur quadratique entre les deux mesure l'indispensabilité du chemin causal}{figure.caption.34}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.4}Variante d'ablation \texttt  {noncausal}}{65}{subsection.3.8.4}\protected@file@percent }
+\newlabel{ssec:oracle-noncausal}{{III.8.4}{65}{Variante d'ablation \texttt {noncausal}}{subsection.3.8.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.9}Étage 2 : diffusion EDM résiduelle}{65}{section.3.9}\protected@file@percent }
+\newlabel{sec:oracle-edm}{{III.9}{65}{Étage 2 : diffusion EDM résiduelle}{section.3.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.1}Choix du paradigme : EDM Karras 2022}{65}{subsection.3.9.1}\protected@file@percent }
+\newlabel{ssec:oracle-edm-choix}{{III.9.1}{65}{Choix du paradigme : EDM Karras 2022}{subsection.3.9.1}{}}
+\newlabel{eq:edm-precond}{{III.15}{66}{Choix du paradigme : EDM Karras 2022}{equation.3.15}{}}
+\newlabel{eq:edm-loss}{{III.16}{66}{Choix du paradigme : EDM Karras 2022}{equation.3.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.2}Spécificité Oracle : conditionnement par concaténation de canaux}{66}{subsection.3.9.2}\protected@file@percent }
+\newlabel{ssec:oracle-causal-concat}{{III.9.2}{66}{Spécificité Oracle : conditionnement par concaténation de canaux}{subsection.3.9.2}{}}
+\newlabel{eq:causal-concat}{{III.17}{66}{Spécificité Oracle : conditionnement par concaténation de canaux}{equation.3.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Conditionnement par concaténation de canaux dans le second étage d'\textsc  {Oracle}{}. Le U-Net reçoit trois canaux d'entrée empilés : le résiduel bruité, la moyenne causale et la baseline log-transformée. Cette concaténation force le passage architectural de l'information causale par les couches initiales du U-Net.}}{67}{figure.caption.35}\protected@file@percent }
+\newlabel{fig:causal-concat}{{7}{67}{Conditionnement par concaténation de canaux dans le second étage d'\Oracle {}. Le U-Net reçoit trois canaux d'entrée empilés : le résiduel bruité, la moyenne causale et la baseline log-transformée. Cette concaténation force le passage architectural de l'information causale par les couches initiales du U-Net}{figure.caption.35}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.3}Pourquoi le résidu plutôt que le champ complet}{67}{subsection.3.9.3}\protected@file@percent }
+\newlabel{ssec:oracle-residu-justif}{{III.9.3}{67}{Pourquoi le résidu plutôt que le champ complet}{subsection.3.9.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.10}Pertes composites et entraînement}{68}{section.3.10}\protected@file@percent }
+\newlabel{sec:oracle-pertes}{{III.10}{68}{Pertes composites et entraînement}{section.3.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.1}Pertes du premier étage}{68}{subsection.3.10.1}\protected@file@percent }
+\newlabel{ssec:oracle-pertes-stage1}{{III.10.1}{68}{Pertes du premier étage}{subsection.3.10.1}{}}
+\newlabel{eq:loss-mse}{{III.18}{68}{Pertes du premier étage}{equation.3.18}{}}
+\newlabel{eq:loss-rec}{{III.19}{68}{Pertes du premier étage}{equation.3.19}{}}
+\newlabel{eq:loss-total-stage1}{{III.20}{68}{Pertes du premier étage}{equation.3.20}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.2}Perte du second étage}{68}{subsection.3.10.2}\protected@file@percent }
+\newlabel{ssec:oracle-pertes-stage2}{{III.10.2}{68}{Perte du second étage}{subsection.3.10.2}{}}
+\newlabel{eq:loss-total-stage2}{{III.21}{69}{Perte du second étage}{equation.3.21}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.3}Procédure d'entraînement en deux étages}{69}{subsection.3.10.3}\protected@file@percent }
+\newlabel{ssec:oracle-train-procedure}{{III.10.3}{69}{Procédure d'entraînement en deux étages}{subsection.3.10.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.4}Tableau récapitulatif des pertes}{69}{subsection.3.10.4}\protected@file@percent }
+\newlabel{ssec:oracle-tab-pertes}{{III.10.4}{69}{Tableau récapitulatif des pertes}{subsection.3.10.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.5}Optimisation, EMA et conditioning dropout}{69}{subsection.3.10.5}\protected@file@percent }
+\newlabel{ssec:oracle-optim}{{III.10.5}{69}{Optimisation, EMA et conditioning dropout}{subsection.3.10.5}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Entraînement du premier étage (CRM)}}{70}{algorithm.2}\protected@file@percent }
+\newlabel{algo:train-stage1}{{2}{70}{Entraînement du premier étage (CRM)}{algorithm.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.11}Synthèse, traçabilité et choix non retenus}{70}{section.3.11}\protected@file@percent }
+\newlabel{sec:oracle-synthese}{{III.11}{70}{Synthèse, traçabilité et choix non retenus}{section.3.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.1}Tableau composant × inspiration × verrou adressé}{70}{subsection.3.11.1}\protected@file@percent }
+\newlabel{ssec:oracle-tab-tracabilite}{{III.11.1}{70}{Tableau composant × inspiration × verrou adressé}{subsection.3.11.1}{}}
+\citation{mardani_corrdiff_2023}
+\citation{hamilton_sage_2017}
+\citation{pearl_causality_2009}
+\citation{cho_gru_2014}
+\citation{bello_dagma_2022}
+\citation{karras_edm_2022}
+\citation{mardani_corrdiff_2023}
+\citation{karras_edm_2022}
+\citation{bello_dagma_2022}
+\citation{pearl_causality_2009}
+\citation{mardani_corrdiff_2023}
+\citation{bello_dagma_2022}
+\citation{pearl_causality_2009}
+\citation{karras_edm_2022}
+\citation{mardani_corrdiff_2023}
+\citation{bello_dagma_2022}
+\citation{pearl_causality_2009}
+\citation{karras_edm_2022}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces Entraînement du second étage (diffusion EDM)}}{71}{algorithm.3}\protected@file@percent }
+\newlabel{algo:train-stage2}{{3}{71}{Entraînement du second étage (diffusion EDM)}{algorithm.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.2}Cartouche conceptuel final d'Oracle}{71}{subsection.3.11.2}\protected@file@percent }
+\newlabel{ssec:oracle-cartouche-final}{{III.11.2}{71}{Cartouche conceptuel final d'Oracle}{subsection.3.11.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.3}Choix architecturaux non retenus}{71}{subsection.3.11.3}\protected@file@percent }
+\newlabel{ssec:oracle-non-retenus}{{III.11.3}{71}{Choix architecturaux non retenus}{subsection.3.11.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Pertes utilisées dans l'entraînement d'\textsc  {Oracle}{}. Les pertes auxiliaires explorées et abandonnées sont reportées en partie basse pour transparence méthodologique.}}{72}{table.caption.36}\protected@file@percent }
+\newlabel{tab:pertes-oracle}{{2}{72}{Pertes utilisées dans l'entraînement d'\Oracle {}. Les pertes auxiliaires explorées et abandonnées sont reportées en partie basse pour transparence méthodologique}{table.caption.36}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Traçabilité des composants d'\textsc  {Oracle}{} : inspiration bibliographique et verrou adressé.}}{73}{table.caption.37}\protected@file@percent }
+\newlabel{tab:tracabilite}{{3}{73}{Traçabilité des composants d'\Oracle {} : inspiration bibliographique et verrou adressé}{table.caption.37}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Vue complète et finale du modèle \textsc  {Oracle}{} avec annotations des équations clés et des références bibliographiques sur chaque composant. Le premier étage causalise \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023} par insertion d'un module structurellement causal (graphe + RCN + DAGMA~\cite  {bello_dagma_2022}, SCM Pearl~\cite  {pearl_causality_2009}) ; le second conserve la diffusion EDM~\cite  {karras_edm_2022}.}}{74}{figure.caption.38}\protected@file@percent }
+\newlabel{fig:oracle-final}{{8}{74}{Vue complète et finale du modèle \Oracle {} avec annotations des équations clés et des références bibliographiques sur chaque composant. Le premier étage causalise \CorrDiff {}~\cite {mardani_corrdiff_2023} par insertion d'un module structurellement causal (graphe + RCN + DAGMA~\cite {bello_dagma_2022}, SCM Pearl~\cite {pearl_causality_2009}) ; le second conserve la diffusion EDM~\cite {karras_edm_2022}}{figure.caption.38}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.4}Transition vers le Chapitre IV}{74}{subsection.3.11.4}\protected@file@percent }
+\newlabel{ssec:oracle-transition}{{III.11.4}{74}{Transition vers le Chapitre IV}{subsection.3.11.4}{}}
+\bibcite{almazroui_2020}{{1}{}{{}}{{}}}
+\bibcite{bello_dagma_2022}{{2}{}{{}}{{}}}
+\bibcite{bonev_sfno_2023}{{3}{}{{}}{{}}}
+\bibcite{cho_gru_2014}{{4}{}{{}}{{}}}
+\bibcite{dong_srcnn_2014}{{5}{}{{}}{{}}}
+\bibcite{eyring_cmip6_2016}{{6}{}{{}}{{}}}
+\bibcite{goodfellow_gan_2014}{{7}{}{{}}{{}}}
+\bibcite{groenke_flow_2020}{{8}{}{{}}{{}}}
+\bibcite{hamilton_sage_2017}{{9}{}{{}}{{}}}
+\bibcite{harris_2022}{{10}{}{{}}{{}}}
+\bibcite{hersbach_era5_2020}{{11}{}{{}}{{}}}
+\bibcite{ho_ddpm_2020}{{12}{}{{}}{{}}}
+\bibcite{ipcc_ar6_2021}{{13}{}{{}}{{}}}
+\bibcite{karras_edm_2022}{{14}{}{{}}{{}}}
+\bibcite{kingma_vae_2014}{{15}{}{{}}{{}}}
+\bibcite{lam_graphcast_2023}{{16}{}{{}}{{}}}
+\bibcite{lange_vae_2022}{{17}{}{{}}{{}}}
+\bibcite{li_fno_2021}{{18}{}{{}}{{}}}
+\bibcite{liang_swinir_2021}{{19}{}{{}}{{}}}
+\bibcite{lim_edsr_2017}{{20}{}{{}}{{}}}
+\bibcite{lipman_flow_2023}{{21}{}{{}}{{}}}
+\bibcite{lopezgomez_precipformer_2023}{{22}{}{{}}{{}}}
+\bibcite{maraun_widmann_2018}{{23}{}{{}}{{}}}
+\bibcite{mardani_corrdiff_2023}{{24}{}{{}}{{}}}
+\bibcite{mirza_cgan_2014}{{25}{}{{}}{{}}}
+\bibcite{nathaniel_chaosbench_2024}{{26}{}{{}}{{}}}
+\bibcite{nguyen_climax_2023}{{27}{}{{}}{{}}}
+\bibcite{pan_pan_2019}{{28}{}{{}}{{}}}
+\bibcite{pearl_book_of_why_2018}{{29}{}{{}}{{}}}
+\bibcite{pearl_causality_2009}{{30}{}{{}}{{}}}
+\bibcite{price_gencast_2024}{{31}{}{{}}{{}}}
+\bibcite{price_rasp_2022}{{32}{}{{}}{{}}}
+\bibcite{rampal_cgan_2024}{{33}{}{{}}{{}}}
+\bibcite{rasp_weatherbench2_2023}{{34}{}{{}}{{}}}
+\bibcite{rombach_latent_2022}{{35}{}{{}}{{}}}
+\bibcite{ronneberger_unet_2015}{{36}{}{{}}{{}}}
+\bibcite{saharia_sr3_2022}{{37}{}{{}}{{}}}
+\bibcite{song_consistency_2023}{{38}{}{{}}{{}}}
+\bibcite{vandal_deepsd_2017}{{39}{}{{}}{{}}}
+\bibcite{watson_climatebench_2022}{{40}{}{{}}{{}}}
+\bibcite{wilby_wigley_1997}{{41}{}{{}}{{}}}
+\bibcite{wmo_gcos_2022}{{42}{}{{}}{{}}}
+\bibcite{yue_resshift_2023}{{43}{}{{}}{{}}}
+\bibcite{zheng_notears_2018}{{44}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{79}

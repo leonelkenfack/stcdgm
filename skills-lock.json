@@ -6,6 +6,18 @@
       "sourceType": "github",
       "computedHash": "e48f3af1e23a09276b5b5f9b18fb507c16029c768493fac7d85104994eb58795"
     },
+    "finnish-humanizer": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/finnish-humanizer/SKILL.md",
+      "computedHash": "1b5b7e5ec1fee5191b3ad7e604403f99d0ec7bea5bcb47fcb69b76f242b2a8fe"
+    },
+    "humanize-academic-writing": {
+      "source": "momo2young/humanize-academic-writing",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "a014c0a5878ce277f00ab5dfa78e339cd159d447376b1bdc02335783b011e8e2"
+    },
     "knowledge-synthesis": {
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",

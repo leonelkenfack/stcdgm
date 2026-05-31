@@ -5391,34 +5391,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_comparison_artifacts.py:62"
     },
     {
-      "id": "file::_validate_noncausal_protocol",
-      "label": "_validate_noncausal_protocol.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:1"
-    },
-    {
-      "id": "_validate_noncausal_protocol::_nb_text",
-      "label": "_nb_text",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:18"
-    },
-    {
-      "id": "_validate_noncausal_protocol::_parse_notebook_cells",
-      "label": "_parse_notebook_cells",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:22"
-    },
-    {
-      "id": "_validate_noncausal_protocol::main",
-      "label": "main",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:38"
-    },
-    {
       "id": "file::aligned_eval",
       "label": "aligned_eval.py",
       "fileType": "code",
@@ -5613,6 +5585,48 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\stage1_paths.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\stage1_paths.py:354"
+    },
+    {
+      "id": "file::_tmp_cell36",
+      "label": "_tmp_cell36.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py:1"
+    },
+    {
+      "id": "_tmp_cell36::count_parameters",
+      "label": "count_parameters",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py:235"
+    },
+    {
+      "id": "file::_validate_noncausal_protocol",
+      "label": "_validate_noncausal_protocol.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:1"
+    },
+    {
+      "id": "_validate_noncausal_protocol::_nb_text",
+      "label": "_nb_text",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:18"
+    },
+    {
+      "id": "_validate_noncausal_protocol::_parse_notebook_cells",
+      "label": "_parse_notebook_cells",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:22"
+    },
+    {
+      "id": "_validate_noncausal_protocol::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:38"
     }
   ],
   "edges": [
@@ -11665,33 +11679,6 @@
       "weight": 1
     },
     {
-      "source": "file::_validate_noncausal_protocol",
-      "target": "_validate_noncausal_protocol::_nb_text",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:18",
-      "weight": 1
-    },
-    {
-      "source": "file::_validate_noncausal_protocol",
-      "target": "_validate_noncausal_protocol::_parse_notebook_cells",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:22",
-      "weight": 1
-    },
-    {
-      "source": "file::_validate_noncausal_protocol",
-      "target": "_validate_noncausal_protocol::main",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:38",
-      "weight": 1
-    },
-    {
       "source": "file::aligned_eval",
       "target": "aligned_eval::_to_thw",
       "relation": "contains",
@@ -11906,12 +11893,48 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\stage1_paths.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\training\\stage1_paths.py:354",
       "weight": 1
+    },
+    {
+      "source": "file::_tmp_cell36",
+      "target": "_tmp_cell36::count_parameters",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_tmp_cell36.py:235",
+      "weight": 1
+    },
+    {
+      "source": "file::_validate_noncausal_protocol",
+      "target": "_validate_noncausal_protocol::_nb_text",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:18",
+      "weight": 1
+    },
+    {
+      "source": "file::_validate_noncausal_protocol",
+      "target": "_validate_noncausal_protocol::_parse_notebook_cells",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:22",
+      "weight": 1
+    },
+    {
+      "source": "file::_validate_noncausal_protocol",
+      "target": "_validate_noncausal_protocol::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_validate_noncausal_protocol.py:38",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 107,
-    "nodes": 802,
-    "edges": 699,
-    "builtAt": "2026-05-28T18:15:27.642Z"
+    "files": 105,
+    "nodes": 804,
+    "edges": 700,
+    "builtAt": "2026-05-30T10:24:24.263Z"
   }
 }

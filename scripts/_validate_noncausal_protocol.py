@@ -53,6 +53,12 @@ def main() -> None:
         "validate_stage1_gate",
         "STAGE 1 — Non-causal CorrDiff Mean Prediction",
         "BS35 causal DAG ablation skipped",
+        # Variant-aware init : cell 36 doit skip encoder/RCN en noncausal.
+        "Encoder/RCN skip (noncausal)",
+        # Resume noncausal : cell 51 doit lire epoch_last.pth.
+        "NONCAUSAL_RESUME",
+        # Save/eval guards (cells 56/61) : encoder/rcn None-tolerants.
+        "NONCAUSAL_VARIANT_SAFE",
     ]
     missing = [m for m in required_markers if m not in nc]
     if missing:
@@ -60,6 +66,34 @@ def main() -> None:
 
     if "force_zero_dag_train=True" in nc.lower():
         raise AssertionError("noncausal notebook still advertises force_zero_dag_train=True")
+
+    # >>> NONCAUSAL_CELL36_GUARD
+    # Pattern qui interdit la resurgence du bug 'encoder + RCN construits sans
+    # variant guard'. Le notebook noncausal NE doit PAS contenir les chaines de
+    # construction non gardees ; on cherche le pattern bare (= debut de ligne).
+    forbidden_bare_patterns = [
+        "\nencoder = IntelligibleVariableEncoder(",
+        "\nrcn_cell = RCNCell(",
+    ]
+    for bad in forbidden_bare_patterns:
+        if bad in nc:
+            raise AssertionError(
+                f"noncausal notebook re-introduces causal build path : "
+                f"{bad.strip()!r} (must be guarded by RUN_VARIANT check)"
+            )
+
+    # >>> NONCAUSAL_MARKDOWN_GUARD
+    # Cell 60 markdown ne doit plus annoncer 'Intervention DAG' comme titre.
+    nb_nc = json.loads((ROOT / "st_cdgm_noncausal_training.ipynb").read_text(encoding="utf-8"))
+    for i, cell in enumerate(nb_nc["cells"]):
+        if cell.get("cell_type") != "markdown":
+            continue
+        src = "".join(cell.get("source", []))
+        if "Validation finale + Intervention DAG" in src:
+            raise AssertionError(
+                f"noncausal notebook markdown cell {i} still titles itself "
+                f"'Validation finale + Intervention DAG' (must be noncausal-aligned)"
+            )
 
     main_nb = _nb_text("st_cdgm_training_evaluation.ipynb")
     if "is causal-only" not in main_nb:

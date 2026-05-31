@@ -1,0 +1,538 @@
+% =============================================================
+% Chapitre I — Fondements du downscaling climatique
+% Style cible : gabarit Donald FEUZING NTEMMA (URIFIA 2024)
+% =============================================================
+
+\documentclass[14pt,a4paper,openany]{extreport}
+
+% ---------- Encodage et langue ----------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+
+% ---------- Police lisible pour impression papier ----------
+\usepackage{lmodern}
+
+% ---------- Interligne (impression papier reliée) ----------
+\usepackage{setspace}
+\onehalfspacing
+
+% ---------- Géométrie (marges adaptées à la reliure) ----------
+\usepackage[a4paper,inner=3cm,outer=2.3cm,top=2.5cm,bottom=2.7cm,headheight=15pt,bindingoffset=0.3cm]{geometry}
+
+% ---------- Mathématiques ----------
+\usepackage{amsmath,amssymb,amsthm}
+
+% ---------- Graphiques et couleurs ----------
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{uridarkblue}{RGB}{30,40,90}
+\definecolor{urigray}{RGB}{70,70,70}
+
+% ---------- Boîte SOMMAIRE et placeholders de figures ----------
+\usepackage[most]{tcolorbox}
+
+% ---------- Mise en forme des chapitres et sections ----------
+% Numérotation : chiffres romains pour les chapitres, I.X.Y pour le reste
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\thechapter.\arabic{section}}
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+
+% Redéfinition manuelle de \@makechapterhead pour le style "Chapitre I + titre"
+% (plus robuste que titlesec quand on a déjà tcolorbox+amsmath+hyperref).
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{20\p@}%
+  {\parindent \z@ \centering \normalfont
+    \textsc{\large Chapitre}\par
+    \vspace{0.3em}
+    {\color{uridarkblue}\fontsize{60}{72}\selectfont\bfseries\thechapter\par}
+    \vspace{1em}
+    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
+    \vspace{1em}
+    \rule{0.4\linewidth}{0.6pt}\par
+    \vspace{2em}
+  }}
+\renewcommand{\@makeschapterhead}[1]{%
+  \vspace*{20\p@}%
+  {\parindent \z@ \centering \normalfont
+    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
+    \vspace{1em}
+    \rule{0.4\linewidth}{0.6pt}\par
+    \vspace{2em}
+  }}
+\makeatother
+
+% Sections, sous-sections, sous-sous-sections via titlesec
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{uridarkblue}}
+  {\thesection.}{0.8em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}
+  {\thesubsection.}{0.7em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\itshape}
+  {\thesubsubsection.}{0.6em}{}
+
+% ---------- En-têtes et pieds de page ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textsc{\nouppercase{\leftmark}}}
+\fancyhead[R]{\thepage}
+\fancyfoot[L]{\footnotesize Mémoire de Master en Informatique, Université de Dschang}
+\fancyfoot[R]{\footnotesize URIFIA}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}{}}
+
+% ---------- Légendes de figures / tableaux ----------
+\usepackage[font=small,labelfont={sc,bf},textfont=it]{caption}
+\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\thetable}{\arabic{table}}
+
+% ---------- Citations numériques ----------
+\usepackage[numbers,square,sort&compress]{natbib}
+
+% ---------- Hyperref (en dernier) ----------
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Macros pratiques ----------
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\LR}{\ensuremath{\text{LR}}}
+\newcommand{\HR}{\ensuremath{\text{HR}}}
+\newcommand{\xHR}{\ensuremath{x_{\HR}}}
+\newcommand{\yLR}{\ensuremath{y_{\LR}}}
+\newcommand{\muHR}{\ensuremath{\mu_{\HR}}}
+
+% Boîte SOMMAIRE personnalisée
+\newtcolorbox{sommairebox}{
+  enhanced,
+  colback=white,
+  colframe=urigray,
+  boxrule=0.5pt,
+  arc=0pt,
+  left=1.5em,right=1.5em,top=0.8em,bottom=0.8em,
+  title={\textsc{Sommaire}},
+  attach boxed title to top center={yshift=-2mm,xshift=0mm},
+  boxed title style={
+    colback=white,colframe=white,boxrule=0pt,
+    left=0.8em,right=0.8em,top=0pt,bottom=0pt
+  },
+  fonttitle=\bfseries\small,
+}
+
+% Placeholder de figure (utilisé tant que les figures ne sont pas produites)
+\newcommand{\figplaceholder}[2][0.9\linewidth]{%
+  \begin{tcolorbox}[width=#1,height=5cm,valign=center,colback=gray!8,colframe=gray!45,arc=2pt,boxrule=0.5pt]
+    \centering\small\textit{#2}
+  \end{tcolorbox}%
+}
+
+% Labels de chapitres futurs (pour éviter les ?? dans les renvois)
+\providecommand{\chaplabel}[1]{}
+
+\setcounter{page}{6}
+
+\begin{document}
+
+\chapter{Fondements du downscaling climatique}
+\label{chap:fondements}
+
+% ---------- Boîte SOMMAIRE manuelle ----------
+\begin{sommairebox}
+\small
+\noindent I.1 \ Introduction \dotfill \pageref{sec:intro}\\
+\noindent I.2 \ Contexte climatique et besoin de désagrégation \dotfill \pageref{sec:contexte}\\
+\noindent I.3 \ Données climatiques et leurs propriétés \dotfill \pageref{sec:donnees}\\
+\noindent I.4 \ Approches classiques de downscaling \dotfill \pageref{sec:classiques}\\
+\noindent I.5 \ Approches probabilistes et génératives \dotfill \pageref{sec:generatifs}\\
+\noindent I.6 \ Causalité et modèles structurels \dotfill \pageref{sec:causalite}\\
+\noindent I.7 \ Verrous scientifiques et trilemme \dotfill \pageref{sec:verrous}\\
+\noindent I.8 \ Synthèse \dotfill \pageref{sec:synthese}
+\end{sommairebox}
+
+\vspace{1.5em}
+
+% =============================================================
+\section{Introduction}
+\label{sec:intro}
+% =============================================================
+
+L'intensification du changement climatique et la fréquence croissante d'événements extrêmes imposent aux communautés locales --- en particulier en Afrique centrale et au Cameroun --- des décisions de plus en plus fines en matière d'agriculture, de gestion de l'eau et de planification urbaine~\cite{ipcc_ar6_2021}. Ces décisions requièrent des projections climatiques à haute résolution spatiale, idéalement au kilomètre près. Or les modèles climatiques globaux disponibles, tels que ceux du projet CMIP6~\cite{eyring_cmip6_2016}, opèrent à des résolutions de l'ordre de la centaine de kilomètres, incompatibles avec les besoins locaux. Combler ce fossé est l'objet du \emph{downscaling} climatique, dont une variante moderne, fondée sur l'apprentissage automatique génératif, fait l'objet du présent mémoire.
+
+Ce premier chapitre vise à fournir les fondements conceptuels nécessaires à la compréhension de notre contribution. Nous aborderons d'abord le contexte climatique et le besoin de désagrégation spatiale (section~\ref{sec:contexte}), puis les données qui alimentent ces approches (section~\ref{sec:donnees}). Nous présenterons ensuite les méthodes classiques de downscaling, qu'elles soient statistiques, dynamiques ou fondées sur l'apprentissage supervisé (section~\ref{sec:classiques}), avant de nous tourner vers les approches probabilistes et génératives modernes, en particulier le paradigme à deux étages incarné par \CorrDiff{}~\cite{mardani_corrdiff_2023} (section~\ref{sec:generatifs}). Nous formaliserons ensuite les concepts de causalité utiles à la construction de notre modèle \Oracle{} (section~\ref{sec:causalite}) avant d'identifier les verrous scientifiques qui motivent notre contribution (section~\ref{sec:verrous}). Une synthèse (section~\ref{sec:synthese}) clora le chapitre.
+
+% =============================================================
+\section{Contexte climatique et besoin de désagrégation}
+\label{sec:contexte}
+% =============================================================
+
+\subsection{Changement climatique et impacts régionaux}
+\label{ssec:cc-regional}
+
+Le sixième rapport d'évaluation du Groupe d'experts intergouvernemental sur l'évolution du climat (GIEC), publié en août 2021, établit que la température moyenne à la surface du globe a augmenté d'environ $1{,}1\,^{\circ}\mathrm{C}$ par rapport à la période préindustrielle (1850--1900), et que cette tendance s'accélère depuis les années 1980~\cite{ipcc_ar6_2021}. Au-delà de cette moyenne, ce sont surtout les modifications de la variabilité et de la fréquence des événements extrêmes qui retiennent l'attention de la communauté scientifique : intensification des pluies torrentielles, allongement des périodes de sécheresse, déplacement des saisons et bouleversement des régimes de mousson.
+
+Ces transformations ne se manifestent pas uniformément. Les régions tropicales et subtropicales, qui concentrent une part importante de la population mondiale et abritent des écosystèmes particulièrement sensibles, figurent parmi les plus exposées. En Afrique centrale et en Afrique de l'Ouest, les projections font état d'une augmentation prononcée des extrêmes pluvieux, conjuguée à une variabilité interannuelle accrue~\cite{ipcc_ar6_2021,almazroui_2020}. Les conséquences agricoles, hydrologiques et sanitaires sont déjà mesurables : recul des rendements de cultures pluviales, perturbation des cycles hydrologiques, hausse des risques inondations et glissements de terrain dans les zones urbaines en croissance rapide.
+
+La capacité à anticiper ces évolutions au plus près du terrain, c'est-à-dire à l'échelle où vivent les populations et où s'exercent les politiques publiques locales, conditionne aussi bien la planification agricole que la gestion des infrastructures. Pour l'agriculture, elle permet par exemple de choisir les dates de semis adaptées à la saison des pluies attendue en zone sahélienne, ou d'anticiper les épisodes de sécheresse qui menacent les cultures vivrières. Pour les infrastructures, elle conditionne le dimensionnement des réseaux d'assainissement dans des villes en forte croissance comme Yaoundé ou Douala, ainsi que la protection des routes et des ponts contre les crues. C'est précisément cette capacité que vise à renforcer la désagrégation spatiale des projections climatiques.
+
+\subsection{Modèles climatiques globaux et régionaux}
+\label{ssec:gcm-rcm}
+
+Un \textbf{modèle climatique global} (en anglais \emph{General Circulation Model}, GCM) est un programme informatique de très grande taille qui simule l'évolution de l'atmosphère, des océans et des surfaces continentales en résolvant numériquement les équations physiques de la dynamique des fluides. Son but est de produire des projections de l'état du climat sur plusieurs décennies, en réponse à différents scénarios d'émissions de gaz à effet de serre. Les sorties d'un GCM sont des champs gridded (température, vent, humidité, précipitation, etc.) calculés en chaque point d'une grille tridimensionnelle couvrant le globe et l'épaisseur de l'atmosphère, à intervalles réguliers de temps.
+
+Les projections climatiques de référence sont produites par ces GCM. Le projet \emph{Coupled Model Intercomparison Project} dans sa sixième phase (CMIP6) coordonne plus d'une centaine de modèles globaux, parmi lesquels figure ACCESS-CM2, modèle développé par le \emph{Commonwealth Scientific and Industrial Research Organisation} australien~\cite{eyring_cmip6_2016}. La résolution typique de ces modèles oscille entre $100$ et $250\,\mathrm{km}$ par pixel, limite imposée par le coût numérique de la simulation sur des intégrations multi-décennales.
+
+À cette échelle, de nombreux processus physiques d'intérêt local ne sont pas explicitement représentés et doivent être approximés par des relations empiriques (on parle alors de \emph{paramétrisation}). C'est notamment le cas de la formation d'orages localisés (\emph{convection profonde}), des effets du relief sur les vents et les précipitations (\emph{effets orographiques}), des brises de mer et de terre près des côtes, et des systèmes pluvieux d'extension régionale (phénomènes de \emph{mésoéchelle}). Cette paramétrisation introduit des biais structurels, particulièrement marqués pour la précipitation, dont la nature très localisée et fortement non-linéaire résiste mal au lissage induit par une grille grossière.
+
+Pour pallier cette limitation, la communauté a développé des \textbf{modèles climatiques régionaux} (\emph{Regional Climate Models}, RCM), qui résolvent les mêmes équations sur un domaine restreint à une résolution typique de $10$ à $50\,\mathrm{km}$, en se laissant guider aux frontières par les sorties d'un GCM. Cette approche, appelée \emph{downscaling dynamique}, améliore la représentation des processus régionaux mais demeure coûteuse : la simulation d'un seul scénario futur sur quelques décennies pour un domaine de la taille d'une région africaine peut mobiliser plusieurs millions d'heures de calcul.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder{Figure F1 à produire --- trois cartes côte à côte (GCM 250 km, RCM 25 km, HR cible 5 km) sur la même région d'Afrique de l'Ouest.}
+  \caption{Comparaison de trois niveaux de résolution spatiale sur la même région : grille GCM ($\sim$~250~km), grille RCM ($\sim$~25~km), grille cible HR ($\sim$~5~km).}
+  \label{fig:resolutions}
+\end{figure}
+
+La figure~\ref{fig:resolutions} illustre ce saut d'échelle. Le passage de la grille GCM à la grille cible représente un facteur de réduction de l'ordre de cinquante dans chaque dimension spatiale, soit un facteur de l'ordre de $2{,}5 \times 10^{3}$ en nombre total de pixels par champ.
+
+\subsection{Besoin de données haute résolution pour les communautés locales}
+\label{ssec:besoin-local}
+
+L'écart entre la résolution des projections disponibles et celle requise par les utilisateurs finaux constitue ce que l'on appelle communément le \emph{gap de résolution}. Plusieurs cas d'usage rendent ce gap critique. En agriculture, le choix des variétés cultivées adaptées à un climat local, l'ajustement des calendriers culturaux et la planification de l'irrigation reposent sur des indicateurs --- nombre de jours pluvieux, intensité maximale sur cinq jours, longueur de la saison humide --- qui ne sont signifiants qu'à une échelle de quelques kilomètres. En hydrologie, le calage des modèles pluie-débit pour la prévision des crues exige des forçages pluviométriques à fine résolution spatiale et temporelle. En planification urbaine, la conception des réseaux d'assainissement et l'identification des zones inondables imposent une représentation explicite des cellules de précipitation intenses, typiquement de l'ordre du kilomètre.
+
+Le contexte africain est particulièrement contraint. Le projet \emph{Coordinated Regional Climate Downscaling Experiment} pour l'Afrique (CORDEX-Africa) fournit certes des simulations RCM à $25$ ou $50\,\mathrm{km}$, mais sa couverture demeure incomplète et son coût rend difficilement envisageable la production de scénarios multi-modèles à plus haute résolution pour l'ensemble du continent. Les communautés locales d'Afrique centrale (Cameroun, Tchad, Gabon, République centrafricaine) et d'Afrique de l'Ouest, plus largement de la zone sahélo-soudanaise, se retrouvent ainsi dans une situation où les besoins de décision excèdent largement les capacités prédictives accessibles localement.
+
+C'est précisément ce constat qui motive le développement d'approches alternatives, fondées sur l'apprentissage automatique. L'idée centrale consiste à apprendre, à partir d'un large corpus historique de couples basse résolution / haute résolution, une fonction probabiliste capable de générer un champ haute résolution conditionnellement à un champ basse résolution donné. Cette approche, baptisée \emph{downscaling statistique profond}, présente l'avantage d'un coût numérique très inférieur à celui des RCM dynamiques une fois le modèle entraîné, tout en pouvant en principe être déployée sur n'importe quelle région disposant de données d'entraînement.
+
+\subsection{Cas illustratif : la précipitation comme variable critique}
+\label{ssec:cas-precipitation}
+
+Parmi les variables climatiques susceptibles d'être désagrégées, la précipitation occupe une place particulière. D'une part, c'est la variable la plus directement associée aux risques perçus par les populations locales : sécheresse, inondations, glissements de terrain, sécurité alimentaire. D'autre part, ses propriétés statistiques --- forte intermittence, distribution asymétrique à queue lourde, hétérogénéité spatiale marquée --- en font le cas le plus exigeant pour les méthodes de downscaling. Ce constat est documenté dans la littérature de référence du downscaling statistique~\cite{maraun_widmann_2018,vandal_deepsd_2017} : une méthode qui réussit sur la précipitation est généralement transférable à des variables plus régulières comme la température ou la pression atmosphérique, tandis que l'inverse n'est pas vrai.
+
+C'est pourquoi le présent mémoire prend la précipitation comme variable centrale d'illustration et de validation. Le modèle \Oracle{} que nous proposons est entraîné et évalué sur des champs de précipitation quotidiens issus du couple ACCESS-CM2 / Nouvelle-Zélande, terrain expérimental retenu pour la disponibilité conjointe de données haute résolution de qualité et d'un baseline génératif de référence dans la littérature.
+
+\paragraph{Encart : vers une généralisation multivariable.}
+Bien que la précipitation soit la variable centrale du présent travail, l'architecture \Oracle{} est conçue pour être extensible à un cadre multivariable : son encodeur traite déjà plusieurs variables atmosphériques de conditionnement (température, vent, humidité spécifique, pression) et seul l'entête de sortie devrait être adapté pour générer simultanément plusieurs champs cibles. Cette extension est laissée aux travaux futurs.
+
+% =============================================================
+\section{Données climatiques et leurs propriétés}
+\label{sec:donnees}
+% =============================================================
+
+\subsection{Sources de données}
+\label{ssec:sources}
+
+Trois grandes catégories de données alimentent les méthodes de downscaling climatique. La première regroupe les \textbf{observations directes}, principalement issues du réseau de stations météorologiques. Ces observations présentent une qualité élevée pour les variables qu'elles mesurent, mais leur couverture spatiale est très inégale : dense en Europe et en Amérique du Nord, beaucoup plus lacunaire en Afrique, en Amérique du Sud et dans les zones océaniques. Cet écart de couverture reflète l'inégalité historique des investissements dans les réseaux d'observation météorologique, en particulier la maintenance des stations, la formation des opérateurs et le financement des agences nationales~\cite{wmo_gcos_2022}.
+
+La deuxième catégorie, qui pallie en partie la première, est constituée des \textbf{réanalyses atmosphériques}. Une réanalyse résulte de l'assimilation continue d'observations historiques --- stations, radiosondages, satellites --- dans un modèle de prévision numérique, produisant une reconstitution cohérente de l'état tridimensionnel de l'atmosphère sur des décennies. La cinquième génération de la réanalyse du Centre européen pour les prévisions météorologiques à moyen terme, ERA5~\cite{hersbach_era5_2020}, fournit ainsi des champs horaires sur une grille d'environ $31\,\mathrm{km}$ depuis 1940. ERA5 est aujourd'hui le produit gridded de référence pour évaluer la climatologie historique et constituer des cibles haute résolution.
+
+La troisième catégorie regroupe les \textbf{simulations climatiques} proprement dites, produites par les GCM et RCM. Les sorties de CMIP6~\cite{eyring_cmip6_2016} couvrent à la fois une période historique (typiquement 1850-2014) et des projections futures sous différents scénarios de forçage radiatif appelés \emph{Shared Socioeconomic Pathways} (SSP1-2.6, SSP2-4.5, SSP3-7.0, SSP5-8.5). Dans le cadre de notre travail, le modèle ACCESS-CM2 sert de source de données basse résolution conditionnante, tandis que la cible haute résolution est extraite d'un produit régional sur le domaine néo-zélandais.
+
+\subsection{Variables, formats et conventions}
+\label{ssec:formats}
+
+Les données climatiques sont quasi-universellement distribuées au format \texttt{NetCDF} (\emph{Network Common Data Form}), conforme aux conventions \emph{Climate and Forecast} (CF). Ce format auto-descriptif stocke conjointement les tableaux de données et leurs métadonnées (unités, coordonnées, étendue temporelle, transformations appliquées), ce qui en fait le standard de fait pour les échanges interdisciplinaires.
+
+Les principales variables manipulées dans le présent travail suivent les conventions CMIP6. La précipitation totale, notée \texttt{pr}, est exprimée en $\mathrm{kg}\,\mathrm{m}^{-2}\,\mathrm{s}^{-1}$ et convertie pour les analyses en millimètres par jour (notés mm/jour, où un millimètre de précipitation correspond à un litre d'eau précipité par mètre carré au sol). Les variables de conditionnement atmosphérique incluent la température à $2\,\mathrm{m}$ (\texttt{tas}), ses extrema journaliers (\texttt{tasmin}, \texttt{tasmax}), la vitesse du vent à $10\,\mathrm{m}$ (\texttt{sfcWind}), la pression au niveau de la mer (\texttt{psl}) et l'humidité spécifique (\texttt{huss}). Un champ tridimensionnel est représenté comme un tableau de forme $[\,\text{canaux} \times \text{temps} \times \text{latitude} \times \text{longitude}\,]$, suivant la convention adoptée dans la majorité des bibliothèques d'apprentissage profond.
+
+\subsection{Propriétés statistiques de la précipitation}
+\label{ssec:stats-precip}
+
+La précipitation quotidienne présente trois propriétés statistiques qui conditionnent les choix méthodologiques de toute approche de downscaling.
+
+La première est l'\textbf{intermittence} : une fraction importante des jours, typiquement entre $50\%$ et $80\%$ selon les régions et les saisons, ne reçoit aucune précipitation détectable. Autrement dit, la valeur observée pour ces jours est exactement zéro, ce qui crée une concentration de probabilité en un point unique. La plupart des modèles statistiques élémentaires supposent implicitement une variable continue, hypothèse qui n'est plus valide en présence d'un tel pic en zéro.
+
+La deuxième est l'\textbf{asymétrie marquée à queue lourde} de la distribution des valeurs positives. Conditionnellement à un jour pluvieux, l'intensité des précipitations suit approximativement une loi log-normale (la plupart des jours pluvieux reçoivent une pluie modérée, mais quelques rares jours reçoivent des cumuls extrêmes). Cette asymétrie implique que les méthodes fondées sur l'hypothèse gaussienne, comme la régression linéaire ordinaire ou la modélisation par moindres carrés, sous-estiment systématiquement les valeurs extrêmes, qui sont précisément celles dont les utilisateurs ont le plus besoin de connaître~\cite{maraun_widmann_2018}.
+
+La troisième propriété est l'\textbf{hétérogénéité spatiale}. Les précipitations sont fortement structurées par les caractéristiques de surface --- relief, ligne de côte, type d'occupation du sol --- et présentent des variations qui peuvent atteindre plusieurs centimètres par kilomètre dans les zones de relief marqué. Cette hétérogénéité ne peut être correctement représentée à basse résolution et constitue l'argument central en faveur du downscaling.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder[0.75\linewidth]{Figure F3 à produire --- histogramme empirique de la précipitation quotidienne sur un point représentatif, avec barre dominante à zéro et ajustement log-normal en surimpression.}
+  \caption{Distribution empirique de la précipitation quotidienne sur un point d'observation. La barre à zéro illustre l'intermittence ; la queue lourde à droite motive une modélisation probabiliste à queue longue.}
+  \label{fig:lognormal}
+\end{figure}
+
+La figure~\ref{fig:lognormal} matérialise ces trois propriétés sur un point représentatif. Toute méthode de downscaling pertinente doit, au minimum, reproduire ces trois traits : la fraction de jours secs, la forme de la queue positive, et la cohérence spatiale des valeurs élevées.
+
+\subsection{Pipeline de données générique}
+\label{ssec:pipeline}
+
+L'ensemble des sources évoquées s'insèrent dans un pipeline de prétraitement dont la structure générique est résumée par la figure~\ref{fig:pipeline}. Le pipeline part des données brutes (réanalyses ERA5 et simulations CMIP6 telles qu'ACCESS-CM2), procède à un \emph{régridage} sur la grille basse résolution cible ($23 \times 26$ pixels dans notre cas, correspondant à une représentation grossière du domaine néo-zélandais), applique les transformations de standardisation requises, puis fournit en regard les champs haute résolution cibles ($172 \times 179$ pixels). Le détail des étapes de prétraitement spécifiques à l'expérimentation est différé au chapitre dédié aux matériels et méthodes.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder{Figure F2 à produire --- schéma horizontal du pipeline : sources (ERA5, ACCESS-CM2) $\to$ régrid LR 23$\times$26 $\to$ traitement / standardisation $\to$ modèle Oracle $\to$ sortie HR 172$\times$179 $\to$ applications locales.}
+  \caption{Pipeline générique de données pour le downscaling probabiliste : sources, prétraitements, modèle, sortie. Les détails du couple ACCESS-CM2 $\to$ Nouvelle-Zélande sont précisés dans le chapitre dédié aux matériels et méthodes.}
+  \label{fig:pipeline}
+\end{figure}
+
+% =============================================================
+\section{Approches classiques de downscaling}
+\label{sec:classiques}
+% =============================================================
+
+Le downscaling climatique comporte deux dimensions complémentaires : une dimension \emph{spatiale}, qui consiste à passer d'une grille grossière à une grille fine pour une même fréquence temporelle, et une dimension \emph{temporelle}, qui consiste à passer d'une fréquence faible (mensuelle, par exemple) à une fréquence plus élevée (quotidienne, voire horaire). Nous présentons successivement les approches classiques applicables à chacune.
+
+\subsection{Désagrégation spatiale}
+\label{ssec:disagg-spatiale}
+
+\subsubsection{Statistique classique}
+
+Les approches statistiques de désagrégation spatiale reposent sur l'apprentissage, à partir d'un jeu d'observations historiques, d'une relation entre les champs grande échelle (les prédicteurs) et les champs locaux (les prédictands). Le formalisme le plus simple est la \textbf{régression linéaire multiple}, dans laquelle chaque pixel haute résolution est régressé sur un ensemble fixe de variables basse résolution. Plus sophistiquées, les méthodes de \emph{Bias Correction} (BC) et de \emph{Quantile Mapping} (QM) ajustent les distributions marginales des sorties d'un modèle de manière à les aligner sur celles des observations~\cite{wilby_wigley_1997,maraun_widmann_2018}.
+
+Ces méthodes ont l'avantage de la simplicité, de l'interprétabilité et d'un coût numérique négligeable une fois calibrées, mais elles butent sur trois limites structurelles. D'abord, elles supposent la \emph{stationnarité} de la relation entre prédicteurs et prédictands, hypothèse contestable dans un contexte de changement climatique. Ensuite, elles ne capturent pas naturellement la cohérence spatiale, puisqu'elles opèrent typiquement pixel par pixel. Enfin, elles ne fournissent pas, sauf extension \emph{ad hoc}, d'estimation calibrée de l'incertitude prédictive.
+
+\subsubsection{Dynamique (RCM)}
+
+L'approche \textbf{dynamique} consiste à exécuter un modèle climatique régional (\emph{Regional Climate Model}, RCM) qui simule explicitement les processus physiques sur un domaine géographique restreint --- typiquement la taille d'un pays ou d'une sous-région continentale, par exemple l'Afrique centrale ou l'Afrique de l'Ouest. Ce RCM est \textbf{emboîté} à l'intérieur d'un GCM~: à ses frontières latérales, les variables atmosphériques (vent, température, humidité, pression) sont imposées par les sorties du GCM, qui jouent le rôle de \emph{conditions aux limites}. À l'intérieur du domaine, le RCM résout les mêmes équations physiques que le GCM, mais sur une grille plus fine (typiquement $10$ à $50\,\mathrm{km}$), ce qui lui permet de représenter explicitement des processus que le GCM doit paramétrer (formation d'orages locaux, effets du relief, brises côtières).
+
+Cette approche bénéficie de la cohérence physique des équations résolues et est en principe transférable à des conditions climatiques distinctes de celles d'entraînement, puisqu'elle ne repose sur aucune relation statistique apprise. En contrepartie, elle hérite des biais du GCM forçant, mobilise des ressources de calcul considérables et reste largement inaccessible aux équipes ne disposant pas d'une infrastructure de calcul intensif. Pour les communautés locales du Sud, elle se trouve, en pratique, hors de portée.
+
+\subsubsection{Apprentissage supervisé déterministe}
+
+L'essor de l'apprentissage automatique a renouvelé l'approche statistique en autorisant la représentation de relations fortement non-linéaires entre prédicteurs et prédictands. Les premières applications ont mobilisé des \textbf{forêts aléatoires} (\emph{Random Forests}, RF) et des modèles de gradient boosting tels que \texttt{XGBoost}, qui restent pertinents pour des prédictions point-par-point et offrent une certaine interprétabilité via les mesures d'importance des variables. L'arrivée des réseaux de neurones convolutifs a permis, par analogie avec les techniques de super-résolution d'images, de traiter le champ haute résolution comme un tout cohérent : ces approches, illustrées par des architectures de type SRCNN, U-Net ou EDSR, capturent les structures spatiales mais demeurent fondamentalement déterministes, c'est-à-dire qu'elles produisent une unique sortie haute résolution par entrée basse résolution donnée.
+
+Cette nature déterministe est leur principal défaut pour les applications climatiques. Le downscaling étant intrinsèquement un problème mal posé --- de nombreuses configurations haute résolution sont compatibles avec une même configuration basse résolution --- la sortie unique d'un modèle déterministe est nécessairement une moyenne conditionnelle, qui lisse les extrêmes et sous-estime la variabilité. C'est l'observation qui motive le glissement, opéré dans la littérature récente, vers des approches probabilistes et génératives, présentées en section~\ref{sec:generatifs}.
+
+\subsection{Désagrégation temporelle}
+\label{ssec:disagg-temporelle}
+
+\subsubsection{Problème et enjeux}
+
+La désagrégation temporelle, ou \emph{temporal disaggregation}, consiste à passer d'une fréquence temporelle faible à une fréquence plus élevée : par exemple, à reconstituer une chronique horaire à partir d'une chronique quotidienne, ou une chronique quotidienne à partir d'une chronique mensuelle. Le problème est mathématiquement analogue à la désagrégation spatiale, mais ses enjeux applicatifs sont propres : préservation de l'autocorrélation temporelle, conservation des cumuls sur les périodes de référence, restitution des intensités instantanées extrêmes.
+
+\subsubsection{Méthodes statistiques}
+
+Historiquement, la désagrégation temporelle de la précipitation a été abordée par des modèles statistiques dédiés. Les \textbf{cascades multiplicatives} décomposent récursivement un cumul sur une période donnée en sous-cumuls suivant une loi de probabilité paramétrique, en respectant la contrainte de conservation. Les modèles de \textbf{fragmentation} reproduisent les profils d'intensité à fine échelle à partir d'analogues observés. Les modèles de chaînes de Markov ou à mélange gaussien sont également mobilisés pour reproduire la structure d'autocorrélation. Ces approches conservent l'avantage de l'interprétabilité, mais leur calibration locale est souvent fastidieuse et leur transférabilité spatiale limitée.
+
+\subsubsection{Méthodes par apprentissage}
+
+Les approches profondes de la désagrégation temporelle reposent essentiellement sur des architectures récurrentes (\emph{Recurrent Neural Networks}, RNN) et leurs variantes, en particulier les réseaux \emph{Long Short-Term Memory} (LSTM) et leurs versions bidirectionnelles (BiLSTM), qui modélisent explicitement les dépendances temporelles. Des architectures de type Transformer temporel ont également été proposées plus récemment, exploitant les mécanismes d'attention pour capturer des dépendances longues. À ce jour, ces approches restent toutefois principalement déterministes et concernent essentiellement des séries temporelles ponctuelles plutôt que des champs spatio-temporels complets.
+
+\subsubsection{État actuel et limites}
+
+L'état de l'art de la désagrégation temporelle profonde présente trois limites structurelles. D'abord, peu de méthodes traitent simultanément les dimensions spatiale et temporelle dans un cadre unifié, alors même que ces deux dimensions sont fortement couplées dans la dynamique atmosphérique. Ensuite, la conditionnalité par un état large-échelle évoluant lui-même dans le temps reste un problème ouvert, qui mobilise des architectures plus complexes (modèles spatio-temporels à graphe, modèles à diffusion temporelle). Enfin, l'évaluation probabiliste des sorties à fine échelle temporelle, et en particulier la cohérence des extrêmes infrajournaliers, reste un sujet actif de recherche.
+
+\paragraph{Encart de transparence.}
+La contribution présentée dans ce mémoire couvre exclusivement la dimension spatiale du downscaling. L'extension à la désagrégation temporelle conditionnée par un état large-échelle, qui constituerait une généralisation naturelle de l'architecture \Oracle{} par adjonction d'un module récurrent ou temporellement attentif, est laissée aux travaux futurs.
+
+% =============================================================
+\section{Approches probabilistes et génératives}
+\label{sec:generatifs}
+% =============================================================
+
+\subsection{Du déterministe au probabiliste}
+\label{ssec:det-vs-proba}
+
+L'insuffisance des méthodes déterministes pour le downscaling climatique, évoquée en section~\ref{ssec:disagg-spatiale}, n'est pas une difficulté technique surmontable par un meilleur réglage : c'est une conséquence du caractère intrinsèquement multi-valué du problème. À une carte basse résolution donnée correspondent en réalité une infinité de cartes haute résolution physiquement plausibles, dont l'une seulement a été observée. Une approche déterministe ne peut, au mieux, restituer la moyenne conditionnelle de cette famille, ce qui revient à perdre toute information sur la variabilité fine, donc sur les extrêmes.
+
+La reformulation probabiliste consiste à abandonner la cible \og un champ haute résolution \fg{} au profit de la cible \og la distribution conditionnelle des champs haute résolution \fg{}. Formellement, on cherche à modéliser
+\begin{equation}
+  p\!\left(\xHR \,\big|\, \yLR,\, s_{\HR}\right),
+  \label{eq:objectif-proba}
+\end{equation}
+où $\xHR$ désigne le champ haute résolution cible, $\yLR$ le champ basse résolution conditionnant, et $s_{\HR}$ d'éventuels champs auxiliaires à haute résolution (orographie, occupation du sol). À partir de cette distribution, on peut produire des \emph{ensembles} d'échantillons probables, calculer des quantiles, et évaluer la couverture des extrêmes. La présentation détaillée de l'objectif probabiliste retenu par \Oracle{}, et de sa décomposition en moyenne causale et résiduel stochastique, est différée au chapitre consacré à la proposition.
+
+\subsection{Modèles génératifs adversariaux}
+\label{ssec:gan}
+
+Les premiers modèles génératifs profonds appliqués au downscaling climatique ont mobilisé le formalisme des \textbf{réseaux antagonistes génératifs} (\emph{Generative Adversarial Networks}, GAN). Un GAN repose sur l'entraînement conjoint de deux réseaux : un générateur, qui apprend à transformer un bruit aléatoire en échantillon plausible, et un discriminateur, qui apprend à distinguer les échantillons générés des échantillons réels. La variante conditionnelle (cGAN) introduit un conditionnement, qui peut être une carte basse résolution dans le cas du downscaling. Plusieurs travaux récents ont appliqué cette approche à la précipitation, dont une référence illustrative pour le cas néo-zélandais~\cite{rampal_cgan_2024}, qui combine un générateur résiduel et une perte adversariale pondérée.
+
+Les GAN appliqués au downscaling présentent toutefois trois limitations empiriques bien documentées. La première est la \textbf{sub-dispersion} : la variance prédite par le modèle, pour un conditionnement donné, est systématiquement inférieure à la variance observée, conduisant à une sous-estimation des extrêmes. La deuxième est la \textbf{forte sensibilité du modèle aux hyperparamètres adversariaux}, notamment au coefficient $\lambda_{\mathrm{adv}}$ qui pondère la perte du discriminateur dans la fonction de coût du générateur. La troisième est le risque de \textbf{mode collapse}, c'est-à-dire la convergence du générateur vers un sous-ensemble étroit de l'espace des sorties.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder[0.85\linewidth]{Figure F5 à produire --- deux histogrammes superposés (queue de distribution observée vs prédite par un cGAN), mettant en évidence la sous-dispersion.}
+  \caption{Illustration de la sous-dispersion : la distribution de précipitation prédite par un modèle adversarial concentre la masse vers les valeurs modérées et manque la queue lourde de la distribution observée.}
+  \label{fig:subdispersion}
+\end{figure}
+
+La figure~\ref{fig:subdispersion} matérialise ce phénomène. Ces limitations ont motivé la communauté à explorer un autre paradigme génératif, celui des modèles de diffusion.
+
+\subsection{Modèles de diffusion}
+\label{ssec:diffusion}
+
+Les modèles de diffusion reposent sur une idée intuitive : on définit un processus stochastique direct qui détruit progressivement le signal en ajoutant du bruit gaussien à différentes échelles, puis on apprend à inverser ce processus pour reconstruire des échantillons. Cette formulation, popularisée par les \emph{Denoising Diffusion Probabilistic Models} (DDPM) de Ho et~al.~\cite{ho_ddpm_2020}, a ensuite été reformulée dans un cadre théorique plus général par Karras et~al. sous le nom de \emph{Elucidated Diffusion Models} (EDM)~\cite{karras_edm_2022}, qui propose un préconditionnement systématique permettant un entraînement stable et un échantillonnage de haute qualité avec un nombre réduit d'étapes.
+
+Comparés aux GAN, les modèles de diffusion présentent plusieurs avantages directement pertinents pour le downscaling climatique. Leur entraînement est stable et ne souffre pas du déséquilibre générateur-discriminateur. Ils produisent par construction une distribution de sortie expressive, capable de représenter des modes multiples. Enfin, leur calibration probabiliste est généralement meilleure que celle des GAN. Les détails formels du formalisme EDM et de la procédure d'échantillonnage de Heun sont reportés au chapitre suivant, dans le cadre de l'examen détaillé de l'état de l'art.
+
+\subsection{Le paradigme deux étages : CorrDiff}
+\label{ssec:corrdiff}
+
+Une étape décisive de la littérature récente consiste à découpler explicitement, dans un cadre génératif, ce qui est facile à apprendre et ce qui est intrinsèquement stochastique. Le modèle \CorrDiff{}~\cite{mardani_corrdiff_2023}, proposé par les équipes de NVIDIA Research, incarne ce paradigme à deux étages : un premier étage régresse de manière déterministe la moyenne haute résolution attendue, et un second étage échantillonne par diffusion le résiduel par rapport à cette moyenne. Le champ haute résolution s'écrit alors comme la somme d'une moyenne déterministe et d'un résiduel stochastique ; la formalisation détaillée est donnée au chapitre suivant.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder{Figure F4 à produire --- schéma horizontal en deux étages : (i) entrée LR + sur-échantillonnage $\to$ réseau de régression $\to$ moyenne $\mu_{HR}$ ; (ii) bruit + conditionnement $\to$ réseau de diffusion $\to$ résiduel $\delta$ ; addition finale $\to$ sortie HR.}
+  \caption{Paradigme deux étages du downscaling probabiliste de Mardani et al.~\cite{mardani_corrdiff_2023}. Le premier étage régresse la moyenne haute résolution $\muHR$ ; le second échantillonne par diffusion le résiduel $\delta$.}
+  \label{fig:corrdiff}
+\end{figure}
+
+L'intérêt de cette décomposition est triple. Premièrement, elle stabilise l'entraînement : la régression déterministe du premier étage converge facilement, et le modèle de diffusion du second étage opère sur des résidus dont la distribution est plus proche d'une gaussienne, ce qui en facilite la modélisation. Deuxièmement, elle améliore la calibration : la variance des sorties est explicitement contrôlée par le second étage, et n'est plus le sous-produit incontrôlé d'un équilibre adversarial. Troisièmement, elle est computationnellement efficace : l'échantillonnage par diffusion, généralement coûteux, peut être limité au seul résiduel, qui est de plus faible amplitude.
+
+Ce paradigme constitue le point de départ direct de notre contribution. \Oracle{} reprend la structure à deux étages mais y introduit une contrainte causale au niveau du premier étage : la moyenne haute résolution $\muHR$ y est prédite à travers un graphe causal appris, ce qui en fait, par construction, une version \emph{causalisée} de \CorrDiff{}. Cette construction est l'objet du chapitre dédié à la proposition.
+
+\subsection{Encart : évaluation probabiliste}
+\label{ssec:eval-encart}
+
+L'évaluation d'un modèle de downscaling probabiliste ne peut se contenter des métriques déterministes classiques (RMSE, MAE, corrélation de Pearson). Ces métriques mesurent l'écart d'une prédiction ponctuelle à l'observation, et un modèle probabiliste bien calibré peut s'avérer médiocre sur ces mesures sans pour autant être un mauvais modèle : sa valeur réside dans la qualité de la distribution prédite, pas dans son mode.
+
+La littérature récente a donc adopté un panel élargi de métriques probabilistes, dont nous nous contenterons ici de citer les principales : le \emph{Continuous Ranked Probability Score} (CRPS), qui généralise l'erreur absolue à une cible probabiliste ; le rapport \emph{spread/skill}, qui évalue la calibration du second moment ; la \emph{Radially Averaged Power Spectral Density} (RAPSD), qui contrôle la fidélité du spectre spatial des sorties ; et le \emph{Local Histogram Distance} (LHD), qui mesure l'écart entre les distributions locales prédite et observée. La présentation formelle de ces métriques, les détails de leur implémentation et les résultats de leur application au modèle \Oracle{} sont reportés au chapitre dédié aux matériels et méthodes.
+
+% =============================================================
+\section{Causalité et modèles structurels}
+\label{sec:causalite}
+% =============================================================
+
+\subsection{Pourquoi la causalité en downscaling climatique}
+\label{ssec:why-causal}
+
+Les approches probabilistes présentées jusqu'ici sont fondamentalement \emph{corrélatives} : elles apprennent, à partir des données d'entraînement, une distribution conditionnelle qui reproduit les co-occurrences observées entre les variables. Cette approche est suffisante tant que les données futures relèvent du même régime statistique que les données d'entraînement, hypothèse qui n'est précisément pas garantie dans un contexte de changement climatique.
+
+L'introduction de la causalité dans le cadre du downscaling vise à dépasser cette limitation. Trois arguments la motivent. Le premier est la \textbf{robustesse hors-distribution} : un modèle qui s'appuie sur des relations causales identifiées --- par exemple, l'influence de l'humidité spécifique de basse couche sur la précipitation convective --- est en principe plus stable sous changement de régime climatique qu'un modèle qui s'appuie sur des corrélations contingentes. Le deuxième est l'\textbf{interprétabilité physique} : la structure causale du modèle peut être confrontée à la connaissance physique disponible, ce qui renforce la confiance des utilisateurs, en particulier dans des contextes de décision à fort enjeu. Le troisième est la \textbf{capacité d'intervention} : un modèle structurellement causal permet de répondre à des questions de type \og que se passerait-il si l'humidité de basse couche augmentait de $10\%$ ? \fg{} sans avoir à se contenter d'analogues observationnels.
+
+\subsection{Modèles causaux structurels et graphes acycliques dirigés}
+\label{ssec:scm-dag}
+
+Le cadre formel privilégié par la communauté scientifique pour représenter la causalité est celui des \textbf{modèles causaux structurels} (\emph{Structural Causal Models}, SCM), formalisé par Pearl~\cite{pearl_causality_2009,pearl_book_of_why_2018}. Un SCM est un triplet $(V, U, F)$, où $V = \{V_1, \dots, V_n\}$ est un ensemble de variables observables, $U = \{U_1, \dots, U_n\}$ un ensemble de variables de bruit exogènes mutuellement indépendantes, et $F = \{f_1, \dots, f_n\}$ un ensemble de fonctions structurelles telles que
+\begin{equation}
+  V_i \;=\; f_i\!\left(\mathrm{Pa}(V_i),\, U_i\right),
+  \label{eq:scm}
+\end{equation}
+où $\mathrm{Pa}(V_i) \subseteq V \setminus \{V_i\}$ désigne l'ensemble des \emph{parents causaux} de $V_i$, c'est-à-dire les variables qui interviennent directement dans la détermination de $V_i$.
+
+La représentation graphique naturelle d'un SCM est un \textbf{graphe orienté} dans lequel les n\oe uds sont les variables observables et les arcs représentent les relations parent~$\to$~enfant. Pour que le SCM soit identifiable et bien posé, ce graphe doit être \emph{acyclique}, c'est-à-dire un \emph{Directed Acyclic Graph} (DAG). L'absence de cycle garantit l'existence d'un ordre topologique permettant d'évaluer récursivement chaque variable à partir des variables précédentes dans l'ordre. Au-delà de l'identifiabilité, le DAG fournit une description intuitive des dépendances causales, exploitable visuellement par l'expert métier.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder[0.7\linewidth]{Figure F6 à produire --- petit DAG illustratif sur un mini-système atmosphérique : humidité spécifique $q$, vent $u$, température $T$, orographie $h$, précipitation $pr$, avec flèches dirigées sans cycle.}
+  \caption{Exemple de modèle causal structurel sur un mini-système atmosphérique. Les n\oe uds représentent des variables observables ; les arcs représentent des liens fonctionnels parent $\to$ enfant. L'absence de cycle (DAG) est une condition d'identifiabilité.}
+  \label{fig:scm-dag}
+\end{figure}
+
+La figure~\ref{fig:scm-dag} illustre ce formalisme sur un mini-système atmosphérique : l'humidité spécifique de basse couche, le vent de surface, la température et l'orographie déterminent conjointement la précipitation locale, sans rétroaction explicite dans le sens vertical du graphe.
+
+\subsection{Intervention et identifiabilité}
+\label{ssec:intervention}
+
+Le formalisme SCM offre une définition opérationnelle de l'\textbf{intervention}, à travers l'opérateur $\mathrm{do}$ de Pearl. L'intervention $\mathrm{do}(X = x)$ consiste à fixer la valeur d'une variable $X$ indépendamment de ses parents naturels, ce qui revient à supprimer toutes les flèches entrantes de $X$ dans le DAG. La distribution interventionnelle résultante, notée $p\!\left(Y \,\big|\, \mathrm{do}(X = x)\right)$, est en général distincte de la distribution conditionnelle naïve $p(Y \,\big|\, X = x)$. C'est cette distinction qui distingue un modèle simplement corrélatif d'un modèle structurellement causal.
+
+Un modèle architecturalement \emph{intervention-aware} est un modèle dans lequel l'intervention sur une variable d'entrée a un effet calculable et prévisible sur les sorties. Cette propriété, que nous noterons O3 dans la formalisation des objectifs du modèle \Oracle{} au chapitre dédié à la proposition, sera obtenue par construction \emph{au sens structurel} : la matrice $A_{\mathrm{dag}}$ apprise par le module causal d'\Oracle{} encode la structure du DAG, et fixer ses entrées correspondant à une variable revient à intervenir sur cette variable. Il faut souligner que la causalité visée par (O3) est de nature \emph{structurelle}, c'est-à-dire qu'elle organise architecturalement le calcul autour d'un graphe acyclique appris ; elle ne se confond pas avec une causalité \emph{physique} qui réclamerait que les flèches du DAG coïncident, fait pour fait, avec les lois physiques de l'atmosphère.
+
+\subsection{Graphes causaux appris et lien avec le downscaling}
+\label{ssec:learned-dag}
+
+Apprendre la structure d'un DAG directement à partir des données est un problème combinatoire intrinsèquement difficile, dont la complexité décroît mal avec le nombre de variables. Une avancée récente, due à Bello, Aragam et Ravikumar~\cite{bello_dagma_2022}, propose une caractérisation continue de l'acyclicité fondée sur le déterminant logarithmique d'une matrice associée au graphe, appelée \emph{DAGMA} (\emph{DAGs via M-matrices and Acyclicity}). Cette caractérisation permet de reformuler la contrainte d'acyclicité comme une pénalité différentiable, intégrable directement dans l'entraînement d'un modèle d'apprentissage profond. Le détail formel et l'utilisation par \Oracle{} sont reportés au chapitre dédié à la proposition.
+
+L'application de la causalité structurelle au downscaling climatique reste relativement neuve. \Oracle{} y contribue par deux propositions propres : l'intégration de la causalité au sein d'un paradigme génératif à deux étages (style \CorrDiff{}), et la prédiction explicite de la moyenne haute résolution comme produit causal du DAG appris. L'examen comparatif des travaux antérieurs est différé au chapitre suivant.
+
+% =============================================================
+\section{Verrous scientifiques et trilemme}
+\label{sec:verrous}
+% =============================================================
+
+Les fondements rassemblés dans les sections précédentes permettent de cristalliser trois verrous scientifiques qui structurent le paysage actuel du downscaling génératif. Nous les présentons individuellement avant de les articuler dans un \emph{trilemme} qui résume la tension qu'ils entretiennent.
+
+\subsection{Verrou 1 : stabilité d'entraînement}
+\label{ssec:verrou-stabilite}
+
+Le premier verrou concerne la \textbf{stabilité d'entraînement} des modèles génératifs profonds appliqués au downscaling. Les modèles adversariaux sont, comme on l'a vu, particulièrement sensibles au choix du coefficient $\lambda_{\mathrm{adv}}$ et au déséquilibre dynamique entre générateur et discriminateur, deux paramètres difficiles à régler de manière transférable d'une région à une autre~\cite{rampal_cgan_2024}. Les modèles de diffusion, plus stables en principe, exigent néanmoins une calibration soignée du préconditionnement et du schéma de bruit pour ne pas diverger ou produire des artefacts ; c'est précisément ce qu'apporte le formalisme EDM~\cite{karras_edm_2022}. La stabilité d'entraînement conditionne directement la reproductibilité des résultats et la possibilité de déployer un même modèle sur plusieurs cas d'étude.
+
+\subsection{Verrou 2 : réalisme des extrêmes et sub-dispersion}
+\label{ssec:verrou-extremes}
+
+Le deuxième verrou est, à notre sens, le plus critique pour les applications visées par notre travail. Il concerne le \textbf{réalisme des extrêmes}, et plus spécifiquement le phénomène de \emph{sub-dispersion}, défini comme la propriété d'un modèle probabiliste dont la variance prédite, conditionnellement à une entrée, est inférieure à la variance observée pour cette même entrée. Empiriquement, on mesure la sub-dispersion par le rapport $\sigma_{\mathrm{pred}} / \mathrm{RMSE}$ : un rapport voisin de $1$ indique un modèle bien calibré, tandis qu'un rapport significativement inférieur à $1$ signale un modèle sub-dispersif. Des valeurs voisines de $0{,}3$ ont été rapportées dans des contextes de downscaling génératif, indiquant que les modèles existants sous-estiment d'un facteur trois la variabilité fine qu'ils devraient représenter~\cite{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}.
+
+La conséquence opérationnelle de la sub-dispersion est la sous-estimation systématique des extrêmes, c'est-à-dire précisément des événements pour lesquels la désagrégation a le plus de valeur ajoutée. Ce verrou réapparaîtra à deux reprises dans la suite du manuscrit : d'abord lors de l'examen détaillé des travaux antérieurs au chapitre suivant, où il sera identifié comme une limite commune à plusieurs approches, et ensuite lors de l'analyse expérimentale, où sa mesure sur \Oracle{} et ses ablations causales sera l'un des objets centraux de l'évaluation.
+
+\subsection{Verrou 3 : robustesse hors-distribution}
+\label{ssec:verrou-ood}
+
+Le troisième verrou est la \textbf{robustesse hors-distribution} (\emph{out-of-distribution}, OOD). Sous changement de climat, la statistique conjointe des variables atmosphériques évolue : un modèle entraîné sur la période historique doit pouvoir conserver une qualité prédictive raisonnable lorsqu'il est appliqué à des conditions futures qui ne correspondent à aucun analogue observé. Les modèles purement corrélatifs sont vulnérables à ce changement, dans la mesure où ils peuvent avoir appris des associations contingentes au régime d'entraînement. C'est dans ce contexte que la causalité structurelle, présentée en section~\ref{sec:causalite}, apparaît comme une réponse de principe : un modèle organisé autour de relations causales identifiées devrait, en théorie, mieux transférer hors-distribution qu'un modèle organisé autour de corrélations brutes.
+
+\subsection{Trilemme : tension entre les trois verrous}
+\label{ssec:trilemme}
+
+L'examen empirique de la littérature récente fait apparaître que les approches qui réussissent particulièrement bien sur l'un de ces trois axes échouent souvent sur au moins un des deux autres. Les modèles adversariaux les plus expressifs en termes de réalisme structurel sont aussi les plus instables à l'entraînement. Les modèles de diffusion, stables et bien calibrés, demeurent essentiellement corrélatifs et n'apportent pas par construction une garantie de robustesse OOD. Les modèles dérivés de RCM dynamiques, robustes par construction physique, sont à la fois coûteux et difficilement transférables. Cette observation, présente sous différentes formulations chez plusieurs auteurs~\cite{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}, peut être condensée sous la forme d'un \emph{trilemme} entre trois objectifs : stabilité d'entraînement, réalisme des extrêmes, robustesse hors-distribution. Nous présentons ici ce trilemme \emph{tel qu'il émerge de la littérature}, et non comme une formalisation propre. La figure~\ref{fig:trilemme} en propose une représentation schématique.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder[0.65\linewidth]{Figure F7 à produire --- triangle dont les trois sommets sont étiquetés \og Stabilité d'entraînement \fg{}, \og Réalisme des extrêmes \fg{}, \og Robustesse OOD \fg{} ; positionner symboliquement quelques familles d'approches à l'intérieur.}
+  \caption{Trilemme du downscaling génératif : tension typique entre stabilité d'entraînement, réalisme des extrêmes et robustesse hors-distribution. Constat agrégé à partir des travaux de Rampal et al.~\cite{rampal_cgan_2024}, Mardani et al.~\cite{mardani_corrdiff_2023} et Harris et al.~\cite{harris_2022}.}
+  \label{fig:trilemme}
+\end{figure}
+
+\subsection{Positionnement d'Oracle dans ce paysage}
+\label{ssec:positionnement-oracle}
+
+C'est dans le cadre de ce trilemme que se positionne notre contribution. Le modèle \Oracle{} s'inscrit dans le paradigme à deux étages de \CorrDiff{}, dont il hérite la stabilité d'entraînement (verrou~1), et y introduit une contrainte structurellement causale au niveau du premier étage, ce qui doit, en principe, en renforcer la robustesse hors-distribution (verrou~3). Le second étage, fondé sur la diffusion EDM, cible explicitement la calibration probabiliste et donc le réalisme des extrêmes (verrou~2). La figure~\ref{fig:cartouche-oracle} en propose une vue d'ensemble. Les détails architecturaux et la formalisation des objectifs sous-jacents sont déférés au chapitre dédié à la proposition.
+
+\begin{figure}[ht]
+  \centering
+  \figplaceholder{Figure F8 à produire --- cartouche conceptuel Oracle en deux étages : (Étage 1) entrée LR $\to$ encodeur $\to$ graphe causal appris (matrice $A_{\mathrm{dag}}$) $\to$ moyenne $\mu_{HR}$ ; (Étage 2) $\mu_{HR}$ + bruit $\to$ diffusion EDM $\to$ résiduel $\delta$ ; sortie HR = baseline + $\mu_{HR}$ + $\delta$.}
+  \caption{Cartouche conceptuel du modèle \Oracle{} proposé : version causalisée du paradigme deux étages de \CorrDiff{}. L'étage 1 estime la moyenne haute résolution $\muHR$ par un passage à travers un graphe causal appris ; l'étage 2 échantillonne par diffusion le résiduel $\delta$.}
+  \label{fig:cartouche-oracle}
+\end{figure}
+
+% =============================================================
+\section{Synthèse}
+\label{sec:synthese}
+% =============================================================
+
+Ce premier chapitre a établi les fondements conceptuels nécessaires à la compréhension de la contribution développée dans la suite du mémoire. Trois acquis principaux peuvent être dégagés.
+
+D'abord, le besoin de désagrégation des projections climatiques est un besoin concret et localisé. Les modèles climatiques globaux fournissent l'information à une résolution incompatible avec les usages locaux, en particulier dans les contextes africains où les ressources de calcul et l'accès aux modèles régionaux dynamiques restent limités. La précipitation, variable centrale pour les enjeux agricoles, hydrologiques et urbains, constitue à la fois la cible la plus pertinente et la plus exigeante du downscaling.
+
+Ensuite, le paradigme méthodologique de référence pour cette désagrégation a progressivement glissé, dans la littérature récente, des approches déterministes vers les approches probabilistes, puis vers les approches génératives, et plus récemment vers le paradigme à deux étages de \CorrDiff{}, qui sépare la prédiction déterministe d'une moyenne haute résolution de l'échantillonnage stochastique d'un résiduel par diffusion. Ce paradigme constitue le point de départ direct de notre travail.
+
+Enfin, l'examen des travaux récents fait émerger trois verrous scientifiques structurants : la stabilité d'entraînement des modèles génératifs, le réalisme des extrêmes --- avec en particulier le phénomène de sub-dispersion comme verrou expérimental central --- et la robustesse hors-distribution sous changement climatique. Ces trois verrous entretiennent une tension que la littérature résume sous la forme d'un trilemme. Notre contribution, le modèle \Oracle{}, vise précisément à articuler ces trois axes en greffant une structure causale sur le paradigme à deux étages.
+
+Ces fondements posés, nous examinons au chapitre suivant l'état de l'art : les travaux qui ont précédé \Oracle{} dans la lignée du downscaling probabiliste à deux étages --- en particulier \CorrDiff{} de Mardani et~al. et le cGAN résiduel de Rampal et~al. --- et les approches qui éclairent les choix méthodologiques retenus pour intégrer la causalité au cadre génératif.
+
+% =============================================================
+% Bibliographie (placeholder, à migrer vers un .bib en phase finale)
+% =============================================================
+\begin{thebibliography}{99}
+
+\bibitem{ipcc_ar6_2021} IPCC. \emph{Climate Change 2021: The Physical Science Basis. Contribution of Working Group~I to the Sixth Assessment Report of the Intergovernmental Panel on Climate Change}. Cambridge University Press, 2021.
+
+\bibitem{almazroui_2020} M.~Almazroui, S.~Saeed, F.~Saeed, M.~N.~Islam, and M.~Ismail. Projections of precipitation and temperature over the South Asian countries in CMIP6. \emph{Earth Systems and Environment}, 4:297--320, 2020.
+
+\bibitem{eyring_cmip6_2016} V.~Eyring, S.~Bony, G.~A.~Meehl, C.~A.~Senior, B.~Stevens, R.~J.~Stouffer, and K.~E.~Taylor. Overview of the Coupled Model Intercomparison Project Phase 6 (CMIP6) experimental design and organization. \emph{Geoscientific Model Development}, 9:1937--1958, 2016.
+
+\bibitem{hersbach_era5_2020} H.~Hersbach et al. The ERA5 global reanalysis. \emph{Quarterly Journal of the Royal Meteorological Society}, 146:1999--2049, 2020.
+
+\bibitem{maraun_widmann_2018} D.~Maraun and M.~Widmann. \emph{Statistical Downscaling and Bias Correction for Climate Research}. Cambridge University Press, 2018.
+
+\bibitem{vandal_deepsd_2017} T.~Vandal, E.~Kodra, S.~Ganguly, A.~Michaelis, R.~Nemani, and A.~R.~Ganguly. DeepSD: Generating high resolution climate change projections through single image super-resolution. In \emph{Proceedings of the 23rd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, 2017.
+
+\bibitem{wmo_gcos_2022} World Meteorological Organization. \emph{The 2022 GCOS Implementation Plan} (GCOS-244). World Meteorological Organization, Geneva, 2022.
+
+\bibitem{wilby_wigley_1997} R.~L.~Wilby and T.~M.~L.~Wigley. Downscaling general circulation model output: a review of methods and limitations. \emph{Progress in Physical Geography}, 21(4):530--548, 1997.
+
+\bibitem{ho_ddpm_2020} J.~Ho, A.~Jain, and P.~Abbeel. Denoising diffusion probabilistic models. In \emph{Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem{karras_edm_2022} T.~Karras, M.~Aittala, T.~Aila, and S.~Laine. Elucidating the design space of diffusion-based generative models. In \emph{Advances in Neural Information Processing Systems}, 2022.
+
+\bibitem{mardani_corrdiff_2023} M.~Mardani, N.~Brenowitz, Y.~Cohen, J.~Pathak, C.-Y.~Chen, C.-C.~Liu, A.~Vahdat, K.~Kashinath, J.~Kautz, and M.~Pritchard. Residual corrective diffusion modeling for km-scale atmospheric downscaling. \emph{arXiv preprint arXiv:2309.15214}, 2023.
+
+\bibitem{rampal_cgan_2024} N.~Rampal, P.~B.~Gibson, S.~Hobeichi, J.~Sherwood, and S.~B.~Power. Reliable generative downscaling of climate data with conditional GANs. \emph{Journal of Advances in Modeling Earth Systems}, 2024.
+
+\bibitem{harris_2022} L.~Harris, A.~T.~T.~McRae, M.~Chantry, P.~D.~Dueben, and T.~N.~Palmer. A generative deep learning approach to stochastic downscaling of precipitation forecasts. \emph{Journal of Advances in Modeling Earth Systems}, 14(10):e2022MS003120, 2022.
+
+\bibitem{pearl_causality_2009} J.~Pearl. \emph{Causality: Models, Reasoning, and Inference}. Cambridge University Press, 2nd edition, 2009.
+
+\bibitem{pearl_book_of_why_2018} J.~Pearl and D.~Mackenzie. \emph{The Book of Why: The New Science of Cause and Effect}. Basic Books, 2018.
+
+\bibitem{bello_dagma_2022} K.~Bello, B.~Aragam, and P.~Ravikumar. DAGMA: Learning DAGs via M-matrices and a log-determinant acyclicity characterization. In \emph{Advances in Neural Information Processing Systems}, 2022.
+
+\end{thebibliography}
+
+\end{document}
