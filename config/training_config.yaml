@@ -165,6 +165,19 @@ diffusion:
     S_tmin: 0.0
     S_tmax: .inf
     S_noise: 1.0
+    # >>> V5 — P2 : pondération des résidus extrêmes dans la perte EDM.
+    # Lu par EDMConfig.from_yaml_dict → TailWeightConfig. La perte EDM
+    # est multipliée par (1 + (w_p95-1)·1[recon>tau95] + (w_p99-w_p95)·1[recon>tau99])
+    # où recon = target_residual + μ_HR + baseline_log (log1p mm/jour).
+    # Cible directe F1_p99. Démarrer avec poids modérés (1.5 / 2.0) ; doubler
+    # si la queue reste sous-estimée mais surveiller spread/skill (ne pas
+    # passer sous 0.25).
+    tail_weight:
+      enabled: true
+      tau95_mmday: 20.0
+      tau99_mmday: 50.0
+      weight_p95: 1.5
+      weight_p99: 2.0
 
   use_gradient_checkpointing: false  # A100 80GB : modèle réduit (~12M params), mémoire confortable sans recompute → +30% vitesse
   # Sprint 3: classifier-free guidance. The DPM-Solver++ path was silently
@@ -340,6 +353,62 @@ loss:
     # on CPU (~25% training-time overhead). Raise to 1 for faster signal,
     # lower it to 8/16 if training throughput is the bottleneck.
     interval: 4                        # 4 = good balance (commentaire config). Sur A100 modèle réduit : 2 passes extras/4 steps ≈ 4% overhead. Ne pas dépasser 4 : ce loss est LE levier qui force le UNet à utiliser A_dag (pas de DAG fantôme).
+
+# ============================================================================
+# V5-MINI — extensions pour gagner sur in-distribution + OOD + intervention
+# Budget cible : ≤ 45h training sur A100 (base V4 = 30h, marge = 15h)
+# Décomposition :
+#   P1 tail-weighted Stage 1     : +0h  (poids dans la perte)
+#   P2 tail-weighted Stage 2     : +0h  (déjà câblé via cfg.tail_weight, ici activé)
+#   P5 prior physique A_dag      : +0h  (déjà câblé, ici activé via lambda_dag_prior > 0)
+#   A1 skip-connection LR→μ_HR   : +3h  (gate α(LR) appris)
+#   P3-lite seq2seq stochastique : +12h (~5 pas intermédiaires par batch)
+# Total estimé : ~45h
+# ============================================================================
+v5:
+  enabled: true
+
+  # ─── P1 : pondération de la queue de distribution sur la perte Stage 1 ───
+  # Multiplie la MSE(μ_HR, target_residual) par un facteur croissant avec
+  # l'intensité reconstruite (log1p(mm/jour)). Cible directe F1_p95, F1_p99.
+  # Le seuil tau est en mm/jour avant log1p — converti à log1p au runtime.
+  # Effet courbe en cloche : trop élevé → sur-prédiction, F1 dégrade par chute
+  # de précision.
+  tail_weight_stage1:
+    enabled: true
+    tau_mmday: 10.0       # ~p90 empirique de la précipitation quotidienne NZ
+    alpha: 0.5            # poids supplémentaire au-dessus de tau (multiplicateur final = 1 + alpha)
+
+  # ─── P3-lite : supervision stochastique des états RCN intermédiaires ───
+  # À chaque batch, échantillonne k pas t ∈ [warmup, T-2] et applique
+  # regression_head(H_t) → MSE(target_residual) au lieu d'utiliser
+  # seulement H_T. Densifie le signal de gradient pour le RCN et A_dag
+  # sans payer ×16 le coût d'un seq2seq dense.
+  # Couverture statistique : 5000 batches × 20 epochs × k samples /
+  # (T - warmup - 1) → chaque pas reçoit ~8k supervisions avec k=5.
+  seq2seq_lite:
+    enabled: true
+    k_samples: 5          # 5 pas intermédiaires par batch (+12h sur 30h base)
+    warmup_steps: 4       # ignore les pas t<warmup (RCN en chauffe)
+    intermediate_weight: 0.5  # poids relatif vs perte au pas final
+
+  # ─── A1 : skip-connection conditionnelle LR → μ_HR ───
+  # Ajoute une voie directe Conv(LR) + bilinear upsample en parallèle du
+  # chemin causal. Un gate α(LR) ∈ [0,1] appris par MLP global décide
+  # de la fraction blending : μ_HR = α·CRM + (1-α)·direct.
+  # Régularise α vers une valeur élevée (alpha_floor) pour préserver O3.
+  skip_connection:
+    enabled: true
+    alpha_init_logit: 2.0      # sigmoid(2.0) ≈ 0.88 (chemin causal dominant à l'init)
+    alpha_floor: 0.6           # plancher : la perte L_o3_preserve pénalise si α < 0.6
+    lambda_o3_preserve: 0.5    # poids de la pénalité pour préserver la causalité
+
+  # ─── P2 : pondération de la queue sur Stage 2 EDM (déjà implémenté) ───
+  # La logique tail-weight Stage 2 est câblée dans
+  # `compute_loss_edm` (branche BS34_TAIL_LOSS) et configurée sous
+  # `diffusion.edm.tail_weight` (au-dessus dans ce même fichier).
+  # Documentation seulement ici — la valeur effective est lue depuis là.
+  tail_weight_stage2_ref: "diffusion.edm.tail_weight"
 
 # ============================================================================
 # CONFIGURATION ENTRAÎNEMENT

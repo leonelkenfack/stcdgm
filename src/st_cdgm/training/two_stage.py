@@ -71,6 +71,13 @@ def stage1_compute_loss(
     gamma_dag: float = 0.10,
     lambda_l1: float = 0.01,
     lambda_dag_prior: float = 0.0,
+    # >>> V5 — P1 : tail-weighting sur la MSE Stage 1
+    tail_weight_target: Optional[Tensor] = None,
+    tail_weight_tau: Optional[float] = None,
+    tail_weight_alpha: float = 0.0,
+    # >>> V5 — A1 : perte de préservation de la propriété (O3)
+    o3_preserve_loss: Optional[Tensor] = None,
+    lambda_o3_preserve: float = 0.0,
 ) -> Tuple[Tensor, dict]:
     """Stage 1 composite loss.
 
@@ -119,6 +126,23 @@ def stage1_compute_loss(
     target_clean = torch.where(valid_mask, target_residual, torch.zeros_like(target_residual))
 
     sq_err = (mu_HR - target_clean) ** 2
+
+    # >>> V5 — P1 : tail-weighting de la MSE Stage 1
+    # Multiplie la MSE pixel par pixel par un facteur croissant avec
+    # l'intensité reconstruite. Soit on utilise un tenseur de pondération
+    # externe (``tail_weight_target``), soit on calcule la pondération
+    # depuis ``target_residual`` directement avec un seuil ``tau`` (log1p
+    # space) et un coefficient ``alpha`` (multiplicateur additif). Effet
+    # courbe en cloche sur ``alpha`` — voir cfg.v5.tail_weight_stage1.
+    tail_w = None
+    if tail_weight_target is not None:
+        tail_w = tail_weight_target.detach()
+    elif tail_weight_tau is not None and tail_weight_alpha > 0.0:
+        with torch.no_grad():
+            tail_w = 1.0 + tail_weight_alpha * torch.relu(target_clean - tail_weight_tau)
+    if tail_w is not None:
+        sq_err = sq_err * tail_w
+
     n_valid = valid_mask.float().sum().clamp(min=1.0)
     mse_reg = (sq_err * valid_mask.float()).sum() / n_valid
 
@@ -137,6 +161,10 @@ def stage1_compute_loss(
     if dag_prior_loss is not None and lambda_dag_prior > 0.0:
         loss_total = loss_total + lambda_dag_prior * dag_prior_loss
         components["loss_dag_prior"] = float(dag_prior_loss.detach().item())
+    # >>> V5 — A1 : perte de préservation (O3)
+    if o3_preserve_loss is not None and lambda_o3_preserve > 0.0:
+        loss_total = loss_total + lambda_o3_preserve * o3_preserve_loss
+        components["loss_o3_preserve"] = float(o3_preserve_loss.detach().item())
 
     components["loss_total"] = float(loss_total.detach().item())
     return loss_total, components

@@ -7,6 +7,7 @@ from .diffusion_decoder import CausalDiffusionDecoder, DiffusionOutput
 from .intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig, SpatialConditioningProjector
 from .graph_builder import HeteroGraphBuilder
 from .regression_head import GraphToGridDecoder
+from .skip_direct import ConditionalSkipBlock
 
 __all__ = [
     "RCNCell",
@@ -18,5 +19,6 @@ __all__ = [
     "SpatialConditioningProjector",
     "HeteroGraphBuilder",
     "GraphToGridDecoder",
+    "ConditionalSkipBlock",
 ]
 

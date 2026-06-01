@@ -1710,6 +1710,14 @@ def train_epoch_stage1(
     use_amp: bool = True,
     dag_spectral_projection: bool = True,
     dag_spectral_max_radius: float = 0.95,
+    # >>> V5 — extensions actives quand cfg.v5.enabled = True
+    skip_block=None,                          # ConditionalSkipBlock or None (A1)
+    skip_lambda_o3: float = 0.0,              # poids L_o3_preserve (A1)
+    p1_tail_tau: Optional[float] = None,      # seuil log1p pour P1 (Stage 1 tail-weight)
+    p1_tail_alpha: float = 0.0,               # coefficient P1 (0 = OFF)
+    p3_k_samples: int = 0,                    # # pas intermédiaires aléatoires par batch (0 = OFF)
+    p3_warmup_steps: int = 4,                 # premiers pas RCN ignorés (warm-up)
+    p3_intermediate_weight: float = 0.5,      # poids des supervisions intermédiaires
 ) -> Dict[str, float]:
     """Stage 1 of the Two-Stage Causal Architecture.
 
@@ -1827,12 +1835,70 @@ def train_epoch_stage1(
                 )
                 H_T = seq_out.states[-1]
 
-                mu_HR = regression_head(H_T)
-                if mu_HR.shape != target_residual.shape:
-                    mu_HR = torch.nn.functional.interpolate(
-                        mu_HR, size=target_residual.shape[-2:],
+                mu_HR_causal = regression_head(H_T)
+                if mu_HR_causal.shape != target_residual.shape:
+                    mu_HR_causal = torch.nn.functional.interpolate(
+                        mu_HR_causal, size=target_residual.shape[-2:],
                         mode="bilinear", align_corners=False,
                     )
+
+                # >>> V5 — A1 : skip-connection conditionnelle LR → μ_HR
+                # μ_HR = α(LR) · μ_causal + (1-α) · direct(LR), avec α ∈ [0,1].
+                # Régularisation (O3) ajoutée à la perte via o3_preserve_loss
+                # pour empêcher α de descendre vers 0 (perte de causalité).
+                o3_preserve_loss = None
+                skip_alpha_mean = None
+                if skip_block is not None:
+                    # On utilise le dernier pas LR comme entrée du gate/voie directe
+                    # (drivers est une liste de [B, C_lr, H_lr, W_lr] par pas)
+                    lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
+                    mu_HR, _alpha = skip_block(lr_last, mu_HR_causal)
+                    o3_preserve_loss = skip_block.compute_o3_preserve_loss(_alpha)
+                    skip_alpha_mean = float(_alpha.detach().mean().item())
+                else:
+                    mu_HR = mu_HR_causal
+
+                # >>> V5 — P3-lite : supervision stochastique des états RCN intermédiaires
+                # Échantillonne p3_k_samples pas t ∈ [warmup, T-2] et accumule la
+                # MSE intermediaire au prorata de p3_intermediate_weight. Coût :
+                # +k_samples appels à regression_head par batch (~2.4h/call sur
+                # 30h baseline → +12h pour k=5 sur A100). Le pas final T est
+                # toujours supervisé en plein poids.
+                p3_loss_extra = None
+                p3_n_used = 0
+                if (
+                    p3_k_samples > 0
+                    and len(seq_out.states) > p3_warmup_steps + 1
+                ):
+                    T_states = len(seq_out.states)
+                    pool = list(range(p3_warmup_steps, T_states - 1))
+                    if pool:
+                        # tirage sans remise pour éviter les doublons
+                        k = min(p3_k_samples, len(pool))
+                        idx_perm = torch.randperm(len(pool), device="cpu")[:k].tolist()
+                        idx_picked = [pool[i] for i in idx_perm]
+                        loss_accum = None
+                        for t_pick in idx_picked:
+                            H_t = seq_out.states[t_pick]
+                            mu_t = regression_head(H_t)
+                            if mu_t.shape != target_residual.shape:
+                                mu_t = torch.nn.functional.interpolate(
+                                    mu_t, size=target_residual.shape[-2:],
+                                    mode="bilinear", align_corners=False,
+                                )
+                            sq_err_t = (mu_t - target_residual).pow(2)
+                            # NaN-safe mean (target_residual peut contenir NaN océan)
+                            vm_t = torch.isfinite(target_residual).float()
+                            mse_t = (
+                                (sq_err_t * vm_t).sum()
+                                / vm_t.sum().clamp(min=1.0)
+                            )
+                            loss_accum = mse_t if loss_accum is None else (loss_accum + mse_t)
+                        if loss_accum is not None:
+                            p3_loss_extra = (
+                                p3_intermediate_weight * loss_accum / max(1, k)
+                            )
+                            p3_n_used = k
 
                 # RCN reconstruction loss (paper §sec:arch:rcn Eq. ref:eq:Lrec).
                 # The seq_out provides per-step reconstructions if available;
@@ -1880,7 +1946,21 @@ def train_epoch_stage1(
                     gamma_dag=gamma_dag_eff,
                     lambda_l1=lambda_l1,
                     lambda_dag_prior=lambda_dag_prior,
+                    # V5 — P1
+                    tail_weight_tau=p1_tail_tau,
+                    tail_weight_alpha=p1_tail_alpha,
+                    # V5 — A1
+                    o3_preserve_loss=o3_preserve_loss,
+                    lambda_o3_preserve=skip_lambda_o3,
                 )
+                # V5 — P3-lite : ajout post stage1_compute_loss pour éviter
+                # de polluer la signature (la pondération est déjà appliquée).
+                if p3_loss_extra is not None:
+                    loss_total = loss_total + p3_loss_extra
+                    components["loss_p3_lite"] = float(p3_loss_extra.detach().item())
+                    components["p3_n_samples"] = float(p3_n_used)
+                if skip_alpha_mean is not None:
+                    components["skip_alpha_mean"] = skip_alpha_mean
                 # Average over micro-batches in the optimiser step
                 loss_for_backward = loss_total / max(len(batches), 1)
 
