@@ -5837,6 +5837,34 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\skip_direct.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\skip_direct.py:175"
+    },
+    {
+      "id": "file::_gen_v5_eval_notebook",
+      "label": "_gen_v5_eval_notebook.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py:1"
+    },
+    {
+      "id": "_gen_v5_eval_notebook::md_cell",
+      "label": "md_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py:12"
+    },
+    {
+      "id": "_gen_v5_eval_notebook::code_cell",
+      "label": "code_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py:20"
+    },
+    {
+      "id": "file::_patch_v5_phase8",
+      "label": "_patch_v5_phase8.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase8.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase8.py:1"
     }
   ],
   "edges": [
@@ -12373,12 +12401,30 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\skip_direct.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\src\\st_cdgm\\models\\skip_direct.py:175",
       "weight": 1
+    },
+    {
+      "source": "file::_gen_v5_eval_notebook",
+      "target": "_gen_v5_eval_notebook::md_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py:12",
+      "weight": 1
+    },
+    {
+      "source": "file::_gen_v5_eval_notebook",
+      "target": "_gen_v5_eval_notebook::code_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_gen_v5_eval_notebook.py:20",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 109,
-    "nodes": 834,
-    "edges": 726,
-    "builtAt": "2026-06-01T10:49:45.804Z"
+    "files": 111,
+    "nodes": 838,
+    "edges": 728,
+    "builtAt": "2026-06-04T18:15:06.038Z"
   }
 }
