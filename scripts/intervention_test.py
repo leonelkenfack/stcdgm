@@ -154,10 +154,13 @@ def apply_intervention(
     idx = spec["variable_idx"]
 
     # Cible : le canal idx du tenseur LR.
-    # Tensor shape :
-    #   [T, C, H, W]   → lr_batch[:, idx, :, :]
+    # Layouts supportés :
+    #   [T, N, C]       → lr_batch[..., idx]            (graphe hétérogène, channels last)
+    #   [T, C, H, W]    → lr_batch[:, idx, :, :]        (grille)
     #   [B, T, C, H, W] → lr_batch[:, :, idx, :, :]
-    if out.dim() == 4:
+    if out.dim() == 3:
+        channel = out[..., idx]
+    elif out.dim() == 4:
         channel = out[:, idx, :, :]
     elif out.dim() == 5:
         channel = out[:, :, idx, :, :]
@@ -187,7 +190,9 @@ def apply_intervention(
     else:
         channel_new = channel_phys
 
-    if out.dim() == 4:
+    if out.dim() == 3:
+        out[..., idx] = channel_new
+    elif out.dim() == 4:
         out[:, idx, :, :] = channel_new
     else:
         out[:, :, idx, :, :] = channel_new
