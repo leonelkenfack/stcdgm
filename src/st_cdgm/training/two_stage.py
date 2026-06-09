@@ -57,6 +57,61 @@ def gamma_dag_warmup(epoch: int, max_value: float, warmup_epochs: int = 5) -> fl
     return float(max_value) * (epoch / max(1, warmup_epochs))
 
 
+def lambda_l1_cosine_anneal(
+    epoch: int,
+    total_epochs: int,
+    lambda_start: float = 0.10,
+    lambda_end: float = 0.01,
+) -> float:
+    """Cosine annealing schedule for the DAG L1 sparsity weight.
+
+    Phase B (post-V5-mini, 2026-06-09) — cible la pathologie #3 :
+    A_dag observé en V5-mini avec magnitudes uniformes (~0.18 partout,
+    Q_phys = 0.40). La L1 constante (λ=0.01) ne permet pas aux arêtes
+    survivantes de prendre des magnitudes différenciées.
+
+    Stratégie : démarrer avec une pénalité forte (λ_start = 0.10) qui
+    élimine agressivement les arêtes faibles dès les premières epochs,
+    puis décroître en cosinus jusqu'à λ_end = 0.01 pour laisser les
+    arêtes utiles prendre des magnitudes hiérarchiques.
+
+    Parameters
+    ----------
+    epoch : int
+        Epoch actuelle (0-indexed).
+    total_epochs : int
+        Nombre total d'epochs du fine-tune.
+    lambda_start : float
+        Valeur de λ_l1 à epoch 0. Recommandé : 0.10.
+    lambda_end : float
+        Valeur de λ_l1 à epoch ``total_epochs - 1``. Recommandé : 0.01.
+
+    Returns
+    -------
+    float : la valeur de λ_l1 à utiliser pour cette epoch.
+
+    Notes
+    -----
+    - À appeler en début de chaque epoch dans la boucle de training.
+    - Le `gradient_clipping=1.0` recommandé en Phase B atténue le
+      risque de collapse A_dag → 0 sous lambda_start élevé.
+    - Si gamma_dag_warmup_epochs >= 5, la pression purement L1 à
+      epoch 0 (gamma_dag = 0) peut être excessive. Mitigation :
+      réduire lambda_start à 0.05 ou ramper L1 vers le haut pendant
+      le warmup. Voir §12.9 de architecture_journey.md.
+
+    Examples
+    --------
+    >>> [round(lambda_l1_cosine_anneal(e, 30), 4) for e in [0, 10, 20, 29]]
+    [0.1, 0.0775, 0.0325, 0.01]
+    """
+    if total_epochs <= 1:
+        return float(lambda_end)
+    t = min(epoch, total_epochs - 1) / (total_epochs - 1)
+    cosine = 0.5 * (1.0 + math.cos(math.pi * t))
+    return float(lambda_end + (lambda_start - lambda_end) * cosine)
+
+
 def stage1_compute_loss(
     *,
     mu_HR: Tensor,
@@ -75,6 +130,12 @@ def stage1_compute_loss(
     tail_weight_target: Optional[Tensor] = None,
     tail_weight_tau: Optional[float] = None,
     tail_weight_alpha: float = 0.0,
+    # >>> Phase B (post-V5-mini, 2026-06-09) — exposant power-law
+    # Si > 0, supersède la forme relu-au-dessus-de-tau du V5-mini par la
+    # forme multiplicative `w = (1 + alpha · y)^beta`. Active uniquement
+    # quand tail_weight_beta > 0 et tail_weight_target / tail_weight_tau
+    # sont None. Voir §12.3 de architecture_journey.md.
+    tail_weight_beta: float = 0.0,
     # >>> V5 — A1 : perte de préservation de la propriété (O3)
     o3_preserve_loss: Optional[Tensor] = None,
     lambda_o3_preserve: float = 0.0,
@@ -145,8 +206,20 @@ def stage1_compute_loss(
     # courbe en cloche sur ``alpha`` — voir cfg.v5.tail_weight_stage1.
     tail_w = None
     if tail_weight_target is not None:
+        # Mode prioritaire : pondération externe (V5-mini compat)
         tail_w = tail_weight_target.detach()
+    elif tail_weight_beta > 0.0 and tail_weight_alpha > 0.0:
+        # Phase B : forme power-law `w = (1 + alpha · y_pos)^beta`.
+        # Upweight TOUS les pixels proportionnellement à leur intensité,
+        # pas juste ceux > tau. Cible la pathologie #1 (tail truncation)
+        # observée en V5-mini : RX1day bias -6.66 mm, F1-p99 = 0.512.
+        # alpha=0.5, beta=1.0 → pixel 10mm pèse 6×, pixel 50mm pèse 26×.
+        with torch.no_grad():
+            y_pos = target_clean.clamp(min=0.0)
+            tail_w = (1.0 + tail_weight_alpha * y_pos).pow(tail_weight_beta)
     elif tail_weight_tau is not None and tail_weight_alpha > 0.0:
+        # V5-mini legacy : forme relu-au-dessus-de-tau (forme P1 originale).
+        # Préservée pour reproductibilité des runs antérieurs.
         with torch.no_grad():
             tail_w = 1.0 + tail_weight_alpha * torch.relu(target_clean - tail_weight_tau)
     if tail_w is not None:
