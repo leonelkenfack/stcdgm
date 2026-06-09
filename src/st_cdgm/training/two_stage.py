@@ -78,6 +78,15 @@ def stage1_compute_loss(
     # >>> V5 — A1 : perte de préservation de la propriété (O3)
     o3_preserve_loss: Optional[Tensor] = None,
     lambda_o3_preserve: float = 0.0,
+    # >>> Phase A (post-V5-mini, 2026-06-09) — CASTLE-style joint anchor
+    # Force A_dag à représenter les vraies contributions prédictives entre
+    # variables — fix le collapse à magnitude uniforme observé en V5-mini.
+    # Réf : Kyono 2020 NeurIPS, arXiv:2009.13180. Voir §11.4-12.2 de
+    # architecture_journey.md pour la motivation.
+    castle_anchor: Optional[nn.Module] = None,
+    castle_H_t: Optional[Tensor] = None,
+    castle_A_dag: Optional[Tensor] = None,
+    lambda_castle: float = 0.0,
 ) -> Tuple[Tensor, dict]:
     """Stage 1 composite loss.
 
@@ -165,6 +174,28 @@ def stage1_compute_loss(
     if o3_preserve_loss is not None and lambda_o3_preserve > 0.0:
         loss_total = loss_total + lambda_o3_preserve * o3_preserve_loss
         components["loss_o3_preserve"] = float(o3_preserve_loss.detach().item())
+
+    # >>> Phase A (post-V5-mini) — CASTLE joint prediction anchor
+    # Voir CASTLEAnchor dans models/causal_rcn.py. Active uniquement si
+    # les 3 arguments castle_* sont fournis et lambda_castle > 0.
+    # Coût compute : ~5 % par step pour q=6 nœuds.
+    if (
+        castle_anchor is not None
+        and castle_H_t is not None
+        and castle_A_dag is not None
+        and lambda_castle > 0.0
+    ):
+        try:
+            castle_loss = castle_anchor(castle_H_t, castle_A_dag)
+            loss_total = loss_total + lambda_castle * castle_loss
+            components["loss_castle"] = float(castle_loss.detach().item())
+        except Exception as e:
+            # try/except mandatory : si CASTLE fail (shape mismatch, autograd
+            # issue), on log et on continue avec les autres losses pour ne pas
+            # bloquer le training. Voir §12.9 risques.
+            import warnings
+            warnings.warn(f"CASTLE loss skipped : {type(e).__name__}: {e}")
+            components["loss_castle"] = float("nan")
 
     components["loss_total"] = float(loss_total.detach().item())
     return loss_total, components

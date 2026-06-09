@@ -670,6 +670,98 @@ class RCNCell(nn.Module):
         raise ValueError("reconstruction_source doit être de dimension 2 ou 3.")
 
 
+class CASTLEAnchor(nn.Module):
+    """CASTLE-style joint prediction anchoring for the learned DAG.
+
+    Réf : Kyono, van der Schaar, Bica 2020, *CASTLE: Regularization via
+    Auxiliary Causal Graph Discovery* (NeurIPS), arXiv:2009.13180.
+
+    Pour chaque variable ``i`` (sur les ``q`` nœuds de la cellule RCN), un
+    mini-décodeur 2-couches reconstruit l'état latent ``H_t[i]`` à partir
+    d'une combinaison linéaire pondérée par la ligne ``A_dag[i, :]`` des
+    autres variables. L'erreur de reconstruction MSE est rétro-propagée à
+    travers ``A_dag``, ce qui force chaque arête ``A_dag[i, j]`` à être
+    non-triviale **seulement si la variable j contribue prédictivement
+    à la variable i**.
+
+    Cible les pathologies suivantes du DAG appris (cf. §11.2 de
+    ``architecture_journey.md``) :
+
+    - #1 ``A_dag`` collapse à magnitude uniforme : les arêtes sans signal
+      prédictif tombent vers 0, celles qui en portent prennent des
+      magnitudes différenciées.
+    - #3 PSE plat : la prédictivité variée des arêtes crée une hiérarchie
+      d'effets path-specific.
+    - #5 Cécité humidité : chaque variable doit *gagner* sa place dans
+      ``A_dag`` via la reconstruction prédictive.
+
+    L'identifiabilité Pearl-stricte n'est pas garantie (limitation
+    Markov-equivalence-class des méthodes obs-only — voir §11.4). CASTLE
+    est un **prior structurel** efficace, pas une découverte causale.
+
+    Notes
+    -----
+    - À combiner avec DAGMA (acyclicité), L1 (sparsity), et optionnellement
+      un masque physique G_phys (cf. ``physics_prior.py``).
+    - Coût compute : ~5 % par step pour ``q=6`` variables (6 forward MLP
+      indépendants de ~500 params chacun).
+    - À initialiser depuis le code d'entraînement, pas depuis ``RCNCell``,
+      pour garder la cellule indépendante de la loss CASTLE.
+    """
+
+    def __init__(self, num_vars: int, hidden_dim: int, expansion: int = 2) -> None:
+        super().__init__()
+        self.num_vars = num_vars
+        self.hidden_dim = hidden_dim
+        self.recons = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim * expansion),
+                nn.GELU(),
+                nn.Linear(hidden_dim * expansion, hidden_dim),
+            )
+            for _ in range(num_vars)
+        ])
+
+    def forward(self, H_t: Tensor, A_dag: Tensor) -> Tensor:
+        """Calcule la loss CASTLE moyennée sur les ``q`` variables.
+
+        Parameters
+        ----------
+        H_t : Tensor
+            État latent du RCN au dernier pas, ``[q, N, hidden_dim]``.
+        A_dag : Tensor
+            Matrice DAG apprise (post-masque diagonal), ``[q, q]``.
+
+        Returns
+        -------
+        Tensor scalaire — moyenne des MSE de reconstruction sur les ``q``
+        variables. À multiplier par ``lambda_castle`` et à ajouter à la
+        loss totale Stage 1.
+        """
+        if H_t.dim() != 3 or H_t.size(0) != self.num_vars:
+            raise ValueError(
+                f"CASTLEAnchor : H_t attendu [q={self.num_vars}, N, hidden_dim], "
+                f"obtenu {tuple(H_t.shape)}"
+            )
+        if A_dag.dim() != 2 or A_dag.size(0) != self.num_vars or A_dag.size(1) != self.num_vars:
+            raise ValueError(
+                f"CASTLEAnchor : A_dag attendu [q={self.num_vars}, q={self.num_vars}], "
+                f"obtenu {tuple(A_dag.shape)}"
+            )
+
+        recon_losses: List[Tensor] = []
+        for i in range(self.num_vars):
+            # weights : [q, 1, 1] — la ligne i de A_dag, broadcastée sur (N, hidden)
+            weights = A_dag[i, :].view(-1, 1, 1)
+            # weighted_H : combinaison pondérée des q variables → [N, hidden_dim]
+            weighted_H = (H_t * weights).sum(dim=0)
+            # H_recon_i : reconstruction de la variable i depuis A_dag[i, :] · H_t
+            H_recon_i = self.recons[i](weighted_H)
+            # MSE entre la reconstruction et le vrai H_t[i]
+            recon_losses.append(((H_recon_i - H_t[i]) ** 2).mean())
+        return torch.stack(recon_losses).mean()
+
+
 @dataclass
 class RCNSequenceOutput:
     """
