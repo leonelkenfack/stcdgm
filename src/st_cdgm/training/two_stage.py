@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import math
 from contextlib import contextmanager
-from typing import Iterable, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -112,6 +112,243 @@ def lambda_l1_cosine_anneal(
     return float(lambda_end + (lambda_start - lambda_end) * cosine)
 
 
+# ---------------------------------------------------------------------
+# Phase C (post-V5-mini, 2026-06-09) — losses additionnelles Bundle B
+# Cible pathologies #1 (tail truncation), #2 (cécité humidité),
+# #4 (Q_int=0 / non-CC scaling), #5 (FSS@50mm sous-optimal).
+# Voir §12.4 de architecture_journey.md.
+# ---------------------------------------------------------------------
+
+
+def pinball_loss(
+    pred: Tensor,
+    target: Tensor,
+    tau: float,
+    valid_mask: Optional[Tensor] = None,
+) -> Tensor:
+    """Pinball (quantile regression) loss au quantile τ ∈ (0, 1).
+
+    Pour τ = 0.95 :
+        residual = target - pred
+        si target > pred  →  pénalité 0.95 * residual  (sous-estimation forte)
+        si target < pred  →  pénalité 0.05 * |residual| (sur-estimation faible)
+
+    Cette asymétrie pousse pred à approcher le quantile τ de la distribution
+    conditionnelle de target, plutôt que sa moyenne (que MSE optimise).
+
+    Cible pathologie #1 (V5-mini RX1day bias -6.66 mm, F1-p99 = 0.512).
+
+    Parameters
+    ----------
+    pred : Tensor
+        Prédiction du modèle, ``[B, ...]``.
+    target : Tensor
+        Cible, même shape que ``pred``.
+    tau : float
+        Quantile cible. Recommandé : 0.95 ou 0.99 pour les extrêmes.
+    valid_mask : Tensor, optional
+        Bool mask, True = pixel valide.
+
+    Returns
+    -------
+    Tensor scalaire — moyenne pondérée par ``valid_mask``.
+
+    References
+    ----------
+    Koenker & Bassett 1978, *Regression Quantiles*, Econometrica 46.
+    """
+    residual = target - pred
+    loss_per_pixel = torch.where(
+        residual >= 0,
+        tau * residual,
+        (tau - 1.0) * residual,  # = (1-tau) * |residual| for residual < 0
+    )
+    if valid_mask is None:
+        return loss_per_pixel.mean()
+    mask_f = valid_mask.float()
+    n_valid = mask_f.sum().clamp(min=1.0)
+    return (loss_per_pixel * mask_f).sum() / n_valid
+
+
+def clausius_clapeyron_reg(
+    mu_HR: Tensor,
+    lr_input: Tensor,
+    t850_channel_idx: int,
+    *,
+    cc_rate: float = 0.07,
+    weight: float = 1.0,
+    create_graph: bool = False,
+) -> Tensor:
+    """Régularisateur Clausius-Clapeyron : ∂μ_HR/∂T_850 ≈ 0.07 · μ_HR.
+
+    Loi physique : l'air peut contenir ~7 %/K de vapeur saturante en plus
+    (équation de Clausius-Clapeyron sur la pression saturante de vapeur).
+    Pour une atmosphère qui se réchauffe à humidité relative constante,
+    la précipitation moyenne doit donc augmenter de ~7 %/K (Trenberth 2003).
+
+    Cible pathologie #2 (V5-mini : do(t+3K) donne ~0 réponse, q_*
+    sensitivities = 0.05-0.11 vs w_850 = 0.43) et #4 (Q_int = 0).
+
+    Implémentation : calcule le gradient `∂(mean(mu_HR))/∂T_850` via autograd,
+    puis pénalise sa MSE par rapport à `cc_rate · mu_HR_detached`.
+
+    **IMPORTANT** : ``lr_input`` doit avoir ``requires_grad=True`` AVANT
+    le passage forward qui a produit ``mu_HR``. Sinon retourne 0 silencieusement.
+
+    Parameters
+    ----------
+    mu_HR : Tensor
+        Sortie du Stage 1, ``[B, 1, H, W]``. Doit avoir ``requires_grad=True``.
+    lr_input : Tensor
+        Input LR utilisé pour produire ``mu_HR``, ``[B, C, H_lr, W_lr]``.
+        Doit avoir ``requires_grad=True``.
+    t850_channel_idx : int
+        Index du canal T_850 dans la dimension canal de ``lr_input``.
+    cc_rate : float
+        Taux CC en log1p-space. Défaut 0.07 (= 7%/K, valeur physique).
+    weight : float
+        Poids du terme de loss (déjà appliqué ici).
+    create_graph : bool
+        Si True, autorise le double-backprop. Coûteux, généralement False.
+
+    Returns
+    -------
+    Tensor scalaire — pénalité CC pondérée par ``weight``. 0 si autograd fail.
+
+    Notes
+    -----
+    - Coût compute : +8-12 % par step (un backward additionnel).
+    - À encadrer dans try/except si autograd peut échouer (in-place ops,
+      compilation torch.compile, etc.) — voir wrapper dans training_loop.
+    - Au démarrage du training, garder ``weight=0`` durant 5-10 epochs
+      de warmup, puis activer.
+
+    References
+    ----------
+    Trenberth et al. 2003, *The Changing Character of Precipitation*, BAMS.
+    Held & Soden 2006, *Robust Responses of the Hydrological Cycle*, J. Climate.
+    """
+    if not lr_input.requires_grad:
+        return mu_HR.new_zeros(())
+    if t850_channel_idx < 0 or t850_channel_idx >= lr_input.size(1):
+        raise ValueError(
+            f"t850_channel_idx={t850_channel_idx} hors bornes pour lr_input "
+            f"de shape {tuple(lr_input.shape)}"
+        )
+
+    scalar_mu = mu_HR.mean()
+    grad_lr = torch.autograd.grad(
+        scalar_mu, lr_input,
+        create_graph=create_graph,
+        retain_graph=True,
+        allow_unused=True,
+    )[0]
+    if grad_lr is None:
+        return mu_HR.new_zeros(())
+
+    grad_t850 = grad_lr[:, t850_channel_idx:t850_channel_idx + 1, :, :]
+    if grad_t850.shape[-2:] != mu_HR.shape[-2:]:
+        grad_t850 = torch.nn.functional.interpolate(
+            grad_t850, size=mu_HR.shape[-2:],
+            mode="bilinear", align_corners=False,
+        )
+    target_grad = cc_rate * mu_HR.detach()
+    return weight * ((grad_t850 - target_grad) ** 2).mean()
+
+
+_HIGH_K_CACHE: dict = {}
+
+
+def high_k_rapsd_loss(
+    pred: Tensor,
+    target: Tensor,
+    *,
+    k_min: int = 30,
+    valid_mask: Optional[Tensor] = None,
+    eps: float = 1e-8,
+) -> Tensor:
+    """RAPSD L1 log-ratio loss restreint aux wavenumbers k ≥ k_min.
+
+    Calcule la FFT2D radial des champs pred et target, puis pénalise les
+    écarts spectraux en log-space sur la bande haute fréquence (k ≥ k_min).
+
+    Cible pathologie #5 : V5-mini RAPSD ~3× truth à k > 50 (Phase 8.07),
+    FSS@50mm = 0.69 vs CorrDiff 0.75 (Phase 9.04). Symptôme : μ_HR
+    sur-injecte de l'énergie aux petites échelles (artefacts haute fréquence).
+
+    Parameters
+    ----------
+    pred, target : Tensor
+        Champs ``[B, 1, H, W]``, même shape.
+    k_min : int
+        Wavenumber minimal à inclure. Défaut 30 (sub-mésoéchelle à
+        H × W = 172 × 179, correspond à ~10 km de longueur d'onde).
+    valid_mask : Tensor, optional
+        Mask de validité. Si fourni, applique avant FFT.
+    eps : float
+        Régularisation log.
+
+    Returns
+    -------
+    Tensor scalaire — L1 log-ratio moyennée sur la bande k ≥ k_min.
+
+    Notes
+    -----
+    - Coût compute : +10-15 % par step (RFFT2D sur ``[B, 1, H, W]``).
+    - Le radial wavenumber grid est caché par shape pour économiser
+      la ré-allocation (variable module-level ``_HIGH_K_CACHE``).
+    - Si k_min trop grand → la fenêtre haute fréquence est vide → retour 0.
+
+    References
+    ----------
+    Roberts & Lean 2008, *Scale-Selective Verification of Rainfall*, MWR.
+    Rampal et al. 2024, *Reliable cGAN downscaling*.
+    """
+    if pred.dim() != 4 or pred.shape != target.shape:
+        raise ValueError(
+            f"high_k_rapsd_loss : pred {tuple(pred.shape)} ≠ target {tuple(target.shape)}, "
+            "ou pas 4D [B, C, H, W]"
+        )
+
+    B, C, H, W = pred.shape
+    p = torch.nan_to_num(pred, nan=0.0, posinf=0.0, neginf=0.0)
+    t = torch.nan_to_num(target, nan=0.0, posinf=0.0, neginf=0.0)
+    if valid_mask is not None:
+        vm = valid_mask.float()
+        if vm.dim() == 2:
+            vm = vm.unsqueeze(0).unsqueeze(0)
+        elif vm.dim() == 3:
+            vm = vm.unsqueeze(0)
+        p = p * vm
+        t = t * vm
+
+    F_pred = torch.fft.rfft2(p, norm="ortho")
+    F_targ = torch.fft.rfft2(t, norm="ortho")
+    amp_pred = F_pred.abs().pow(2)
+    amp_targ = F_targ.abs().pow(2)
+
+    # Construction (et cache) du masque radial k ≥ k_min
+    cache_key = (H, W, int(k_min), str(pred.device))
+    if cache_key not in _HIGH_K_CACHE:
+        ky = torch.fft.fftfreq(H, device=pred.device) * H
+        kx = torch.fft.rfftfreq(W, device=pred.device) * W
+        KY, KX = torch.meshgrid(ky, kx, indexing="ij")
+        K = (KY.pow(2) + KX.pow(2)).sqrt()
+        mask = (K >= float(k_min)).float().unsqueeze(0).unsqueeze(0)
+        _HIGH_K_CACHE[cache_key] = mask
+    mask_high_k = _HIGH_K_CACHE[cache_key]
+
+    n_high = mask_high_k.sum().clamp(min=1.0)
+    if n_high.item() < 1.5:
+        return pred.new_zeros(())
+
+    log_ratio = (
+        torch.log(amp_pred * mask_high_k + eps)
+        - torch.log(amp_targ * mask_high_k + eps)
+    ) * mask_high_k
+    return log_ratio.abs().sum() / (B * n_high)
+
+
 def stage1_compute_loss(
     *,
     mu_HR: Tensor,
@@ -148,6 +385,16 @@ def stage1_compute_loss(
     castle_H_t: Optional[Tensor] = None,
     castle_A_dag: Optional[Tensor] = None,
     lambda_castle: float = 0.0,
+    # >>> Phase C (post-V5-mini, 2026-06-09) — Bundle B losses additionnelles
+    # Voir §12.4 architecture_journey.md, helpers pinball_loss,
+    # clausius_clapeyron_reg, high_k_rapsd_loss définis plus haut.
+    # Cible pathologies #1 (tail), #2 (humidité), #4 (Q_int), #5 (FSS@50mm).
+    lambda_pinball: float = 0.0,
+    pinball_taus: Tuple[float, ...] = (0.95, 0.99),
+    cc_reg_loss: Optional[Tensor] = None,
+    lambda_cc_reg: float = 0.0,
+    lambda_spectral_highk: float = 0.0,
+    k_highk_min: int = 30,
 ) -> Tuple[Tensor, dict]:
     """Stage 1 composite loss.
 
@@ -269,6 +516,44 @@ def stage1_compute_loss(
             import warnings
             warnings.warn(f"CASTLE loss skipped : {type(e).__name__}: {e}")
             components["loss_castle"] = float("nan")
+
+    # >>> Phase C (post-V5-mini) — Pinball quantile loss
+    # Cible pathologie #1 : MSE seul optimise la moyenne, pas les quantiles
+    # extrêmes (queue lourde de la précipitation). Pinball à τ=0.95, 0.99
+    # force pred à approcher ces quantiles → réduit RX1day bias.
+    if lambda_pinball > 0.0 and len(pinball_taus) > 0:
+        pb_losses: List[Tensor] = []
+        for tau in pinball_taus:
+            pb_losses.append(pinball_loss(mu_HR, target_clean, tau, valid_mask=valid_mask))
+        pinball_term = torch.stack(pb_losses).mean()
+        loss_total = loss_total + lambda_pinball * pinball_term
+        components["loss_pinball"] = float(pinball_term.detach().item())
+
+    # >>> Phase C (post-V5-mini) — Clausius-Clapeyron regularizer
+    # Cible pathologies #2 (cécité humidité) et #4 (Q_int=0).
+    # Le cc_reg_loss doit être pré-calculé par le caller (training_loop)
+    # car il nécessite que lr_input ait requires_grad=True AVANT le forward
+    # qui a produit mu_HR. Voir clausius_clapeyron_reg() au-dessus.
+    if cc_reg_loss is not None and lambda_cc_reg > 0.0:
+        loss_total = loss_total + lambda_cc_reg * cc_reg_loss
+        components["loss_cc_reg"] = float(cc_reg_loss.detach().item())
+
+    # >>> Phase C (post-V5-mini) — High-k spectral loss
+    # Cible pathologie #5 : RAPSD overshoot à k>30, FSS@50mm sous-optimal.
+    # Pénalise les écarts spectraux log-ratio sur la bande haute fréquence.
+    if lambda_spectral_highk > 0.0:
+        try:
+            spec_loss = high_k_rapsd_loss(
+                mu_HR, target_clean,
+                k_min=k_highk_min,
+                valid_mask=valid_mask.float() if valid_mask is not None else None,
+            )
+            loss_total = loss_total + lambda_spectral_highk * spec_loss
+            components["loss_spec_highk"] = float(spec_loss.detach().item())
+        except Exception as e:
+            import warnings
+            warnings.warn(f"High-k spectral loss skipped : {type(e).__name__}: {e}")
+            components["loss_spec_highk"] = float("nan")
 
     components["loss_total"] = float(loss_total.detach().item())
     return loss_total, components
