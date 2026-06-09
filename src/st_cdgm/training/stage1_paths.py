@@ -425,6 +425,197 @@ def precompute_stage1_outputs_variant(
     return out
 
 
+# ---------------------------------------------------------------------
+# Phase E (post-V5-mini, 2026-06-09) — TailStratifiedSampler
+# ---------------------------------------------------------------------
+
+
+def compute_sample_max_values(
+    dataset,
+    field_key: str = "residual",
+    max_samples: Optional[int] = None,
+) -> "list[float]":
+    """Pré-calcule le max HR par échantillon du dataset (one-shot).
+
+    Sert d'input au :class:`TailStratifiedSampler` pour stratifier les
+    batches selon le quantile de précipitation par jour. À appeler une
+    seule fois au setup du training, le résultat se cache facilement.
+
+    Parameters
+    ----------
+    dataset : Iterable indexable
+        Doit supporter ``dataset[i]`` et ``len(dataset)``. Chaque échantillon
+        doit être un dict contenant ``field_key``.
+    field_key : str
+        Clé du tenseur HR cible dans le sample. Défaut ``"residual"`` (la
+        cible Stage 1 en log1p space pour le pipeline V5).
+    max_samples : int, optional
+        Limite le nombre d'échantillons inspectés (utile pour subset eval).
+
+    Returns
+    -------
+    list[float] — un max par échantillon, dans l'ordre des indices.
+
+    Notes
+    -----
+    - Coût : O(N) forward dataset, dominé par le data loading (CPU-friendly).
+    - Pour un dataset de 365 jours, ~10-20s sur CPU.
+    - Le résultat peut être pickle/cache pour les runs ultérieurs.
+    """
+    n = len(dataset) if max_samples is None else min(len(dataset), max_samples)
+    maxes: "list[float]" = []
+    for i in range(n):
+        sample = dataset[i]
+        field = sample[field_key]
+        if isinstance(field, list):
+            # seq_len list of tensors — prendre le dernier (cible HR)
+            field = field[-1]
+        field_t = torch.as_tensor(field) if not isinstance(field, Tensor) else field
+        # nanmax safe : NaN ignorés (pixels océan)
+        valid = torch.isfinite(field_t)
+        if valid.any():
+            maxes.append(float(field_t[valid].max().item()))
+        else:
+            maxes.append(0.0)
+    return maxes
+
+
+class TailStratifiedSampler(torch.utils.data.Sampler):
+    """Sampler stratifié garantissant ``tail_fraction`` extrêmes par batch.
+
+    Cible la pathologie #1 (tail truncation) observée en V5-mini : sur 365
+    jours d'entraînement, ~18 jours contiennent les extrêmes (top 5 %), donc
+    la plupart des batches aléatoires n'en contiennent aucun → le modèle
+    n'apprend pas dessus → RX1day bias -6.66 mm, F1-p99 = 0.512.
+
+    Stratégie : pré-calculer les jours avec ``max_HR ≥ P95(train_set)``,
+    puis pour chaque batch tirer ``int(batch_size * tail_fraction)`` jours
+    de ce stratum et le reste du body.
+
+    Parameters
+    ----------
+    sample_max_values : Sequence[float]
+        Max HR par échantillon (cf :func:`compute_sample_max_values`).
+    p95_threshold : float
+        Seuil pour le stratum "tail". Typiquement ``np.percentile(values, 95)``.
+    tail_fraction : float
+        Proportion de chaque batch tirée du tail stratum. Défaut 0.30
+        (= 30 %, recommandé par §12.6 du rapport multi-agents).
+    batch_size : int
+        Taille de batch à utiliser avec un ``BatchSampler`` wrapper.
+    num_samples : int, optional
+        Nombre total d'indices à émettre par epoch. Défaut len(values).
+    seed : int, optional
+        Graine pour la reproductibilité. Défaut None (aléatoire).
+
+    Notes
+    -----
+    - À utiliser via ``DataLoader(dataset, sampler=..., batch_size=...)`` ou
+      avec un ``BatchSampler`` wrapper si on veut le control fin du batching.
+    - Coût compute : 0 % par step (overhead Python negligible).
+    - Le sampler tire **avec remise** dans chaque stratum → un même jour
+      extrême peut apparaître plusieurs fois dans un epoch. Trade-off
+      accepté : sur 18 jours de tail, 30 % * batch_size = 2-3 = inévitable.
+    - **NE PAS** utiliser le sampler stratifié pour la calibration
+      ``calibrate_sigma_data_variant`` — celle-ci doit voir la distribution
+      réelle (loader uniforme).
+
+    References
+    ----------
+    Lin et al. 2017, *Focal Loss for Dense Object Detection*, ICCV — cadre
+    général de re-weighting pour classes déséquilibrées.
+
+    Examples
+    --------
+    >>> maxes = [0.5, 0.3, 1.2, 0.4, 0.8, 1.5, 0.2, 0.9]   # 8 samples
+    >>> thr = 1.0
+    >>> sampler = TailStratifiedSampler(maxes, thr, tail_fraction=0.5,
+    ...                                  batch_size=4, num_samples=20, seed=42)
+    >>> indices = list(sampler)
+    >>> len(indices)
+    20
+    """
+
+    def __init__(
+        self,
+        sample_max_values: Sequence[float],
+        p95_threshold: float,
+        tail_fraction: float = 0.30,
+        batch_size: int = 8,
+        num_samples: Optional[int] = None,
+        seed: Optional[int] = None,
+    ) -> None:
+        super().__init__(data_source=None)  # type: ignore[arg-type]
+        if not (0.0 < tail_fraction <= 1.0):
+            raise ValueError(
+                f"tail_fraction doit être dans (0, 1], reçu {tail_fraction}"
+            )
+        if batch_size < 2:
+            raise ValueError(f"batch_size doit être >= 2, reçu {batch_size}")
+
+        self.sample_max_values = list(sample_max_values)
+        self.p95_threshold = float(p95_threshold)
+        self.tail_fraction = float(tail_fraction)
+        self.batch_size = int(batch_size)
+
+        # Partitionnement en deux strates
+        self.tail_idx = [
+            i for i, v in enumerate(self.sample_max_values) if v >= self.p95_threshold
+        ]
+        self.body_idx = [
+            i for i, v in enumerate(self.sample_max_values) if v < self.p95_threshold
+        ]
+
+        if not self.tail_idx:
+            raise ValueError(
+                f"Aucun échantillon avec max >= p95_threshold={p95_threshold}. "
+                "Vérifier la cohérence des valeurs / seuil."
+            )
+        if not self.body_idx:
+            raise ValueError(
+                "Aucun échantillon body (tous extrêmes ?). "
+                "Vérifier la cohérence des valeurs / seuil."
+            )
+
+        self.n_tail_per_batch = max(1, int(round(self.batch_size * self.tail_fraction)))
+        self.n_body_per_batch = self.batch_size - self.n_tail_per_batch
+        self.num_samples = num_samples if num_samples is not None else len(self.sample_max_values)
+
+        # Reproductibilité optionnelle
+        self.seed = seed
+        self._rng = None
+        if seed is not None:
+            import random as _r
+            self._rng = _r.Random(seed)
+
+    def __iter__(self):
+        import random
+        rng = self._rng if self._rng is not None else random
+        n_batches = max(1, self.num_samples // self.batch_size)
+        for _ in range(n_batches):
+            tail = rng.choices(self.tail_idx, k=self.n_tail_per_batch)
+            body = rng.choices(self.body_idx, k=self.n_body_per_batch)
+            batch = tail + body
+            # Avec ou sans graine, on shuffle in-place
+            if self._rng is not None:
+                self._rng.shuffle(batch)
+            else:
+                random.shuffle(batch)
+            for idx in batch:
+                yield idx
+
+    def __len__(self) -> int:
+        return (self.num_samples // self.batch_size) * self.batch_size
+
+    def __repr__(self) -> str:
+        return (
+            f"TailStratifiedSampler(n_tail={len(self.tail_idx)}, "
+            f"n_body={len(self.body_idx)}, batch_size={self.batch_size}, "
+            f"tail_fraction={self.tail_fraction:.2f} -> "
+            f"{self.n_tail_per_batch}/{self.batch_size} tail per batch)"
+        )
+
+
 __all__ = [
     "resolve_run_variant",
     "batch_lr_grid_last",
@@ -433,4 +624,6 @@ __all__ = [
     "calibrate_sigma_data_variant",
     "validate_stage1_gate",
     "precompute_stage1_outputs_variant",
+    "compute_sample_max_values",
+    "TailStratifiedSampler",
 ]
