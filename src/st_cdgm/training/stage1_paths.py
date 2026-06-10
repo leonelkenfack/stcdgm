@@ -545,7 +545,9 @@ class TailStratifiedSampler(torch.utils.data.Sampler):
         num_samples: Optional[int] = None,
         seed: Optional[int] = None,
     ) -> None:
-        super().__init__(data_source=None)  # type: ignore[arg-type]
+        # NOTE : torch >= 2.0 supprime data_source du parent Sampler.__init__.
+        # On n'appelle plus super().__init__() : la classe Sampler de base est
+        # essentiellement abstraite, l'instance se construit comme un object.
         if not (0.0 < tail_fraction <= 1.0):
             raise ValueError(
                 f"tail_fraction doit être dans (0, 1], reçu {tail_fraction}"
