@@ -12,9 +12,9 @@ Usage
     python -m scripts.compare_eval_results \\
         --baseline-dir /content/drive/.../ckpt_v2_corrdiff_normal_baseline \\
         --finetuned-dir /content/drive/.../ckpt_v2_corrdiff_normal_finetuned \\
-        --results-baseline /content/drive/.../results/v5_evaluation_baseline \\
-        --results-finetuned /content/drive/.../results/v5_evaluation_finetuned \\
-        --out results/v5_evaluation/comparison_finetuned_vs_v5mini.md
+        --results-baseline /content/drive/.../results/oracle_evaluation_baseline \\
+        --results-finetuned /content/drive/.../results/oracle_evaluation_finetuned \\
+        --out results/oracle_evaluation/comparison_finetuned_vs_v5mini.md
 
 Si certains JSONs sont absents (ex: Phase 8 a été skippée d'un côté), le script
 saute la section correspondante avec un avertissement.
@@ -350,10 +350,10 @@ def main():
                         help="Répertoire(s) contenant les JSONs post-finetune. "
                               "Peut être passé plusieurs fois.")
     parser.add_argument("--results-baseline", type=Path, action="append", default=[],
-                        help="Dossiers results/v5_evaluation pour le baseline.")
+                        help="Dossiers results/oracle_evaluation pour le baseline.")
     parser.add_argument("--results-finetuned", type=Path, action="append", default=[],
-                        help="Dossiers results/v5_evaluation pour le post-finetune.")
-    parser.add_argument("--out", type=Path, default=Path("results/v5_evaluation/comparison_finetuned_vs_v5mini.md"),
+                        help="Dossiers results/oracle_evaluation pour le post-finetune.")
+    parser.add_argument("--out", type=Path, default=Path("results/oracle_evaluation/comparison_finetuned_vs_v5mini.md"),
                         help="Chemin du rapport markdown de sortie.")
     args = parser.parse_args()
 
