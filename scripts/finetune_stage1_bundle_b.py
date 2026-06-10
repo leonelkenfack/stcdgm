@@ -489,11 +489,50 @@ def finetune_bundle_b(
     optimizer = torch.optim.AdamW(param_groups, weight_decay=hp["weight_decay"])
     print(f"[Setup] Optimizer : AdamW with {len(param_groups)} param groups")
 
-    # === Training loop ===
+    # === Resume logic (post-V5-mini robustness for Colab disconnect) ===
+    ckpt_save_dir = Path(ckpt_save_dir)
+    ckpt_save_dir.mkdir(parents=True, exist_ok=True)
+    inprogress_path = ckpt_save_dir / "epoch_finetuned_inprogress.pth"
+
     history: List[Dict[str, float]] = []
+    start_epoch = 0
+
+    if inprogress_path.exists():
+        try:
+            print(f"[Resume] Checkpoint en cours trouve : {inprogress_path}")
+            ckpt = torch.load(inprogress_path, map_location=DEVICE, weights_only=False)
+            saved_epoch = int(ckpt.get("epoch", 0))
+            if saved_epoch >= epochs:
+                print(f"  [Resume] Saved epoch ({saved_epoch}) >= target ({epochs}). Skip training.")
+                start_epoch = epochs
+            else:
+                # Load all state
+                encoder.load_state_dict(ckpt["encoder_state_dict"], strict=False)
+                rcn_cell.load_state_dict(ckpt["rcn_cell_state_dict"], strict=False)
+                regression_head.load_state_dict(ckpt["regression_head_state_dict"], strict=False)
+                castle_anchor.load_state_dict(ckpt["castle_anchor_state_dict"], strict=False)
+                if skip_block is not None and "skip_block_state_dict" in ckpt:
+                    try:
+                        skip_block.load_state_dict(ckpt["skip_block_state_dict"], strict=False)
+                    except Exception as e:
+                        print(f"  [WARN] skip_block load failed: {e}")
+                try:
+                    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+                except Exception as e:
+                    print(f"  [WARN] optimizer state load failed: {e} (will use fresh state)")
+                history = ckpt.get("history", [])
+                start_epoch = saved_epoch
+                print(f"  [Resume] Reprise a epoch {start_epoch + 1}/{epochs}")
+                print(f"  [Resume] Historique : {len(history)} epochs sauvegardes")
+        except Exception as e:
+            print(f"[WARN] Resume failed ({type(e).__name__}: {e}). Start from scratch.")
+            history = []
+            start_epoch = 0
+
+    # === Training loop ===
     t_global = time.time()
 
-    for epoch_idx in range(epochs):
+    for epoch_idx in range(start_epoch, epochs):
         print(f"\n--- Epoch {epoch_idx + 1}/{epochs} ---")
         avg = train_one_epoch_bundle_b(
             stack=stack, builder=builder,
@@ -512,11 +551,30 @@ def finetune_bundle_b(
             print(f"  [Sanity] A_dag norm={avg['A_dag_norm']:.4f}  max={avg['A_dag_max']:.4f}  var={avg['A_dag_var']:.6f}")
             print(f"  [Sanity] avg loss={avg.get('loss_total', 0):.4f}  ({avg.get('time_sec', 0):.1f}s)")
 
+        # === Persist intermediate checkpoint a chaque epoch (resume-safe) ===
+        try:
+            intermediate_state = {
+                "encoder_state_dict": encoder.state_dict(),
+                "rcn_cell_state_dict": rcn_cell.state_dict(),
+                "regression_head_state_dict": regression_head.state_dict(),
+                "castle_anchor_state_dict": castle_anchor.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "history": history,
+                "hyperparameters": hp,
+                "epoch": epoch_idx + 1,   # epochs completes
+                "epochs_target": epochs,
+            }
+            if skip_block is not None:
+                intermediate_state["skip_block_state_dict"] = skip_block.state_dict()
+            torch.save(intermediate_state, inprogress_path)
+            if (epoch_idx + 1) % sanity_eval_every == 0:
+                print(f"  [Persist] {inprogress_path.name} sauve apres epoch {epoch_idx + 1}/{epochs}")
+        except Exception as e:
+            warnings.warn(f"Per-epoch checkpoint save failed: {type(e).__name__}: {e}")
+
     print(f"\n[OK] Training terminé en {(time.time() - t_global)/60:.1f} min")
 
-    # === Save checkpoint ===
-    ckpt_save_dir = Path(ckpt_save_dir)
-    ckpt_save_dir.mkdir(parents=True, exist_ok=True)
+    # === Save final checkpoint (renomme l'inprogress) ===
     ckpt_path = ckpt_save_dir / "epoch_finetuned.pth"
 
     state = {
@@ -531,7 +589,15 @@ def finetune_bundle_b(
     if skip_block is not None:
         state["skip_block_state_dict"] = skip_block.state_dict()
     torch.save(state, ckpt_path)
-    print(f"[OK] Checkpoint sauvegardé : {ckpt_path}")
+    print(f"[OK] Checkpoint final sauvegarde : {ckpt_path}")
+
+    # Cleanup : supprime l'inprogress puisque le final est en place
+    if inprogress_path.exists():
+        try:
+            inprogress_path.unlink()
+            print(f"[OK] Cleanup : {inprogress_path.name} supprime (run termine)")
+        except Exception as e:
+            warnings.warn(f"Cleanup inprogress failed: {e}")
 
     # === Recalibrate sigma_data ===
     sigma_data_new = None
