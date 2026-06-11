@@ -68,7 +68,6 @@ from src.st_cdgm.training.physics_prior import (
 from src.st_cdgm.training.stage1_paths import (
     TailStratifiedSampler,
     compute_sample_max_values,
-    calibrate_sigma_data_variant,
 )
 
 
@@ -591,6 +590,14 @@ def finetune_bundle_b(
     torch.save(state, ckpt_path)
     print(f"[OK] Checkpoint final sauvegarde : {ckpt_path}")
 
+    # BUG fix : sauve aussi epoch_last.pth pour que CHECKPOINT_NAME='epoch_last'
+    # (defaut) recharge bien les poids fine-tunes quand EVAL_VERSION='finetuned'.
+    # Sans ce save, Cell 4 lirait l'ancien epoch_last.pth (copie pre-training
+    # du baseline) et l'utilisateur penserait que Phase F n'a rien change.
+    ckpt_alias = ckpt_save_dir / "epoch_last.pth"
+    torch.save(state, ckpt_alias)
+    print(f"[OK] Alias sauvegarde : {ckpt_alias.name} (pour EVAL_VERSION='finetuned')")
+
     # Cleanup : supprime l'inprogress puisque le final est en place
     if inprogress_path.exists():
         try:
@@ -602,23 +609,67 @@ def finetune_bundle_b(
     # === Recalibrate sigma_data ===
     sigma_data_new = None
     if not skip_sigma_data_recalib and "diffusion" in stack:
-        print("\n[Sigma_data] Recalibrating sigma_data on unstratified val_dataset...")
+        print("\n[Sigma_data] Recalibrating sigma_data on val_dataset (inline)...")
         try:
-            uniform_loader = torch.utils.data.DataLoader(
-                val_dataset, batch_size=batch_size, shuffle=False,
-                collate_fn=lambda x: x[0],
-            )
-            sigma_data_new = calibrate_sigma_data_variant(
-                variant="causal",
-                encoder=encoder, rcn_runner=stack["rcn_runner"],
-                regression_head=regression_head, skip_block=skip_block,
-                data_loader=uniform_loader, builder=builder, device=DEVICE,
-                max_samples=500,
-            )
-            print(f"  [OK] new sigma_data = {sigma_data_new:.6f}")
-            # Save into the diffusion config or checkpoint
+            # Inline recalibration : empirical std of delta_target =
+            # log1p(HR) - log1p(baseline) - mu_HR over the val set.
+            # Plus simple et moins fragile que calibrate_sigma_data_variant.
+            deltas = []
+            n_done = 0
+            for i in range(min(len(val_dataset), 200)):
+                try:
+                    sample = val_dataset[i]
+                    batch = convert_sample_to_batch_fn(sample, builder, DEVICE)
+                    target_res = batch["residual"][-1].to(DEVICE)
+                    if target_res.dim() == 3:
+                        target_res = target_res.unsqueeze(0)
+                    with torch.no_grad():
+                        H_init = encoder.init_state(batch["hetero"]).to(DEVICE)
+                        drivers = [batch["lr"].to(DEVICE)[t] for t in range(batch["lr"].shape[0])]
+                        seq = stack["rcn_runner"].run(H_init, drivers, reconstruction_sources=None)
+                        mu_c = regression_head(seq.states[-1])
+                        if mu_c.shape[-2:] != target_res.shape[-2:]:
+                            mu_c = torch.nn.functional.interpolate(
+                                mu_c, size=target_res.shape[-2:],
+                                mode="bilinear", align_corners=False,
+                            )
+                        if skip_block is not None:
+                            lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
+                            try:
+                                mu_HR_pred, _ = skip_block(lr_last, mu_c)
+                            except Exception:
+                                mu_HR_pred = mu_c
+                        else:
+                            mu_HR_pred = mu_c
+                        delta = target_res - mu_HR_pred
+                        valid = torch.isfinite(delta)
+                        if valid.any():
+                            deltas.append(delta[valid].std().item())
+                            n_done += 1
+                except Exception as ex_inner:
+                    warnings.warn(f"sigma_data sample {i}: {ex_inner}")
+            if deltas:
+                import numpy as _np
+                sigma_data_new = float(_np.mean(deltas))
+                print(f"  [OK] sigma_data_new = {sigma_data_new:.6f} (sur {n_done} samples)")
+                # BUG fix : propage sigma_data_new au stack["diffusion"] in-memory
+                # pour que Phase 7 dans la meme session kernel l'utilise.
+                try:
+                    if hasattr(stack["diffusion"], "edm_config"):
+                        old_sigma = stack["diffusion"].edm_config.sigma_data
+                        stack["diffusion"].edm_config.sigma_data = sigma_data_new
+                        print(f"  [OK] stack[\"diffusion\"].edm_config.sigma_data : {old_sigma:.6f} -> {sigma_data_new:.6f}")
+                except Exception as ex_prop:
+                    warnings.warn(f"sigma_data propagation skipped: {ex_prop}")
+            else:
+                print(f"  [WARN] Aucun sample valide pour sigma_data, on garde l'ancien")
+
+            # Garde la signature pour compat
+            _dummy_call = lambda *a, **k: sigma_data_new
+            # Save into checkpoint dict for downstream consumption
             state["sigma_data_new"] = sigma_data_new
             torch.save(state, ckpt_path)
+            torch.save(state, ckpt_save_dir / "epoch_last.pth")
         except Exception as e:
             warnings.warn(f"sigma_data recalibration failed: {type(e).__name__}: {e}")
 

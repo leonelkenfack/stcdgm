@@ -230,6 +230,15 @@ def recompute_phase6_metrics(
             print(f"  batch {i+1}/{n_avail} : RMSE={rmse_i:.4f}, MAE={mae_i:.4f}, "
                   f"Pearson={pear_i:.3f}, RAPSD={rapsd_i:.1f}, spread={spread:.4f}")
 
+    # Guard : si tous les batches ont fail, retourne early avec un message
+    if not pred_all or not target_all:
+        print("[WARN] Tous les batches ont fail. Recompute Phase 6 skip.")
+        return {
+            "error": "Tous les batches ont fail dans recompute_phase6_metrics",
+            "n_batches_attempted": n_avail,
+            "n_batches_successful": 0,
+        }
+
     # Metriques globales (agreg)
     pred_global = np.stack(pred_all, axis=0)
     target_global = np.stack(target_all, axis=0)
