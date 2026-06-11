@@ -520,9 +520,22 @@ def finetune_bundle_b(
     history: List[Dict[str, float]] = []
     start_epoch = 0
 
+    # === Diagnostic visible : afficher l'etat des checkpoints sur disque ===
+    print()
+    print("=" * 70)
+    print(f"[Resume diagnostic] Verification des checkpoints dans {ckpt_save_dir}/")
+    for fname in ["epoch_finetuned_inprogress.pth", "epoch_finetuned.pth", "epoch_last.pth"]:
+        fp = ckpt_save_dir / fname
+        if fp.exists():
+            size_mb = fp.stat().st_size / 1024**2
+            print(f"  [TROUVE] {fname} ({size_mb:.0f} MB)")
+        else:
+            print(f"  [ABSENT] {fname}")
+    print("=" * 70)
+
     if inprogress_path.exists():
         try:
-            print(f"[Resume] Checkpoint en cours trouve : {inprogress_path}")
+            print(f"\n[Resume] Reprise depuis {inprogress_path.name}")
             ckpt = torch.load(inprogress_path, map_location=DEVICE, weights_only=False)
             saved_epoch = int(ckpt.get("epoch", 0))
             if saved_epoch >= epochs:
@@ -589,9 +602,26 @@ def finetune_bundle_b(
             }
             if skip_block is not None:
                 intermediate_state["skip_block_state_dict"] = skip_block.state_dict()
-            torch.save(intermediate_state, inprogress_path)
-            if (epoch_idx + 1) % sanity_eval_every == 0:
-                print(f"  [Persist] {inprogress_path.name} sauve apres epoch {epoch_idx + 1}/{epochs}")
+            # Save to temp file then atomic rename (resilient to Drive sync interruption)
+            tmp_path = inprogress_path.with_suffix(".pth.tmp")
+            torch.save(intermediate_state, tmp_path)
+            try:
+                import os as _os
+                _os.replace(tmp_path, inprogress_path)
+            except Exception:
+                # Fallback : direct save si replace fail
+                torch.save(intermediate_state, inprogress_path)
+            # Force Drive sync flush (Colab specifique : fsync ou flush_and_unmount)
+            try:
+                import os as _os
+                with open(inprogress_path, "rb") as _f:
+                    _os.fsync(_f.fileno())
+            except Exception:
+                pass
+            # Print [Persist] CHAQUE epoch (pas seulement sanity) pour que
+            # l'utilisateur voit clairement que la persistance fonctionne.
+            size_mb = inprogress_path.stat().st_size / 1024**2
+            print(f"  [Persist] {inprogress_path.name} sauve (epoch {epoch_idx + 1}/{epochs}, {size_mb:.0f} MB)")
         except Exception as e:
             warnings.warn(f"Per-epoch checkpoint save failed: {type(e).__name__}: {e}")
 
