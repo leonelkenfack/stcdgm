@@ -1,32 +1,37 @@
 """Recompute final_validation_metrics.json apres Phase F (fine-tune).
 
-Phase 6 du notebook lit ce JSON statique. Apres un fine-tune, il faut le
-regenerer pour que la comparaison reflete le nouveau modele.
+VERSION REFACTORISEE (Option II du user, 2026-06-11) :
+Au lieu de re-implementer les metriques (ce qui a produit des chiffres
+divergents du baseline V5-mini publie), on appelle DIRECTEMENT les
+fonctions du module officiel `src/st_cdgm/evaluation/evaluation_xai.py` :
 
-Calcule sur le val_dataset :
-- RMSE, MAE (sur mu_HR + delta vs truth, log1p space)
-- Pearson global + per_sample_avg
-- spread_mean (ensemble std moyen)
-- F1-p95, F1-p99
-- RAPSD distance
-- mu_HR ablation (delta_signal_ratio_avg : impact de A_dag sur mu_HR)
+- `run_st_cdgm_inference()` : pour la prediction ensemble
+- `evaluate_metrics()` : pour mse, mae, f1_extremes, spectrum_distance
+- Pearson + spread_mean + mu_HR_ablation : calcules manuellement
+  (ils n'etaient pas dans evaluate_metrics, le V5-mini training script
+  les calculait separement)
 
-Format du JSON aligne sur ce que Phase 6 attend (cles "rmse", "mae",
-"spread_mean", "pearson_corr.global", "f1_extremes.p95/p99",
-"rapsd_distance", "mu_HR_ablation.delta_signal_ratio_avg").
+Garantit identite de formule avec le V5-mini training.
 
-Usage typique (depuis le notebook apres Phase F)
--------------------------------------------------
+Params V5-mini training (lus depuis training_config_corrdiff_normal.yaml) :
+- scheduler_type = "edm_karras"
+- eval_num_steps = 32
+- cfg_scale = 1.5
+- K (k_samples) = 64
+
+Usage typique depuis le notebook :
+
 .. code-block:: python
 
     from scripts.recompute_phase6_metrics import recompute_phase6_metrics
 
     recompute_phase6_metrics(
         stack=stack_v5, builder=builder, val_dataset=val_dataset,
-        DEVICE=DEVICE, predict_with_stack_fn=predict_with_stack,
+        DEVICE=DEVICE,
+        predict_with_stack_fn=predict_with_stack,
         convert_sample_to_batch_fn=convert_sample_to_batch,
-        out_path=V5_DIR / "final_validation_metrics.json",
-        K_samples=12, n_steps=18, n_batches=16,
+        out_path=ORACLE_FINETUNED_DIR / "final_validation_metrics.json",
+        K_samples=64, n_steps=32, n_batches=16,
     )
 """
 from __future__ import annotations
@@ -42,228 +47,177 @@ import torch
 from torch import Tensor
 
 
-# ---------------------------------------------------------------------
-# Metriques unitaires
-# ---------------------------------------------------------------------
-
-
-def _rmse_mae(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> tuple:
-    """RMSE et MAE sur pixels valides."""
-    p = pred[mask]; t = target[mask]
-    if p.size == 0:
-        return float("nan"), float("nan")
-    diff = p - t
-    rmse = float(np.sqrt(np.mean(diff ** 2)))
-    mae = float(np.mean(np.abs(diff)))
-    return rmse, mae
-
-
-def _pearson(pred: np.ndarray, target: np.ndarray, mask: np.ndarray) -> float:
-    """Pearson sur pixels valides."""
-    p = pred[mask]; t = target[mask]
-    if p.size < 2:
-        return float("nan")
-    p_c = p - p.mean(); t_c = t - t.mean()
-    denom = np.sqrt((p_c ** 2).sum() * (t_c ** 2).sum()) + 1e-12
-    return float((p_c * t_c).sum() / denom)
-
-
-def _f1_at_quantile(pred: np.ndarray, target: np.ndarray, mask: np.ndarray, q: float) -> float:
-    """F1 binarise au quantile q de la truth (sur valid mask)."""
-    p = pred[mask]; t = target[mask]
-    if p.size == 0:
-        return float("nan")
-    thr = np.quantile(t, q)
-    pred_pos = (p >= thr).astype(np.int8)
-    tgt_pos = (t >= thr).astype(np.int8)
-    tp = int(((pred_pos == 1) & (tgt_pos == 1)).sum())
-    fp = int(((pred_pos == 1) & (tgt_pos == 0)).sum())
-    fn = int(((pred_pos == 0) & (tgt_pos == 1)).sum())
-    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    return float(2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
-
-
-def _power_spectrum_rfft(field: np.ndarray) -> np.ndarray:
-    """Spectre de puissance via rfft2, aligne sur compute_power_spectrum
-    de evaluation_xai.py (utilise par le training original).
-
-    Centre le champ (mean removal) puis applique rfft2 et calcule la
-    puissance (|FFT|^2). Pas de moyennage radial — la distance L1 est
-    calculee directement sur la matrice 2D des coefficients spectraux.
-    """
-    centered = field - field.mean()
-    F = np.fft.rfft2(centered)
-    return F.real ** 2 + F.imag ** 2
-
-
-def _rapsd_distance(pred: np.ndarray, target: np.ndarray) -> float:
-    """L1 mean entre les power spectra (rfft2), aligne avec
-    compute_spectrum_distance de evaluation_xai.py utilise par le
-    training original. Pas de fft2/fftshift ni de sum, pour reproduire
-    les magnitudes du baseline V5-mini final_validation_metrics.json.
-    """
-    sp = _power_spectrum_rfft(pred)
-    st = _power_spectrum_rfft(target)
-    return float(np.mean(np.abs(sp - st)))
-
-
-# ---------------------------------------------------------------------
-# Recompute principal
-# ---------------------------------------------------------------------
-
-
 def recompute_phase6_metrics(
     *,
     stack: Dict[str, Any],
     builder,
     val_dataset,
     DEVICE: torch.device,
-    predict_with_stack_fn: Callable,
-    convert_sample_to_batch_fn: Callable,
+    predict_with_stack_fn: Callable = None,  # garde pour backward compat, pas utilise
+    convert_sample_to_batch_fn: Callable = None,  # garde pour backward compat, pas utilise
     out_path: Path,
-    K_samples: int = 12,
-    n_steps: int = 18,
+    K_samples: int = 64,
+    n_steps: int = 32,
     n_batches: int = 16,
     epoch: int = 25,
     causal_concat: bool = True,
     cfg_scale: float = 1.5,
+    scheduler_type: str = "edm_karras",
     do_mu_hr_ablation: bool = True,
     verbose: bool = True,
 ) -> Dict[str, Any]:
-    """Calcule les metriques Phase 6 et ecrit out_path.
+    """Calcule les metriques V5-mini sur stack_v5 et ecrit le JSON.
 
-    Parameters
-    ----------
-    stack : dict
-        Stack avec encoder, rcn_runner, regression_head, skip_block, diffusion.
-        Si stack contient une cle "A_dag" Tensor, l'ablation mu_HR la
-        zeroise temporairement pour mesurer son impact.
-    val_dataset : iterable indexable
-        Dataset de validation.
-    predict_with_stack_fn : callable
-        Signature (stack, batch, K, n_steps) -> Tensor [K, B, 1, H, W].
-    convert_sample_to_batch_fn : callable
-        Signature (sample, builder, device) -> batch dict.
-    out_path : Path
-        Chemin du JSON de sortie.
-
-    Returns
-    -------
-    dict des metriques calculees.
+    Utilise les FONCTIONS OFFICIELLES du training V5-mini :
+    `run_st_cdgm_inference` + `evaluate_metrics` du module evaluation_xai.
+    Garantit que les nombres sont DIRECTEMENT comparables au baseline publie.
     """
+    # Imports tardifs pour eviter circular import
+    from src.st_cdgm.evaluation.evaluation_xai import (
+        run_st_cdgm_inference,
+        evaluate_metrics,
+    )
+
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     if verbose:
-        print(f"[Recompute Phase 6] K={K_samples}, n_steps={n_steps}, n_batches={n_batches}")
+        print(f"[Recompute Phase 6] K={K_samples}, n_steps={n_steps}, scheduler={scheduler_type}, cfg_scale={cfg_scale}")
+        print(f"  n_batches : {n_batches}")
         print(f"  out_path : {out_path}")
 
     t0 = time.time()
+
+    # Extraction du stack
+    encoder = stack["encoder"]
+    rcn_runner = stack["rcn_runner"]
+    regression_head = stack["regression_head"]
+    diffusion = stack["diffusion"]
+    skip_block = stack.get("skip_block")
+    spatial_projector = stack.get("spatial_projector")
+
+    # Accumulators
+    metric_reports: List[Any] = []  # MetricReport per batch
     pearson_per_sample: List[float] = []
-    rmse_per_sample: List[float] = []
-    mae_per_sample: List[float] = []
-    rapsd_per_sample: List[float] = []
     spread_per_sample: List[float] = []
-    pred_all: List[np.ndarray] = []
+    pred_all: List[np.ndarray] = []  # pour pearson global
     target_all: List[np.ndarray] = []
-    mu_HR_only_all: List[np.ndarray] = []   # pour ablation
 
     n_avail = min(len(val_dataset), n_batches)
+    n_done = 0
 
     for i in range(n_avail):
         try:
             sample = val_dataset[i]
-        except Exception:
+        except Exception as e:
+            warnings.warn(f"sample {i} retrieval failed: {e}")
             continue
-        batch = convert_sample_to_batch_fn(sample, builder, DEVICE)
 
-        # Inference ensemble
-        with torch.no_grad():
-            ens = predict_with_stack_fn(stack, batch, K=K_samples, n_steps=n_steps)
-            # ens : [K, B=1, 1, H, W] (ou similar)
-            while ens.dim() > 4:
-                ens = ens.squeeze(1)
-            # ens : [K, ..., H, W]
-            ens_np = ens.cpu().numpy()
-            if ens_np.ndim == 3:
-                # [K, H, W]
-                ens_arr = ens_np
-            elif ens_np.ndim == 4:
-                # [K, 1, H, W] ou [K, H, W, 1] — squeeze le canal
-                ens_arr = ens_np.squeeze(1) if ens_np.shape[1] == 1 else ens_np.squeeze(-1)
+        try:
+            # Appel direct a run_st_cdgm_inference (= ce que V5-mini training utilise)
+            samples_out, target_batch, baseline_batch, dag_last, mask_batch = run_st_cdgm_inference(
+                sample,
+                builder=builder,
+                encoder=encoder,
+                rcn_runner=rcn_runner,
+                diffusion=diffusion,
+                device=DEVICE,
+                num_samples=K_samples,
+                num_steps=n_steps,
+                scheduler_type=scheduler_type,
+                apply_constraints=False,
+                use_log1p_inverse=False,  # pred reste en log1p space comme V5-mini
+                cfg_scale=cfg_scale,
+                spatial_projector=spatial_projector,
+            )
+
+            # Construire le target reel : baseline + residual (= log1p HR)
+            # target_batch est deja le target final dans run_st_cdgm_inference
+            # baseline_batch est la baseline log1p
+
+            # Appel direct a evaluate_metrics (= V5-mini training)
+            report = evaluate_metrics(
+                samples=samples_out,
+                target=target_batch,
+                baseline=baseline_batch,
+                compute_advanced=False,  # skip FSS/Wasserstein/EnergyScore (pas dans V5 JSON)
+                include_f1_extremes=True,
+                f1_percentiles=[95.0, 99.0],
+                use_mean_aggregation=False,  # = stacked_means[0], single-member, comme V5
+                valid_mask=mask_batch,
+                crps_max_ensemble_members=None,
+            )
+            metric_reports.append(report)
+
+            # Pearson + spread manuel (V5-mini les calculait separement)
+            stacked_means = torch.stack([s.t_mean for s in samples_out], dim=0)
+            pred_primary = stacked_means[0]  # single-member, comme V5
+            spread_per_sample.append(float(stacked_means.std(dim=0).mean().item()))
+
+            # Pearson sur pixels valides
+            p_np = pred_primary.detach().cpu().numpy().squeeze()
+            t_np = target_batch.detach().cpu().numpy().squeeze()
+            mask_np = np.isfinite(t_np) & np.isfinite(p_np)
+            if mask_np.sum() > 1:
+                pv = p_np[mask_np]; tv = t_np[mask_np]
+                pv_c = pv - pv.mean(); tv_c = tv - tv.mean()
+                denom = np.sqrt((pv_c**2).sum() * (tv_c**2).sum()) + 1e-12
+                pearson_i = float((pv_c * tv_c).sum() / denom)
             else:
-                ens_arr = ens_np.reshape(K_samples, -1)
-            pred_mean = ens_arr.mean(axis=0)   # [H, W]
-            spread = ens_arr.std(axis=0).mean()
+                pearson_i = float('nan')
+            pearson_per_sample.append(pearson_i)
+            pred_all.append(np.where(mask_np, p_np, 0.0))
+            target_all.append(np.where(mask_np, t_np, 0.0))
 
-            target = (batch["baseline"][-1] + batch["residual"][-1]).cpu().numpy()
-            target = target.squeeze()
-            mask = np.isfinite(target)
-            target_clean = np.where(mask, target, 0.0)
-            pred_clean = np.where(mask, pred_mean, 0.0)
+            n_done += 1
 
-            # Metriques per-sample
-            rmse_i, mae_i = _rmse_mae(pred_clean, target_clean, mask)
-            pear_i = _pearson(pred_clean, target_clean, mask)
-            rapsd_i = _rapsd_distance(pred_clean, target_clean)
+            if verbose and (i + 1) % 5 == 0:
+                print(f"  batch {i+1}/{n_avail} : "
+                      f"mse={report.mse:.4f} mae={report.mae:.4f} "
+                      f"f1_p99={report.f1_extremes.get('p99', float('nan')) if report.f1_extremes else float('nan'):.4f} "
+                      f"pearson={pearson_i:.4f} spread={spread_per_sample[-1]:.4f}")
+        except Exception as e:
+            warnings.warn(f"batch {i} eval failed: {type(e).__name__}: {e}")
+            continue
 
-            pearson_per_sample.append(pear_i)
-            rmse_per_sample.append(rmse_i)
-            mae_per_sample.append(mae_i)
-            rapsd_per_sample.append(rapsd_i)
-            spread_per_sample.append(float(spread))
-            pred_all.append(pred_clean)
-            target_all.append(target_clean)
-
-            # mu_HR-only (sans Stage 2) pour ablation
-            if do_mu_hr_ablation:
-                try:
-                    mu_only = _compute_mu_HR_only(stack, batch, DEVICE)
-                    mu_HR_only_all.append(mu_only)
-                except Exception as e:
-                    warnings.warn(f"mu_HR only failed sample {i}: {e}")
-                    mu_HR_only_all.append(np.zeros_like(pred_clean))
-
-        if verbose and (i + 1) % 5 == 0:
-            print(f"  batch {i+1}/{n_avail} : RMSE={rmse_i:.4f}, MAE={mae_i:.4f}, "
-                  f"Pearson={pear_i:.3f}, RAPSD={rapsd_i:.1f}, spread={spread:.4f}")
-
-    # Guard : si tous les batches ont fail, retourne early avec un message
-    if not pred_all or not target_all:
-        print("[WARN] Tous les batches ont fail. Recompute Phase 6 skip.")
+    if not metric_reports:
         return {
-            "error": "Tous les batches ont fail dans recompute_phase6_metrics",
+            "error": "Aucun batch eval reussi",
             "n_batches_attempted": n_avail,
             "n_batches_successful": 0,
         }
 
-    # Metriques globales (agreg)
-    pred_global = np.stack(pred_all, axis=0)
-    target_global = np.stack(target_all, axis=0)
-    mask_global = np.isfinite(target_global)
+    # Agregation des MetricReports : moyenne sur les batches (comme V5 training)
+    rmse = float(np.sqrt(np.mean([r.mse for r in metric_reports if not np.isnan(r.mse)])))
+    mae = float(np.mean([r.mae for r in metric_reports if not np.isnan(r.mae)]))
+    f1_p95 = float(np.mean([
+        r.f1_extremes.get('p95', np.nan) for r in metric_reports if r.f1_extremes
+    ]))
+    f1_p99 = float(np.mean([
+        r.f1_extremes.get('p99', np.nan) for r in metric_reports if r.f1_extremes
+    ]))
+    spectrum_distance = float(np.mean([r.spectrum_distance for r in metric_reports if not np.isnan(r.spectrum_distance)]))
 
-    rmse_global, mae_global = _rmse_mae(pred_global, target_global, mask_global)
-    pearson_global = _pearson(pred_global, target_global, mask_global)
-    # P0 fix : F1 per-sample puis moyenne, comme compute_f1_extremes original
-    # (vs seuil global qui donne des nombres differents non comparables au baseline)
-    f1_p95_per_sample = []
-    f1_p99_per_sample = []
-    for k in range(len(pred_all)):
-        m_k = np.isfinite(target_all[k])
-        f1_p95_per_sample.append(_f1_at_quantile(pred_all[k], target_all[k], m_k, 0.95))
-        f1_p99_per_sample.append(_f1_at_quantile(pred_all[k], target_all[k], m_k, 0.99))
-    f1_p95 = float(np.mean(f1_p95_per_sample)) if f1_p95_per_sample else float("nan")
-    f1_p99 = float(np.mean(f1_p99_per_sample)) if f1_p99_per_sample else float("nan")
-    rapsd_distance = float(np.mean(rapsd_per_sample))
+    # Pearson global agrege
+    pred_global = np.concatenate([p.flatten() for p in pred_all])
+    target_global = np.concatenate([t.flatten() for t in target_all])
+    mask_g = np.isfinite(pred_global) & np.isfinite(target_global)
+    if mask_g.sum() > 1:
+        p_g = pred_global[mask_g]; t_g = target_global[mask_g]
+        p_gc = p_g - p_g.mean(); t_gc = t_g - t_g.mean()
+        pearson_global = float((p_gc * t_gc).sum() / (np.sqrt((p_gc**2).sum() * (t_gc**2).sum()) + 1e-12))
+    else:
+        pearson_global = float('nan')
 
-    # mu_HR ablation (impact de A_dag)
-    mu_HR_ablation = None
-    if do_mu_hr_ablation and mu_HR_only_all and "A_dag" in stack and stack["A_dag"] is not None:
+    spread_mean = float(np.mean(spread_per_sample))
+
+    # mu_HR_ablation (impact A_dag) : Phase 6 specifique
+    mu_HR_ablation_result = None
+    if do_mu_hr_ablation and stack.get("A_dag") is not None:
         try:
-            mu_HR_ablation = _compute_mu_HR_ablation(
+            mu_HR_ablation_result = _compute_mu_HR_ablation_official(
                 stack, val_dataset, builder, DEVICE,
-                convert_sample_to_batch_fn, n_batches=min(4, n_avail),
+                n_batches=min(4, n_done),
             )
         except Exception as e:
             warnings.warn(f"mu_HR ablation failed: {e}")
@@ -274,29 +228,32 @@ def recompute_phase6_metrics(
         "epochs_total": epoch,
         "best_val_loss": None,
         "causal_concat": causal_concat,
-        "n_test_batches": n_avail,
+        "n_test_batches": n_done,
         "k_samples": K_samples,
         "metrics_scope": "full_prediction (mu_HR + delta_hat)",
         "eval_time_s": float(time.time() - t0),
-        "rmse": rmse_global,
-        "mae": mae_global,
-        "spread_mean": float(np.mean(spread_per_sample)),
+        "rmse": rmse,
+        "mae": mae,
+        "spread_mean": spread_mean,
         "f1_extremes": {"p95": f1_p95, "p99": f1_p99},
         "pearson_corr": {
             "global": pearson_global,
-            "per_sample_avg": float(np.mean(pearson_per_sample)),
+            "per_sample_avg": float(np.mean(pearson_per_sample)) if pearson_per_sample else float('nan'),
             "per_sample_n": len(pearson_per_sample),
             "per_sample_list": [float(x) for x in pearson_per_sample],
         },
-        "rapsd_distance": rapsd_distance,
-        "mu_HR_ablation": mu_HR_ablation or {
+        "rapsd_distance": spectrum_distance,  # alias pour compat avec Phase 6 reader
+        "spectrum_distance": spectrum_distance,
+        "mu_HR_ablation": mu_HR_ablation_result or {
             "delta_signal_ratio_avg": float("nan"),
             "per_batch": [],
             "verdict": "SKIPPED",
         },
         "config_eval_num_steps": n_steps,
         "config_cfg_scale": cfg_scale,
+        "config_scheduler_type": scheduler_type,
         "recomputed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "uses_official_evaluate_metrics": True,
     }
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -304,7 +261,7 @@ def recompute_phase6_metrics(
     if verbose:
         print()
         print("=" * 60)
-        print(f"[OK] Phase 6 recomputed in {result['eval_time_s']:.1f}s")
+        print(f"[OK] Phase 6 recomputed in {result['eval_time_s']:.1f}s ({n_done} batches)")
         print(f"  RMSE             : {result['rmse']:.4f}")
         print(f"  MAE              : {result['mae']:.4f}")
         print(f"  Pearson global   : {result['pearson_corr']['global']:.4f}")
@@ -313,7 +270,7 @@ def recompute_phase6_metrics(
         print(f"  F1-p99           : {result['f1_extremes']['p99']:.4f}")
         print(f"  RAPSD distance   : {result['rapsd_distance']:.4f}")
         print(f"  spread_mean      : {result['spread_mean']:.4f}")
-        if mu_HR_ablation:
+        if mu_HR_ablation_result:
             print(f"  mu_HR ablation   : {result['mu_HR_ablation']['delta_signal_ratio_avg']:.4f}")
         print(f"  Saved to         : {out_path}")
         print("=" * 60)
@@ -321,56 +278,73 @@ def recompute_phase6_metrics(
     return result
 
 
-def _compute_mu_HR_only(stack, batch, DEVICE) -> np.ndarray:
-    """Forward Stage 1 seulement (sans diffusion) pour ablation."""
-    import torch.nn.functional as F
-    enc = stack["encoder"]; rcn = stack["rcn_runner"]; rh = stack["regression_head"]
-    skip = stack.get("skip_block")
-    lr = batch["lr"].to(DEVICE)
-    H_init = enc.init_state(batch["hetero"]).to(DEVICE)
-    drivers = [lr[t] for t in range(lr.shape[0])]
-    seq = rcn.run(H_init, drivers, reconstruction_sources=None)
-    mu_c = rh(seq.states[-1])
-    tshape = batch["residual"][-1].to(DEVICE).shape
-    if tshape[-2:] != mu_c.shape[-2:]:
-        mu_c = F.interpolate(mu_c, size=tshape[-2:], mode="bilinear", align_corners=False)
-    if skip is not None:
-        lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
-        try:
-            mu, _ = skip(lr_last, mu_c)
-        except Exception:
-            mu = mu_c
-    else:
-        mu = mu_c
-    return mu.cpu().squeeze().numpy()
+def _compute_mu_HR_ablation_official(stack, val_dataset, builder, DEVICE, n_batches=4):
+    """mu_HR ablation : compare mu_HR(A_dag) vs mu_HR(A_dag=0).
 
-
-def _compute_mu_HR_ablation(
-    stack, val_dataset, builder, DEVICE, convert_sample_to_batch_fn,
-    n_batches: int = 4,
-) -> Dict[str, Any]:
-    """Ablation A_dag : compare mu_HR(A_dag) vs mu_HR(A_dag=0)."""
+    Identique au calcul fait dans le V5-mini training script.
+    """
     rcn_cell = stack["rcn_runner"].cell
     A_orig = rcn_cell.A_dag.detach().clone()
-    per_batch: List[float] = []
+    encoder = stack["encoder"]
+    rcn_runner = stack["rcn_runner"]
+    regression_head = stack["regression_head"]
+    skip_block = stack.get("skip_block")
+
+    def _forward_mu(sample):
+        # Build batch
+        lr_seq = sample["lr"]
+        seq_len = lr_seq.shape[0]
+        lr_nodes_steps = [builder.lr_grid_to_nodes(lr_seq[t]) for t in range(seq_len)]
+        lr_tensor = torch.stack(lr_nodes_steps, dim=0)
+        dynamic_features = {nt: lr_nodes_steps[0] for nt in builder.dynamic_node_types}
+        hetero = builder.prepare_step_data(dynamic_features).to(DEVICE)
+        lr_data = lr_tensor.to(DEVICE)
+
+        H_init = encoder.init_state(hetero).to(DEVICE)
+        drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+        seq = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
+        mu_c = regression_head(seq.states[-1])
+
+        target_residual = sample["residual"][-1]
+        if target_residual.dim() == 3:
+            target_residual = target_residual.unsqueeze(0)
+        tshape = target_residual.to(DEVICE).shape
+        if tshape[-2:] != mu_c.shape[-2:]:
+            mu_c = torch.nn.functional.interpolate(
+                mu_c, size=tshape[-2:], mode="bilinear", align_corners=False,
+            )
+        if skip_block is not None:
+            lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
+            try:
+                mu_HR_pred, _ = skip_block(lr_last, mu_c)
+            except Exception:
+                mu_HR_pred = mu_c
+        else:
+            mu_HR_pred = mu_c
+        return mu_HR_pred.cpu().squeeze().numpy()
+
+    per_batch = []
     for i in range(n_batches):
         try:
             sample = val_dataset[i]
         except Exception:
             continue
-        batch = convert_sample_to_batch_fn(sample, builder, DEVICE)
         with torch.no_grad():
-            mu_full = _compute_mu_HR_only(stack, batch, DEVICE)
+            mu_full = _forward_mu(sample)
             rcn_cell.A_dag.data.zero_()
-            mu_zero = _compute_mu_HR_only(stack, batch, DEVICE)
+            mu_zero = _forward_mu(sample)
             rcn_cell.A_dag.data.copy_(A_orig)
-        delta = np.abs(mu_full - mu_zero).mean()
-        signal = np.abs(mu_full).mean() + 1e-12
-        per_batch.append(float(delta / signal))
+        delta = float(np.abs(mu_full - mu_zero).mean())
+        signal = float(np.abs(mu_full).mean()) + 1e-12
+        per_batch.append(delta / signal)
+
+    if not per_batch:
+        return {"delta_signal_ratio_avg": float("nan"), "per_batch": [], "verdict": "FAILED"}
+    avg = float(np.mean(per_batch))
     return {
-        "delta_signal_ratio_avg": float(np.mean(per_batch)) if per_batch else float("nan"),
+        "delta_signal_ratio_avg": avg,
         "per_batch": per_batch,
-        "verdict": "MU_HR_CONDITIONS" if per_batch and np.mean(per_batch) > 0.5 else "MU_HR_WEAK",
+        "verdict": "MU_HR_CONDITIONS" if avg > 0.5 else "MU_HR_WEAK",
     }
 
 
