@@ -84,29 +84,28 @@ def _f1_at_quantile(pred: np.ndarray, target: np.ndarray, mask: np.ndarray, q: f
     return float(2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
 
 
-def _radial_power_spectrum(field: np.ndarray) -> np.ndarray:
-    """RAPSD : moyenne radiale de la PSD 2D."""
-    fft = np.fft.fft2(field)
-    psd2d = np.abs(np.fft.fftshift(fft)) ** 2
-    H, W = field.shape
-    cy, cx = H // 2, W // 2
-    Y, X = np.indices(field.shape)
-    R = np.sqrt((Y - cy) ** 2 + (X - cx) ** 2).astype(int)
-    R_max = min(cx, cy)
-    radial = np.zeros(R_max)
-    for r in range(R_max):
-        m = R == r
-        if m.sum() > 0:
-            radial[r] = psd2d[m].mean()
-    return radial
+def _power_spectrum_rfft(field: np.ndarray) -> np.ndarray:
+    """Spectre de puissance via rfft2, aligne sur compute_power_spectrum
+    de evaluation_xai.py (utilise par le training original).
+
+    Centre le champ (mean removal) puis applique rfft2 et calcule la
+    puissance (|FFT|^2). Pas de moyennage radial — la distance L1 est
+    calculee directement sur la matrice 2D des coefficients spectraux.
+    """
+    centered = field - field.mean()
+    F = np.fft.rfft2(centered)
+    return F.real ** 2 + F.imag ** 2
 
 
 def _rapsd_distance(pred: np.ndarray, target: np.ndarray) -> float:
-    """L1 distance entre RAPSD du pred et du target (cartes 2D)."""
-    sp = _radial_power_spectrum(pred)
-    st = _radial_power_spectrum(target)
-    n = min(len(sp), len(st))
-    return float(np.abs(sp[:n] - st[:n]).sum())
+    """L1 mean entre les power spectra (rfft2), aligne avec
+    compute_spectrum_distance de evaluation_xai.py utilise par le
+    training original. Pas de fft2/fftshift ni de sum, pour reproduire
+    les magnitudes du baseline V5-mini final_validation_metrics.json.
+    """
+    sp = _power_spectrum_rfft(pred)
+    st = _power_spectrum_rfft(target)
+    return float(np.mean(np.abs(sp - st)))
 
 
 # ---------------------------------------------------------------------
@@ -246,8 +245,16 @@ def recompute_phase6_metrics(
 
     rmse_global, mae_global = _rmse_mae(pred_global, target_global, mask_global)
     pearson_global = _pearson(pred_global, target_global, mask_global)
-    f1_p95 = _f1_at_quantile(pred_global, target_global, mask_global, 0.95)
-    f1_p99 = _f1_at_quantile(pred_global, target_global, mask_global, 0.99)
+    # P0 fix : F1 per-sample puis moyenne, comme compute_f1_extremes original
+    # (vs seuil global qui donne des nombres differents non comparables au baseline)
+    f1_p95_per_sample = []
+    f1_p99_per_sample = []
+    for k in range(len(pred_all)):
+        m_k = np.isfinite(target_all[k])
+        f1_p95_per_sample.append(_f1_at_quantile(pred_all[k], target_all[k], m_k, 0.95))
+        f1_p99_per_sample.append(_f1_at_quantile(pred_all[k], target_all[k], m_k, 0.99))
+    f1_p95 = float(np.mean(f1_p95_per_sample)) if f1_p95_per_sample else float("nan")
+    f1_p99 = float(np.mean(f1_p99_per_sample)) if f1_p99_per_sample else float("nan")
     rapsd_distance = float(np.mean(rapsd_per_sample))
 
     # mu_HR ablation (impact de A_dag)

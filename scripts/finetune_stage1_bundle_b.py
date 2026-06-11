@@ -27,7 +27,7 @@ Usage depuis Colab
         CONFIG=CONFIG,
         DEVICE=DEVICE,
         epochs=25,
-        ckpt_save_dir=V5_DIR,
+        ckpt_save_dir=ORACLE_FINETUNED_DIR,
         batch_size=8,
         sanity_eval_every=5,
     )
@@ -307,6 +307,17 @@ def train_one_epoch_bundle_b(
         )
 
         # === Backward + grad clip + step ===
+        # P0 fix : NaN/Inf guard. Si la loss est non-finite (overflow CC reg,
+        # slogdet fail, spectral log explosion), skip le step pour ne pas
+        # corrompre les poids ni le checkpoint inprogress.
+        if not torch.isfinite(loss_total):
+            warnings.warn(
+                f"[NaN guard] epoch {epoch_idx}, batch {batch_idx} : "
+                f"loss_total non-finite ({loss_total.item()}). Skip step."
+            )
+            optimizer.zero_grad(set_to_none=True)
+            continue
+
         optimizer.zero_grad(set_to_none=True)
         loss_total.backward()
         if hp.get("gradient_clipping", None):
@@ -315,6 +326,19 @@ def train_one_epoch_bundle_b(
                 all_params.extend(group["params"])
             torch.nn.utils.clip_grad_norm_(all_params, hp["gradient_clipping"])
         optimizer.step()
+
+        # P1 fix : DAG anti-collapse projections apres step.
+        # Avec lambda_l1_start=0.10 (10x baseline), A_dag peut collapser
+        # vers 0 sur premieres epochs. project_dag_spectral garde le rayon
+        # spectral < 0.95 (acyclicite), project_dag_floor preserve le prior.
+        try:
+            if hasattr(rcn_cell, "project_dag_spectral"):
+                rcn_cell.project_dag_spectral(max_radius=0.95)
+            if hasattr(rcn_cell, "project_dag_floor"):
+                rcn_cell.project_dag_floor(min_norm=0.10, prior=G_phys)
+        except Exception as e:
+            if epoch_idx == 0 and batch_idx == 0:
+                warnings.warn(f"DAG projection skipped: {type(e).__name__}: {e}")
 
         # === Logging ===
         for k, v in components.items():
@@ -664,8 +688,6 @@ def finetune_bundle_b(
             else:
                 print(f"  [WARN] Aucun sample valide pour sigma_data, on garde l'ancien")
 
-            # Garde la signature pour compat
-            _dummy_call = lambda *a, **k: sigma_data_new
             # Save into checkpoint dict for downstream consumption
             state["sigma_data_new"] = sigma_data_new
             torch.save(state, ckpt_path)
