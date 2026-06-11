@@ -687,6 +687,12 @@ def finetune_bundle_b(
                     warnings.warn(f"sigma_data propagation skipped: {ex_prop}")
             else:
                 print(f"  [WARN] Aucun sample valide pour sigma_data, on garde l'ancien")
+                # Preserve OLD sigma_data so JSON consumers can do float() safely
+                try:
+                    if hasattr(stack.get("diffusion"), "edm_config"):
+                        sigma_data_new = float(stack["diffusion"].edm_config.sigma_data)
+                except Exception:
+                    sigma_data_new = 0.5  # EDM default fallback
 
             # Save into checkpoint dict for downstream consumption
             state["sigma_data_new"] = sigma_data_new
