@@ -90,8 +90,16 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
     "tail_weight_beta": 1.0,
 
     # Phase B — L1 cosine annealing
-    "lambda_l1_start": 0.10,
-    "lambda_l1_end": 0.01,
+    # Math prof revise (3d-bis): consensus §1.8 KKT analysis showed that
+    # with lambda_dag_prior=0.40 (post I1 fix) but lambda_l1_start=0.10,
+    # the per-entry ratio at epoch 0 was only 1.44x (below the 6-node KKT
+    # threshold of 15). Physical prior was outgunned for ~80% of training.
+    # New values give epoch-0 ratio = 0.144 / 0.04 = 3.6x (still below
+    # global KKT but competitive per-edge).
+    # The L1 schedule is now "constant high" (rather than aggressive cosine
+    # decay) to maintain sparsity pressure throughout — see consensus §B2.
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
 
     # Phase A — CASTLE
     "lambda_castle_epoch_lt_10": 0.05,
@@ -120,7 +128,12 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
     # ~14x larger force than L1=0.01 per entry — meets KKT bound for both
     # 4-node and 6-node graphs.
     "lambda_dag_prior": 0.40,
-    "g_phys_alpha": 0.20,
+    # Math prof revise (3d-bis): consensus §B2 recommends alpha=0.25 for 4-node
+    # to match the observed steady-state magnitude (||A_phys_edge|| ~ 0.18-0.22
+    # in V5-mini band-diagonal pattern). 0.25 gives slightly more aggressive
+    # target than the observed magnitude, helping the prior pull A_dag away
+    # from the band-diagonal attractor.
+    "g_phys_alpha": 0.25,
 
     # Phase E — Sampling
     "tail_fraction": 0.30,
