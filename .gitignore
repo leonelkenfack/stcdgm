@@ -76,3 +76,6 @@ desktop.ini
 
 !README.md
 *.md
+
+# Path C+ tracked artifacts (re-enable .md tracking under path_c_plus/)
+!path_c_plus/**/*.md
