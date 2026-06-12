@@ -75,6 +75,8 @@ def recompute_phase6_metrics(
     scheduler_type: str = "edm_karras",
     verbose: bool = True,
     seed: Optional[int] = None,
+    epochs_configured: Optional[int] = None,
+    epochs_completed: Optional[int] = None,
     # backward-compat (ignored)
     predict_with_stack_fn: Callable = None,
     causal_concat: Optional[bool] = None,
@@ -105,6 +107,21 @@ def recompute_phase6_metrics(
         _random.seed(int(seed))
         if verbose:
             print(f"[K16] Seed set: torch+cuda+numpy+random = {seed}")
+
+    # K30 fix (audit DS): warn if model was under-trained
+    # V5-mini baseline had epoch=200 but epochs_total=10 in published JSON,
+    # meaning the model ran 5% of its configured budget. Any comparison
+    # against an under-trained model is statistically suspect.
+    if epochs_configured is not None and epochs_completed is not None:
+        if epochs_completed < epochs_configured:
+            ratio = epochs_completed / max(epochs_configured, 1)
+            warnings.warn(
+                f"K30 audit fix: model was UNDER-TRAINED. "
+                f"epochs_completed={epochs_completed} < epochs_configured={epochs_configured} "
+                f"({ratio*100:.0f}% of configured budget). "
+                f"Metrics may not represent converged model performance. "
+                f"Re-train to full budget before claiming comparison results."
+            )
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -413,6 +430,13 @@ def recompute_phase6_metrics(
         "config_scheduler_type": str(scheduler_type),
         "run_variant": run_variant,
         "seed": int(seed) if seed is not None else None,  # K16 audit trail
+        "epochs_configured": epochs_configured,  # K30 audit trail
+        "epochs_completed": epochs_completed,    # K30 audit trail
+        "is_undertrained": (
+            epochs_configured is not None
+            and epochs_completed is not None
+            and epochs_completed < epochs_configured
+        ),  # K30 flag for downstream analysis
         "recomputed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "uses_cell61_protocol": True,
         "n_batches_attempted": n_avail,
