@@ -112,7 +112,14 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
     "k_highk_min": 30,
 
     # Phase D — Physical prior mask
-    "lambda_dag_prior": 0.05,
+    # I1 fix companion: physical_prior_loss now defaults to normalize=False
+    # (sum-of-squared-errors, not /N(N-1)). The old V5-mini default of 0.05
+    # was calibrated to the divided form -> effectively lambda_eff = 0.05/30 = 0.00167
+    # for 6-node, which was 60x weaker than L1 (lambda_l1 ~ 0.10). After I1 fix,
+    # the unnormalized loss makes 0.05 too weak again. New value 0.40 gives
+    # ~14x larger force than L1=0.01 per entry — meets KKT bound for both
+    # 4-node and 6-node graphs.
+    "lambda_dag_prior": 0.40,
     "g_phys_alpha": 0.20,
 
     # Phase E — Sampling
