@@ -1488,16 +1488,34 @@ def train_epoch(
 
         if gradient_clipping is not None:
             clip_time = time.time()
+            # J12 fix (AI eng audit): clip ALL optimizer param_groups, not just
+            # encoder + rcn + diffusion. Previously, CASTLE anchor, identifiability
+            # head, spatial projector, and regression_head were NOT clipped, allowing
+            # their gradients to explode under lambda(sigma) weighting amplification.
+            # This contributed to the "DAG ignored" symptom (CASTLE pulls A_dag rows
+            # toward predictive edges with unclipped gradients dominating).
+            all_optimized_params = []
+            for group in optimizer.param_groups:
+                all_optimized_params.extend(group["params"])
             if amp_mode == "cuda_fp16":
-                # Unscale gradients before clipping
+                # Unscale gradients before clipping (J12 + fp16 safety)
                 scaler.unscale_(optimizer)
-                grad_norm_rcn = torch.nn.utils.clip_grad_norm_(rcn_runner.cell.parameters(), gradient_clipping)
-                grad_norm_diff = torch.nn.utils.clip_grad_norm_(diffusion_decoder.parameters(), gradient_clipping)
-                grad_norm_enc = torch.nn.utils.clip_grad_norm_(encoder.parameters(), gradient_clipping)
-            else:
-                grad_norm_rcn = torch.nn.utils.clip_grad_norm_(rcn_runner.cell.parameters(), gradient_clipping)
-                grad_norm_diff = torch.nn.utils.clip_grad_norm_(diffusion_decoder.parameters(), gradient_clipping)
-                grad_norm_enc = torch.nn.utils.clip_grad_norm_(encoder.parameters(), gradient_clipping)
+            # Single clip_grad_norm_ call over flat list = consistent norm
+            # computation across all modules, instead of per-module independent
+            # norms that sum up larger than the configured clip value.
+            grad_norm_total = torch.nn.utils.clip_grad_norm_(
+                all_optimized_params, gradient_clipping
+            )
+            # Keep per-module norms for diagnostic logging (NOT applied as clipping)
+            grad_norm_rcn = float(torch.norm(torch.stack([
+                p.grad.norm() for p in rcn_runner.cell.parameters() if p.grad is not None
+            ]))) if any(p.grad is not None for p in rcn_runner.cell.parameters()) else 0.0
+            grad_norm_diff = float(torch.norm(torch.stack([
+                p.grad.norm() for p in diffusion_decoder.parameters() if p.grad is not None
+            ]))) if any(p.grad is not None for p in diffusion_decoder.parameters()) else 0.0
+            grad_norm_enc = float(torch.norm(torch.stack([
+                p.grad.norm() for p in encoder.parameters() if p.grad is not None
+            ]))) if any(p.grad is not None for p in encoder.parameters()) else 0.0
             clip_time = time.time() - clip_time
             
             # Vérifier les gradients après clipping pour détecter les NaN
