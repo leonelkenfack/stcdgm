@@ -645,6 +645,24 @@ def finetune_bundle_b(
                     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
                 except Exception as e:
                     print(f"  [WARN] optimizer state load failed: {e} (will use fresh state)")
+                # §1.4 fix: restore RNG state for reproducible resume
+                try:
+                    import random as _random_mod
+                    if "rng_torch_cpu" in ckpt and ckpt["rng_torch_cpu"] is not None:
+                        torch.set_rng_state(ckpt["rng_torch_cpu"])
+                    if (
+                        "rng_torch_cuda" in ckpt
+                        and ckpt["rng_torch_cuda"] is not None
+                        and torch.cuda.is_available()
+                    ):
+                        torch.cuda.set_rng_state_all(ckpt["rng_torch_cuda"])
+                    if "rng_numpy" in ckpt and ckpt["rng_numpy"] is not None:
+                        np.random.set_state(ckpt["rng_numpy"])
+                    if "rng_python" in ckpt and ckpt["rng_python"] is not None:
+                        _random_mod.setstate(ckpt["rng_python"])
+                    print(f"  [§1.4 Resume] RNG state restored (torch+cuda+numpy+python)")
+                except Exception as e:
+                    print(f"  [WARN] RNG state restore failed: {e} (non-deterministic resume)")
                 history = ckpt.get("history", [])
                 start_epoch = saved_epoch
                 print(f"  [Resume] Reprise a epoch {start_epoch + 1}/{epochs}")
@@ -678,6 +696,11 @@ def finetune_bundle_b(
 
         # === Persist intermediate checkpoint a chaque epoch (resume-safe) ===
         try:
+            # §1.4 fix: save RNG state alongside model state for reproducible resume
+            # Without this, Colab disconnects in mid-training produce different
+            # batch ordering, noise samples, and dropout masks on resume —
+            # breaking reproducibility even with fixed seed.
+            import random as _random_mod
             intermediate_state = {
                 "encoder_state_dict": encoder.state_dict(),
                 "rcn_cell_state_dict": rcn_cell.state_dict(),
@@ -688,6 +711,13 @@ def finetune_bundle_b(
                 "hyperparameters": hp,
                 "epoch": epoch_idx + 1,   # epochs completes
                 "epochs_target": epochs,
+                # §1.4 RNG state save (DS audit fix)
+                "rng_torch_cpu": torch.get_rng_state(),
+                "rng_torch_cuda": (
+                    torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+                ),
+                "rng_numpy": np.random.get_state(),
+                "rng_python": _random_mod.getstate(),
             }
             if skip_block is not None:
                 intermediate_state["skip_block_state_dict"] = skip_block.state_dict()
