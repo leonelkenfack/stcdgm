@@ -57,6 +57,11 @@ class RegressionPredictorConfig:
     block_out_channels: Tuple[int, ...] = (64, 128, 192)
     layers_per_block: int = 2
     norm_num_groups: int = 16
+    # J1 fix: state_adapter hidden_dim — used only by the RCN-state-tensor compat
+    # path (when forward() receives a (q, N_lr, hidden) tensor instead of an
+    # (B, C, H, W) LR grid). Must match the RCN cell hidden_dim. Default 128 matches
+    # V5-mini default; override via CONFIG.rcn.hidden_dim when building.
+    state_adapter_hidden_dim: int = 128
 
 
 class RegressionMeanPredictor(nn.Module):
@@ -65,7 +70,21 @@ class RegressionMeanPredictor(nn.Module):
     def __init__(self, cfg: RegressionPredictorConfig):
         super().__init__()
         self.cfg = cfg
-        self._state_adapter: Optional[nn.Linear] = None
+        # J1 fix (AI eng audit): eager init of _state_adapter so it appears
+        # in self.parameters() at optimizer construction time and is included
+        # in state_dict() at checkpoint save time. Before this fix, the
+        # adapter was created lazily on first forward() call with a 3D/4D
+        # state tensor, which meant:
+        #   - It was NOT in optimizer.param_groups (built before any forward)
+        #     -> its weights stayed at random init forever, never trained
+        #   - It was NOT in state_dict() before first forward, silently
+        #     missing on resume
+        #   - model.parameters() returned different sets depending on whether
+        #     a forward had been called -> broke DDP find_unused_parameters
+        # Now built eagerly: appears in parameters from construction time.
+        self._state_adapter: nn.Linear = nn.Linear(
+            cfg.state_adapter_hidden_dim, cfg.in_channels
+        )
 
         # Lazy import so the module can be loaded without diffusers when
         # only the API surface is needed (e.g. testing).
@@ -183,9 +202,15 @@ class RegressionMeanPredictor(nn.Module):
         # Pool over q variables: non-causal baseline should not preserve
         # explicit DAG-structured channels.
         pooled = state.mean(dim=1)  # (B, N_lr, hidden)
-        if self._state_adapter is None:
-            self._state_adapter = nn.Linear(hidden, self.cfg.in_channels).to(
-                device=state.device, dtype=state.dtype
+        # J1 fix: state_adapter is now eagerly built in __init__. The lazy
+        # branch is replaced with an assertion to catch hidden_dim mismatches
+        # (which would silently produce wrong shapes before this fix).
+        if hidden != self._state_adapter.in_features:
+            raise ValueError(
+                f"J1 audit fix: state tensor hidden_dim={hidden} does not match "
+                f"_state_adapter.in_features={self._state_adapter.in_features}. "
+                f"Set cfg.state_adapter_hidden_dim correctly at config time "
+                f"(it must match CONFIG.rcn.hidden_dim)."
             )
         lr_nodes = self._state_adapter(pooled)  # (B, N_lr, C_lr)
         return self._nodes_to_lr_grid(lr_nodes)
