@@ -80,21 +80,42 @@ class IntelligibleVariableEncoder(nn.Module):
         if not self.configs:
             raise ValueError("Au moins une configuration de variable intelligible est requise.")
 
-        convs_dict = {}
+        # §1.6 + J4 fix (consensus + AI eng audit):
+        # Before this fix, HeteroConv(aggr="sum") aggregated all metapath outputs
+        # sharing the same target node type. So two configs targeting the same
+        # node type (e.g. GP850_spat_adj and GP850_to_GP500 both targeting GP500)
+        # would produce IDENTICAL embeddings — the q "variables" collapsed to
+        # the number of unique TARGET node types, not the number of configs.
+        # This was the root cause #2 of the band-diagonal A_dag pattern: A_dag
+        # rows for collapsed variables were forced to be identical.
+        #
+        # Fix: build a per-metapath SAGEConv ModuleDict instead of HeteroConv.
+        # Each cfg gets its own conv with its own weights. Forward computes
+        # per-metapath embeddings keyed by cfg.name (preserves identity).
+        # This matches what J4 audit recommended (aggr="cat" + per-target Linear,
+        # but cleaner: we just don't aggregate at all).
+        self.metapath_convs = nn.ModuleDict()
         for cfg in self.configs:
             kwargs = {"out_channels": hidden_dim}
             if cfg.conv_class is SAGEConv:
                 kwargs["in_channels"] = (-1, -1)  # auto-infer
             if cfg.conv_kwargs:
                 kwargs.update(cfg.conv_kwargs)
-            convs_dict[cfg.meta_path] = cfg.conv_class(**kwargs)
+            self.metapath_convs[self._metapath_key(cfg)] = cfg.conv_class(**kwargs)
 
-        self.hetero_conv = HeteroConv(convs_dict, aggr="sum")
-        
+        # Legacy hetero_conv retained as None for backward compat with old
+        # checkpoint state_dicts. With J18 strict=True, old ckpts will produce
+        # missing/unexpected key warnings — that is the intended behavior
+        # (the band-diagonal pathology was tied to this layer).
+        self.hetero_conv = None
+
         # Phase B1: Check if pyg-lib is available for Grouped GEMM optimizations
         self._check_pyg_lib_availability()
 
         if self.use_layer_norm:
+            # NOTE: J3 fix (next commit 21) will replace this single shared
+            # LayerNorm with a per-metapath ModuleDict. For now, keep shared
+            # to limit blast radius of §1.6 refactor.
             self.layer_norm = nn.LayerNorm(hidden_dim)
         else:
             self.layer_norm = nn.Identity()
@@ -106,23 +127,62 @@ class IntelligibleVariableEncoder(nn.Module):
             self.conditioning_dim = conditioning_dim
             self.conditioning_projection = nn.Linear(hidden_dim, conditioning_dim)
 
+    @staticmethod
+    def _metapath_key(cfg: "IntelligibleVariableConfig") -> str:
+        """§1.6 helper: encode metapath identity into a ModuleDict-safe string.
+
+        Uses double-underscore separator (illegal in Python identifiers but
+        valid in dict keys). Format: ``{name}__{src}__{rel}__{tgt}``.
+        """
+        src, rel, tgt = cfg.meta_path
+        return f"{cfg.name}__{src}__{rel}__{tgt}"
+
     def forward(self, data: HeteroData, *, pooled: bool = False) -> Dict[str, Tensor]:
         """
         Applique l'encodeur et retourne un dict {variable_name: embeddings}.
         Si ``pooled=True``, les embeddings sont agrégés par graphe (global pooling).
+
+        §1.6 + J4 fix: computes PER-METAPATH embeddings (not per-target-type).
+        Previously, two configs targeting the same node type would receive
+        identical embeddings because HeteroConv(aggr="sum") collapsed them.
+        Now each config has its own SAGEConv and produces an independent
+        embedding tensor keyed by cfg.name.
         """
         x_dict = {node_type: data[node_type].x for node_type in data.node_types}
-        embeddings = self.hetero_conv(x_dict, data.edge_index_dict)
 
         outputs: Dict[str, Tensor] = {}
         for cfg in self.configs:
-            tensor = embeddings[cfg.meta_path[-1]]
+            src_type, rel_type, tgt_type = cfg.meta_path
+            edge_key = (src_type, rel_type, tgt_type)
+            edge_idx = data.edge_index_dict.get(edge_key)
+
+            if edge_idx is None or edge_idx.numel() == 0:
+                # Metapath edges absent in this graph — fall back to identity
+                # on the target node features (encoder still produces output
+                # but the metapath conv contributes nothing).
+                # This is the same behavior HeteroConv would exhibit (skip the
+                # conv for that metapath), but now per-metapath.
+                tensor = x_dict[tgt_type]
+                if tensor.shape[-1] != self.hidden_dim:
+                    # Need at least a Linear to bring features into hidden_dim.
+                    # We don't have a per-config fallback Linear, so emit
+                    # zeros of correct shape (consistent with HeteroConv behavior
+                    # when no metapath produces output for that target).
+                    tensor = torch.zeros(
+                        tensor.shape[0], self.hidden_dim,
+                        device=tensor.device, dtype=tensor.dtype,
+                    )
+            else:
+                conv = self.metapath_convs[self._metapath_key(cfg)]
+                # SAGEConv expects (x_src, x_dst) for bipartite — both feature dicts
+                tensor = conv((x_dict[src_type], x_dict[tgt_type]), edge_idx)
+
             tensor = self.layer_norm(tensor)
             tensor = self.activation(tensor)
 
             if pooled:
                 pool_type = cfg.pool or self.default_pool
-                batch_attr = getattr(data[cfg.meta_path[-1]], "batch", None)
+                batch_attr = getattr(data[tgt_type], "batch", None)
                 if batch_attr is None:
                     batch_attr = torch.zeros(tensor.size(0), dtype=torch.long, device=tensor.device)
                 tensor = self._apply_pooling(tensor, batch_attr, pool_type)
