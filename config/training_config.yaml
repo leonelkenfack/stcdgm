@@ -33,13 +33,40 @@ data:
   target_transform: "log1p"
   nan_fill_strategy: "mean"
   precipitation_delta: 0.01
-  
+
   # Variables
-  lr_variables: ['u_850', 'u_500', 'u_250', 'v_850', 'v_500', 'v_250', 
-                 'w_850', 'w_500', 'w_250', 'q_850', 'q_500', 'q_250', 
+  lr_variables: ['u_850', 'u_500', 'u_250', 'v_850', 'v_500', 'v_250',
+                 'w_850', 'w_500', 'w_250', 'q_850', 'q_500', 'q_250',
                  't_850', 't_500', 't_250']
   hr_variables: ["pr"]
   static_variables: ["orog", "he", "vegt"]
+
+  # ============================================================================
+  # K8 fix (audit DS): explicit temporal train/val/test split boundaries
+  # Before this fix, the entire ACCESS-CM2 historical run (1850-2014) was
+  # used for "training" with val_dataset undefined for IterableDataset. The
+  # pipeline silently used the same data for normalization stats (K5 leakage),
+  # train, and "validation" via random_split (K9 violates temporal autocorrelation).
+  #
+  # ACCESS-CM2 historical: 1850-01-01 to 2014-12-31 (165 years daily = ~60k days)
+  # Standard climate downscaling protocol uses last decade as holdout:
+  #   train     : 1980-01-01 to 2009-12-31  (30 years, ~10950 days)
+  #   val       : 2010-01-01 to 2011-12-31  (2 years, ~730 days) for sigma_data + early stop
+  #   test      : 2012-01-01 to 2013-12-31  (2 years, ~730 days) for Phase 6 metrics
+  #   temporal_holdout : 2014-01-01 to 2014-12-31 (1 year) for genuine OOD (DS R8)
+  # ============================================================================
+  train_start_date: "1980-01-01"
+  train_end_date: "2009-12-31"
+  val_start_date: "2010-01-01"
+  val_end_date: "2011-12-31"
+  test_start_date: "2012-01-01"
+  test_end_date: "2013-12-31"
+  temporal_holdout_start_date: "2014-01-01"
+  temporal_holdout_end_date: "2014-12-31"
+  # Note: pipeline.py must respect these bounds when applying normalization
+  # (K5 fix in commit 22) and when constructing train/val/test datasets
+  # (K9 fix in commit 21). For backward compat, if any field is null, the
+  # pipeline falls back to full-dataset (legacy V5-mini behavior).
 
 # ============================================================================
 # CONFIGURATION DU GRAPHE
