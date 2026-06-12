@@ -631,14 +631,50 @@ def finetune_bundle_b(
                 print(f"  [Resume] Saved epoch ({saved_epoch}) >= target ({epochs}). Skip training.")
                 start_epoch = epochs
             else:
-                # Load all state
-                encoder.load_state_dict(ckpt["encoder_state_dict"], strict=False)
-                rcn_cell.load_state_dict(ckpt["rcn_cell_state_dict"], strict=False)
-                regression_head.load_state_dict(ckpt["regression_head_state_dict"], strict=False)
-                castle_anchor.load_state_dict(ckpt["castle_anchor_state_dict"], strict=False)
+                # J18 fix: use strict=True by default on resume
+                # Audit found that strict=False silently dropped missing or extra
+                # state_dict keys with no warning. Critical for the 6->4 nodes
+                # refactor (Batch C §1.6): num_vars dimension change would silently
+                # load partial weights and fall back to random init for A_dag —
+                # producing a hybrid model that "runs" but generates garbage.
+                # strict=True raises immediately with the actual key diff, which is
+                # the desired behavior for a refactor commit.
+                # Backward compat: if strict=True raises (legacy checkpoints with
+                # different schema), we fall back to strict=False with a LOUD
+                # warning that includes the missing/unexpected keys diff.
+                def _load_strict_with_audit(module, sd, name):
+                    """J18: try strict=True first; on failure, fall back to
+                    strict=False with explicit warning showing the key diff."""
+                    try:
+                        module.load_state_dict(sd, strict=True)
+                        return True
+                    except RuntimeError as e:
+                        # Try strict=False and report what was dropped/added
+                        result = module.load_state_dict(sd, strict=False)
+                        msg = (
+                            f"  [J18 WARN] {name} loaded with strict=False fallback. "
+                            f"Missing keys: {result.missing_keys[:5]} "
+                            f"({len(result.missing_keys)} total), "
+                            f"Unexpected: {result.unexpected_keys[:5]} "
+                            f"({len(result.unexpected_keys)} total). "
+                            f"Original strict=True error: {str(e)[:200]}"
+                        )
+                        print(msg)
+                        warnings.warn(msg, UserWarning, stacklevel=2)
+                        return False
+                _load_strict_with_audit(encoder, ckpt["encoder_state_dict"], "encoder")
+                _load_strict_with_audit(rcn_cell, ckpt["rcn_cell_state_dict"], "rcn_cell")
+                _load_strict_with_audit(
+                    regression_head, ckpt["regression_head_state_dict"], "regression_head"
+                )
+                _load_strict_with_audit(
+                    castle_anchor, ckpt["castle_anchor_state_dict"], "castle_anchor"
+                )
                 if skip_block is not None and "skip_block_state_dict" in ckpt:
                     try:
-                        skip_block.load_state_dict(ckpt["skip_block_state_dict"], strict=False)
+                        _load_strict_with_audit(
+                            skip_block, ckpt["skip_block_state_dict"], "skip_block"
+                        )
                     except Exception as e:
                         print(f"  [WARN] skip_block load failed: {e}")
                 try:
