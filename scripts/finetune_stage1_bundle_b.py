@@ -299,13 +299,21 @@ def train_one_epoch_bundle_b(
 
         # DAGMA (log-det formulation, Bello 2022)
         d = A_dag_sq.size(0)
-        s = 1.0
+        # §1.2 fix: s must strictly exceed the spectral radius of A_dag_sq for
+        # log-det(sI - A^2) to be defined. Bello 2022 §3.2 prescribes s > rho(A^2)
+        # with margin. The previous hardcoded s=1.0 silently fails when PCMCI
+        # init (or any non-trivial A_dag) has row-sum(A^2) > 1.
+        # Use Gershgorin upper bound as a conservative spectral radius estimate.
+        with torch.no_grad():
+            gershgorin_bound = float(A_dag_sq.sum(dim=1).max().item())
+        s = max(1.05 * gershgorin_bound + 1e-3, 1.0)
         try:
             M = s * torch.eye(d, device=A_dag_sq.device) - A_dag_sq
             # log-det positive seulement si M definite positive
             sign, logabsdet = torch.linalg.slogdet(M)
             if sign.item() > 0:
-                L_dag = -logabsdet
+                # h(W) = -log det(sI - W^2) + d*log(s) per Bello 2022 Eq. 5
+                L_dag = -logabsdet + d * float(torch.log(torch.tensor(s)).item())
             else:
                 # Fallback: h(W) = tr(exp(A * A)) - d (NOTEARS form)
                 L_dag = torch.trace(torch.matrix_exp(A_dag_sq)) - d
