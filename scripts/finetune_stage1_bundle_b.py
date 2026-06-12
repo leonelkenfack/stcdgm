@@ -295,12 +295,51 @@ def train_one_epoch_bundle_b(
                 mode="bilinear", align_corners=False,
             )
 
-        # Skip block (V5-mini, A1)
+        # J8 fix (AI eng audit): ConditionalSkipBlock expects an LR GRID
+        # tensor (B, C_lr, H_lr, W_lr), but drivers[t] is a NODE tensor
+        # shape (N_lr, C_lr) because RCN operates on node features.
+        # Before this fix, drivers[-1].unsqueeze(0) produced (1, N_lr, C_lr)
+        # — STILL 3D as far as AdaptiveAvgPool2d is concerned — and the
+        # bare `except Exception` silently swallowed the runtime error and
+        # fell back to mu_HR = mu_c every single batch. So the skip block:
+        #   - had gradients zero throughout fine-tune
+        #   - its parameters were in the optimizer but never updated
+        #   - its checkpoint was saved giving the illusion of an active
+        #     skip_block ablation experiment
+        # Fix: convert nodes (N_lr, C_lr) -> grid (1, C_lr, H_lr, W_lr) via
+        # builder.lr_shape reshape before passing to skip_block.
         if skip_block is not None:
-            lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
             try:
-                mu_HR, _ = skip_block(lr_last, mu_c)
-            except Exception:
+                last_driver = drivers[-1]
+                if last_driver.dim() == 4:
+                    # Already a grid (B, C, H, W)
+                    lr_grid = last_driver
+                elif last_driver.dim() == 2:
+                    # Node tensor (N_lr, C_lr) -> (1, C_lr, H_lr, W_lr)
+                    h_lr, w_lr = builder.lr_shape
+                    n_lr, c_lr = last_driver.shape
+                    if n_lr != h_lr * w_lr:
+                        raise ValueError(
+                            f"J8: driver shape (N_lr={n_lr}, C_lr={c_lr}) "
+                            f"does not match builder.lr_shape={builder.lr_shape} "
+                            f"(expected N_lr={h_lr * w_lr})"
+                        )
+                    lr_grid = last_driver.transpose(0, 1).reshape(
+                        1, c_lr, h_lr, w_lr
+                    )
+                else:
+                    raise ValueError(
+                        f"J8: driver tensor has unexpected dim {last_driver.dim()}"
+                    )
+                mu_HR, _ = skip_block(lr_grid, mu_c)
+            except Exception as e:
+                # J8: explicit warning instead of silent fallback
+                if epoch_idx == 0:
+                    warnings.warn(
+                        f"J8 skip_block forward failed (first epoch only): "
+                        f"{type(e).__name__}: {e}. Falling back to mu_HR=mu_c.",
+                        UserWarning, stacklevel=2,
+                    )
                 mu_HR = mu_c
         else:
             mu_HR = mu_c
