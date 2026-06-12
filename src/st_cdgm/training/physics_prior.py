@@ -149,6 +149,7 @@ def physical_prior_loss(
     G_phys: Tensor,
     alpha: float = 0.20,
     mask_diagonal: bool = True,
+    normalize: bool = False,
 ) -> Tensor:
     """Pénalise les écarts entre ``A_dag`` et ``α · G_phys``.
 
@@ -157,6 +158,20 @@ def physical_prior_loss(
     pour ne pas atteindre exactement {-1, 0, +1}, ce qui serait trop rigide.
     Avec `α = 0.20`, on accepte des magnitudes raisonnables qui pourraient
     être différenciées par CASTLE et la dynamique de training.
+
+    I1 fix (audit math prof): the previous version divided by ``off_diag.sum()``
+    (= N(N-1) = 30 for 6-node graph) which silently reduced the effective
+    ``lambda_dag_prior`` by 30×. KKT analysis showed that with the
+    normalization, ``lambda_phys = 0.05`` (V5-mini default) produced a
+    physical-prior gradient ~82× weaker than the L1 sparsity gradient,
+    making the prior signal ineffective. This fix changes the default to
+    ``normalize=False`` (sum-of-squared-errors) which gives the prior force
+    proportional to ``lambda_dag_prior``. Old callers can set
+    ``normalize=True`` for backward compat with the original V5-mini hyperparams.
+
+    Recommended Path C+ values with normalize=False:
+        4-node: lambda_dag_prior=0.40, alpha=0.25 (KKT: lambda_l1 < lambda_phys/6)
+        6-node: lambda_dag_prior=0.40, alpha=0.20 (KKT: lambda_l1 < lambda_phys/15)
 
     Parameters
     ----------
@@ -198,8 +213,15 @@ def physical_prior_loss(
     if mask_diagonal:
         eye = torch.eye(A_dag.size(0), device=A_dag.device, dtype=A_dag.dtype)
         off_diag = 1.0 - eye
-        return ((A_dag - target) * off_diag).pow(2).sum() / off_diag.sum().clamp(min=1.0)
-    return ((A_dag - target) ** 2).mean()
+        sse = ((A_dag - target) * off_diag).pow(2).sum()
+        if normalize:
+            # Legacy V5-mini behavior (silently weakens prior by N(N-1))
+            return sse / off_diag.sum().clamp(min=1.0)
+        # I1 fix: unnormalized sum so lambda_dag_prior has its full effect
+        return sse
+    if normalize:
+        return ((A_dag - target) ** 2).mean()
+    return ((A_dag - target) ** 2).sum()
 
 
 __all__ = [
