@@ -156,8 +156,17 @@ def schedule_lambdas(epoch: int, total_epochs: int, hp: Dict[str, Any]) -> Dict[
     — the root cause of the observed Q_phys=0.40 band-diagonal collapse.
     """
     # §1.1: dag_grad_gate ramp 0 -> 1 over [warmup_start, warmup_end]
-    gate_warmup_start = hp.get("dag_gate_warmup_start_epoch", 5)
-    gate_warmup_end = hp.get("dag_gate_warmup_end_epoch", 20)
+    # AI eng revise: scale schedule relative to total_epochs so short fine-tunes
+    # (25 epochs) still get a meaningful full-gate phase. For total_epochs=25:
+    #   start = min(5, 25//8) = min(5, 3) = 3
+    #   end   = min(20, 25//4) = min(20, 6) = 6
+    # For total_epochs=200 (full retrain):
+    #   start = min(5, 25) = 5
+    #   end   = min(20, 50) = 20
+    gate_warmup_start_default = min(5, max(2, total_epochs // 8))
+    gate_warmup_end_default = min(20, max(gate_warmup_start_default + 2, total_epochs // 4))
+    gate_warmup_start = hp.get("dag_gate_warmup_start_epoch", gate_warmup_start_default)
+    gate_warmup_end = hp.get("dag_gate_warmup_end_epoch", gate_warmup_end_default)
     if epoch < gate_warmup_start:
         dag_grad_gate = 0.0
     elif epoch >= gate_warmup_end:
@@ -311,16 +320,24 @@ def train_one_epoch_bundle_b(
         # with margin. The previous hardcoded s=1.0 silently fails when PCMCI
         # init (or any non-trivial A_dag) has row-sum(A^2) > 1.
         # Use Gershgorin upper bound as a conservative spectral radius estimate.
+        # AI eng revise: explicit .float() cast for autocast safety on A100 BF16,
+        # and use math.log(s) instead of torch tensor roundtrip for efficiency.
         with torch.no_grad():
             gershgorin_bound = float(A_dag_sq.sum(dim=1).max().item())
         s = max(1.05 * gershgorin_bound + 1e-3, 1.0)
         try:
-            M = s * torch.eye(d, device=A_dag_sq.device) - A_dag_sq
+            # Force FP32 for slogdet stability under autocast (BF16/FP16 paths
+            # silently fall back to FP32 internally but inductor + torch.compile
+            # can break this fall-through). Explicit cast is invariant.
+            A_dag_sq_f32 = A_dag_sq.float()
+            M = s * torch.eye(d, device=A_dag_sq_f32.device, dtype=torch.float32) - A_dag_sq_f32
             # log-det positive seulement si M definite positive
             sign, logabsdet = torch.linalg.slogdet(M)
             if sign.item() > 0:
                 # h(W) = -log det(sI - W^2) + d*log(s) per Bello 2022 Eq. 5
-                L_dag = -logabsdet + d * float(torch.log(torch.tensor(s)).item())
+                # math.log(s) avoids creating a 0-d tensor + CPU sync per step
+                import math as _math
+                L_dag = -logabsdet + d * _math.log(s)
             else:
                 # Fallback: h(W) = tr(exp(A * A)) - d (NOTEARS form)
                 L_dag = torch.trace(torch.matrix_exp(A_dag_sq)) - d
