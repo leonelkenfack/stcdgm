@@ -103,22 +103,42 @@ class IntelligibleVariableEncoder(nn.Module):
                 kwargs.update(cfg.conv_kwargs)
             self.metapath_convs[self._metapath_key(cfg)] = cfg.conv_class(**kwargs)
 
-        # Legacy hetero_conv retained as None for backward compat with old
-        # checkpoint state_dicts. With J18 strict=True, old ckpts will produce
-        # missing/unexpected key warnings — that is the intended behavior
-        # (the band-diagonal pathology was tied to this layer).
-        self.hetero_conv = None
+        # AI eng I-A cleanup: orphan `self.hetero_conv = None` removed.
+        # §1.6 replaced HeteroConv with per-metapath ModuleDict; the None
+        # placeholder was dead code. Old V5-mini ckpts with hetero_conv.convs.*
+        # keys will fall back via J18 strict=False warnings (intended).
 
-        # Phase B1: Check if pyg-lib is available for Grouped GEMM optimizations
+        # AI eng I-B cleanup: pyg-lib check is now dead code (no HeteroConv
+        # to benefit from Grouped GEMM). Kept as no-op for future re-enable
+        # if per-metapath SAGEConv ever supports pyg-lib optimizations.
         self._check_pyg_lib_availability()
 
+        # J3 fix (AI eng audit): replace single shared LayerNorm with
+        # per-metapath nn.ModuleDict. The previous shared LayerNorm coupled
+        # the affine parameters across all variables — even though §1.6 made
+        # the SAGEConv outputs per-metapath distinct, sharing a LayerNorm
+        # would average the gradients across all metapaths into a single
+        # set of weight/bias, partially re-collapsing variable identity.
+        # Per-metapath LayerNorm gives each variable its own normalization
+        # scale and bias, preserving identity at the post-conv stage.
         if self.use_layer_norm:
-            # NOTE: J3 fix (next commit 21) will replace this single shared
-            # LayerNorm with a per-metapath ModuleDict. For now, keep shared
-            # to limit blast radius of §1.6 refactor.
-            self.layer_norm = nn.LayerNorm(hidden_dim)
-        else:
+            self.layer_norms = nn.ModuleDict({
+                self._metapath_key(cfg): nn.LayerNorm(hidden_dim)
+                for cfg in self.configs
+            })
+            # Backward compat alias for any code path still accessing
+            # self.layer_norm directly (will produce wrong results if used
+            # but won't crash — to be removed in next architectural cleanup).
             self.layer_norm = nn.Identity()
+        else:
+            self.layer_norms = nn.ModuleDict({
+                self._metapath_key(cfg): nn.Identity()
+                for cfg in self.configs
+            })
+            self.layer_norm = nn.Identity()
+
+        # AI eng I-C: track first missing-edge fallback occurrence for diagnostic
+        self._missing_edge_warned: set = set()
 
         if conditioning_dim is None or conditioning_dim == hidden_dim:
             self.conditioning_dim = hidden_dim
@@ -155,29 +175,37 @@ class IntelligibleVariableEncoder(nn.Module):
             src_type, rel_type, tgt_type = cfg.meta_path
             edge_key = (src_type, rel_type, tgt_type)
             edge_idx = data.edge_index_dict.get(edge_key)
+            mp_key = self._metapath_key(cfg)
 
             if edge_idx is None or edge_idx.numel() == 0:
                 # Metapath edges absent in this graph — fall back to identity
                 # on the target node features (encoder still produces output
                 # but the metapath conv contributes nothing).
-                # This is the same behavior HeteroConv would exhibit (skip the
-                # conv for that metapath), but now per-metapath.
+                # AI eng I-C: log first occurrence so silent gradient-blocked
+                # paths are visible during training.
+                if cfg.name not in self._missing_edge_warned:
+                    self._missing_edge_warned.add(cfg.name)
+                    import warnings as _w
+                    _w.warn(
+                        f"§1.6 missing-edge fallback for cfg='{cfg.name}' "
+                        f"(metapath {cfg.meta_path}). Output will be zeros for "
+                        f"this metapath, blocking gradient back to upstream "
+                        f"node-type features. Will warn only once per cfg.",
+                        UserWarning, stacklevel=2,
+                    )
                 tensor = x_dict[tgt_type]
                 if tensor.shape[-1] != self.hidden_dim:
-                    # Need at least a Linear to bring features into hidden_dim.
-                    # We don't have a per-config fallback Linear, so emit
-                    # zeros of correct shape (consistent with HeteroConv behavior
-                    # when no metapath produces output for that target).
                     tensor = torch.zeros(
                         tensor.shape[0], self.hidden_dim,
                         device=tensor.device, dtype=tensor.dtype,
                     )
             else:
-                conv = self.metapath_convs[self._metapath_key(cfg)]
+                conv = self.metapath_convs[mp_key]
                 # SAGEConv expects (x_src, x_dst) for bipartite — both feature dicts
                 tensor = conv((x_dict[src_type], x_dict[tgt_type]), edge_idx)
 
-            tensor = self.layer_norm(tensor)
+            # J3 fix: per-metapath LayerNorm preserves variable identity
+            tensor = self.layer_norms[mp_key](tensor)
             tensor = self.activation(tensor)
 
             if pooled:
