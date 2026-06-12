@@ -750,75 +750,75 @@ def finetune_bundle_b(
             warnings.warn(f"Cleanup inprogress failed: {e}")
 
     # === Recalibrate sigma_data ===
+    # §1.3 fix: replace biased Jensen estimator (mean of per-sample stds)
+    # with calibrate_sigma_data_variant (Welford online algorithm = unbiased
+    # pooled std). The legacy inline computation systematically underestimated
+    # sigma_data by 30-60% due to Jensen's inequality: E[std(X_i)] <= std(union X_i).
+    # Under-estimated sigma_data biases EDM preconditioner toward over-sampling
+    # at low noise, suppressing extreme precipitation in samples.
     sigma_data_new = None
     if not skip_sigma_data_recalib and "diffusion" in stack:
-        print("\n[Sigma_data] Recalibrating sigma_data on val_dataset (inline)...")
+        print("\n[Sigma_data] Recalibrating sigma_data via calibrate_sigma_data_variant...")
         try:
-            # Inline recalibration : empirical std of delta_target =
-            # log1p(HR) - log1p(baseline) - mu_HR over the val set.
-            # Plus simple et moins fragile que calibrate_sigma_data_variant.
-            deltas = []
-            n_done = 0
-            for i in range(min(len(val_dataset), 200)):
-                try:
-                    sample = val_dataset[i]
-                    batch = convert_sample_to_batch_fn(sample, builder, DEVICE)
-                    target_res = batch["residual"][-1].to(DEVICE)
-                    if target_res.dim() == 3:
-                        target_res = target_res.unsqueeze(0)
-                    with torch.no_grad():
-                        H_init = encoder.init_state(batch["hetero"]).to(DEVICE)
-                        drivers = [batch["lr"].to(DEVICE)[t] for t in range(batch["lr"].shape[0])]
-                        seq = stack["rcn_runner"].run(H_init, drivers, reconstruction_sources=None)
-                        mu_c = regression_head(seq.states[-1])
-                        if mu_c.shape[-2:] != target_res.shape[-2:]:
-                            mu_c = torch.nn.functional.interpolate(
-                                mu_c, size=target_res.shape[-2:],
-                                mode="bilinear", align_corners=False,
-                            )
-                        if skip_block is not None:
-                            lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
-                            try:
-                                mu_HR_pred, _ = skip_block(lr_last, mu_c)
-                            except Exception:
-                                mu_HR_pred = mu_c
-                        else:
-                            mu_HR_pred = mu_c
-                        delta = target_res - mu_HR_pred
-                        valid = torch.isfinite(delta)
-                        if valid.any():
-                            deltas.append(delta[valid].std().item())
-                            n_done += 1
-                except Exception as ex_inner:
-                    warnings.warn(f"sigma_data sample {i}: {ex_inner}")
-            if deltas:
-                import numpy as _np
-                sigma_data_new = float(_np.mean(deltas))
-                print(f"  [OK] sigma_data_new = {sigma_data_new:.6f} (sur {n_done} samples)")
-                # BUG fix : propage sigma_data_new au stack["diffusion"] in-memory
-                # pour que Phase 7 dans la meme session kernel l'utilise.
-                try:
-                    if hasattr(stack["diffusion"], "edm_config"):
-                        old_sigma = stack["diffusion"].edm_config.sigma_data
-                        stack["diffusion"].edm_config.sigma_data = sigma_data_new
-                        print(f"  [OK] stack[\"diffusion\"].edm_config.sigma_data : {old_sigma:.6f} -> {sigma_data_new:.6f}")
-                except Exception as ex_prop:
-                    warnings.warn(f"sigma_data propagation skipped: {ex_prop}")
-            else:
-                print(f"  [WARN] Aucun sample valide pour sigma_data, on garde l'ancien")
-                # Preserve OLD sigma_data so JSON consumers can do float() safely
-                try:
-                    if hasattr(stack.get("diffusion"), "edm_config"):
-                        sigma_data_new = float(stack["diffusion"].edm_config.sigma_data)
-                except Exception:
-                    sigma_data_new = 0.5  # EDM default fallback
+            from src.st_cdgm.training.stage1_paths import (
+                calibrate_sigma_data_variant,
+                resolve_run_variant,
+            )
+            variant = resolve_run_variant(CONFIG)
+
+            # Build a small dataloader wrapper around the val_dataset for the calibrator
+            def _iterate_val_batches():
+                for i in range(min(len(val_dataset), 200)):
+                    try:
+                        yield val_dataset[i]
+                    except Exception:
+                        continue
+
+            calib_result = calibrate_sigma_data_variant(
+                variant=variant,
+                regression_head=regression_head,
+                data_loader=_iterate_val_batches(),
+                iterate_batches_fn=convert_sample_to_batch_fn,
+                builder=builder,
+                device=DEVICE,
+                encoder=encoder,
+                rcn_runner=stack["rcn_runner"],
+                max_samples=200,
+            )
+            sigma_data_new = float(calib_result["sigma_data"])
+            n_pixels = int(calib_result.get("n_pixels", 0))
+            print(f"  [§1.3 OK] sigma_data_new = {sigma_data_new:.6f} (Welford on {n_pixels} pixels)")
+
+            # Propagate to in-memory stack so downstream Phase 7 uses new value
+            try:
+                if hasattr(stack["diffusion"], "edm_config"):
+                    old_sigma = float(stack["diffusion"].edm_config.sigma_data)
+                    stack["diffusion"].edm_config.sigma_data = sigma_data_new
+                    print(
+                        f"  [§1.3 OK] stack['diffusion'].edm_config.sigma_data: "
+                        f"{old_sigma:.6f} -> {sigma_data_new:.6f}"
+                    )
+            except Exception as ex_prop:
+                warnings.warn(f"sigma_data propagation skipped: {ex_prop}")
 
             # Save into checkpoint dict for downstream consumption
             state["sigma_data_new"] = sigma_data_new
+            state["sigma_data_estimator"] = "calibrate_sigma_data_variant_welford"  # audit trail
             torch.save(state, ckpt_path)
             torch.save(state, ckpt_save_dir / "epoch_last.pth")
+
         except Exception as e:
-            warnings.warn(f"sigma_data recalibration failed: {type(e).__name__}: {e}")
+            warnings.warn(
+                f"§1.3 sigma_data recalibration failed: {type(e).__name__}: {e}. "
+                f"Falling back to preserving old sigma_data from stack."
+            )
+            try:
+                if hasattr(stack.get("diffusion"), "edm_config"):
+                    sigma_data_new = float(stack["diffusion"].edm_config.sigma_data)
+            except Exception:
+                sigma_data_new = 0.5  # EDM default fallback
+            state["sigma_data_new"] = sigma_data_new
+            state["sigma_data_estimator"] = "fallback_old_value"
 
     # === Save history JSON ===
     history_path = ckpt_save_dir / "finetune_history.json"
