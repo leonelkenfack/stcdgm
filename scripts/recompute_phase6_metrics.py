@@ -124,6 +124,26 @@ def recompute_phase6_metrics(
             f"diffusion._causal_concat ({_causal_concat}). Using model value."
         )
 
+    # K1 fix (audit DS): assert causal_concat consistency with run_variant.
+    # The audit found that V5-mini Oracle AND CorrDiff baselines both showed
+    # causal_concat=true in their published JSONs, meaning the noncausal
+    # baseline was evaluated via the causal-concat sampling path (with mu_HR
+    # injection). This makes the Oracle vs CorrDiff comparison apples-to-mangoes.
+    # Enforce here: if run_variant='noncausal' then causal_concat MUST be False.
+    if run_variant == "noncausal" and _causal_concat:
+        raise ValueError(
+            "K1 audit fix: run_variant='noncausal' but model has causal_concat=True. "
+            "This combination produced the invalid Oracle vs CorrDiff comparison in V5-mini. "
+            "The noncausal baseline must use a model trained WITHOUT causal_concat. "
+            "If this is intentional (e.g. ablation), explicitly pass causal_concat=True "
+            "override AND document in the output JSON metadata."
+        )
+    if run_variant == "causal" and not _causal_concat:
+        warnings.warn(
+            "K1 audit fix: run_variant='causal' but model has causal_concat=False. "
+            "Causal Oracle should use causal_concat=True. Verify the loaded checkpoint."
+        )
+
     # === Eval mode ===
     if encoder is not None:
         encoder.eval()
