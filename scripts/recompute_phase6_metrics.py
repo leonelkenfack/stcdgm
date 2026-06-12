@@ -103,10 +103,17 @@ def recompute_phase6_metrics(
         torch.manual_seed(int(seed))
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(int(seed))
+            # AI eng + DS revise: maximize within-device reproducibility
+            # cuBLAS algorithm selection is non-deterministic even with seed
+            # set; these flags suppress that within a single GPU architecture.
+            # Trade-off: ~5-10% slower, but reproducible same-device.
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
         np.random.seed(int(seed))
         _random.seed(int(seed))
         if verbose:
             print(f"[K16] Seed set: torch+cuda+numpy+random = {seed}")
+            print(f"[K16] cudnn.deterministic=True, benchmark=False (reproducibility)")
 
     # K30 fix (audit DS): warn if model was under-trained
     # V5-mini baseline had epoch=200 but epochs_total=10 in published JSON,
@@ -115,13 +122,20 @@ def recompute_phase6_metrics(
     if epochs_configured is not None and epochs_completed is not None:
         if epochs_completed < epochs_configured:
             ratio = epochs_completed / max(epochs_configured, 1)
-            warnings.warn(
-                f"K30 audit fix: model was UNDER-TRAINED. "
+            # DS revise: use BOTH print AND warnings.warn since Python silently
+            # deduplicates warnings by location after first occurrence. The
+            # print ensures the message is visible in Colab even on 2nd+ calls.
+            msg = (
+                f"\n[K30 UNDERTRAINED WARNING] "
                 f"epochs_completed={epochs_completed} < epochs_configured={epochs_configured} "
                 f"({ratio*100:.0f}% of configured budget). "
                 f"Metrics may not represent converged model performance. "
-                f"Re-train to full budget before claiming comparison results."
+                f"Re-train to full budget before claiming comparison results.\n"
             )
+            print("!" * 70)
+            print(msg)
+            print("!" * 70)
+            warnings.warn(msg, UserWarning, stacklevel=2)
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -430,6 +444,29 @@ def recompute_phase6_metrics(
         "config_scheduler_type": str(scheduler_type),
         "run_variant": run_variant,
         "seed": int(seed) if seed is not None else None,  # K16 audit trail
+        "hardware": {  # DS revise: full hardware metadata for reproducibility
+            "device": str(DEVICE),
+            "cuda_available": bool(torch.cuda.is_available()),
+            "cuda_version": (
+                str(torch.version.cuda)
+                if torch.cuda.is_available() and hasattr(torch.version, "cuda")
+                else None
+            ),
+            "cudnn_version": (
+                int(torch.backends.cudnn.version())
+                if torch.cuda.is_available() and torch.backends.cudnn.is_available()
+                else None
+            ),
+            "gpu_name": (
+                str(torch.cuda.get_device_name(0))
+                if torch.cuda.is_available()
+                else None
+            ),
+            "torch_version": str(torch.__version__),
+            "cudnn_deterministic": (
+                bool(torch.backends.cudnn.deterministic) if seed is not None else None
+            ),
+        },
         "epochs_configured": epochs_configured,  # K30 audit trail
         "epochs_completed": epochs_completed,    # K30 audit trail
         "is_undertrained": (
