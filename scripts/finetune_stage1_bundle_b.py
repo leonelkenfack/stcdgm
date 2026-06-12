@@ -122,6 +122,13 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
     # DAGMA (inchangé du V5-mini)
     "gamma_dag_max": 0.10,
     "gamma_dag_warmup_epochs": 5,
+
+    # §1.1 fix: dag_grad_gate warmup schedule
+    # Gate ramps 0 -> 1 over [warmup_start_epoch, warmup_end_epoch], so A_dag
+    # receives prediction-loss gradient progressively (cold-start safety).
+    # Before this fix, set_dag_grad_gate was never called and stayed at 0.0.
+    "dag_gate_warmup_start_epoch": 5,
+    "dag_gate_warmup_end_epoch": 20,
 }
 
 
@@ -131,7 +138,28 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
 
 
 def schedule_lambdas(epoch: int, total_epochs: int, hp: Dict[str, Any]) -> Dict[str, float]:
-    """Retourne tous les lambda_* à utiliser pour cette epoch."""
+    """Retourne tous les lambda_* à utiliser pour cette epoch.
+
+    Consensus §1.1 fix: also schedules dag_grad_gate so A_dag receives
+    gradient from the prediction loss (L_data) starting from epoch
+    dag_gate_warmup_start_epoch, ramping linearly to 1.0 by epoch
+    dag_gate_warmup_end_epoch. Before this fix, the gate was never set
+    (remained at construction default 0.0), meaning A_dag was completely
+    detached from the prediction objective and only shaped by L1+DAGMA+L_phys
+    — the root cause of the observed Q_phys=0.40 band-diagonal collapse.
+    """
+    # §1.1: dag_grad_gate ramp 0 -> 1 over [warmup_start, warmup_end]
+    gate_warmup_start = hp.get("dag_gate_warmup_start_epoch", 5)
+    gate_warmup_end = hp.get("dag_gate_warmup_end_epoch", 20)
+    if epoch < gate_warmup_start:
+        dag_grad_gate = 0.0
+    elif epoch >= gate_warmup_end:
+        dag_grad_gate = 1.0
+    else:
+        dag_grad_gate = (epoch - gate_warmup_start) / max(
+            gate_warmup_end - gate_warmup_start, 1
+        )
+
     return {
         "lambda_l1": lambda_l1_cosine_anneal(
             epoch, total_epochs, hp["lambda_l1_start"], hp["lambda_l1_end"]
@@ -150,6 +178,7 @@ def schedule_lambdas(epoch: int, total_epochs: int, hp: Dict[str, Any]) -> Dict[
         "gamma_dag": gamma_dag_warmup(
             epoch, hp["gamma_dag_max"], hp["gamma_dag_warmup_epochs"]
         ),
+        "dag_grad_gate": dag_grad_gate,  # §1.1 fix: wired to RCNCell.set_dag_grad_gate()
     }
 
 
@@ -187,6 +216,21 @@ def train_one_epoch_bundle_b(
     regression_head = stack["regression_head"]
     skip_block = stack.get("skip_block")
     rcn_cell = rcn_runner.cell
+
+    # §1.1 fix: wire dag_grad_gate so A_dag receives prediction-loss gradient.
+    # Before this fix, set_dag_grad_gate was NEVER called in the entire
+    # finetune script (grep confirms). The gate remained at construction
+    # default 0.0, meaning L_data was detached from A_dag and only L1+DAGMA+
+    # L_phys+L_castle could shape it. With L1 dominating (per KKT analysis,
+    # consensus §1.8), A_dag collapsed to band-diagonal Q_phys=0.40.
+    if hasattr(rcn_cell, "set_dag_grad_gate"):
+        rcn_cell.set_dag_grad_gate(float(lambdas["dag_grad_gate"]))
+    elif verbose and epoch_idx == 0:
+        warnings.warn(
+            "§1.1 fix: rcn_cell.set_dag_grad_gate not available — "
+            "A_dag will NOT receive prediction-loss gradient. "
+            "Q_phys is expected to converge to band-diagonal pattern."
+        )
 
     # Modules en mode train
     encoder.train()
