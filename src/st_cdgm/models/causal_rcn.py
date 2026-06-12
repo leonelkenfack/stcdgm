@@ -749,16 +749,29 @@ class CASTLEAnchor(nn.Module):
                 f"obtenu {tuple(A_dag.shape)}"
             )
 
+        # I11 fix (math prof audit): detach H_t to prevent cross-variable
+        # gradient leakage. Without detach, CASTLE loss for variable i pulls
+        # gradient through ALL variables j != i via the weighted sum, which
+        # violates Pearl's "autonomous mechanism" property of SCMs (the causal
+        # parents of i should not have their hidden states modified by i's loss).
+        # With detach: CASTLE loss flows ONLY through A_dag (the selection
+        # mechanism), keeping H_t as a fixed-context "target" for each
+        # per-variable reconstruction. This makes CASTLE a pure DAG-shaping
+        # signal rather than a global representation-shaping signal.
+        H_t_detached = H_t.detach()
         recon_losses: List[Tensor] = []
         for i in range(self.num_vars):
             # weights : [q, 1, 1] — la ligne i de A_dag, broadcastée sur (N, hidden)
             weights = A_dag[i, :].view(-1, 1, 1)
             # weighted_H : combinaison pondérée des q variables → [N, hidden_dim]
-            weighted_H = (H_t * weights).sum(dim=0)
+            # I11: use detached H_t so gradient flows only through A_dag weights
+            weighted_H = (H_t_detached * weights).sum(dim=0)
             # H_recon_i : reconstruction de la variable i depuis A_dag[i, :] · H_t
             H_recon_i = self.recons[i](weighted_H)
             # MSE entre la reconstruction et le vrai H_t[i]
-            recon_losses.append(((H_recon_i - H_t[i]) ** 2).mean())
+            # Target also detached: don't backprop into the encoder/RCN
+            # representation through CASTLE loss
+            recon_losses.append(((H_recon_i - H_t_detached[i]) ** 2).mean())
         return torch.stack(recon_losses).mean()
 
 
