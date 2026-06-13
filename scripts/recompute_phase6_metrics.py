@@ -230,6 +230,7 @@ def recompute_phase6_metrics(
     _all_stds: List[torch.Tensor] = []
     _all_targets: List[torch.Tensor] = []
     _all_mu_HR: List[torch.Tensor] = []
+    _all_baseline_log: List[torch.Tensor] = []  # K3 fix: cache for full-space alignment
     _intervention: List[float] = []
 
     n_avail = min(len(val_dataset), n_batches)
@@ -259,6 +260,9 @@ def recompute_phase6_metrics(
                 _all_targets.append(_target)
                 if _causal_concat and _mu_HR is not None:
                     _all_mu_HR.append(_mu_HR.detach())
+                # K3 fix: also cache baseline_log for full-space metric alignment
+                if _causal_concat and _baseline_log is not None:
+                    _all_baseline_log.append(_baseline_log.detach())
 
                 if (
                     do_mu_hr_ablation
@@ -302,25 +306,58 @@ def recompute_phase6_metrics(
     _targets = torch.cat(_all_targets, dim=0).cpu()
     _valid = torch.isfinite(_targets)
 
-    # === BS31f_FULL_PREDICTION : pred_full = pred_mean + mu_HR ===
-    if _all_mu_HR:
+    # === K3 fix (DS audit): properly aligned pred vs target ===
+    # Audit finding: legacy code compared pred_full = δ̂_mean + μ_HR against
+    # _targets = δ̂_true (residual only). The μ_HR offset on the prediction
+    # side but NOT the target side artifactually inflated Pearson and
+    # depressed RMSE — apples-to-oranges.
+    #
+    # K3 fix: compute BOTH aligned versions and report.
+    #   1. residual-space: pred_residual = δ̂_mean vs target_residual = δ̂_true
+    #      (Stage 2 diffusion quality, μ_HR-independent)
+    #   2. full-HR-space (log1p): pred_full = baseline_log + μ_HR + δ̂_mean
+    #                              target_full = baseline_log + δ̂_true
+    #      (end-to-end downscaling quality)
+    # Primary metrics use full-HR-space (BS31f intent) but residual-space is
+    # logged for diagnostic.
+    _pred_residual = _pred_mean.clone()
+    _target_residual = _targets.clone()
+
+    if _all_mu_HR and _all_baseline_log:
         _mu_concat_eval = torch.cat(_all_mu_HR, dim=0).cpu()
-        if _mu_concat_eval.shape == _pred_mean.shape:
-            _pred_full = _pred_mean + _mu_concat_eval
-            _metrics_scope = "full_prediction (mu_HR + delta_hat)"
+        _baseline_log_concat = torch.cat(_all_baseline_log, dim=0).cpu()
+        if (_mu_concat_eval.shape == _pred_mean.shape
+                and _baseline_log_concat.shape == _pred_mean.shape):
+            # K3-correct alignment: both pred and target in log1p(HR) space
+            _pred_full = _baseline_log_concat + _mu_concat_eval + _pred_mean
+            _target_full = _baseline_log_concat + _targets
+            _targets_for_metrics = _target_full
+            _metrics_scope = "K3_full_log1p_HR (baseline + mu_HR + delta_hat vs baseline + target_residual)"
         else:
             warnings.warn(
-                f"BS31f : mu_HR shape mismatch {_mu_concat_eval.shape} vs "
-                f"pred {_pred_mean.shape} - fallback raw delta_hat for metrics"
+                f"K3 shape mismatch — mu_HR {_mu_concat_eval.shape}, "
+                f"baseline_log {_baseline_log_concat.shape}, pred {_pred_mean.shape}. "
+                f"Falling back to residual-only metrics."
             )
             _pred_full = _pred_mean
-            _metrics_scope = "delta_only (BS31f fallback)"
+            _targets_for_metrics = _targets
+            _metrics_scope = "K3_residual_only (fallback)"
+    elif _all_mu_HR:
+        # Has mu_HR but no baseline_log cached - degrade gracefully to residual
+        warnings.warn(
+            "K3: baseline_log not cached — comparing residuals only "
+            "(legacy BS31f had pred_full=δ̂+μ_HR vs target=δ̂ which was biased)"
+        )
+        _pred_full = _pred_mean
+        _targets_for_metrics = _targets
+        _metrics_scope = "K3_residual_only (no baseline_log cached)"
     else:
         _pred_full = _pred_mean
-        _metrics_scope = "delta_only (no mu_HR cached)"
+        _targets_for_metrics = _targets
+        _metrics_scope = "K3_residual_only (no mu_HR cached)"
 
     _pred_clean = torch.where(_valid, _pred_full, torch.zeros_like(_pred_full))
-    _targ_clean = torch.where(_valid, _targets, torch.zeros_like(_targets))
+    _targ_clean = torch.where(_valid, _targets_for_metrics, torch.zeros_like(_targets_for_metrics))
     _diff_sq = ((_pred_clean - _targ_clean) ** 2)[_valid]
     _rmse = float(_diff_sq.mean().sqrt().item()) if _valid.any() else float("nan")
     _mae = float((_pred_clean - _targ_clean).abs()[_valid].mean().item()) if _valid.any() else float("nan")
