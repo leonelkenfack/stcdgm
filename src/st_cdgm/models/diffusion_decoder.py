@@ -772,6 +772,26 @@ class CausalDiffusionDecoder(nn.Module):
         # Phase 3.2: Use EDM ODE solver if requested
         # Phase E1: Use DPM-Solver++ if requested (faster than EDM)
         if scheduler_type == "edm_karras":
+            # J29 fix (AI eng audit): CFG (classifier-free guidance) is NOT
+            # implemented in _sample_edm_karras. If a user passes cfg_scale > 1
+            # alongside scheduler_type="edm_karras" thinking they have CFG
+            # active, the cfg_scale is silently IGNORED — the model runs the
+            # conditioned branch only. This invalidated the published V4
+            # Pearson 0.815 result (which claimed cfg_scale=1.5 + edm_karras).
+            # Now raise loudly so the user MUST either:
+            #   - Switch scheduler_type to "dpm_solver++" (CFG implemented there)
+            #   - Set cfg_scale=1.0 (no CFG, conditioned-only inference)
+            #   - Set cfg_scale=0.0 (treated as cfg disabled)
+            if cfg_scale is not None and cfg_scale > 1.0 + 1e-9:
+                raise ValueError(
+                    f"J29 audit fix: cfg_scale={cfg_scale} > 1.0 was requested "
+                    f"with scheduler_type='edm_karras'. CFG is NOT implemented "
+                    f"in _sample_edm_karras (Karras 2022 Appendix C.3 not "
+                    f"applied). Either: (1) set cfg_scale=1.0 for "
+                    f"conditioned-only sampling, or (2) switch to "
+                    f"scheduler_type='dpm_solver++' which implements CFG. "
+                    f"Silent fallback was the V4 Pearson 0.815 invalidation bug."
+                )
             # EDM Heun sampler (Karras 2022 Algo 2). Default 18 steps.
             num_steps = num_steps or 18
             return self._sample_edm_karras(
