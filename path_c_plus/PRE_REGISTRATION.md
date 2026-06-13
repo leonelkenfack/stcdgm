@@ -154,6 +154,20 @@ H1 acceptance threshold (locked here, before A0''): `Q_phys_cont ≥ 0.50`
 sur la moyenne des 3 seeds, avec BCa 95% CI lower bound > baseline_cont
 (baseline_cont = Q_phys_cont du V5-mini band-diagonal = 0.04).
 
+**Note d'endpoint-drift** (post-mortem smoke #3, DS audit) :
+l'endpoint H1 originellement défini dans `HYPERPLAN.md §H1` était
+l'intervention ratio :
+```
+Q_phys_interv = mean(|mu_HR(A_real) - mu_HR(A_zeroed)|) / mean(|mu_HR(A_real)|)
+```
+PC5 redéfinit l'endpoint en magnitude ratio structural (sur `A_dag`)
+pour fermer la voie de gaming exposée par smoke #3 (sign-correct edges
+à magnitude juste au-dessus du threshold). Le `Q_phys_interv` reste
+reporté en **diagnostic tertiaire** dans le JSON A0'' (champ
+`q_phys_interventional`), mais ne participe PAS au test statistique H1.
+Pas de cherry-picking entre les deux : si le mémoire cite Q_phys, il
+s'agit toujours de `Q_phys_cont` (PC5).
+
 ### PC6 — Band-diagonal n_extra_edges as pre-registered secondary outcome
 
 (Ajouté après le post-mortem du smoke #3 — DS recommendation)
@@ -222,6 +236,35 @@ avec alpha=0.05. Le ranking p-value sera fait avant l'unblinding des A0'' JSONs.
 **Q_phys_binary** (la métrique du smoke #3) reste un diagnostic secondaire,
 reporté avec son threshold (0.01 ou 0.3·max), mais ne contribue PAS au
 test statistique H1.
+
+**PC8 follow-ups (Batch F-bis, 2026-06-13)** :
+
+4. **sd floor + small-sample fallback** : avec n=3 seeds, Cohen's d peut
+   diverger si les 3 seeds collapsent sur une A_dag identique
+   (`sd_pathcplus → 0` → `d → ∞`). Floor explicite :
+   ```python
+   sd_pathcplus = max(sd_pathcplus_observed, 0.05)
+   ```
+   En parallèle du BCa CI, rapporter aussi un **Student-t one-sided CI
+   (df=2, α=0.05)** sur Q_phys_cont. Pour passer H1, exiger que **LES DEUX
+   bornes inférieures** (BCa AND Student-t) > baseline_cont upper CI.
+   BCa avec n=3 est mathématiquement instable ; le Student-t one-sided
+   sert de garde-fou conservatif.
+
+5. **Random-null check** : la baseline V5-mini Q_phys_cont = 0.04 est
+   *band-diagonal-induced*, pas random. Pour éviter qu'un Path C+ ré-arrange
+   simplement le band-diagonal et "batte" 0.04 sans recovery causale,
+   le critère H1 exige aussi de dépasser le null analytique :
+   ```
+   E[Q_phys_cont | A iid Normal(0,sigma)] = 0.5 × (n_phys / n_off_diag)
+                                          = 0.5 × 5/30
+                                          ≈ 0.083
+   ```
+   Donc Path C+ doit satisfaire `Q_phys_cont > 0.083` AVANT même de
+   comparer au baseline. Avec le threshold PC5 (≥ 0.50), cette condition
+   est automatiquement remplie, mais elle est listée ici pour fermer la
+   voie d'un Path C+ borderline (e.g., Q_phys_cont = 0.06) qui passerait
+   "> 0.04" sans dépasser le null random.
 
 ## Tombstone des résultats historiques pré-K1
 
@@ -294,5 +337,7 @@ Commit hash @ signature : _______________
 | Version | Date | Changement | Approbation |
 |---|---|---|---|
 | 1.0 | 2026-06-12 | Draft initial | (pending) |
+| 1.1 | 2026-06-13 | PC5-PC8 ajoutés post-mortem smoke #3 (council ARTEFACT verdict, commit b5c57b8, ref `project_smoke_artefact.md`). Endpoint H1 redéfini d'interventional (HYPERPLAN §H1 = `mean(\|mu_HR(A_real)-mu_HR(A_zeroed)\|)/mean(\|mu_HR(A_real)\|)`) → structural magnitude-ratio (PC5). Justification : smoke #3 a montré que le binary metric peut être gamé sous projection (3 edges TP à 0.011 = threshold + 1%). L'interventional Q_phys reste reporté comme diagnostic tertiaire à A0''. Tightening only (criteria stricter, never looser). | Council DS sign-off pending |
+| 1.2 | 2026-06-13 | Batch F post-validation : PC8 sd floor (0.05) + Student-t fallback CI, PC8 random-null check (0.083), PC5 endpoint-drift note. PC7 tombstone tagging hardened : smoke JSONs ne portent PLUS le marker `fixes_applied` (réservé A0''). | Council Math/AI/DS sign-off pending |
 
 Toute modification post-signature doit être tracée ici avec justification scientifique.
