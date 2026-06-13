@@ -160,16 +160,25 @@ class IntelligibleVariableEncoder(nn.Module):
     def _migrate_legacy_state_dict(self, state_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
         """§1.6 + J3 migration: convert V5-mini encoder state_dict to new format.
 
-        V5-mini used:
-          - hetero_conv.convs.<cfg.name>.<...>  (HeteroConv ModuleDict)
-          - layer_norm.{weight,bias}             (single shared LayerNorm)
+        V5-mini used PyTorch Geometric's auto-generated HeteroConv edge-type key:
+          - hetero_conv.convs.<{src}___{rel}___{tgt}>.<...>  (angle-bracketed,
+            triple-underscored, NOT cfg.name -- bug fix 2026-06-13)
+          - layer_norm.{weight,bias}                          (single shared LayerNorm)
 
         Path C+ uses:
-          - metapath_convs.<_metapath_key(cfg)>.<...>  (per-metapath ModuleDict)
-          - layer_norms.<_metapath_key(cfg)>.{weight,bias}  (per-metapath ModuleDict)
+          - metapath_convs.<_metapath_key(cfg)>.<...>         (per-metapath ModuleDict)
+          - layer_norms.<_metapath_key(cfg)>.{weight,bias}    (per-metapath ModuleDict)
+
+        Bug fix 2026-06-13 (A1 PC4 trigger investigation) : the previous version
+        of this function built `old_prefix = f"hetero_conv.convs.{cfg.name}."`
+        but the ACTUAL V5-mini key format is `hetero_conv.convs.<{src}___{rel}___{tgt}>`
+        (PyG auto-generated edge name with angle brackets and triple underscores).
+        The migration silently no-op'd on every V5-mini ckpt -> all old conv
+        weights ended up as `unexpected_keys` on strict load. The fix below
+        uses the correct PyG edge-type naming convention.
 
         This migration:
-        1. Renames hetero_conv.convs.<name>.* -> metapath_convs.<key>.*
+        1. Renames hetero_conv.convs.<src___rel___tgt>.* -> metapath_convs.<key>.*
         2. Duplicates the legacy shared layer_norm to all per-metapath layer_norms
            (initial post-§1.6 state: per-metapath norms all share the same V5-mini
             initialization, then learn independently from there)
@@ -180,10 +189,14 @@ class IntelligibleVariableEncoder(nn.Module):
         migrated: Dict[str, Tensor] = {}
         consumed_keys: set = set()
 
-        # Build the conv rename map: cfg.name -> _metapath_key(cfg)
+        # Build the conv rename map. Old format is PyG's auto-generated edge
+        # type name: <{src}___{rel}___{tgt}> (literal angle brackets + triple
+        # underscore separator).
         conv_renames = {}
         for cfg in self.configs:
-            old_prefix = f"hetero_conv.convs.{cfg.name}."
+            src, rel, tgt = cfg.meta_path
+            pyg_edge_name = f"<{src}___{rel}___{tgt}>"
+            old_prefix = f"hetero_conv.convs.{pyg_edge_name}."
             new_prefix = f"metapath_convs.{self._metapath_key(cfg)}."
             conv_renames[old_prefix] = new_prefix
 
