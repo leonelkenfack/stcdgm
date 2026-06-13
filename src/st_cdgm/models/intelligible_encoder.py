@@ -157,6 +157,87 @@ class IntelligibleVariableEncoder(nn.Module):
         src, rel, tgt = cfg.meta_path
         return f"{cfg.name}__{src}__{rel}__{tgt}"
 
+    def _migrate_legacy_state_dict(self, state_dict: Dict[str, Tensor]) -> Dict[str, Tensor]:
+        """§1.6 + J3 migration: convert V5-mini encoder state_dict to new format.
+
+        V5-mini used:
+          - hetero_conv.convs.<cfg.name>.<...>  (HeteroConv ModuleDict)
+          - layer_norm.{weight,bias}             (single shared LayerNorm)
+
+        Path C+ uses:
+          - metapath_convs.<_metapath_key(cfg)>.<...>  (per-metapath ModuleDict)
+          - layer_norms.<_metapath_key(cfg)>.{weight,bias}  (per-metapath ModuleDict)
+
+        This migration:
+        1. Renames hetero_conv.convs.<name>.* -> metapath_convs.<key>.*
+        2. Duplicates the legacy shared layer_norm to all per-metapath layer_norms
+           (initial post-§1.6 state: per-metapath norms all share the same V5-mini
+            initialization, then learn independently from there)
+        3. Passes through other keys (conditioning_projection.*) unchanged
+
+        Returns the migrated state_dict ready for strict=True load.
+        """
+        migrated: Dict[str, Tensor] = {}
+        consumed_keys: set = set()
+
+        # Build the conv rename map: cfg.name -> _metapath_key(cfg)
+        conv_renames = {}
+        for cfg in self.configs:
+            old_prefix = f"hetero_conv.convs.{cfg.name}."
+            new_prefix = f"metapath_convs.{self._metapath_key(cfg)}."
+            conv_renames[old_prefix] = new_prefix
+
+        # Apply conv renames
+        for old_key, val in state_dict.items():
+            for old_prefix, new_prefix in conv_renames.items():
+                if old_key.startswith(old_prefix):
+                    new_key = new_prefix + old_key[len(old_prefix):]
+                    migrated[new_key] = val
+                    consumed_keys.add(old_key)
+                    break
+
+        # Handle layer_norm -> layer_norms (replicate to all metapaths)
+        legacy_ln_weight = state_dict.get("layer_norm.weight")
+        legacy_ln_bias = state_dict.get("layer_norm.bias")
+        if legacy_ln_weight is not None or legacy_ln_bias is not None:
+            for cfg in self.configs:
+                mp_key = self._metapath_key(cfg)
+                if legacy_ln_weight is not None:
+                    migrated[f"layer_norms.{mp_key}.weight"] = legacy_ln_weight.clone()
+                if legacy_ln_bias is not None:
+                    migrated[f"layer_norms.{mp_key}.bias"] = legacy_ln_bias.clone()
+            consumed_keys.add("layer_norm.weight")
+            consumed_keys.add("layer_norm.bias")
+
+        # Pass through any other keys (conditioning_projection, etc.)
+        for key, val in state_dict.items():
+            if key not in consumed_keys and key not in migrated:
+                migrated[key] = val
+
+        return migrated
+
+    def load_state_dict(self, state_dict, strict: bool = True):
+        """Override to auto-detect and migrate legacy V5-mini state_dict format.
+
+        If the state_dict contains hetero_conv.* keys (V5-mini format), apply
+        _migrate_legacy_state_dict before the standard load. Emits a UserWarning
+        so the user knows migration was applied.
+        """
+        # Detect legacy format
+        legacy_keys = [k for k in state_dict.keys() if k.startswith("hetero_conv.")]
+        if legacy_keys:
+            import warnings as _w
+            _w.warn(
+                f"§1.6+J3 migration: detected {len(legacy_keys)} legacy hetero_conv.* "
+                f"keys in encoder state_dict. Auto-migrating to per-metapath format. "
+                f"This is expected when loading V5-mini baseline into Path C+ refactored "
+                f"encoder. The shared layer_norm is replicated to all per-metapath "
+                f"layer_norms as initialization (they then learn independently).",
+                UserWarning, stacklevel=2,
+            )
+            state_dict = self._migrate_legacy_state_dict(state_dict)
+        return super().load_state_dict(state_dict, strict=strict)
+
     def forward(self, data: HeteroData, *, pooled: bool = False) -> Dict[str, Tensor]:
         """
         Applique l'encodeur et retourne un dict {variable_name: embeddings}.
