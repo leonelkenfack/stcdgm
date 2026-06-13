@@ -71,7 +71,13 @@ def recompute_phase6_metrics(
     n_batches: int = 16,
     n_intervention: int = 4,
     epoch: int = 25,
-    cfg_scale: float = 1.5,
+    # J29 audit fix (Batch D follow-up): default cfg_scale was 1.5 but
+    # edm_karras path does not implement CFG -> commit 7d81079 now raises
+    # ValueError on cfg_scale > 1.0 in that branch. Default is set to 1.0
+    # so callers who do not override will get conditional-only sampling
+    # (the SAME behaviour as legacy V5-mini, which silently ignored cfg).
+    # To use CFG > 1, callers must explicitly pass scheduler_type="dpm_solver++".
+    cfg_scale: float = 1.0,
     scheduler_type: str = "edm_karras",
     verbose: bool = True,
     seed: Optional[int] = None,

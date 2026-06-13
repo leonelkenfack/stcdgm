@@ -837,6 +837,14 @@ def evaluate_metrics(
     use_mean_aggregation: bool = False,
     valid_mask: Optional[Tensor] = None,
     crps_max_ensemble_members: Optional[int] = None,
+    # K2 audit fix (Batch E follow-up): per-pixel climatology for F1 extremes.
+    # When provided, the F1 threshold is the percentile of `climatology` taken
+    # per (lat,lon), eliminating the leakage of the legacy pooled-threshold path.
+    # The climatology MUST come from the train window only (caller's
+    # responsibility; PRE_REGISTRATION clause PC4 enforces this at audit-time).
+    # Default = None for backward compatibility (legacy pooled threshold).
+    f1_climatology: Optional[Tensor] = None,
+    f1_per_pixel_threshold: bool = False,
 ) -> MetricReport:
     """
     Métriques à partir des échantillons. Par défaut : **membre unique** (Phase 1) pour MSE/MAE/spectre ;
@@ -941,7 +949,15 @@ def evaluate_metrics(
     f1_extremes_val = None
     if include_f1_extremes:
         try:
-            f1_extremes_val = compute_f1_extremes(pred_primary, target, threshold_percentiles=f1_percentiles)
+            # K2 audit fix: plumb climatology + per-pixel flag through to
+            # compute_f1_extremes. When the caller does not pass climatology,
+            # the legacy pooled threshold is used (backward compatible).
+            f1_extremes_val = compute_f1_extremes(
+                pred_primary, target,
+                threshold_percentiles=f1_percentiles,
+                climatology=f1_climatology,
+                per_pixel_threshold=f1_per_pixel_threshold,
+            )
         except Exception as e:
             warnings.warn(f"Failed to compute F1 extremes: {e}")
 

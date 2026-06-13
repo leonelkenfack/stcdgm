@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Tuple
 import json
 
 import numpy as np
@@ -364,6 +364,10 @@ class NetCDFDataPipeline:
         test_end_date: Optional[str] = None,
         temporal_holdout_start_date: Optional[str] = None,
         temporal_holdout_end_date: Optional[str] = None,
+        # K5/K9 follow-up: PC4 audit-gate flag. When True, refuse to fall back
+        # to legacy full-period stats / random_split semantics if temporal
+        # dates are missing. Phase A0'' should set this to True.
+        strict_train_only_stats: bool = False,
     ) -> None:
         if xbatcher is None:
             raise ImportError("xbatcher is required for ST-CDGM data streaming. Install it via `pip install xbatcher`.")
@@ -396,6 +400,7 @@ class NetCDFDataPipeline:
         self.test_end_date = test_end_date
         self.temporal_holdout_start_date = temporal_holdout_start_date
         self.temporal_holdout_end_date = temporal_holdout_end_date
+        self._strict_train_only_stats = bool(strict_train_only_stats)
 
         # Track whether temporal split is configured (used by build_*_dataset)
         self._has_temporal_split = bool(
@@ -702,12 +707,40 @@ class NetCDFDataPipeline:
                 tstart = self.train_start_date
                 tend = self.train_end_date
                 stats_source = dataset.sel({time_dim: slice(tstart, tend)})
-                n_train = stats_source.sizes.get(time_dim, 0)
+                n_train = int(stats_source.sizes.get(time_dim, 0))
+                # K5 follow-up (math prof + AI eng nit): empty slice would
+                # silently produce NaN stats. Refuse to proceed.
+                if n_train == 0:
+                    raise ValueError(
+                        f"K5: train slice [{tstart}, {tend}] is empty along "
+                        f"'{time_dim}'. Check train_start_date / train_end_date "
+                        f"match the dataset's time axis."
+                    )
                 print(
                     f"[K5] Normalisation stats computed on train window "
                     f"[{tstart}, {tend}] -> {n_train} time steps "
                     f"(full dataset = {dataset.sizes.get(time_dim, 0)} steps will "
                     f"be normalised with these train-only stats)."
+                )
+            elif getattr(self, "_strict_train_only_stats", False):
+                # K5 follow-up (PC4 audit gate): if caller asked for strict
+                # mode but forgot to pass dates, refuse to compute full-period
+                # stats (which would re-introduce K5 leakage).
+                raise ValueError(
+                    "K5 strict mode is enabled but no temporal split is "
+                    "configured. Pass train_start_date / train_end_date to "
+                    "NetCDFDataPipeline.__init__, or disable strict_train_only_stats."
+                )
+            else:
+                # Legacy fallback: full-period stats. Emit a FutureWarning so
+                # the regression-to-leakage is loud in pre-A0'' runs.
+                import warnings as _w
+                _w.warn(
+                    "K5 fallback: computing normalisation stats over the full "
+                    "time axis (legacy behaviour). For Phase A0'' / publication "
+                    "runs, pass train_start_date / train_end_date to "
+                    "NetCDFDataPipeline so stats come from the train window only.",
+                    FutureWarning, stacklevel=3,
                 )
             # Utiliser skipna=True pour ignorer les NaN dans le calcul des statistiques
             means = stats_source.mean(dim=self.dims.time, skipna=True, keep_attrs=True)
@@ -721,7 +754,17 @@ class NetCDFDataPipeline:
         # Remplacer les NaN résiduels par 0 (après normalisation)
         normalised = normalised.fillna(0.0)
 
-        return normalised, {"mean": means, "std": stds}
+        # K5 follow-up (DS audit trail): record the train window in lr_stats
+        # so a saved checkpoint can be cross-checked against its train period.
+        stats_meta: Dict[str, Any] = {"mean": means, "std": stds}
+        if getattr(self, "_has_temporal_split", False):
+            stats_meta["train_window"] = [
+                self.train_start_date, self.train_end_date,
+            ]
+            stats_meta["n_train_steps"] = int(
+                stats_source.sizes.get(self.dims.time, 0)
+            )
+        return normalised, stats_meta
 
     def _compute_baseline(self) -> xr.Dataset:
         if self.baseline_strategy == "lr_interp":
@@ -958,13 +1001,33 @@ class NetCDFDataPipeline:
                     f"{split}_start_date and {split}_end_date in pipeline kwargs."
                 )
             time_dim = self.dims.time
-            # Slice all underlying datasets to the temporal split
+            # Slice all underlying datasets to the temporal split.
+            # NB: xarray.sel with slice() is INCLUSIVE on both endpoints; the
+            # caller is responsible for ensuring train_end_date < val_start_date
+            # (and so on) so that no timestamp appears in two splits. K9
+            # follow-up emits a warning if endpoints coincide across splits.
             lr_sliced = self.lr_dataset.sel({time_dim: slice(start_date, end_date)})
             baseline_sliced = self.baseline_prepared.sel({time_dim: slice(start_date, end_date)})
             residual_sliced = self.residual_dataset.sel({time_dim: slice(start_date, end_date)})
             hr_sliced = self.hr_dataset.sel({time_dim: slice(start_date, end_date)})
 
-            n_t_slice = lr_sliced.sizes.get(time_dim, 0)
+            n_t_slice = int(lr_sliced.sizes.get(time_dim, 0))
+            # K9 follow-up: empty slice would silently yield a zero-batch
+            # dataloader; refuse to proceed so the caller sees the misconfig.
+            if n_t_slice == 0:
+                raise ValueError(
+                    f"K9: split={split!r} slice [{start_date}, {end_date}] "
+                    f"contains 0 time steps along '{time_dim}'. Check dates "
+                    f"match the dataset's time axis."
+                )
+            if n_t_slice <= seq_len:
+                import warnings as _w
+                _w.warn(
+                    f"K9: split={split!r} has only {n_t_slice} time steps but "
+                    f"seq_len={seq_len}. No full sequence can be built; the "
+                    f"dataloader will be empty.",
+                    UserWarning, stacklevel=2,
+                )
             print(f"[K9] Split '{split}': temporal slice [{start_date}, {end_date}] -> {n_t_slice} time steps")
 
             return ResDiffIterableDataset(

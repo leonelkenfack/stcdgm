@@ -39,6 +39,48 @@ TOMBSTONE_FIELDS = {
     "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py",
 }
 
+# Schema versions used to distinguish Path-C+ eras (DS Batch-D follow-up).
+# Phase A0'' eligibility = schema_version == "path-c-plus-batch-D-v1".
+SCHEMA_VERSION_BATCH_D = "path-c-plus-batch-D-v1"
+SCHEMA_VERSION_PRE_BATCH_D = "path-c-plus-pre-batch-D"  # smoke #1/#2 era
+
+BATCH_D_FIXES_APPLIED = ["J29", "K2", "K3", "K9", "K5"]
+
+
+def stamp_batch_d_json(result_dict: dict, *,
+                       k9_train: list = None,
+                       k9_val: list = None,
+                       k9_test: list = None,
+                       k5_train_window: list = None,
+                       j29_scheduler_type: str = None,
+                       j29_cfg_scale: float = None,
+                       pre_registration_commit: str = None) -> dict:
+    """Stamp a fresh result dict as Phase A0'' eligible (Batch-D era).
+
+    Usage:
+        result = {...your computed metrics...}
+        result = stamp_batch_d_json(result, k9_train=["1980-01-01","2009-12-31"], ...)
+        json.dump(result, open("results/phase_a0pp/seed0.json","w"))
+
+    Audit gate PC4 will then accept these JSONs as valid_for_analysis=True.
+    """
+    result_dict["schema_version"] = SCHEMA_VERSION_BATCH_D
+    result_dict["path_c_plus_batch"] = "D"
+    result_dict["fixes_applied"] = list(BATCH_D_FIXES_APPLIED)
+    result_dict["valid_for_analysis"] = True
+    if k9_train is not None:
+        result_dict["k9_temporal_split"] = {
+            "train": k9_train, "val": k9_val, "test": k9_test,
+        }
+    if k5_train_window is not None:
+        result_dict["k5_train_window"] = k5_train_window
+    if j29_scheduler_type is not None:
+        result_dict["j29_scheduler_type"] = j29_scheduler_type
+        result_dict["j29_cfg_scale"] = j29_cfg_scale
+    if pre_registration_commit is not None:
+        result_dict["pre_registration_commit"] = pre_registration_commit
+    return result_dict
+
 
 def find_legacy_jsons(base_paths: List[str]) -> List[Path]:
     """Find all JSON files under the legacy directories."""
