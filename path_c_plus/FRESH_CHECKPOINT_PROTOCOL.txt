@@ -1,0 +1,87 @@
+FRESH CHECKPOINT PROTOCOL — Phase A0'' (Path C+ retrain V5-mini)
+================================================================
+
+DS Round-9 Clause PC1: A0'' initialization is V5_DIR/epoch_last.pth ONLY.
+Any run not satisfying this condition is excluded from analysis BEFORE
+unblinding.
+
+WHY THIS PROTOCOL EXISTS
+------------------------
+The Round-2 smoke test produced a false-positive PASS because:
+1. The smoke notebook copied V5_DIR/epoch_last.pth → SMOKE_DIR/epoch_last.pth
+   ONLY IF SMOKE_DIR/epoch_last.pth did not exist (Cell 3 `if not exists`).
+2. The smoke #1 run saved its (random-init) encoder + (10-epoch-from-random)
+   weights back to SMOKE_DIR/epoch_last.pth at end of finetune_bundle_b.
+3. Smoke #2 reloaded the polluted SMOKE_DIR ckpt instead of fresh V5_DIR.
+4. Result: encoder appeared "loaded strict=True" but with smoke-#1-polluted
+   weights, diffusion fell back to strict=False (UNet shape changed across
+   smoke runs).
+
+The Q_phys 0.40 → 0.40 outcome was uninformative (DS analysis: probability
+0.346 under Bernoulli null, most probable value).
+
+PHASE A0'' STARTING CHECKPOINT RULE
+------------------------------------
+- Source: /content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal/epoch_last.pth
+- Sha256 of original (computed when V5-mini training completed): TBD — compute and pin here before A0''
+- This file is READ ONLY for A0''. No writes to V5_DIR/ are permitted.
+
+CHECKPOINT FLOW FOR A0''
+------------------------
+1. Per-seed setup creates a FRESH directory:
+   /content/drive/MyDrive/climate_data/v5_retrain_pathc/seed_{42|7|123}/
+   The directory MUST NOT exist before A0'' seed run. Verify with:
+     assert not seed_dir.exists(), f"Stale dir {seed_dir} — delete before A0''"
+
+2. Copy V5_DIR/epoch_last.pth → seed_dir/epoch_init.pth (NOT epoch_last.pth)
+   Naming `epoch_init.pth` makes the source explicit and distinguishable from
+   the per-epoch saves.
+
+3. finetune_bundle_b saves intermediate to seed_dir/epoch_inprogress.pth
+   and final to seed_dir/epoch_last.pth. These are PER-SEED outputs, never
+   reused across seeds.
+
+4. Audit hooks (Clause PC4): on every load, the load_audit dict MUST satisfy:
+     load_audit["modules_loaded_fallback"] == []
+     load_audit["encoder_state_dict_n_keys"] > 0
+     load_audit["encoder_migration_applied"] == True  (V5-mini ckpt IS legacy format)
+   Any seed run with diffusion in modules_loaded_fallback is AUTOMATICALLY
+   EXCLUDED from H1 evaluation before unblinding.
+
+5. After A0'' completes for all 3 seeds, the 3 final epoch_last.pth files
+   are tagged in their JSON metadata:
+     "pathc_a0pp_seed": 42,
+     "pathc_a0pp_initialization": "V5_DIR/epoch_last.pth",
+     "pathc_a0pp_sha256_source": "<pin>",
+     "pathc_a0pp_audit_gate_passed": true,
+     "pathc_a0pp_commit_sha": "<git rev-parse HEAD>"
+
+VIOLATIONS
+----------
+Any of the following invalidates a seed run for H1 evaluation:
+
+A. SMOKE_DIR contents touched during A0'' setup or training
+B. epoch_init.pth differs in size from V5_DIR/epoch_last.pth
+C. load_audit["modules_loaded_fallback"] contains "diffusion" or any module
+D. Seed-loop manual intervention (e.g., user re-runs one seed and overwrites
+   its directory) without documenting the intervention in pre-registration log
+E. Branch HEAD differs from the pre-registered Path C+ commit at A0'' start
+   (must match the bb731db or later round-9-completed commit)
+
+DOCUMENTATION REQUIREMENT
+-------------------------
+Before A0'' starts, append a signed entry to:
+  path_c_plus/A0PP_RUN_LOG.txt
+
+with the following fields:
+  date: YYYY-MM-DD HH:MM:SS UTC
+  v5_dir_sha256: <output of `sha256sum V5_DIR/epoch_last.pth`>
+  branch_head_sha: <output of `git rev-parse HEAD`>
+  branch_name: four-node-causal
+  hyperplan_version: 2.0 (consensus document path_c_plus/HYPERPLAN.md)
+  pre_registration_version: 1.0 (path_c_plus/PRE_REGISTRATION.md)
+  seeds_planned: [42, 7, 123]
+  expected_runtime_hours: 60-75 on T4 / 5-8 on A100
+  user_signature: <name>
+
+This entry is the audit-trail anchor for the entire A0'' campaign.

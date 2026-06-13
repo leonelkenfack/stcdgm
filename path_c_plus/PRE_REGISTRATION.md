@@ -75,6 +75,73 @@ Over N≥365 days, K≥32 members. With rank histogram chi² < 1M.
 
 **Threshold** : |CRPS_skill(OOD) - CRPS_skill(in-dist)| < 0.05.
 
+## Clauses PC1-PC4 (DS Round-9, post smoke #2 FAIL diagnosis)
+
+Ces clauses sont des **clarifications de protocole**, pas des changements de seuil.
+Elles formalisent les conditions découvertes par la corruption du smoke ckpt.
+
+### PC1 — Fresh checkpoint mandatory
+
+L'initialisation A0'' utilise EXCLUSIVEMENT `V5_DIR/epoch_last.pth`.
+Aucun reuse de SMOKE_DIR/ ou de checkpoint dérivé d'un run smoke.
+Toute violation invalide le seed avant unblinding.
+
+Détails : voir `path_c_plus/FRESH_CHECKPOINT_PROTOCOL.txt`.
+
+### PC2 — Partial success reporting category
+
+Si le bootstrap CI 95% (BCa, 3 seeds, 1000 resamples) pour Q_phys tombe dans
+**[0.50, 0.65)**, le résultat est rapporté comme :
+
+> "PARTIAL — insufficient to claim H1, sufficient to motivate
+> architectural refinement"
+
+Cette catégorie était implicite, maintenant explicite. Ne déplace PAS le seuil H1.
+
+### PC3 — Gradient diagnostics as secondary outcome
+
+`median(A_dag.grad.norm())` à travers les training steps est un secondary outcome
+pré-enregistré.
+
+Si Q_phys FAIL mais gradient norm est ~0 :
+- Failure mode = "optimization failure" (signal ne flow pas vers A_dag)
+- Remediation path = revoir gate ramping / encoder representation
+
+Si Q_phys FAIL mais gradient norm > 1e-3 :
+- Failure mode = "causal structure unlearnable from observational data"
+- Remediation path = architectural revision OR accept negative result
+
+Ces deux failure modes nécessitent des actions DIFFÉRENTES en post-hoc.
+
+### PC4 — Audit gate (BLOCKING)
+
+Avant qu'un run A0'' compte pour H1 evaluation, le `load_audit` dict capturé
+au load V5-mini ckpt DOIT satisfaire :
+
+```python
+load_audit["modules_loaded_fallback"] == []  # ZERO module en strict=False
+load_audit["encoder_state_dict_n_keys"] > 0   # ckpt encoder non-vide
+load_audit["modules_loaded_strict"] >= {"encoder", "rcn_cell",
+                                         "regression_head", "diffusion"}
+```
+
+Si `diffusion` est dans `modules_loaded_fallback` (comme en smoke #2),
+le run est **AUTOMATIQUEMENT EXCLU** de l'analyse H1.
+
+Ceci empêche la répétition du failure mode smoke #2 (Q_phys 0.40 → 0.40
+sous diffusion partiellement random).
+
+## Tombstone des résultats historiques pré-K1
+
+DS Round-2 Condition A : tous les résultats V5-mini produits avant le K1 fix
+sont méthodologiquement compromis (Oracle ET CorrDiff avaient causal_concat=True).
+
+Action commit-bloquante avant Batch D :
+- Script `path_c_plus/scripts/_tombstone_legacy_jsons.py` applique
+  `"schema_version": "legacy-pre-K1"` et `"valid_for_analysis": false`
+  à TOUS les `results/v5_evaluation/*.json` produits par smoke #1 et smoke #2.
+- Documenter ces JSONs comme exclus de l'analyse H1 dans le mémoire.
+
 ## Règles de reporting
 
 ### Multi-seed
