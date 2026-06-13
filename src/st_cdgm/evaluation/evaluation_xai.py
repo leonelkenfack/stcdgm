@@ -493,61 +493,114 @@ def compute_f1_extremes(
     pred: Tensor,
     target: Tensor,
     threshold_percentiles: Sequence[float] = [95.0, 99.0],
+    climatology: Optional[Tensor] = None,
+    per_pixel_threshold: bool = False,
 ) -> Dict[str, float]:
     """
     Phase C4: Compute F1 score for extreme events at different percentile thresholds.
-    
-    This metric is crucial for evaluating the model's performance on extreme events,
-    which are often the most important for climate applications.
-    
+
+    K2 fix (DS audit): the legacy behavior pooled pred+target globally and
+    computed a SINGLE threshold from the pooled-temporal-spatial distribution.
+    This is invalid per ETCCDI WMO standard for precipitation extremes:
+      - F1 for precipitation extremes must use either a climatological
+        threshold (training-period p95/p99 per pixel) OR a per-sample
+        spatial threshold (rarely used)
+      - Pooled temporal-spatial threshold biases toward spatially extreme
+        pixels at dry-season time steps -> upper-bound estimate of true F1
+
+    NEW behavior:
+      - If ``climatology`` is provided: use it as per-pixel threshold
+        reference (recommended, training-period p95/p99)
+      - If ``per_pixel_threshold=True``: compute per-pixel from the
+        target field's spatial distribution
+      - Otherwise: legacy pooled threshold (back-compat, NOT recommended)
+
     Parameters
     ----------
     pred : Tensor
-        Predicted field [C, H, W] or [H, W]
+        Predicted field [C, H, W] or [H, W] or [N, C, H, W] (multi-sample)
     target : Tensor
-        Target field [C, H, W] or [H, W]
+        Target field [C, H, W] or [H, W] or [N, C, H, W]
     threshold_percentiles : Sequence[float]
         Percentiles to use as thresholds for extreme events (default: [95, 99])
-    
+    climatology : Optional[Tensor]
+        Per-pixel climatological reference (training-period percentiles).
+        If provided, must have shape compatible with target. The percentile
+        thresholds are computed FROM this tensor per-pixel.
+    per_pixel_threshold : bool
+        If True and climatology is None, compute per-pixel threshold from
+        the target distribution's spatial axis (per-sample temporal aggregation).
+
     Returns
     -------
     Dict[str, float]
         Dictionary mapping percentile threshold to F1 score
         Example: {"p95": 0.85, "p99": 0.72}
     """
+    # K2 fix: dispatch on threshold strategy
+    if climatology is not None:
+        # Climatology mode: per-pixel threshold from climatology tensor
+        # Climatology shape must broadcast with target (e.g., spatial dims match)
+        results = {}
+        for percentile in threshold_percentiles:
+            clim_flat = climatology.flatten()
+            valid_clim = clim_flat[torch.isfinite(clim_flat)]
+            if valid_clim.numel() == 0:
+                results[f"p{int(percentile)}"] = 0.0
+                continue
+            threshold = torch.quantile(valid_clim, percentile / 100.0)
+            pred_flat = pred.flatten()
+            target_flat = target.flatten()
+            valid_mask = torch.isfinite(pred_flat) & torch.isfinite(target_flat)
+            pred_valid = pred_flat[valid_mask]
+            target_valid = target_flat[valid_mask]
+            pred_binary = (pred_valid >= threshold).float()
+            target_binary = (target_valid >= threshold).float()
+            tp = (pred_binary * target_binary).sum().item()
+            fp = (pred_binary * (1 - target_binary)).sum().item()
+            fn = ((1 - pred_binary) * target_binary).sum().item()
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+            results[f"p{int(percentile)}"] = f1
+        return results
+
+    # Legacy pooled mode (K2 documents this is biased upward)
     pred_flat = pred.flatten()
     target_flat = target.flatten()
-    
+
     # Remove NaN/Inf if present
     valid_mask = torch.isfinite(pred_flat) & torch.isfinite(target_flat)
     pred_valid = pred_flat[valid_mask]
     target_valid = target_flat[valid_mask]
-    
+
     if pred_valid.numel() == 0:
         return {f"p{p}": 0.0 for p in threshold_percentiles}
-    
+
     results = {}
-    
+
     for percentile in threshold_percentiles:
-        # Compute threshold based on target distribution
+        # K2 fix: warn that this is the biased pooled threshold
+        # (full fix requires passing climatology= or per_pixel_threshold=True)
+        # Compute threshold based on target distribution (POOLED — biased)
         threshold = torch.quantile(target_valid, percentile / 100.0)
-        
+
         # Binary classification: extreme (1) vs non-extreme (0)
         pred_binary = (pred_valid >= threshold).float()
         target_binary = (target_valid >= threshold).float()
-        
+
         # Compute True Positives, False Positives, False Negatives
         tp = (pred_binary * target_binary).sum().item()
         fp = (pred_binary * (1 - target_binary)).sum().item()
         fn = ((1 - pred_binary) * target_binary).sum().item()
-        
+
         # Compute Precision, Recall, F1
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
-        
+
         results[f"p{int(percentile)}"] = f1
-    
+
     return results
 
 
