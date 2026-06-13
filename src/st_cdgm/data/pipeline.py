@@ -689,6 +689,10 @@ class NetCDFDataPipeline:
             raise ValueError(f"Unknown nan_fill_strategy: {strategy}. Must be 'zero', 'mean', or 'interpolate'")
 
     def _normalise_lr_dataset(self, dataset: xr.Dataset) -> Tuple[xr.Dataset, Dict[str, xr.Dataset]]:
+        # K5 follow-up (bug fix 2026-06-13): track whether stats came from
+        # external files vs computed from train slice. When external, the
+        # n_train_steps stamp is unknowable from this function.
+        stats_source = None  # set only when we compute stats ourselves
         if self.means_path and self.stds_path:
             means = xr.open_dataset(self.means_path)
             stds = xr.open_dataset(self.stds_path)
@@ -756,14 +760,23 @@ class NetCDFDataPipeline:
 
         # K5 follow-up (DS audit trail): record the train window in lr_stats
         # so a saved checkpoint can be cross-checked against its train period.
+        # Bug fix 2026-06-13 : only stamp n_train_steps when WE computed the
+        # stats (stats_source is None when external means/stds_path was used).
         stats_meta: Dict[str, Any] = {"mean": means, "std": stds}
         if getattr(self, "_has_temporal_split", False):
             stats_meta["train_window"] = [
                 self.train_start_date, self.train_end_date,
             ]
-            stats_meta["n_train_steps"] = int(
-                stats_source.sizes.get(self.dims.time, 0)
-            )
+            if stats_source is not None:
+                stats_meta["n_train_steps"] = int(
+                    stats_source.sizes.get(self.dims.time, 0)
+                )
+            else:
+                # External stats files were used -- n_train_steps is unknowable
+                # from this function. The external file's metadata may carry it
+                # but we don't peek at that here.
+                stats_meta["n_train_steps"] = None
+                stats_meta["stats_source"] = "external_means_stds_path"
         return normalised, stats_meta
 
     def _compute_baseline(self) -> xr.Dataset:
