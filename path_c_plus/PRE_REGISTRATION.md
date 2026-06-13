@@ -321,6 +321,43 @@ Si smoke #4 retourne :
 Ce protocole pré-enregistré ferme la porte au HARKing post-smoke
 ("on a tuné les hyperparams jusqu'à ce que ça passe").
 
+### PC12 — M2 reporting floor (locked BEFORE A1 launch, 2026-06-13)
+
+Lors de la validation conseil du notebook A1 (commit fb7c7af), le DS a
+identifié que cell 7 introduisait un seuil 0.30 comme "M2 defendable bar"
+**non pré-enregistré**. Risque HARKing : importer le smoke-pass-gate 0.30
+dans le verdict A1 après avoir vu les résultats smoke.
+
+PC12 résout l'ambiguïté **AVANT** que A1 soit lancé :
+
+1. **PC5 H1 acceptance threshold = 0.50** (locké en PC5, INCHANGÉ).
+   `Q_phys_cont ≥ 0.50 + tous les gates PC8` → H1 ACCEPTED.
+
+2. **0.30 est un REPORTING FLOOR, pas une acceptance threshold.**
+   Quand `0.30 ≤ Q_phys_cont < 0.50`, le résultat est rapporté dans la
+   section "Discussion / Limitations" du mémoire comme :
+   > "Path C+ A1 achieves Q_phys_continuous = X (8.X× baseline V5-mini
+   > of 0.04, p < α paired Wilcoxon) but does NOT meet the pre-registered
+   > H1 acceptance threshold of 0.50. Interventional sign-consistency is
+   > demonstrated; H1 is not statistically accepted."
+
+3. **Le label de verdict pour ce cas est `BELOW_H1_ABOVE_FLOOR`** (pas
+   `M2_PASS` qui implique acceptance). Aucune claim H1 dans le mémoire
+   ne peut citer ce résultat comme "Path C+ effective". Le mémoire peut
+   citer ce résultat comme "preliminary evidence" mais doit explicitement
+   noter "H1 not met" dans la même phrase.
+
+4. **Quand `Q_phys_cont < 0.30`**, le verdict est `FAIL` (pas de claim
+   évidentielle possible).
+
+5. **Le seuil 0.30 est lockée AVANT smoke-#5/A1-launch** au commit qui
+   ajoute cette section. Aucune modification post-A1 n'est autorisée
+   sans amendement PC ultérieur signé avant ré-analyse.
+
+Cette amendement préserve la défendabilité M2 tout en empêchant le
+relâchement post-hoc des critères PC5. Le mémoire peut faire des
+claims "preliminary" sous PC12 mais pas des claims "H1 accepted".
+
 ### PC10 — Lineage snapshot integrity (added by council ter)
 
 Le champ `path_c_plus_full_fix_lineage` dans les JSONs A0'' est un
@@ -408,5 +445,6 @@ Commit hash @ signature : _______________
 | 1.1 | 2026-06-13 | PC5-PC8 ajoutés post-mortem smoke #3 (council ARTEFACT verdict, commit b5c57b8, ref `project_smoke_artefact.md`). Endpoint H1 redéfini d'interventional (HYPERPLAN §H1 = `mean(\|mu_HR(A_real)-mu_HR(A_zeroed)\|)/mean(\|mu_HR(A_real)\|)`) → structural magnitude-ratio (PC5). Justification : smoke #3 a montré que le binary metric peut être gamé sous projection (3 edges TP à 0.011 = threshold + 1%). L'interventional Q_phys reste reporté comme diagnostic tertiaire à A0''. Tightening only (criteria stricter, never looser). | Council DS sign-off pending |
 | 1.2 | 2026-06-13 | Batch F post-validation : PC8 sd floor (0.05) + Student-t fallback CI, PC8 random-null check (0.083), PC5 endpoint-drift note. PC7 tombstone tagging hardened : smoke JSONs ne portent PLUS le marker `fixes_applied` (réservé A0''). | Council Math/AI/DS sign-off pending |
 | 1.3 | 2026-06-13 | Council ter follow-up post-blindspots : PC5-bis (collapse tie-break), PC7-bis (code-path identity explicit, smoke ne pré-valide PAS A0''), PC9 (smoke triage protocol — anti-HARKing), PC10 (lineage deep-copy integrity). Phys_mag_gained threshold lowered 0.005 -> 0.003 (Math Prof + AI Eng convergence : 55% du bandwidth max au lieu de 91%). | Council Math/AI/DS sign-off pending |
+| 1.4 | 2026-06-13 | Pre-A1 council validation : PC12 (M2 reporting floor 0.30 explicitement séparé de PC5 H1 acceptance 0.50, anti-HARKing). Notebook A1 patché : PC4 BLOCKING gate dans run_a1_seed (raise si diffusion strict=False), K9 temporal split dates passés à NetCDFDataPipeline + split="train"/"val" (DS flag : sans ça val ⊂ train). BCa CI clip z0 + a1/a2 pour n=3 dégénéré (Math Prof). | Council Math/AI/DS sign-off pending |
 
 Toute modification post-signature doit être tracée ici avec justification scientifique.

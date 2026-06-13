@@ -67,6 +67,12 @@ def bootstrap_ci_3seeds(
     elif method == "bca":
         # Bias correction
         z0 = _norm_inv(np.mean(means < point))
+        # PC8 amendment (Math Prof council validation, v1.4):
+        # for n=3 the bootstrap distribution is discrete (27 unique resamples)
+        # and z0 can hit +/-inf when all resampled means are <= or >= point.
+        # Clip to keep BCa returns finite. The AND-gate with Student-t in
+        # cell 7 keeps the test conservative.
+        z0 = float(np.clip(z0, -3.0, 3.0))
         # Acceleration via jackknife
         jackknife = np.array([
             np.mean(np.delete(x, i)) for i in range(x.size)
@@ -80,6 +86,9 @@ def bootstrap_ci_3seeds(
         z_alpha_hi = _norm_inv(1 - alpha / 2)
         a1 = _norm_cdf(z0 + (z0 + z_alpha_lo) / (1 - a * (z0 + z_alpha_lo)))
         a2 = _norm_cdf(z0 + (z0 + z_alpha_hi) / (1 - a * (z0 + z_alpha_hi)))
+        # Same clip for n=3 degenerate case (a1/a2 could land at 0 or 1).
+        a1 = float(np.clip(a1, 1e-3, 1 - 1e-3))
+        a2 = float(np.clip(a2, 1e-3, 1 - 1e-3))
         lo = float(np.percentile(means, 100 * a1))
         hi = float(np.percentile(means, 100 * a2))
     else:
