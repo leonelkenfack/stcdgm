@@ -44,7 +44,29 @@ TOMBSTONE_FIELDS = {
 SCHEMA_VERSION_BATCH_D = "path-c-plus-batch-D-v1"
 SCHEMA_VERSION_PRE_BATCH_D = "path-c-plus-pre-batch-D"  # smoke #1/#2 era
 
-BATCH_D_FIXES_APPLIED = ["J29", "K2", "K3", "K9", "K5"]
+# Blindspot #7: this list ONLY enumerates the Batch-D commits, NOT the 17
+# earlier P0 fixes from Batches A-C, NOR the Batch-E / Batch-F follow-ups.
+# Renamed from BATCH_D_FIXES_APPLIED to make the scope explicit.
+BATCH_D_COMMIT_FIXES = ["J29", "K2", "K3", "K9", "K5"]
+# Path C+ full fix lineage (for thesis audit trail):
+PATH_C_PLUS_ALL_FIXES = {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": BATCH_D_COMMIT_FIXES,
+    "batch_E": ["J29 default", "K2 plumbing", "K5 raise", "K9 assert", "tombstone schema"],
+    "batch_F": ["DEFAULT_HYPERPARAMS gate", "Q_phys variants", "projection hook",
+                "sigma_data calib", "PC5-PC8"],
+    "batch_F_bis": ["3-point projection hook", "PC5/PC8 amendments",
+                    "smoke JSON HARKing-resistant tag"],
+    "batch_F_blindspots": ["#1 path_b doc", "#2-3 phys_mag_gained criterion",
+                            "#6 collapse explicit", "#7 rename",
+                            "#8 fetch depth 200", "#9 adaptive skeleton F1"],
+}
+
+# Backward-compatibility alias for any external code that imported the old name.
+# Will be removed after Phase A0''.
+BATCH_D_FIXES_APPLIED = BATCH_D_COMMIT_FIXES
 
 
 def stamp_batch_d_json(result_dict: dict, *,
@@ -63,10 +85,14 @@ def stamp_batch_d_json(result_dict: dict, *,
         json.dump(result, open("results/phase_a0pp/seed0.json","w"))
 
     Audit gate PC4 will then accept these JSONs as valid_for_analysis=True.
+
+    NB (blindspot #7): the `fixes_applied` field lists ONLY the Batch-D
+    commits. For a complete Path C+ fix lineage, see PATH_C_PLUS_ALL_FIXES.
     """
     result_dict["schema_version"] = SCHEMA_VERSION_BATCH_D
     result_dict["path_c_plus_batch"] = "D"
-    result_dict["fixes_applied"] = list(BATCH_D_FIXES_APPLIED)
+    result_dict["fixes_applied_batch_d"] = list(BATCH_D_COMMIT_FIXES)
+    result_dict["path_c_plus_full_fix_lineage"] = dict(PATH_C_PLUS_ALL_FIXES)
     result_dict["valid_for_analysis"] = True
     if k9_train is not None:
         result_dict["k9_temporal_split"] = {
