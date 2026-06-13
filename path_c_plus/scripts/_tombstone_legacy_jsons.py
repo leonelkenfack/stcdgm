@@ -13,8 +13,16 @@ Usage:
   python path_c_plus/scripts/_tombstone_legacy_jsons.py [--dry-run]
 
 By default, runs in dry-run mode (no writes). Pass --apply to actually modify.
+
+Council DS PC10 amendment (2026-06-13): the path_c_plus_full_fix_lineage
+field MUST be a deep copy of PATH_C_PLUS_ALL_FIXES at stamp time. Shallow
+copy via dict() would leave inner lists shared with the module constant --
+a future mutation between stamp and json.dump could silently change what
+the JSON records as "all fixes". Using copy.deepcopy guarantees the
+snapshot is frozen.
 """
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -92,7 +100,9 @@ def stamp_batch_d_json(result_dict: dict, *,
     result_dict["schema_version"] = SCHEMA_VERSION_BATCH_D
     result_dict["path_c_plus_batch"] = "D"
     result_dict["fixes_applied_batch_d"] = list(BATCH_D_COMMIT_FIXES)
-    result_dict["path_c_plus_full_fix_lineage"] = dict(PATH_C_PLUS_ALL_FIXES)
+    # PC10 amendment: deep copy so a future mutation of PATH_C_PLUS_ALL_FIXES
+    # cannot retroactively change what this JSON records as "all fixes".
+    result_dict["path_c_plus_full_fix_lineage"] = copy.deepcopy(PATH_C_PLUS_ALL_FIXES)
     result_dict["valid_for_analysis"] = True
     if k9_train is not None:
         result_dict["k9_temporal_split"] = {

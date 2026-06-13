@@ -266,6 +266,74 @@ test statistique H1.
    voie d'un Path C+ borderline (e.g., Q_phys_cont = 0.06) qui passerait
    "> 0.04" sans dépasser le null random.
 
+### PC5-bis — Collapse tie-break (added by council ter, 2026-06-13)
+
+Si `compute_q_phys_continuous` retourne `(0.0, collapsed=True)` pour
+**≥ 2 des 3 seeds** A0'', le test statistique H1 est **REMPLACÉ** par
+un rapport de "protocol failure" et un re-tune est requis avant relancer
+A0''. Un outcome COLLAPSE ne compte PAS comme `Q_phys_cont < 0.50`
+contre H1 — c'est un mode d'échec différent (la matrice s'est effondrée
+à zéro, pas "le modèle a échoué à recouvrer la structure").
+
+Justification : collapse = pathologie optimization (λ_l1 trop fort, ou
+sigma_data calib divergente). Compter cela comme "H1 failed" mélangerait
+deux modes d'échec orthogonaux et empêcherait l'identification de la
+cause racine.
+
+### PC7-bis — Code-path identity acknowledged (added by council ter)
+
+Précision sur la portée PC7 (smoke ≠ A0'') :
+
+**Le smoke utilise** `scripts/finetune_stage1_bundle_b.finetune_bundle_b`
+(Bundle B fine-tune, gate via `schedule_lambdas()` auto-scale ramp).
+
+**A0'' utilise** `src/st_cdgm/training/training_loop.train_epoch_stage1`
+(from-scratch, static `dag_grad_gate_value=1.0`).
+
+Le code path est DIFFÉRENT. La fix Batch F-1 (gate auto-scale dans
+`schedule_lambdas`) **n'a aucun effet sur A0''**. Le smoke ne valide PAS
+le chemin code A0''. Le smoke valide uniquement :
+1. Que le pipeline Bundle B exécute end-to-end avec les hyperparams Path C+.
+2. Que les diagnostics post-mortem (Q_phys variants, projection hook,
+   per-epoch trajectory) sont calibrés.
+
+Le smoke ne porte **aucun poids inférentiel** pour H1. Toute évidence H1
+repose exclusivement sur les 3 seeds A0'' rapportés au Chapitre 4.
+
+### PC9 — Smoke triage protocol (added by council ter)
+
+Si smoke #4 retourne :
+
+- **`FAIL_NO_GAIN`** (phys_mag_gained ≤ 0.003) :
+  - (a) Inspection diagnostique du `set_dag_grad_gate` path + signe `G_phys`
+        avec **UN** re-run smoke.
+  - (b) Si cause identifiée, appliquer le fix et relancer smoke **UNE FOIS**.
+  - (c) Si pas de cause identifiée OU smoke #5 FAIL aussi, A0'' n'est PAS
+        lancé et le projet pivote vers Path A1.
+  - **AUCUN hyperparameter tuning autorisé entre smokes sans nouvel
+    amendement PC.**
+
+- **`FAIL_COLLAPSE`** :
+  - λ_l1 peut être réduit **UNE FOIS** à la valeur pré-spécifiée 0.02
+    (smoke actuel = 0.04).
+  - Si collapse récidive sur le re-smoke, même pivot Path A1.
+
+Ce protocole pré-enregistré ferme la porte au HARKing post-smoke
+("on a tuné les hyperparams jusqu'à ce que ça passe").
+
+### PC10 — Lineage snapshot integrity (added by council ter)
+
+Le champ `path_c_plus_full_fix_lineage` dans les JSONs A0'' est un
+**deep copy** de `PATH_C_PLUS_ALL_FIXES` au moment du stamp (via
+`copy.deepcopy`). La constante module est gelée au commit hash de lancement
+d'A0'', enregistré dans le champ `pre_registration_commit`.
+
+Ceci empêche qu'une mutation post-A0'' de la constante module ne change
+rétroactivement ce que les JSONs A0'' rapportent comme "tous les fixes
+appliqués". Auditabilité long-terme : un reviewer en 2030 peut prendre
+le commit du JSON, vérifier que le lineage matche `PATH_C_PLUS_ALL_FIXES`
+à ce commit-hash spécifique.
+
 ## Tombstone des résultats historiques pré-K1
 
 DS Round-2 Condition A : tous les résultats V5-mini produits avant le K1 fix
@@ -339,5 +407,6 @@ Commit hash @ signature : _______________
 | 1.0 | 2026-06-12 | Draft initial | (pending) |
 | 1.1 | 2026-06-13 | PC5-PC8 ajoutés post-mortem smoke #3 (council ARTEFACT verdict, commit b5c57b8, ref `project_smoke_artefact.md`). Endpoint H1 redéfini d'interventional (HYPERPLAN §H1 = `mean(\|mu_HR(A_real)-mu_HR(A_zeroed)\|)/mean(\|mu_HR(A_real)\|)`) → structural magnitude-ratio (PC5). Justification : smoke #3 a montré que le binary metric peut être gamé sous projection (3 edges TP à 0.011 = threshold + 1%). L'interventional Q_phys reste reporté comme diagnostic tertiaire à A0''. Tightening only (criteria stricter, never looser). | Council DS sign-off pending |
 | 1.2 | 2026-06-13 | Batch F post-validation : PC8 sd floor (0.05) + Student-t fallback CI, PC8 random-null check (0.083), PC5 endpoint-drift note. PC7 tombstone tagging hardened : smoke JSONs ne portent PLUS le marker `fixes_applied` (réservé A0''). | Council Math/AI/DS sign-off pending |
+| 1.3 | 2026-06-13 | Council ter follow-up post-blindspots : PC5-bis (collapse tie-break), PC7-bis (code-path identity explicit, smoke ne pré-valide PAS A0''), PC9 (smoke triage protocol — anti-HARKing), PC10 (lineage deep-copy integrity). Phys_mag_gained threshold lowered 0.005 -> 0.003 (Math Prof + AI Eng convergence : 55% du bandwidth max au lieu de 91%). | Council Math/AI/DS sign-off pending |
 
 Toute modification post-signature doit être tracée ici avec justification scientifique.
