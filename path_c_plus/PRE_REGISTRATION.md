@@ -131,6 +131,98 @@ le run est **AUTOMATIQUEMENT EXCLU** de l'analyse H1.
 Ceci empêche la répétition du failure mode smoke #2 (Q_phys 0.40 → 0.40
 sous diffusion partiellement random).
 
+### PC5 — H1 metric is the CONTINUOUS magnitude ratio, not sign-binary
+
+(Ajouté après le post-mortem du smoke #3 — council ARTEFACT verdict, 2026-06-13)
+
+The H1 primary endpoint is the CONTINUOUS Q_phys defined as :
+
+```python
+Q_phys_cont = sum(|A_dag[i,j]| for (i,j) where sign(A_dag[i,j]) == sign(G_phys[i,j]) and G_phys[i,j] != 0)
+              / sum(|A_dag[i,j]| for all off-diagonal (i,j))
+```
+
+Range [0, 1]. Gaming-resistant : un modèle avec 5/5 edges sign-correct à
+magnitude 0.011 entouré de 7 edges spurious à magnitude 0.17 donne
+`Q_phys_cont ≈ 0.04` (et NON 1.0 comme le métric binary).
+
+Le métric `Q_phys_binary` (sign-count avec threshold) est conservé comme
+**diagnostic secondaire** dans les JSONs, mais ne sert PAS à l'acceptation/
+rejet de H1. Toute claim H1 dans le mémoire / paper utilise `Q_phys_cont`.
+
+H1 acceptance threshold (locked here, before A0''): `Q_phys_cont ≥ 0.50`
+sur la moyenne des 3 seeds, avec BCa 95% CI lower bound > baseline_cont
+(baseline_cont = Q_phys_cont du V5-mini band-diagonal = 0.04).
+
+### PC6 — Band-diagonal n_extra_edges as pre-registered secondary outcome
+
+(Ajouté après le post-mortem du smoke #3 — DS recommendation)
+
+Define :
+```python
+n_extra_edges := count of |A_dag[i,j]| > 0.05 where (i,j) is off-diagonal
+                                                AND G_phys[i,j] == 0
+```
+
+Threshold 0.05 = 5× le smoke threshold 0.01 pour évacuer le bruit.
+
+`n_extra_edges` est reporté pour chaque seed dans le JSON A0''. La claim H1 +
+n_extra_edges interagissent ainsi :
+
+| Q_phys_cont | n_extra_edges | Reporting |
+|---|---|---|
+| ≥ 0.50 | ≤ 2 | "H1 met : interventional + sparse structural recovery" |
+| ≥ 0.50 | ≥ 3 | "H1 met under primary endpoint, structural sparsity NOT achieved (n_extra_edges = X). Causal-recovery claim restricted to interventional sign-consistency; structural claim withheld." |
+| < 0.50 | any | "H1 failed; see PC3 to disambiguate optimization-vs-architecture failure" |
+
+### PC7 — Smoke ≠ A0'' regime gap (acknowledged)
+
+(Ajouté après le post-mortem du smoke #3 — council unanime)
+
+Les smoke tests (#1, #2, #3, #4) tournent depuis le ckpt V5-mini avec
+`diffusion` en strict=False (V5-mini précède J29). C'est une **violation
+PC4 par construction** ; les smokes sont **EXEMPTÉS de PC4** car ils sont
+diagnostiques, pas evidentiels.
+
+En conséquence, **les résultats Q_phys des smokes ne sont PAS prédictifs
+des résultats Q_phys de A0''**. Le smoke valide :
+1. Que le code tourne (no exception)
+2. Que `A_dag` bouge (norm delta > 0.05) — proxy pour "le signal d'apprentissage
+   passe"
+3. Que les diagnostics post-mortem sont calibrés (Q_phys_cont, projection log,
+   per-epoch trajectory)
+
+Le smoke ne valide PAS :
+1. Que Q_phys_cont ≥ 0.50 sera atteint en A0'' (régime différent)
+2. Que le band-diagonal pattern sera cassé en A0''
+3. Que H1 sera accepté
+
+Les JSONs des smokes portent `"schema_version": "path-c-plus-smoke-X-batch-Y"`
+et `"valid_for_analysis": false` (cf. `stamp_batch_d_json`). Les JSONs A0''
+porteront `"schema_version": "path-c-plus-batch-D-v1"` et
+`"valid_for_analysis": true`.
+
+### PC8 — Effect-size threshold for H1 (locked before A0'')
+
+(Ajouté après le post-mortem du smoke #3 — DS Holm-Bonferroni pre-lock)
+
+Path C+ est déclaré EFFECTIF sur H1 ssi **TOUS** les critères suivants sont
+atteints conjointement :
+
+1. **Mean** : `Q_phys_cont` moyen sur 3 seeds ≥ 0.50
+2. **CI non-overlap** : BCa 95% CI lower bound de `Q_phys_cont` (3-seed)
+   strictement supérieur au BCa 95% CI upper bound du baseline V5-mini
+   (Q_phys_cont = 0.04)
+3. **Effect size** : Cohen's d ≥ 0.8 entre le 3-seed Path C+ et le V5-mini
+   single-point baseline (treating baseline_var = 0 → d = mean_diff / sd_pathcplus)
+
+Le test sur Q_phys_cont est combiné avec H2-H5 sous Holm-Bonferroni (k=5)
+avec alpha=0.05. Le ranking p-value sera fait avant l'unblinding des A0'' JSONs.
+
+**Q_phys_binary** (la métrique du smoke #3) reste un diagnostic secondaire,
+reporté avec son threshold (0.01 ou 0.3·max), mais ne contribue PAS au
+test statistique H1.
+
 ## Tombstone des résultats historiques pré-K1
 
 DS Round-2 Condition A : tous les résultats V5-mini produits avant le K1 fix

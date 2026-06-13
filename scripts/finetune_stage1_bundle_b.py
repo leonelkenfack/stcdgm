@@ -147,8 +147,21 @@ DEFAULT_HYPERPARAMS: Dict[str, Any] = {
     # Gate ramps 0 -> 1 over [warmup_start_epoch, warmup_end_epoch], so A_dag
     # receives prediction-loss gradient progressively (cold-start safety).
     # Before this fix, set_dag_grad_gate was never called and stayed at 0.0.
-    "dag_gate_warmup_start_epoch": 5,
-    "dag_gate_warmup_end_epoch": 20,
+    #
+    # Batch F fix (smoke #3 post-mortem): explicit 5/20 values defeated the
+    # auto-scale logic at schedule_lambdas() line 179-180 for short runs.
+    # In the 10-epoch smoke #3, gate reached only 0.33/1.0 at end -> A_dag
+    # received <33% of L_data gradient and norm stayed flat (0.530 -> 0.526).
+    # Leaving these as None lets schedule_lambdas compute defaults proportional
+    # to total_epochs:
+    #   10 epochs -> start=2, end=3  (gate=1.0 by epoch 4)
+    #   25 epochs -> start=3, end=6
+    #   200 epochs -> start=5, end=20  (original intent, full retrain)
+    # Callers who need a specific window can still pass hp_override={
+    #   "dag_gate_warmup_start_epoch": X, "dag_gate_warmup_end_epoch": Y,
+    # } to finetune_bundle_b.
+    "dag_gate_warmup_start_epoch": None,
+    "dag_gate_warmup_end_epoch": None,
 }
 
 
@@ -178,8 +191,15 @@ def schedule_lambdas(epoch: int, total_epochs: int, hp: Dict[str, Any]) -> Dict[
     #   end   = min(20, 50) = 20
     gate_warmup_start_default = min(5, max(2, total_epochs // 8))
     gate_warmup_end_default = min(20, max(gate_warmup_start_default + 2, total_epochs // 4))
-    gate_warmup_start = hp.get("dag_gate_warmup_start_epoch", gate_warmup_start_default)
-    gate_warmup_end = hp.get("dag_gate_warmup_end_epoch", gate_warmup_end_default)
+    # Batch F: also treat None as "use auto-scale default" (DEFAULT_HYPERPARAMS
+    # now stores None, but dict.get returns None when the key is present so we
+    # need an explicit fallback here).
+    gate_warmup_start = hp.get("dag_gate_warmup_start_epoch")
+    if gate_warmup_start is None:
+        gate_warmup_start = gate_warmup_start_default
+    gate_warmup_end = hp.get("dag_gate_warmup_end_epoch")
+    if gate_warmup_end is None:
+        gate_warmup_end = gate_warmup_end_default
     if epoch < gate_warmup_start:
         dag_grad_gate = 0.0
     elif epoch >= gate_warmup_end:
