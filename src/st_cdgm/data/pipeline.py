@@ -350,6 +350,20 @@ class NetCDFDataPipeline:
         chunks: Optional[Dict[str, int]] = None,
         eager_load_datasets: bool = False,
         transform_epsilon: float = 1e-6,
+        # K9 fix (DS audit): temporal split bounds
+        # Pass training_config.yaml's data.train_start_date / train_end_date /
+        # val_start_date / val_end_date to enforce temporal split. The pipeline
+        # will then return train_dataset / val_dataset / test_dataset that
+        # respect these temporal boundaries (no random_split, no time leakage).
+        # If None: legacy behavior (full dataset used, K8 preflight warning fires).
+        train_start_date: Optional[str] = None,
+        train_end_date: Optional[str] = None,
+        val_start_date: Optional[str] = None,
+        val_end_date: Optional[str] = None,
+        test_start_date: Optional[str] = None,
+        test_end_date: Optional[str] = None,
+        temporal_holdout_start_date: Optional[str] = None,
+        temporal_holdout_end_date: Optional[str] = None,
     ) -> None:
         if xbatcher is None:
             raise ImportError("xbatcher is required for ST-CDGM data streaming. Install it via `pip install xbatcher`.")
@@ -368,6 +382,36 @@ class NetCDFDataPipeline:
         self.transform_epsilon = transform_epsilon
         self._chunks = chunks
         self._eager_load_datasets = bool(eager_load_datasets)
+
+        # K9 fix: store temporal split bounds (parsed lazily when datasets are
+        # actually built). If any pair is set, the build_*_dataset methods
+        # will slice via xarray.sel(time=slice(start, end)) before constructing
+        # the BatchGenerator. This eliminates K9 (random split data leakage)
+        # and K5 (normalization-period leakage when combined with stats-from-train).
+        self.train_start_date = train_start_date
+        self.train_end_date = train_end_date
+        self.val_start_date = val_start_date
+        self.val_end_date = val_end_date
+        self.test_start_date = test_start_date
+        self.test_end_date = test_end_date
+        self.temporal_holdout_start_date = temporal_holdout_start_date
+        self.temporal_holdout_end_date = temporal_holdout_end_date
+
+        # Track whether temporal split is configured (used by build_*_dataset)
+        self._has_temporal_split = bool(
+            self.train_start_date and self.train_end_date
+        )
+        if self._has_temporal_split:
+            import warnings as _w
+            _w.warn(
+                f"K9 fix: temporal split active. "
+                f"Train: [{self.train_start_date}, {self.train_end_date}], "
+                f"Val:   [{self.val_start_date}, {self.val_end_date}], "
+                f"Test:  [{self.test_start_date}, {self.test_end_date}], "
+                f"Holdout: [{self.temporal_holdout_start_date}, {self.temporal_holdout_end_date}]. "
+                f"build_sequence_dataset(split=...) will respect these bounds.",
+                UserWarning, stacklevel=2,
+            )
 
         self._target_transform = _ensure_callable_transform(target_transform, transform_epsilon)
         self._target_inverse_transform = target_inverse_transform
@@ -847,12 +891,78 @@ class NetCDFDataPipeline:
         # V5 — Track D3 : augmentation params (default off => backward compat).
         training: bool = False,
         hflip_prob: float = 0.0,
+        # K9 fix: temporal split selector
+        split: Optional[str] = None,
     ) -> "ResDiffIterableDataset":
+        """Build a sequence dataset, optionally restricted to a temporal split.
+
+        K9 fix: if ``split`` is provided AND temporal_start/end_date were
+        passed to ``__init__``, slice the underlying xarray datasets via
+        ``.sel(time=slice(start, end))`` before constructing the iterable
+        dataset. This eliminates the K9 random_split data leakage by using
+        temporal boundaries.
+
+        Parameters
+        ----------
+        split : Optional[str]
+            One of {"train", "val", "test", "temporal_holdout", None}.
+            None = full dataset (legacy behavior, K8 preflight warning fires).
+        """
         seq_len = seq_len or self.seq_len
         if as_torch and torch is None:
             raise ImportError("Torch is required to obtain PyTorch tensors. Install it via `pip install torch`.")
         if IterableDataset is None:
             raise ImportError("Torch IterableDataset is required. Install PyTorch to continue.")
+
+        # K9 fix: resolve temporal bounds based on split
+        if split is not None and self._has_temporal_split:
+            bound_map = {
+                "train": (self.train_start_date, self.train_end_date),
+                "val": (self.val_start_date, self.val_end_date),
+                "test": (self.test_start_date, self.test_end_date),
+                "temporal_holdout": (
+                    self.temporal_holdout_start_date,
+                    self.temporal_holdout_end_date,
+                ),
+            }
+            if split not in bound_map:
+                raise ValueError(
+                    f"K9: split must be one of {list(bound_map.keys())}, got {split!r}"
+                )
+            start_date, end_date = bound_map[split]
+            if start_date is None or end_date is None:
+                raise ValueError(
+                    f"K9: split={split!r} requested but bounds not set "
+                    f"(start={start_date}, end={end_date}). Set "
+                    f"{split}_start_date and {split}_end_date in pipeline kwargs."
+                )
+            time_dim = self.dims.time
+            # Slice all underlying datasets to the temporal split
+            lr_sliced = self.lr_dataset.sel({time_dim: slice(start_date, end_date)})
+            baseline_sliced = self.baseline_prepared.sel({time_dim: slice(start_date, end_date)})
+            residual_sliced = self.residual_dataset.sel({time_dim: slice(start_date, end_date)})
+            hr_sliced = self.hr_dataset.sel({time_dim: slice(start_date, end_date)})
+
+            n_t_slice = lr_sliced.sizes.get(time_dim, 0)
+            print(f"[K9] Split '{split}': temporal slice [{start_date}, {end_date}] -> {n_t_slice} time steps")
+
+            return ResDiffIterableDataset(
+                lr_dataset=lr_sliced,
+                baseline_dataset=baseline_sliced,
+                residual_dataset=residual_sliced,
+                hr_dataset=hr_sliced,
+                static_tensor_np=self.static_tensor_np,
+                static_tensor_torch=self.static_tensor_torch,
+                dims=self.dims,
+                seq_len=seq_len,
+                stride=max(1, stride),
+                drop_last=drop_last,
+                as_torch=as_torch,
+                training=training,
+                hflip_prob=hflip_prob,
+            )
+
+        # Legacy: full dataset (K8 preflight warning expected)
         return ResDiffIterableDataset(
             lr_dataset=self.lr_dataset,
             baseline_dataset=self.baseline_prepared,
