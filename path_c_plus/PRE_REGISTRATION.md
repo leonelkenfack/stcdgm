@@ -321,6 +321,54 @@ Si smoke #4 retourne :
 Ce protocole pré-enregistré ferme la porte au HARKing post-smoke
 ("on a tuné les hyperparams jusqu'à ce que ça passe").
 
+### PC13 — Warm-start FT with NEW Path C+ params (locked BEFORE A1 launch retry, 2026-06-13)
+
+PC4 blocks strict=False fallback to catch the smoke #2 failure mode (silent
+re-init of existing weights when keys SHOULD have matched). But a legitimate
+warm-start FT scenario also produces `strict=False`-required loads :
+the V5_DIR ckpt was trained BEFORE Path C+ fixes (§1.6, J3, J1, J29) which
+ADDED new parameters to the encoder, regression_head, and diffusion modules.
+Loading V5_DIR into the post-fix model produces `missing_keys` for those
+NEW params -- which is methodologically OK because the FT loop will train
+them from random init.
+
+PC13 distinguishes the two cases :
+
+- **PC4 BLOCKING (unchanged)** : `unexpected_keys` non-empty OR shape mismatch.
+  These indicate genuine semantic incompatibility -> AUTOMATIC EXCLUSION.
+
+- **PC13 SOFT-PASS** : the strict=False fallback is allowed IF AND ONLY IF :
+  1. `unexpected_keys == []` (no orphan ckpt weights)
+  2. ALL `missing_keys` are in the pre-registered Path C+ NEW-params allowlist :
+     - `metapath_convs.*` (§1.6 per-metapath convs, after legacy migration)
+     - `layer_norms.*` (J3 per-metapath layer norms, after legacy migration)
+     - `_state_adapter.*` (J1 eager init in regression_head)
+     - `edge_gate.*` (J20 learnable edge gate, if added)
+     - any other field explicitly listed below before A1 launch
+
+  The JSON records `pc13_softpass_reason` with the matched-against-allowlist
+  evidence + the explicit ckpt commit hash that justifies the warm-start.
+
+- **PC13 HARD BLOCK** : any other strict=False outcome (e.g., legacy keys
+  outside the allowlist, or shape mismatch) raises `RuntimeError`.
+
+PC13 PRESERVES the PC4 filet (smoke #2 still blocked) while authorizing
+the legitimate FT scenario. Without PC13, PC4 would mechanically force a
+from-scratch retrain (A0'' scope) for any new Path C+ commit -- defeating
+the cheap-FT advantage of A1.
+
+**Allowlist for A1 launch (locked 2026-06-13, commit c7b65ee or successor) :**
+```
+[
+  "metapath_convs",  # encoder §1.6 (after legacy migration)
+  "layer_norms",     # encoder J3   (after legacy migration)
+  "_state_adapter",  # regression_head J1
+]
+```
+The diffusion module (J29 cfg_scale handling) does NOT add params -- J29 is
+a runtime check, not a weight. So diffusion strict=False is NOT PC13-eligible
+and remains PC4-blocking.
+
 ### PC12 — M2 reporting floor (locked BEFORE A1 launch, 2026-06-13)
 
 Lors de la validation conseil du notebook A1 (commit fb7c7af), le DS a
@@ -446,5 +494,6 @@ Commit hash @ signature : _______________
 | 1.2 | 2026-06-13 | Batch F post-validation : PC8 sd floor (0.05) + Student-t fallback CI, PC8 random-null check (0.083), PC5 endpoint-drift note. PC7 tombstone tagging hardened : smoke JSONs ne portent PLUS le marker `fixes_applied` (réservé A0''). | Council Math/AI/DS sign-off pending |
 | 1.3 | 2026-06-13 | Council ter follow-up post-blindspots : PC5-bis (collapse tie-break), PC7-bis (code-path identity explicit, smoke ne pré-valide PAS A0''), PC9 (smoke triage protocol — anti-HARKing), PC10 (lineage deep-copy integrity). Phys_mag_gained threshold lowered 0.005 -> 0.003 (Math Prof + AI Eng convergence : 55% du bandwidth max au lieu de 91%). | Council Math/AI/DS sign-off pending |
 | 1.4 | 2026-06-13 | Pre-A1 council validation : PC12 (M2 reporting floor 0.30 explicitement séparé de PC5 H1 acceptance 0.50, anti-HARKing). Notebook A1 patché : PC4 BLOCKING gate dans run_a1_seed (raise si diffusion strict=False), K9 temporal split dates passés à NetCDFDataPipeline + split="train"/"val" (DS flag : sans ça val ⊂ train). BCa CI clip z0 + a1/a2 pour n=3 dégénéré (Math Prof). | Council Math/AI/DS sign-off pending |
+| 1.5 | 2026-06-13 | A1 launch retry : PC4 trop strict pour le scénario warm-start FT car §1.6/J3/J1 ajoutent NEW params absents du V5_DIR ckpt original. PC13 ajouté : SOFT-PASS pour strict=False ssi unexpected_keys=[] AND missing_keys ⊆ allowlist {metapath_convs, layer_norms, _state_adapter}. Diffusion strict=False reste PC4-bloquant (J29 = runtime check, pas un weight). Préserve filet smoke #2. | Council Math/AI/DS sign-off pending |
 
 Toute modification post-signature doit être tracée ici avec justification scientifique.
