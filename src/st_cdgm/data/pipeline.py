@@ -688,18 +688,39 @@ class NetCDFDataPipeline:
             means = xr.open_dataset(self.means_path)
             stds = xr.open_dataset(self.stds_path)
         else:
+            # K5 fix (DS audit): when temporal split is configured, compute
+            # mean/std on the TRAIN WINDOW ONLY. Normalising over the entire
+            # time axis (incl. val/test) leaks future statistics into the
+            # train predictors -> reported MAE/RMSE optimistically biased and
+            # any seasonal/decadal shift in val/test cannot be detected.
+            # Note: the FULL dataset is still normalised here, but with stats
+            # derived from train only, so val/test are projected onto the
+            # train distribution.
+            stats_source = dataset
+            if getattr(self, "_has_temporal_split", False):
+                time_dim = self.dims.time
+                tstart = self.train_start_date
+                tend = self.train_end_date
+                stats_source = dataset.sel({time_dim: slice(tstart, tend)})
+                n_train = stats_source.sizes.get(time_dim, 0)
+                print(
+                    f"[K5] Normalisation stats computed on train window "
+                    f"[{tstart}, {tend}] -> {n_train} time steps "
+                    f"(full dataset = {dataset.sizes.get(time_dim, 0)} steps will "
+                    f"be normalised with these train-only stats)."
+                )
             # Utiliser skipna=True pour ignorer les NaN dans le calcul des statistiques
-            means = dataset.mean(dim=self.dims.time, skipna=True, keep_attrs=True)
-            stds = dataset.std(dim=self.dims.time, skipna=True, keep_attrs=True)
-        
+            means = stats_source.mean(dim=self.dims.time, skipna=True, keep_attrs=True)
+            stds = stats_source.std(dim=self.dims.time, skipna=True, keep_attrs=True)
+
         # Protection contre division par zéro avec epsilon
         epsilon = 1e-6
         stds = stds.where(stds > epsilon, other=1.0)
         normalised = (dataset - means) / stds
-        
+
         # Remplacer les NaN résiduels par 0 (après normalisation)
         normalised = normalised.fillna(0.0)
-        
+
         return normalised, {"mean": means, "std": stds}
 
     def _compute_baseline(self) -> xr.Dataset:
