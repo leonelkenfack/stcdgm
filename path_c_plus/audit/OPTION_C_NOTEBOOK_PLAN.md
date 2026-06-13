@@ -127,11 +127,22 @@ Inline-port the 5 eval cells from noncausal_training.ipynb (61, 62, 63, 64, 65) 
 - Save `oracle_full/oracle_full_aggregate.json`
 - Export to results/ (rename targets to oracle_metrics.json + oracle_*_ablation.json to NOT clobber noncausal baseline)
 
-## Critical risks
+## Critical risks (council pre-review GO-WITH-CHANGE, post-fix)
 
-1. **Stage 2 200 epochs on A100 = 25-40h per seed × 3 = 75-120h**. Must implement robust resume per-epoch.
-2. **K9 split with stride=2** : ~6927 samples / epoch. Must verify NetCDFDataPipeline can handle this with the K9 fix.
-3. **Encoder migration ON from-scratch** : shouldn't fire (no V5_DIR warm-start), but PC13 check is still wired as safety net.
-4. **DataLoader iterate_batches** : training_eval.ipynb has a custom helper. Must port it OR import from a shared module.
-5. **GCM OOD K23** : the noncausal pipeline uses SAME mean/std (ACCESS-CM2) for OOD GCMs. K23 audit flagged this as questionable. Option C inherits this limitation. Document in thesis caveat.
-6. **Holm-Bonferroni on n=3** : with only 3 seeds, paired t-test power is low. Holm correction across 5 hypotheses with k=5 multiplier makes it even more conservative. Math Prof may flag this.
+1. **Stage 2 200 epochs on A100 = 25-40h per seed × 3 = 75-120h**. Resume per-epoch atomic save with `stage1_epoch_done` / `stage2_epoch_done` mirroring noncausal pattern (lines 32205, 32717). Skip-seed gate checks BOTH `results.json` AND 3 GCM aligned JSONs.
+
+2. **K9 split with stride=2** : Math Prof corrected sample count from ~6927 to **N=5468** (`N = (10950 - 16) / 2 + 1`). Bandwidth per-entry A_dag displacement ≈ **7.7e-3** (7× A1's bandwidth). Predicts **Q_phys_cont ∈ [0.55, 0.75]** for Option C 3-seed mean -- H1 threshold 0.50 should pass.
+
+3. **AI Eng CRITICAL BUG (FIXED in cell 2)** : `train_epoch_stage1` does NOT read `lambda_l1_start/end` or `dag_gate_warmup_*` -- those are dead config keys. Cell 6 MUST import `schedule_lambdas` + `DEFAULT_HYPERPARAMS` from `scripts.finetune_stage1_bundle_b` and call them PER-EPOCH to produce scalar `lambda_l1` + `dag_grad_gate_value` passed into `train_epoch_stage1`. Cell 2 now sets only the scalar overrides (`lambda_dag_prior`, `g_phys_alpha`) that the training fn reads directly.
+
+4. **iterate_batches port** : Found at noncausal_training.ipynb line 30426, `def iterate_batches(dataloader, builder, device)`. Takes builder + device explicitly, no hidden globals. Port verbatim into cell 3 (or move to option_c_helpers). Also port `_sample_to_batch` + helpers around line 30403-30440.
+
+5. **Eval cells 8-11 state leakage across seeds** : cells 8-11 share globals `_pred_full`, `_pred_std`, `_mu_concat`, `_build_inputs`, `_sample_once`, `_ckpt_dir` populated by cell 61 (FINAL_VALIDATION). In the seed loop, after seed 42 fires cells 8-11, `_sample_once` captures seed-42's diffusion module via closure. Cell 6's seed loop must `del` these globals before re-entering for seed 7 (or wrap cells 8-11 in `def run_eval_for_seed(seed, stack)`).
+
+6. **GCM OOD K23 caveat (DS)** : noncausal pipeline uses SAME ACCESS-CM2 mean/std for EC-Earth3 + NorESM2-MM OOD. Option C inherits. PC14 #7 specifies the thesis caveat string : `"ood_limitation_k23": "OOD evaluation uses same predictor mean/std as in-distribution train (ACCESS-CM2). Cross-GCM distribution shift is NOT corrected. OOD claim is restricted to: robustness under shared predictor distribution assumption."` Must appear in `oracle_full_aggregate.json`.
+
+7. **Holm-Bonferroni scope** (Math Prof + DS consensus, PC14 #5) : applied to **k=4 (H2-H5)** only, NOT k=5. H1 is excluded — its acceptance uses the 5-condition AND-gate (PC5 + PC8) which is strictly more conservative than Holm at α=0.05. H1 raw p-value reported as diagnostic only. Use `holm_bonferroni_h2_h5` (renamed from `holm_bonferroni_h1_h5`, alias kept for back-compat).
+
+8. **H2-H5 test type rename** (Math Prof + DS consensus) : `paired_t_h2_h5` renamed to `one_sample_t_vs_noncausal_constant`. The noncausal baseline is a single trained model treated as a known constant (zero variance). The test is one-sample Student-t (df=2), not paired. JSON field `test_type = "one_sample_t_vs_constant"` makes the methodology explicit. PC14 #6 documents this.
+
+9. **baseline_cont must specify provenance** (Math Prof) : `compute_h1_verdict` now requires explicit `baseline_source` argument. Valid values : `"legacy_v5mini_0p04"` (use 0.04 as in A1), `"noncausal_recomputed"` (compute fresh from noncausal A_dag), `"noncausal_a_dag_absent"` (noncausal has no A_dag -> baseline=0). For Option C, the cell 12 caller decides which is appropriate. Defendable choice = `"noncausal_a_dag_absent"` (true noncausal has no DAG = baseline 0; Q_phys_cont > 0 already meaningful) OR `"legacy_v5mini_0p04"` (preserve PC5/PC8 historical anchor).

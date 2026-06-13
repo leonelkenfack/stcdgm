@@ -379,7 +379,8 @@ def compute_h1_verdict(
     n_extra_per_seed: List[int],
     collapsed_per_seed: List[bool],
     *,
-    baseline_cont: float = 0.04,
+    baseline_cont: float,
+    baseline_source: str,
     random_null: float = 0.083,
     h1_threshold: float = 0.50,
     reporting_floor: float = 0.30,
@@ -393,8 +394,26 @@ def compute_h1_verdict(
       - "H1_PASS_INTERVENTIONAL_ONLY" (PC5 strict + n_extra >= 3, PC6 row 2)
       - "BELOW_H1_ABOVE_FLOOR"       (PC12 reporting category, NOT acceptance)
       - "FAIL"                       (below floor)
+
+    Math Prof PASS-WITH-NITS : baseline_cont must be explicitly specified
+    with a provenance tag (baseline_source). Valid sources :
+      - "legacy_v5mini_0p04"        (historical V5-mini broken baseline)
+      - "noncausal_recomputed"      (Option C : computed from a freshly
+                                     re-evaluated noncausal ckpt A_dag)
+      - "noncausal_a_dag_absent"    (noncausal has no A_dag -> baseline=0)
     """
     from scipy import stats as _stats
+
+    VALID_BASELINE_SOURCES = {
+        "legacy_v5mini_0p04",
+        "noncausal_recomputed",
+        "noncausal_a_dag_absent",
+    }
+    if baseline_source not in VALID_BASELINE_SOURCES:
+        raise ValueError(
+            f"baseline_source must be one of {VALID_BASELINE_SOURCES}, "
+            f"got {baseline_source!r}"
+        )
 
     n = len(q_cont_per_seed)
     if n < 3:
@@ -453,6 +472,7 @@ def compute_h1_verdict(
         "bca_ci_95": [bca_lower, bca_upper],
         "student_t_lower_95": float(student_t_lower),
         "baseline_cont": baseline_cont,
+        "baseline_source": baseline_source,
         "random_null": random_null,
         "h1_threshold": h1_threshold,
         "reporting_floor_pc12": reporting_floor,
@@ -508,7 +528,7 @@ def load_noncausal_baseline_metrics(ckpt_noncausal_dir: Path) -> Dict[str, Any]:
     return result
 
 
-def paired_t_h2_h5(
+def one_sample_t_vs_noncausal_constant(
     oracle_per_seed: List[float],
     noncausal_value: float,
     *,
@@ -516,10 +536,20 @@ def paired_t_h2_h5(
     delta_threshold: Optional[float] = None,
     direction: str = "lower_is_better",
 ) -> Dict[str, Any]:
-    """Single-sample paired comparison : Path C+ Oracle (3 seeds) vs noncausal scalar.
+    """One-sample one-sided Student-t (df=n-1) of Oracle 3 seeds vs noncausal SCALAR.
 
-    With n=3 we use Student-t one-sided (df=2) since paired Wilcoxon needs
-    n_pairs>=6 for any non-trivial p-value.
+    Council rename (Math Prof + DS) : this is NOT a paired test. The noncausal
+    baseline is a single trained model (epoch=200) treated as a known constant
+    with zero variance. The test is a one-sample t-test against that constant.
+    Conservative-for-Oracle when `direction` matches observed inequality;
+    anti-conservative otherwise.
+
+    Test stat : t = (mean(oracle) - noncausal) / (sd(oracle)/sqrt(n))
+    p-value   : one-sided lower (direction="lower_is_better") or upper
+                (direction="higher_is_better"), df=n-1.
+
+    JSON output includes `test_type = "one_sample_t_vs_constant"` to make
+    the methodology explicit in the audit trail.
 
     Parameters
     ----------
@@ -553,6 +583,7 @@ def paired_t_h2_h5(
 
     return {
         "label": label,
+        "test_type": "one_sample_t_vs_constant",
         "n_seeds": n,
         "oracle_per_seed": list(oracle_per_seed),
         "oracle_mean": float(np.mean(oracle_per_seed)),
@@ -568,21 +599,41 @@ def paired_t_h2_h5(
     }
 
 
-def holm_bonferroni_h1_h5(
+# Backward-compatibility alias (DO NOT use in new code -- name is misleading)
+paired_t_h2_h5 = one_sample_t_vs_noncausal_constant
+
+
+def holm_bonferroni_h2_h5(
     p_values: Dict[str, float],
     *,
     alpha: float = 0.05,
+    family_size: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Holm-Bonferroni correction across H1-H5 family (k=5).
+    """Holm-Bonferroni correction across H2-H5 family (k=4 per PC14).
+
+    Council scope-fix (Math Prof + DS) : H1 is EXCLUDED from the Holm family.
+    H1 acceptance uses the 5-condition AND-gate (PC5 + PC8 strict gates)
+    which is strictly more conservative than Holm at alpha=0.05; including
+    H1 in the Holm family would double-correct.
+
+    Per PC14 #5 : the family is {H2, H3, H4, H5} (k=4). Pass `family_size`
+    explicitly to override (e.g., for diagnostic runs).
 
     Returns dict mapping each hypothesis -> {p_raw, p_adjusted, reject}.
     Sorted by p_raw ascending. Reject if p_adjusted < alpha.
     """
     items = sorted(p_values.items(), key=lambda kv: kv[1])
-    k = len(items)
+    n_items = len(items)
+    k = family_size if family_size is not None else n_items
+    if k < n_items:
+        raise ValueError(
+            f"family_size={k} smaller than number of hypotheses ({n_items}). "
+            f"This would under-correct (anti-conservative). Use family_size >= n."
+        )
     out: Dict[str, Any] = {}
     for i, (name, p) in enumerate(items):
-        adj_factor = k - i
+        # Step-down : i-th smallest p gets multiplier max(1, k - i)
+        adj_factor = max(1, k - i)
         p_adj = min(1.0, p * adj_factor)
         out[name] = {
             "p_raw": float(p),
@@ -592,6 +643,10 @@ def holm_bonferroni_h1_h5(
             "adjustment_factor": adj_factor,
         }
     return out
+
+
+# Backward-compatibility alias
+holm_bonferroni_h1_h5 = holm_bonferroni_h2_h5
 
 
 # =============================================================================
@@ -662,7 +717,9 @@ __all__ = [
     "check_pc4_pc13_gate",
     "compute_h1_verdict",
     "load_noncausal_baseline_metrics",
-    "paired_t_h2_h5",
-    "holm_bonferroni_h1_h5",
+    "one_sample_t_vs_noncausal_constant",
+    "paired_t_h2_h5",       # alias (deprecated)
+    "holm_bonferroni_h2_h5",
+    "holm_bonferroni_h1_h5",  # alias (deprecated)
     "stamp_option_c_json",
 ]

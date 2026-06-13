@@ -321,6 +321,70 @@ Si smoke #4 retourne :
 Ce protocole pré-enregistré ferme la porte au HARKing post-smoke
 ("on a tuné les hyperparams jusqu'à ce que ça passe").
 
+### PC14 — Option C as PRIMARY H1 test (locked 2026-06-13, BEFORE Option C launch)
+
+A1 (commit `78a3783`, `schema_version="path-c-plus-batch-D-v1"`) returned
+`H1_PASS_INTERVENTIONAL_ONLY` with Q_phys_cont = 0.521, all PC5/PC8 gates
+passed, but PC6 sparse recovery failed (n_extra=7/seed). A1 is RECLASSIFIED
+as **preliminary screening** (warm-start FT, 25 epochs Stage 1 only).
+Option C (full Stage 1+2 from-scratch, 215 epochs total, 3 seeds) becomes
+the **PRIMARY H1 test** for the thesis.
+
+1. **Primary H1 endpoint** : `Q_phys_cont` from
+   `oracle_full/oracle_full_aggregate.json` (schema-version
+   `path-c-plus-option-c-v1`). Same acceptance criteria as PC5 + PC8 +
+   PC6 + PC12 (UNCHANGED — no threshold relaxation).
+
+2. **A1 result is NOT re-analyzed**. The A1 aggregate JSON
+   (`path-c-plus-batch-D-v1`) is archived as-is. The thesis reports A1 as
+   "preliminary screening result motivating the full Option C retrain"
+   in §Methodology. The thesis claim section cites ONLY Option C.
+
+3. **No cross-protocol cherry-picking**. If Option C verdict differs from
+   A1, the thesis reports Option C as authoritative. A1 is NEVER cited
+   as a substitute claim if Option C fails.
+
+4. **Hyperparameters are LOCKED** at the values used in A1
+   (`PATHCPLUS_HYPERPARAM_OVERRIDES` in `option_c_helpers.py`):
+   `lambda_dag_prior=0.40`, `lambda_l1_start=0.04` / `lambda_l1_end=0.005`,
+   `g_phys_alpha=0.25`, `dag_grad_gate` = auto-scale ramp via
+   `schedule_lambdas()`. No further tuning permitted under PC9 between
+   A1 and Option C. The aggregate JSON records
+   `pathcplus_hyperparams_locked_at_commit = "<batch-F commit hash>"`.
+
+5. **H2-H5 statistical scope** : Holm-Bonferroni applied to **k=4**
+   (H2, H3, H4, H5) only. H1 acceptance uses the 5-condition AND-gate
+   (PC5+PC8) which is strictly more conservative than Holm at α=0.05;
+   including H1 in the Holm family would double-correct. H1 raw p-value
+   (one-sample Student-t vs `baseline_cont=0.04`) is reported as
+   diagnostic only.
+
+6. **H2-H5 test type** : **one-sample Student-t (df=2)** of 3 Oracle
+   seeds vs noncausal SCALAR (single trained model, treated as known
+   constant). The test is NOT "paired" — labelled
+   `one_sample_t_vs_noncausal_constant` in JSON output.
+   **Limitation documented in thesis** : "noncausal-as-constant assumes
+   zero baseline variance; multi-seed noncausal acquisition deferred to
+   future work."
+
+7. **OOD K23 limitation** : cross-GCM evaluation uses ACCESS-CM2 train
+   `mean/std` (K23 audit finding). Aggregate JSON records
+   `"ood_limitation_k23": "OOD evaluation uses same predictor mean/std
+   as in-distribution train (ACCESS-CM2). Cross-GCM distribution shift
+   is NOT corrected. OOD claim is restricted to: robustness under shared
+   predictor distribution assumption."` The thesis OOD claim is bounded
+   accordingly.
+
+8. **Compute budget cap** : 120h wall-clock on A100. If Stage 2 does not
+   complete 3 seeds × 200 epochs within budget, partial results
+   (incomplete seeds excluded) trigger **Option C-bis amendment**, NOT
+   a relaxed acceptance criterion. Acceptance criteria PC5-PC8 are
+   immutable.
+
+PC14 closes the HARKing surface introduced by running both A1 and
+Option C on the same hypothesis. Council DS pre-validation : MEDIUM-HARKing
+risk dropped to LOW with PC14 + helper rename + Holm scope fix.
+
 ### PC13 — Warm-start FT with NEW Path C+ params (locked BEFORE A1 launch retry, 2026-06-13)
 
 PC4 blocks strict=False fallback to catch the smoke #2 failure mode (silent
@@ -495,5 +559,6 @@ Commit hash @ signature : _______________
 | 1.3 | 2026-06-13 | Council ter follow-up post-blindspots : PC5-bis (collapse tie-break), PC7-bis (code-path identity explicit, smoke ne pré-valide PAS A0''), PC9 (smoke triage protocol — anti-HARKing), PC10 (lineage deep-copy integrity). Phys_mag_gained threshold lowered 0.005 -> 0.003 (Math Prof + AI Eng convergence : 55% du bandwidth max au lieu de 91%). | Council Math/AI/DS sign-off pending |
 | 1.4 | 2026-06-13 | Pre-A1 council validation : PC12 (M2 reporting floor 0.30 explicitement séparé de PC5 H1 acceptance 0.50, anti-HARKing). Notebook A1 patché : PC4 BLOCKING gate dans run_a1_seed (raise si diffusion strict=False), K9 temporal split dates passés à NetCDFDataPipeline + split="train"/"val" (DS flag : sans ça val ⊂ train). BCa CI clip z0 + a1/a2 pour n=3 dégénéré (Math Prof). | Council Math/AI/DS sign-off pending |
 | 1.5 | 2026-06-13 | A1 launch retry : PC4 trop strict pour le scénario warm-start FT car §1.6/J3/J1 ajoutent NEW params absents du V5_DIR ckpt original. PC13 ajouté : SOFT-PASS pour strict=False ssi unexpected_keys=[] AND missing_keys ⊆ allowlist {metapath_convs, layer_norms, _state_adapter}. Diffusion strict=False reste PC4-bloquant (J29 = runtime check, pas un weight). Préserve filet smoke #2. | Council Math/AI/DS sign-off pending |
+| 1.6 | 2026-06-13 | Option C pre-launch council pre-review : PC14 ajouté (Option C primary, A1 preliminary). 3 verdicts GO-WITH-CHANGE collectés : (Math Prof) Holm scope k=4 + paired_t rename + baseline_source explicite ; (AI Eng) CRITICAL `train_epoch_stage1` ne lit ni `lambda_l1_start/end` ni `dag_gate_warmup_*` -- doit utiliser `schedule_lambdas` per-epoch + atomic resume stage1/2_epoch_done + per-seed eval isolation ; (DS) BLOCKING PC14 amendment, HARKing MEDIUM-LOW post-fix. | Council Math/AI/DS GO-WITH-CHANGE |
 
 Toute modification post-signature doit être tracée ici avec justification scientifique.
