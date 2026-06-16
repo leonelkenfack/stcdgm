@@ -1,0 +1,108 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue!60!black, citecolor=blue!60!black}
+\setlength{\parskip}{0.55em}
+\setlength{\parindent}{0pt}
+\linespread{1.08}
+
+\title{\vspace{-2em}\Large\bfseries Désagrégation climatique\\[2pt]
+\large Verrous techniques de la descente d'échelle climatique et apport d'une approche causale}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-3em}
+
+\section{Présentation du downscaling}
+
+Les modèles climatiques globaux (GCM, \emph{General Circulation Models}) utilisés par le GIEC simulent l'atmosphère à une résolution typique de 100 à 250~km par maille. À cette échelle, la dynamique régionale (relief, contrastes côte/intérieur, microclimats) est invisible : Douala et Yaoundé occupent la même cellule, le mont Cameroun n'a aucun effet, la transition savane--forêt disparaît. Pour utiliser ces simulations dans des décisions d'aménagement, d'agriculture ou d'énergie, il faut produire une représentation à plus fine échelle (typiquement 1 à 12~km) : c'est la \textbf{descente d'échelle climatique} (\emph{downscaling}).
+
+Deux grandes familles de méthodes coexistent. La \textbf{descente d'échelle dynamique} (\emph{dynamical downscaling}) emboîte un modèle régional (RCM) dans le GCM et résout les équations de l'atmosphère à plus fine maille : c'est physiquement rigoureux mais très coûteux. La \textbf{descente d'échelle statistique} (\emph{statistical / ML-based downscaling}) apprend, à partir d'archives historiques, une fonction qui relie les champs à grande échelle aux champs locaux : c'est moins coûteux mais a ses propres limites (interprétabilité, généralisation hors-distribution, cohérence physique).
+
+\section{Enjeux pour le Cameroun et l'Afrique}
+
+Au Cameroun, \textbf{l'agriculture représente environ 22~\% du PIB et fait vivre près de 44~\% de la population active}, et plus de 70~\% de la population en dépend pour ses moyens de subsistance --- secteur très majoritairement pluvial \cite{IMF2024,WB2022CCDR}. La qualité des projections climatiques locales est donc un déterminant direct de la sécurité alimentaire, énergétique et sanitaire.
+
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item \textbf{Agriculture pluviale} : le calendrier traditionnel des saisons est déjà déphasé ; sans projections locales fiables, l'adaptation des dates de semis et le choix variétal restent empiriques.
+    \item \textbf{Hydroélectricité} : la centrale de Lagdo contribue à environ 74~\% de la production électrique du Nord-Cameroun ; sa planification opérationnelle (règles de lâcher, débits transfrontaliers) dépend de projections de précipitations sur le bassin de la Bénoué \cite{Nonki2021}.
+    \item \textbf{Risques climatiques aigus} : les inondations de l'Extrême-Nord en octobre 2024 ont affecté environ 356~000 personnes, détruit 56~000 maisons et noyé 82~500~hectares de cultures \cite{OCHA2024} ; ces événements ne sont actuellement pas anticipés à l'échelle communale.
+    \item \textbf{Santé publique} : l'extension de la saison humide vers le Sahel modifie la distribution spatiale du paludisme et lui ouvre de nouvelles zones \cite{Sokhna2022}.
+\end{itemize}
+
+À l'échelle continentale, \textbf{la productivité agricole africaine a diminué d'environ 34~\% depuis 1961} sous l'effet du changement climatique --- la régression la plus forte observée toutes régions confondues \cite{IPCC2022}. La Banque Mondiale estime qu'\textbf{en l'absence d'adaptation, le Cameroun pourrait perdre entre 4 et 10~\% de son PIB d'ici 2050} \cite{WB2022CCDR}. Le Plan National d'Adaptation aux Changements Climatiques (PNACC) exige des projections différenciées par zone agro-écologique (cinq zones), exigence techniquement inaccessible sans descente d'échelle locale.
+
+\section{Limitations identifiées dans la littérature}
+
+Trois familles méthodologiques dominent l'état de l'art, et chacune présente un verrou bloquant dans un contexte africain.
+
+\subsection*{(a) La descente d'échelle dynamique : un coût computationnel rédhibitoire}
+
+Les modèles régionaux (RCM) reposent sur la résolution numérique des équations primitives de l'atmosphère sur des grilles fines. La configuration CWA-WRF utilisée à Taïwan tourne par exemple sur \textbf{928 c\oe urs SPARC64 en parallèle} \cite{Mardani2024}. À budget fixe, on ne peut donc descendre qu'\emph{un seul scénario} d'un GCM à la fois, ce qui maintient les résolutions opérationnelles à \textbf{12--50~km} dans les exercices CORDEX. Or les applications de risque (assurance paramétrique, planification d'urgence) nécessitent \textbf{plusieurs milliers de membres d'ensemble}, ordre de grandeur incompatible avec un coût RCM \cite{Hobeichi2023}.
+
+Pour un continent qui héberge \textbf{moins de 1~\% des capacités HPC mondiales} \cite{Bachmann2025}, ce paradigme exclut de facto la production locale de projections fines. C'est ce qui motive la recherche d'alternatives par apprentissage profond \cite{Rampal2024,Doury2024}.
+
+\subsection*{(b) Les modèles d'apprentissage profond : opacité et violations physiques}
+
+Les architectures par U-Net, GAN conditionnels ou modèles de diffusion apprennent une correspondance statistique entre champs à grande échelle et champs locaux. Trois faiblesses sont aujourd'hui documentées.
+
+\textbf{Violations de contraintes physiques.} González-Abad et al.~\cite{GonzalezAbad2023AAAI} montrent que des architectures CNN univariées appliquées aux variables de température produisent des sorties \emph{physiquement impossibles} (par exemple $T_{\min} > T_{\max}$). Le taux de violation passe d'environ \textbf{4~\% à l'entraînement à 15--17~\% en projection 2100 sous le scénario RCP8.5}, à mesure que les conditions s'éloignent de la distribution d'apprentissage. Les auteurs citent également des modèles publiés (Wang \& Tian 2022) ayant produit des valeurs minimales supérieures aux maximales sur des cas réels.
+
+\textbf{Opacité et non-reproductibilité.} Doury et al.~\cite{Doury2023} qualifient explicitement leur émulateur d'\og{}\emph{neural network model as a black-box regression model}\fg{} et montrent que \textbf{31 réentraînements identiques d'un même U-Net (25~M de paramètres)} produisent des erreurs sur la climatologie future variant de \textbf{0,003 à 0,139~\textdegree C}, soit un facteur~46, dû exclusivement à la stochasticité interne (initialisation, ordre des batches). Les approches d'explicabilité \emph{post-hoc} de type cartes de saillance ou Integrated Gradients \cite{GonzalezAbad2023XAI} permettent de diagnostiquer des pathologies (attribution erronée des prédicteurs en climat futur) mais ne contraignent pas l'apprentissage : le modèle a déjà appris ses corrélations fallacieuses.
+
+\textbf{Échec hors-distribution.} La généralisation à un climat futur non-stationnaire reste une limite structurelle. Doury et al.~\cite{Doury2023} montrent qu'un émulateur entraîné uniquement sur la période historique (1951--2005) \textbf{ne reproduit que 30~\%} du signal de changement climatique simulé par le RCM en RCP8.5, contre environ 80~\% lorsque l'entraînement couvre déjà des états futurs.
+
+\subsection*{(c) Les modèles génératifs résiduels : performance acquise au prix d'une hypothèse de stationnarité}
+
+La référence actuelle, CorrDiff/ResDiff (NVIDIA \cite{Mardani2024}), décompose la tâche en deux étapes : (i) une régression déterministe pour la moyenne conditionnelle $\mu_{HR}$, (ii) un modèle de diffusion EDM pour le résidu. L'approche est \textbf{environ 60$\times$ plus rapide} que la simulation WRF de référence à inference et apprend efficacement à partir de 4 années de données. Toutefois, les auteurs identifient eux-mêmes la difficulté centrale : un \og{}\emph{significant distribution shift between the input and target data}\fg{}. L'efficacité-échantillon de la méthode repose sur la faible variance du résidu, propriété qui n'est garantie que sous l'hypothèse de stationnarité de la distribution-cible. Combinée au résultat de Doury et al.~\cite{Doury2023}, cette limite implique qu'une utilisation rigoureuse en projection nécessiterait des données d'entraînement issues du climat futur --- données elles-mêmes produites par un modèle dynamique, ce qui ramène au verrou (a).
+
+\section{Apport de notre approche : une descente d'échelle structurée par la causalité}
+
+Notre proposition (modèle ORACLE, branche causal-spatio-temporal) intègre explicitement un \textbf{graphe causal orienté acyclique (DAG)} appris conjointement à la prédiction, sous contrainte d'un prior physique encodant les relations attendues de la dynamique quasi-géostrophique (couplage descendant pression haute altitude $\rightarrow$ pression moyenne troposphère $\rightarrow$ pression basse couche $\rightarrow$ précipitation au sol \cite{Holton2013}). La contrainte d'acyclicité s'appuie sur l'opérateur différentiable DAGMA, complétée d'une régularisation L1 décroissante et d'une pénalité quadratique vers la matrice de référence $G_{\text{phys}}$.
+
+Quatre propriétés en découlent.
+
+\begin{itemize}[leftmargin=1.2em, itemsep=3pt]
+    \item \textbf{Interprétabilité intrinsèque, pas post-hoc.} La structure causale est apprise dans l'architecture elle-même : la matrice $A_{\text{DAG}}$ est lisible, vérifiable, et peut être confrontée à la physique connue. Réponse directe au problème de la boîte noire identifié par~\cite{Doury2023,GonzalezAbad2023XAI}.
+    \item \textbf{Cohérence physique encodée \emph{a priori}.} Le prior $G_{\text{phys}}$ contraint l'optimisation à une variété de solutions où les arêtes causales fortes correspondent aux relations physiquement attendues, réduisant le risque de violations du type $T_{\min}>T_{\max}$ documenté par~\cite{GonzalezAbad2023AAAI}.
+    \item \textbf{Robustesse à la non-stationnarité.} Les relations causales encodées (couplage QG vertical) sont des invariants physiques qui restent valides sous changement climatique. Cela atténue la dégradation hors-distribution constatée par~\cite{Doury2023} pour les modèles purement statistiques.
+    \item \textbf{Coût computationnel accessible.} L'apprentissage complet (Stage~1 causal + Stage~2 diffusion) se déroule sur \textbf{un GPU L4 en 48~heures}, accessible via une session Google Colab pour quelques euros --- une infrastructure soutenable pour une université africaine, sans recours à un cluster HPC dédié.
+\end{itemize}
+
+Pour le Cameroun, cela ouvre la voie à des projections \textbf{locales, interprétables, robustes au changement climatique et accessibles financièrement} : pour la sécurité alimentaire (PNACC), la gestion de Lagdo, l'anticipation des inondations de l'Extrême-Nord et la cartographie sanitaire face à l'expansion du paludisme.
+
+\vspace{0.6em}
+\hrule
+\vspace{0.4em}
+
+\small
+\renewcommand{\refname}{Sources}
+\begin{thebibliography}{99}
+    \setlength{\itemsep}{2pt}
+    \bibitem{IMF2024} IMF (2024). \emph{Climate Change in Cameroon: Key Challenges and Reform Priorities.} IMF Country Report 24/052.
+    \bibitem{WB2022CCDR} World Bank (2022). \emph{Cameroon Country Climate and Development Report (CCDR).}
+    \bibitem{Nonki2021} Nonki R.~M., Lenouo A., et al. (2021). Impact of climate change on hydropower potential of the Lagdo dam, Benue River Basin, Northern Cameroon. \emph{Proc.~IAHS} 384, 337--342.
+    \bibitem{OCHA2024} OCHA / WFP (2024). \emph{Cameroon Far-North Floods Situation Reports.} ReliefWeb, octobre 2024.
+    \bibitem{Sokhna2022} Sokhna C. et al. (2022). Malaria transmission in Sahelian African regions: a witness of climate changes. \emph{Trop.~Med.~Infect.~Dis.}
+    \bibitem{IPCC2022} Trisos C.~H. et al. (2022). \emph{IPCC AR6 WGII, Chapter 9: Africa.}
+    \bibitem{Bachmann2025} Bachmann et al. (2025). Discovering HPC Resources in Africa. \emph{PEARC '25}, ACM.
+    \bibitem{Mardani2024} Mardani M. et al. (2024). Generative residual diffusion modeling for km-scale atmospheric downscaling. arXiv:2309.15214 (NVIDIA).
+    \bibitem{Hobeichi2023} Hobeichi S. et al. (2023). Using machine learning to cut the cost of dynamical downscaling. \emph{Earth's Future} 11, e2022EF003291.
+    \bibitem{Rampal2024} Rampal N. et al. (2024). A reliable GAN approach for climate downscaling and weather generation. \emph{J.~Adv.~Modeling Earth Systems} (JAMES).
+    \bibitem{Doury2024} Doury A. et al. (2024). Enhancing regional climate downscaling through advances in machine learning. \emph{AI for the Earth Systems} 3(2).
+    \bibitem{GonzalezAbad2023AAAI} González-Abad J. et al. (2023). Multi-variable hard physical constraints for climate model downscaling. AAAI Fall Symposium FSS-23.
+    \bibitem{Doury2023} Doury A., Somot S., et al. (2023). Regional climate model emulator based on deep learning: concept and first evaluation. \emph{Climate Dynamics} 60, 1751--1779.
+    \bibitem{GonzalezAbad2023XAI} González-Abad J. et al. (2023). Using explainability to inform statistical downscaling. \emph{JAMES} (arXiv:2302.01771).
+    \bibitem{Holton2013} Holton J.~R., Hakim G.~J. (2013). \emph{An Introduction to Dynamic Meteorology}, 5\textsuperscript{e} éd., Academic Press.
+\end{thebibliography}
+
+\end{document}
