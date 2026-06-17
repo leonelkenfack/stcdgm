@@ -87,6 +87,50 @@ EXPECTED_EDGES: List[Tuple[str, str, int]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Extension 9-node (option C, Phase 0) — OPT-IN, n'altère pas les défauts 6-node.
+#
+# Ajoute la "chaîne humide" (décomposition Held-Soden) au-dessus de la chaîne
+# sèche QG : la dynamique synoptique (GP*) force humidité Q850 et ascendance
+# W500, qui alimentent le transport de vapeur IVT, lequel — avec W500 — ferme
+# la chaîne vers la précipitation de surface SP_HR.
+#
+# Convention d'ordre (DOIT matcher config.encoder.metapaths + config.loss.dag_prior) :
+#   0 GP850_spat  1 GP850->GP500  2 GP500_spat  3 GP500->GP250  4 GP250_spat
+#   5 Q850        6 W500          7 IVT          8 SP_HR (static, toujours en dernier)
+#
+# Validé apprenable par smoke_9node_extended_dag.ipynb (Q_phys_cont=0.682,
+# skeleton F1=1.0, n_extra=0). Voir path_c_plus/audit/PHASE0_SPEC_9NODE.md.
+# ---------------------------------------------------------------------------
+VAR_LABELS_9NODE: List[str] = [
+    "GP850_spat",
+    "GP850->GP500",
+    "GP500_spat",
+    "GP500->GP250",
+    "GP250_spat",
+    "Q850",            # humidité spécifique 850 hPa (basse couche humide)
+    "W500",            # vitesse verticale 500 hPa (ascendance)
+    "IVT",             # transport intégré de vapeur (proxy 3 niveaux)
+    "SP_HR",           # pression de surface HR (static, repoussé à l'index 8)
+]
+
+
+EXPECTED_EDGES_9NODE: List[Tuple[str, str, int]] = [
+    # --- chaîne sèche QG (identique au 6-node) ---
+    ("GP250_spat", "GP500_spat", +1),
+    ("GP500_spat", "GP850_spat", +1),
+    ("GP850_spat", "SP_HR", +1),
+    ("GP850->GP500", "GP500_spat", +1),
+    ("GP500->GP250", "GP250_spat", +1),
+    # --- chaîne humide (Held-Soden) ---
+    ("GP850_spat", "Q850", +1),     # basse couche synoptique -> humidité
+    ("GP500_spat", "W500", +1),     # mid-troposphère -> ascendance
+    ("Q850", "IVT", +1),            # humidité -> transport de vapeur
+    ("W500", "SP_HR", +1),          # ascendance -> précip de surface
+    ("IVT", "SP_HR", +1),           # transport de vapeur -> précip de surface
+]
+
+
 def build_physical_mask(
     num_vars: int = 6,
     var_labels: Sequence[str] = None,
@@ -227,6 +271,8 @@ def physical_prior_loss(
 __all__ = [
     "VAR_LABELS",
     "EXPECTED_EDGES",
+    "VAR_LABELS_9NODE",
+    "EXPECTED_EDGES_9NODE",
     "build_physical_mask",
     "physical_prior_loss",
 ]

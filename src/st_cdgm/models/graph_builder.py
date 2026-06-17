@@ -58,7 +58,18 @@ class HeteroGraphBuilder:
         Liste de variables statiques à intégrer. Toutes si None.
     include_mid_layer :
         Contrôle la présence de la couche intermédiaire GP500/GP250.
+    extended_9node :
+        Si True, ajoute les nœuds de la "chaîne humide" Q850/W500/IVT (option C,
+        Phase 0). N'altère pas le comportement 6-node par défaut (opt-in). Les
+        arêtes dirigées physiques (GP850→Q850, Q850→IVT, W500/IVT→SP_HR) ne sont
+        PAS encodées comme edge_index ici : elles sont portées par le DAG appris
+        ``A_dag`` + ``physics_prior.G_phys`` (cf. PHASE0_SPEC_9NODE.md §4). Seules
+        les arêtes ``spat_adj`` (auto-boucle spatiale) des nouveaux nœuds sont
+        ajoutées, comme pour GP850/GP500/GP250.
     """
+
+    #: node types ajoutés par ``extended_9node`` (ordre = convention 9-node).
+    EXTENDED_9NODE_TYPES = ("Q850", "W500", "IVT")
 
     def __init__(
         self,
@@ -68,12 +79,14 @@ class HeteroGraphBuilder:
         static_dataset: Optional[xr.Dataset] = None,
         static_variables: Optional[Sequence[str]] = None,
         include_mid_layer: bool = True,
+        extended_9node: bool = False,
     ) -> None:
         self.lr_shape = lr_shape
         self.hr_shape = hr_shape
         self.static_dataset = static_dataset
         self.static_variables = static_variables
         self.include_mid_layer = include_mid_layer
+        self.extended_9node = extended_9node
 
         self._validate_shapes()
 
@@ -83,6 +96,8 @@ class HeteroGraphBuilder:
         self.dynamic_node_types = ["GP850"]
         if self.include_mid_layer:
             self.dynamic_node_types.extend(["GP500", "GP250"])
+        if self.extended_9node:
+            self.dynamic_node_types.extend(self.EXTENDED_9NODE_TYPES)
         
         # Static node types (always includes SP_HR if static dataset is provided)
         self.static_node_types = ["SP_HR"] if self.static_dataset is not None else []
@@ -132,6 +147,10 @@ class HeteroGraphBuilder:
             data["GP250", "spat_adj", "GP250"].edge_index = spatial_index.clone()
             edges_spatial["GP500"] = spatial_index.size(1)
             edges_spatial["GP250"] = spatial_index.size(1)
+        if self.extended_9node:
+            for nt in self.EXTENDED_9NODE_TYPES:
+                data[nt, "spat_adj", nt].edge_index = spatial_index.clone()
+                edges_spatial[nt] = spatial_index.size(1)
 
         edges_vertical: Dict[str, int] = {}
         if self.include_mid_layer:
