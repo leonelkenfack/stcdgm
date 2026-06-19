@@ -1736,6 +1736,8 @@ def train_epoch_stage1(
     p3_k_samples: int = 0,                    # # pas intermédiaires aléatoires par batch (0 = OFF)
     p3_warmup_steps: int = 4,                 # premiers pas RCN ignorés (warm-up)
     p3_intermediate_weight: float = 0.5,      # poids des supervisions intermédiaires
+    lambda_spectral_highk: float = 0.0,       # RAPSD high-k loss weight (0 = OFF)
+    k_highk_min: int = 30,                    # wavenumber cutoff for high-k loss
 ) -> Dict[str, float]:
     """Stage 1 of the Two-Stage Causal Architecture.
 
@@ -1970,6 +1972,9 @@ def train_epoch_stage1(
                     # V5 — A1
                     o3_preserve_loss=o3_preserve_loss,
                     lambda_o3_preserve=skip_lambda_o3,
+                    # Phase 4 — spectral sharpening
+                    lambda_spectral_highk=lambda_spectral_highk,
+                    k_highk_min=k_highk_min,
                 )
                 # V5 — P3-lite : ajout post stage1_compute_loss pour éviter
                 # de polluer la signature (la pondération est déjà appliquée).
