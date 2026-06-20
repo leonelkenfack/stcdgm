@@ -722,18 +722,27 @@ def train_epoch_dualpath_phase1(
             step_loss += loss.item()
 
         # ── If any micro produced NaN loss (BEFORE backward) ──
-        # Do NOT call scaler.update() — that could grow the scale and
-        # repeat the explosion. Manually halve the scale instead so the
-        # next batch has a smaller scaled loss and can recover.
+        # Don't touch the scaler — no backward happened, so the scaler
+        # has no "found_inf" signal to react to. Just skip this batch.
+        # If a few consecutive batches produce NaN, the scaler stays at
+        # its current scale (no growth either, since update() not called).
+        # If many in a row → abort (likely a corrupted model state).
         if any_nan:
             optimizer.zero_grad(set_to_none=True)
-            if scaler.is_enabled():
-                with torch.no_grad():
-                    scaler._scale.mul_(0.5)  # manual backoff (private API)
             n_skipped_nan += 1
             if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+                _scale_now = scaler.get_scale() if scaler.is_enabled() else 1.0
                 print(f"  [6A batch {batch_idx+1}] SKIP (NaN loss) "
-                      f"scale={scaler.get_scale():.0f}", flush=True)
+                      f"scale={_scale_now:.0f}", flush=True)
+            # Abort if too many consecutive NaN — model is degenerate
+            if n_skipped_nan >= 50 and (n_skipped_nan / max(batch_idx + 1, 1)) > 0.3:
+                raise RuntimeError(
+                    f"Too many NaN losses ({n_skipped_nan} skips / "
+                    f"{batch_idx+1} batches = "
+                    f"{100*n_skipped_nan/max(batch_idx+1,1):.1f}%). "
+                    f"Model is degenerate. Try disabling AMP (USE_AMP=False) "
+                    f"or lowering LR further."
+                )
             continue
 
         if gradient_clipping:
