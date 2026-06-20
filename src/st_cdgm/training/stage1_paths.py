@@ -628,4 +628,341 @@ __all__ = [
     "precompute_stage1_outputs_variant",
     "compute_sample_max_values",
     "TailStratifiedSampler",
+    # Dual-Path Phase 6
+    "train_epoch_dualpath_phase1",
+    "train_epoch_dualpath_phase2",
+    "train_epoch_dualpath_phase3",
+    "predict_mu_hr_dualpath",
 ]
+
+
+# =============================================================================
+# Dual-Path Stage 1 — Phase 6 training functions
+# =============================================================================
+
+def train_epoch_dualpath_phase1(
+    *,
+    dual_path,
+    optimizer,
+    data_loader: Iterable,
+    device: torch.device,
+    builder=None,
+    gradient_clipping: Optional[float] = 1.0,
+    log_interval: int = 30,
+    use_amp: bool = True,
+    verbose: bool = True,
+) -> dict:
+    """Phase I: Train Path B alone. Loss = MSE(μ_B, HR_true).
+
+    Path A (encoder/RCN/head) must be frozen by the caller before invoking
+    this function. The gate is not used in this phase.
+    """
+    dual_path.path_b.train()
+    dual_path.gate.eval()   # gate unused — frozen is fine too
+    scaler = torch.amp.GradScaler(enabled=(use_amp and device.type == "cuda"))
+
+    total_loss = 0.0
+    n_batches = 0
+
+    for batch_idx, batch in enumerate(data_loader):
+        batches = batch if isinstance(batch, list) else [batch]
+        optimizer.zero_grad(set_to_none=True)
+        step_loss = 0.0
+
+        for micro in batches:
+            target = _as_batched_hr(micro["residual"][-1].to(device))
+            valid  = torch.isfinite(target)
+            if not valid.any():
+                continue
+
+            with _autocast_context(device, use_amp):
+                lr_grid = batch_lr_grid_last(micro, builder=builder, device=device)
+                lr_safe = torch.nan_to_num(lr_grid, nan=0.0)
+                mu_B = dual_path.path_b(lr_safe)
+                if mu_B.shape != target.shape:
+                    mu_B = F.interpolate(mu_B, size=target.shape[-2:],
+                                         mode="bilinear", align_corners=False)
+                loss = F.mse_loss(mu_B[valid], target[valid])
+                (loss / max(len(batches), 1)).backward()
+            step_loss += loss.item()
+
+        if gradient_clipping:
+            if scaler.is_enabled():
+                scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(dual_path.path_b.parameters(), gradient_clipping)
+
+        if scaler.is_enabled():
+            scaler.step(optimizer); scaler.update()
+        else:
+            optimizer.step()
+
+        step_loss /= max(len(batches), 1)
+        total_loss += step_loss
+        n_batches += 1
+
+        if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+            print(f"  [6A batch {batch_idx+1}] loss_B={step_loss:.5f}", flush=True)
+
+    return {"loss_B": total_loss / max(1, n_batches), "n_batches": n_batches}
+
+
+def train_epoch_dualpath_phase2(
+    *,
+    dual_path,
+    optimizer,
+    data_loader: Iterable,
+    device: torch.device,
+    encoder,
+    rcn_runner,
+    regression_head,
+    builder=None,
+    lambda_div: float = 0.5,
+    gradient_clipping: Optional[float] = 1.0,
+    log_interval: int = 30,
+    use_amp: bool = True,
+    verbose: bool = True,
+) -> dict:
+    """Phase II: Train gate only. Path A and Path B are frozen by caller.
+
+    Loss = MSE(μ_total, HR) + λ_div · diversity_loss(gate)
+    """
+    dual_path.path_b.eval()
+    dual_path.gate.train()
+    scaler = torch.amp.GradScaler(enabled=(use_amp and device.type == "cuda"))
+
+    total_loss = 0.0
+    total_div  = 0.0
+    n_batches  = 0
+
+    for batch_idx, batch in enumerate(data_loader):
+        batches = batch if isinstance(batch, list) else [batch]
+        optimizer.zero_grad(set_to_none=True)
+        step_loss = step_div = 0.0
+
+        for micro in batches:
+            target = _as_batched_hr(micro["residual"][-1].to(device))
+            valid  = torch.isfinite(target)
+            if not valid.any():
+                continue
+
+            with torch.no_grad():
+                # Path A forward (frozen)
+                lr_data = micro["lr"].to(device)
+                h_init  = encoder.init_state(micro["hetero"]).to(device)
+                drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+                seq_out = rcn_runner.run(h_init, drivers, reconstruction_sources=None)
+                H_T     = seq_out.states[-1]
+                mu_A    = regression_head(H_T)
+                if mu_A.dim() == 3:
+                    mu_A = mu_A.unsqueeze(0)
+                # Path B forward (frozen)
+                lr_grid = batch_lr_grid_last(micro, builder=builder, device=device)
+                lr_safe = torch.nan_to_num(lr_grid, nan=0.0)
+                mu_B    = dual_path.path_b(lr_safe)
+
+            with _autocast_context(device, use_amp):
+                mu_total, gate = dual_path.gate(mu_A, mu_B)
+                if mu_total.shape != target.shape:
+                    mu_total = F.interpolate(mu_total, size=target.shape[-2:],
+                                              mode="bilinear", align_corners=False)
+                loss_mse = F.mse_loss(mu_total[valid], target[valid])
+                loss_div = dual_path.gate.diversity_loss(gate)
+                loss     = loss_mse + lambda_div * loss_div
+                (loss / max(len(batches), 1)).backward()
+            step_loss += loss_mse.item()
+            step_div  += loss_div.item()
+
+        if gradient_clipping:
+            if scaler.is_enabled():
+                scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(dual_path.gate.parameters(), gradient_clipping)
+
+        if scaler.is_enabled():
+            scaler.step(optimizer); scaler.update()
+        else:
+            optimizer.step()
+
+        step_loss /= max(len(batches), 1)
+        step_div  /= max(len(batches), 1)
+        total_loss += step_loss
+        total_div  += step_div
+        n_batches  += 1
+
+        if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+            print(f"  [6B batch {batch_idx+1}] loss={step_loss:.5f}  div={step_div:.5f}  "
+                  f"gate_mean={gate.mean().item():.3f}", flush=True)
+
+    return {
+        "loss_total": total_loss / max(1, n_batches),
+        "loss_div":   total_div  / max(1, n_batches),
+        "n_batches":  n_batches,
+    }
+
+
+def train_epoch_dualpath_phase3(
+    *,
+    dual_path,
+    optimizer,
+    data_loader: Iterable,
+    device: torch.device,
+    encoder,
+    rcn_runner,
+    regression_head,
+    rcn_cell=None,
+    builder=None,
+    lambda_causal: float = 1.0,
+    lambda_div:    float = 0.5,
+    gradient_clipping: Optional[float] = 1.0,
+    log_interval:  int  = 30,
+    use_amp:       bool = True,
+    verbose:       bool = True,
+) -> dict:
+    """Phase III: Joint fine-tune. A_dag must be frozen by caller.
+
+    Loss = λ_causal·MSE(μ_A, HR) + (1−λ_causal)·MSE(μ_total, HR)
+           + λ_div·diversity_loss(gate)
+    """
+    encoder.train()
+    if hasattr(rcn_runner, "cell"):
+        rcn_runner.cell.train()
+    if rcn_cell is not None:
+        rcn_cell.train()
+    regression_head.train()
+    dual_path.train()
+    scaler = torch.amp.GradScaler(enabled=(use_amp and device.type == "cuda"))
+
+    total_main  = 0.0
+    total_caus  = 0.0
+    total_div   = 0.0
+    n_batches   = 0
+
+    for batch_idx, batch in enumerate(data_loader):
+        batches = batch if isinstance(batch, list) else [batch]
+        optimizer.zero_grad(set_to_none=True)
+        s_main = s_caus = s_div = 0.0
+
+        for micro in batches:
+            target = _as_batched_hr(micro["residual"][-1].to(device))
+            valid  = torch.isfinite(target)
+            if not valid.any():
+                continue
+
+            with _autocast_context(device, use_amp):
+                # Path A forward (backbone unfrozen, A_dag frozen by caller)
+                lr_data = micro["lr"].to(device)
+                h_init  = encoder.init_state(micro["hetero"]).to(device)
+                drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+                seq_out = rcn_runner.run(h_init, drivers, reconstruction_sources=None)
+                H_T     = seq_out.states[-1]
+                mu_A    = regression_head(H_T)
+                if mu_A.dim() == 3:
+                    mu_A = mu_A.unsqueeze(0)
+                # Path B + Gate
+                lr_grid  = batch_lr_grid_last(micro, builder=builder, device=device)
+                lr_safe  = torch.nan_to_num(lr_grid, nan=0.0)
+                mu_total, mu_B, gate = dual_path(lr_safe, mu_A)
+                if mu_total.shape != target.shape:
+                    mu_total = F.interpolate(mu_total, size=target.shape[-2:],
+                                              mode="bilinear", align_corners=False)
+                    mu_A = F.interpolate(mu_A, size=target.shape[-2:],
+                                          mode="bilinear", align_corners=False)
+                loss_main = F.mse_loss(mu_total[valid], target[valid])
+                loss_caus = F.mse_loss(mu_A[valid],     target[valid])
+                loss_div  = dual_path.gate.diversity_loss(gate)
+                loss = ((1.0 - lambda_causal) * loss_main
+                        + lambda_causal        * loss_caus
+                        + lambda_div           * loss_div)
+                (loss / max(len(batches), 1)).backward()
+            s_main += loss_main.item()
+            s_caus += loss_caus.item()
+            s_div  += loss_div.item()
+
+        if gradient_clipping:
+            if scaler.is_enabled():
+                scaler.unscale_(optimizer)
+            # Clip all trainable params together
+            all_params = (
+                list(encoder.parameters())
+                + list(rcn_runner.parameters() if hasattr(rcn_runner, "parameters")
+                       else (rcn_cell.parameters() if rcn_cell else []))
+                + list(regression_head.parameters())
+                + list(dual_path.parameters())
+            )
+            torch.nn.utils.clip_grad_norm_(all_params, gradient_clipping)
+
+        if scaler.is_enabled():
+            scaler.step(optimizer); scaler.update()
+        else:
+            optimizer.step()
+
+        s_main /= max(len(batches), 1)
+        s_caus /= max(len(batches), 1)
+        s_div  /= max(len(batches), 1)
+        total_main += s_main
+        total_caus += s_caus
+        total_div  += s_div
+        n_batches  += 1
+
+        if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+            print(
+                f"  [6C batch {batch_idx+1}] main={s_main:.5f}  causal={s_caus:.5f}  "
+                f"div={s_div:.5f}  λ_c={lambda_causal:.3f}  "
+                f"gate={gate.mean().item():.3f}", flush=True
+            )
+
+    return {
+        "loss_main":   total_main / max(1, n_batches),
+        "loss_causal": total_caus / max(1, n_batches),
+        "loss_div":    total_div  / max(1, n_batches),
+        "n_batches":   n_batches,
+    }
+
+
+@torch.no_grad()
+def predict_mu_hr_dualpath(
+    batch: dict,
+    *,
+    encoder,
+    rcn_runner,
+    regression_head,
+    dual_path,
+    builder=None,
+    device: torch.device,
+    target_shape: Optional[Sequence[int]] = None,
+) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+    """Inference with Dual-Path Stage 1.
+
+    Returns
+    -------
+    mu_A     : [B,1,H,W]  causal prediction
+    mu_B     : [B,1,H,W]  spatial CNN prediction
+    mu_total : [B,1,H,W]  fused prediction
+    gate     : [B,1,H,W]  gate values ∈ (0,1)
+    """
+    encoder.eval()
+    if hasattr(rcn_runner, "cell"):
+        rcn_runner.cell.eval()
+    regression_head.eval()
+    dual_path.eval()
+
+    lr_data = batch["lr"].to(device)
+    h_init  = encoder.init_state(batch["hetero"]).to(device)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    seq_out = rcn_runner.run(h_init, drivers, reconstruction_sources=None)
+    H_T     = seq_out.states[-1]
+    mu_A    = regression_head(H_T)
+    if mu_A.dim() == 3:
+        mu_A = mu_A.unsqueeze(0)
+
+    lr_grid  = batch_lr_grid_last(batch, builder=builder, device=device)
+    lr_safe  = torch.nan_to_num(lr_grid, nan=0.0)
+    mu_total, mu_B, gate = dual_path(lr_safe, mu_A)
+
+    if target_shape is not None:
+        ts = tuple(target_shape)
+        mu_A     = F.interpolate(mu_A,     size=ts, mode="bilinear", align_corners=False)
+        mu_B     = F.interpolate(mu_B,     size=ts, mode="bilinear", align_corners=False)
+        mu_total = F.interpolate(mu_total, size=ts, mode="bilinear", align_corners=False)
+        gate     = F.interpolate(gate,     size=ts, mode="bilinear", align_corners=False)
+
+    return mu_A, mu_B, mu_total, gate
