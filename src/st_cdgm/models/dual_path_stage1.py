@@ -44,14 +44,18 @@ def _gn_groups(channels: int, target: int = 8) -> int:
     return g
 
 
-class _GNConvBlock(nn.Module):
-    """Conv2d(3×3) + GroupNorm + GELU."""
+class _DoubleConv(nn.Module):
+    """(Conv3x3 + GroupNorm + GELU) x 2 — standard UNet building block."""
 
     def __init__(self, c_in: int, c_out: int) -> None:
         super().__init__()
+        g_out = _gn_groups(c_out)
         self.block = nn.Sequential(
-            nn.Conv2d(c_in, c_out, 3, padding=1),
-            nn.GroupNorm(_gn_groups(c_out), c_out),
+            nn.Conv2d(c_in,  c_out, 3, padding=1),
+            nn.GroupNorm(g_out, c_out),
+            nn.GELU(),
+            nn.Conv2d(c_out, c_out, 3, padding=1),
+            nn.GroupNorm(g_out, c_out),
             nn.GELU(),
         )
 
@@ -60,49 +64,70 @@ class _GNConvBlock(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Path B — Spatial CNN
+# Path B — UNet-style spatial CNN with skip connections
 # ---------------------------------------------------------------------------
 
 class PathBCNN(nn.Module):
-    """Spatial CNN: LR grid [B,C,H_lr,W_lr] → μ_B [B,1,H_hr,W_hr].
+    """Spatial CNN with skip connections: LR grid → μ_B [B,1,H_hr,W_hr].
 
-    ~530k params at base_ch=32. Predicts HR directly (MSE(μ_B, HR_true)),
-    NOT a residual, so gradient is proportional to the full HR signal.
+    ~460k params at base_ch=48. Predicts HR directly (loss = MSE(μ_B, HR)),
+    NOT a residual.
 
-    Upsampling path (NZ domain):
-      (23,26) → block1 → (44,46) → block2 → (86,90) → block3 → (172,179)
+    Architecture (DeepSD-inspired, Vandal 2017):
+        LR (B, C_LR, 23, 26)
+        ─ stem (Conv → GELU)                     [B, base_ch, 23, 26]   → skip_lr
+        ─ enc DoubleConv(base→2·base)            [B, 2·base, 23, 26]
+        ─ up to (44,46), concat skip_lr↑, DoubleConv(2·base+base → 2·base)
+        ─ up to (86,90), concat skip_lr↑, DoubleConv(2·base+base → base)
+        ─ up to (172,179), concat skip_lr↑, DoubleConv(base+base → base·2/3)
+        ─ head Conv → μ_B [B, 1, 172, 179]
+
+    Skip connections from the LR stem (bilinearly upsampled) at each scale
+    are the key fix vs the original 79k-param PathBCNN that collapsed —
+    they give the decoder a high-resolution view of the LR input at every
+    upsampling level, breaking the std-→0 trivial optimum.
 
     Parameters
     ----------
     in_channels : int   LR channels (C_LR = 15)
-    base_ch : int       Base feature width. ~530k at 32.
-    hr_h, hr_w : int    HR output size (172, 179 for NZ domain).
+    base_ch     : int   Base feature width. ~460k at 48, ~310k at 40, ~640k at 56.
+    hr_h, hr_w  : int   HR output size (172, 179 for NZ domain).
     """
+
+    INT1 = (44, 46)
+    INT2 = (86, 90)
 
     def __init__(
         self,
         in_channels: int = 15,
-        base_ch: int = 32,
+        base_ch: int = 48,
         hr_h: int = 172,
         hr_w: int = 179,
     ) -> None:
         super().__init__()
+        self.hr_h, self.hr_w = hr_h, hr_w
+        c1, c2 = base_ch, base_ch * 2
+        c_head = max(8, (base_ch * 2) // 3)   # ~32 at base_ch=48
+
+        # ── Stem at LR (provides the skip features) ──
         self.stem = nn.Sequential(
-            nn.Conv2d(in_channels, base_ch, 3, padding=1),
+            nn.Conv2d(in_channels, c1, 3, padding=1),
             nn.GELU(),
         )
+        # ── Encoder at LR ──
+        self.enc = _DoubleConv(c1, c2)
 
-        self.block1 = _GNConvBlock(base_ch, base_ch * 2)
-        self.up1    = nn.Upsample(size=(44, 46), mode="bilinear", align_corners=False)
+        # ── Decoder with skip injection at each upsample level ──
+        self.dec1 = _DoubleConv(c2 + c1, c2)   # 96+48 → 96 at (44,46)
+        self.dec2 = _DoubleConv(c2 + c1, c1)   # 96+48 → 48 at (86,90)
+        self.dec3 = _DoubleConv(c1 + c1, c_head)  # 48+48 → 32 at (172,179)
 
-        self.block2 = _GNConvBlock(base_ch * 2, base_ch * 2)
-        self.up2    = nn.Upsample(size=(86, 90), mode="bilinear", align_corners=False)
+        # ── Head ──
+        self.head = nn.Conv2d(c_head, 1, 3, padding=1)
 
-        self.block3 = _GNConvBlock(base_ch * 2, base_ch)
-        self.up3    = nn.Upsample(size=(hr_h, hr_w), mode="bilinear", align_corners=False)
-
-        # Normal init (NOT zero-init) — direct HR prediction, not residual
-        self.head = nn.Conv2d(base_ch, 1, 3, padding=1)
+    @staticmethod
+    def _up(x: Tensor, size: tuple[int, int]) -> Tensor:
+        return F.interpolate(x, size=size, mode="bilinear", align_corners=False)
 
     def forward(self, lr_grid: Tensor) -> Tensor:
         """
@@ -114,11 +139,22 @@ class PathBCNN(nn.Module):
         -------
         Tensor [B, 1, H_hr, W_hr]
         """
-        x = self.stem(lr_grid)
-        x = self.up1(self.block1(x))
-        x = self.up2(self.block2(x))
-        x = self.up3(self.block3(x))
-        return self.head(x)
+        x0 = self.stem(lr_grid)            # [B, c1, 23, 26]
+        x  = self.enc(x0)                  # [B, c2, 23, 26]
+
+        x  = self._up(x, self.INT1)
+        s1 = self._up(x0, self.INT1)
+        x  = self.dec1(torch.cat([x, s1], dim=1))   # [B, c2, 44, 46]
+
+        x  = self._up(x, self.INT2)
+        s2 = self._up(x0, self.INT2)
+        x  = self.dec2(torch.cat([x, s2], dim=1))   # [B, c1, 86, 90]
+
+        x  = self._up(x, (self.hr_h, self.hr_w))
+        s3 = self._up(x0, (self.hr_h, self.hr_w))
+        x  = self.dec3(torch.cat([x, s3], dim=1))   # [B, c_head, H, W]
+
+        return self.head(x)                          # [B, 1, H, W]
 
     def num_params(self) -> int:
         return sum(p.numel() for p in self.parameters())

@@ -651,11 +651,22 @@ def train_epoch_dualpath_phase1(
     log_interval: int = 30,
     use_amp: bool = True,
     verbose: bool = True,
+    tail_weight_alpha: float = 0.0,
 ) -> dict:
-    """Phase I: Train Path B alone. Loss = MSE(μ_B, HR_true).
+    """Phase I: Train Path B alone. Loss = weighted MSE(μ_B, HR_true).
+
+    The weight ``w(y) = 1 + α·|y|`` (in log1p residual space) breaks the
+    trivial "predict zero" optimum on heavy-tail precipitation targets.
+    With α=0 the loss reduces to plain MSE.
 
     Path A (encoder/RCN/head) must be frozen by the caller before invoking
     this function. The gate is not used in this phase.
+
+    Parameters
+    ----------
+    tail_weight_alpha : float
+        Weight on |target| in the weighted-MSE loss. 0 → standard MSE.
+        Recommended 3-5 for log1p-space precipitation residuals.
     """
     dual_path.path_b.train()
     dual_path.gate.eval()   # gate unused — frozen is fine too
@@ -682,7 +693,12 @@ def train_epoch_dualpath_phase1(
                 if mu_B.shape != target.shape:
                     mu_B = F.interpolate(mu_B, size=target.shape[-2:],
                                          mode="bilinear", align_corners=False)
-                loss = F.mse_loss(mu_B[valid], target[valid])
+                err2 = (mu_B[valid] - target[valid]).pow(2)
+                if tail_weight_alpha > 0.0:
+                    w = 1.0 + tail_weight_alpha * target[valid].abs()
+                    loss = (w * err2).mean()
+                else:
+                    loss = err2.mean()
             scaler.scale(loss / max(len(batches), 1)).backward()
             step_loss += loss.item()
 
