@@ -674,11 +674,13 @@ def train_epoch_dualpath_phase1(
 
     total_loss = 0.0
     n_batches = 0
+    n_skipped_nan = 0
 
     for batch_idx, batch in enumerate(data_loader):
         batches = batch if isinstance(batch, list) else [batch]
         optimizer.zero_grad(set_to_none=True)
         step_loss = 0.0
+        any_nan = False
 
         for micro in batches:
             target = _as_batched_hr(micro["residual"][-1].to(device))
@@ -699,13 +701,36 @@ def train_epoch_dualpath_phase1(
                     loss = (w * err2).mean()
                 else:
                     loss = err2.mean()
+            # ── NaN/Inf guard: skip this micro's backward if loss exploded
+            if not torch.isfinite(loss):
+                any_nan = True
+                continue
             scaler.scale(loss / max(len(batches), 1)).backward()
             step_loss += loss.item()
+
+        # ── If any micro produced NaN, skip optimizer step entirely
+        if any_nan:
+            optimizer.zero_grad(set_to_none=True)
+            scaler.update()        # keep scaler healthy
+            n_skipped_nan += 1
+            if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+                print(f"  [6A batch {batch_idx+1}] SKIP (NaN loss)", flush=True)
+            continue
 
         if gradient_clipping:
             if scaler.is_enabled():
                 scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(dual_path.path_b.parameters(), gradient_clipping)
+            # ── NaN/Inf guard on gradients
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                dual_path.path_b.parameters(), gradient_clipping
+            )
+            if not torch.isfinite(grad_norm):
+                optimizer.zero_grad(set_to_none=True)
+                scaler.update()
+                n_skipped_nan += 1
+                if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
+                    print(f"  [6A batch {batch_idx+1}] SKIP (NaN grad)", flush=True)
+                continue
 
         if scaler.is_enabled():
             scaler.step(optimizer); scaler.update()
@@ -719,7 +744,11 @@ def train_epoch_dualpath_phase1(
         if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
             print(f"  [6A batch {batch_idx+1}] loss_B={step_loss:.5f}", flush=True)
 
-    return {"loss_B": total_loss / max(1, n_batches), "n_batches": n_batches}
+    return {
+        "loss_B":         total_loss / max(1, n_batches),
+        "n_batches":      n_batches,
+        "n_skipped_nan":  n_skipped_nan,
+    }
 
 
 def train_epoch_dualpath_phase2(
