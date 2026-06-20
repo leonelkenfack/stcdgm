@@ -302,6 +302,13 @@ class DualPathPredictor(nn.Module):
                 f"path_b_kind must be 'cnn' or 'unet', got {path_b_kind!r}"
             )
         self.path_b_kind = path_b_kind
+        # Bias correction for Path B output. Calibrated post-Phase I from val
+        # data via calibrate_path_b_bias(). Without it, weighted MSE α=5
+        # creates a systematic positive bias (~+0.74 in log1p space) because
+        # extreme positives are weighted heavier than extreme negatives.
+        # Made a Parameter (not buffer) so Phase III joint fine-tuning can
+        # refine it as the model evolves.
+        self.path_b_bias = nn.Parameter(torch.zeros(1), requires_grad=False)
         self.gate = FusionGate(
             gate_init_bias=gate_init_bias,
             gate_max_mean=gate_max_mean,
@@ -319,12 +326,93 @@ class DualPathPredictor(nn.Module):
         Returns
         -------
         mu_total : [B, 1, H_hr, W_hr]
-        mu_B     : [B, 1, H_hr, W_hr]
+        mu_B     : [B, 1, H_hr, W_hr]  (after path_b_bias correction)
         gate     : [B, 1, H_hr, W_hr]  ∈ (0, 1)
         """
-        mu_B = self.path_b(lr_grid)
+        mu_B = self.path_b(lr_grid) + self.path_b_bias
         mu_total, gate = self.gate(mu_A, mu_B)
         return mu_total, mu_B, gate
+
+    @torch.no_grad()
+    def calibrate_path_b_bias(
+        self,
+        data_loader,
+        *,
+        builder,
+        device,
+        batch_lr_grid_last_fn,
+        n_max: int = 100,
+        verbose: bool = True,
+    ) -> dict:
+        """Calibrate path_b_bias so that mean(mu_B + bias) = mean(target).
+
+        Run after Phase I (Path B trained, gate frozen). Removes the systematic
+        bias introduced by weighted MSE training so that the gate in Phase II
+        can fairly compare Path A vs Path B.
+
+        Parameters
+        ----------
+        data_loader  : iterator of micro-batches (already converted to dict)
+        builder      : HeteroGraphBuilder, for batch_lr_grid_last_fn
+        device       : torch.device
+        batch_lr_grid_last_fn : callable(micro, builder, device) -> [B,C,H,W]
+        n_max        : number of batches to use for calibration
+
+        Returns
+        -------
+        dict with bias_old, bias_new, mean_mu_B_raw, mean_target, n_pixels
+        """
+        self.path_b.eval()
+        sum_b = 0.0
+        sum_t = 0.0
+        n_pix = 0
+        for bi, batch_list in enumerate(data_loader):
+            if bi >= n_max:
+                break
+            if not isinstance(batch_list, list):
+                batch_list = [batch_list]
+            for micro in batch_list:
+                tgt = micro["residual"][-1].to(device)
+                if tgt.dim() == 3:
+                    tgt = tgt.unsqueeze(0)
+                valid = torch.isfinite(tgt)
+                if not valid.any():
+                    continue
+                lr_grid = batch_lr_grid_last_fn(micro, builder=builder, device=device)
+                lr_safe = torch.nan_to_num(lr_grid, nan=0.0)
+                mu_B_raw = self.path_b(lr_safe)
+                if mu_B_raw.shape != tgt.shape:
+                    mu_B_raw = torch.nn.functional.interpolate(
+                        mu_B_raw, size=tgt.shape[-2:],
+                        mode="bilinear", align_corners=False,
+                    )
+                sum_b += mu_B_raw[valid].sum().item()
+                sum_t += tgt[valid].sum().item()
+                n_pix += int(valid.sum().item())
+        if n_pix == 0:
+            if verbose:
+                print("calibrate_path_b_bias: no valid pixels, bias unchanged")
+            return {"bias_old": float(self.path_b_bias.item()),
+                    "bias_new": float(self.path_b_bias.item()),
+                    "n_pixels": 0}
+        mean_b_raw = sum_b / n_pix
+        mean_t     = sum_t / n_pix
+        new_bias   = mean_t - mean_b_raw
+        old_bias   = float(self.path_b_bias.item())
+        self.path_b_bias.data.fill_(new_bias)
+        if verbose:
+            print(f"calibrate_path_b_bias:")
+            print(f"  mean(mu_B_raw)  = {mean_b_raw:+.5f}")
+            print(f"  mean(target)    = {mean_t:+.5f}")
+            print(f"  bias old -> new = {old_bias:+.5f} -> {new_bias:+.5f}")
+            print(f"  n_pixels        = {n_pix:,}")
+        return {
+            "bias_old":      old_bias,
+            "bias_new":      float(new_bias),
+            "mean_mu_B_raw": float(mean_b_raw),
+            "mean_target":   float(mean_t),
+            "n_pixels":      n_pix,
+        }
 
     # ------------------------------------------------------------------
     # Diagnostics
