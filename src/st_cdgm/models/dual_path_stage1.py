@@ -237,35 +237,71 @@ class FusionGate(nn.Module):
 # ---------------------------------------------------------------------------
 
 class DualPathPredictor(nn.Module):
-    """Combined Dual-Path Stage 1 — wraps PathBCNN + FusionGate.
+    """Combined Dual-Path Stage 1 — wraps a Path B + FusionGate.
 
     Path A (causal) is external: it is computed upstream and passed as mu_A.
+
+    Two Path B variants are available:
+      - ``path_b_kind='cnn'``  → PathBCNN (UNet-style with skip from LR stem,
+        ~460k at base_ch=48). Lightweight, fast.
+      - ``path_b_kind='unet'`` → RegressionMeanPredictor wrapper (diffusers
+        UNet2DModel + bilinear + hr_proj, ~4.8M at block_out=(64,128,192)).
+        Proven architecture from CorrDiff non-causal baseline.
 
     Parameters
     ----------
     in_channels : int      LR grid channels (15).
-    base_ch : int          PathBCNN base width (~530k at 32).
+    base_ch : int          PathBCNN base width if path_b_kind='cnn'.
     hr_h, hr_w : int       HR output size.
     gate_max_mean : float  Diversity constraint (default 0.50).
     gate_init_bias : float Gate init logit (default −2.0 → g≈0.12).
+    path_b_kind : str      'cnn' (~460k) or 'unet' (~4.8M).
+    path_b_unet_channels : tuple   UNet block_out_channels if kind='unet'.
+    path_b_unet_lr_shape : tuple   (lr_h, lr_w) needed only by 'unet' (defaults
+                                    (23, 26) for NZ domain).
     """
 
     def __init__(
         self,
         in_channels: int = 15,
-        base_ch: int = 32,
+        base_ch: int = 48,
         hr_h: int = 172,
         hr_w: int = 179,
         gate_max_mean: float = 0.50,
         gate_init_bias: float = -2.0,
+        path_b_kind: str = "cnn",
+        path_b_unet_channels: tuple = (64, 128, 192),
+        path_b_unet_lr_shape: tuple = (23, 26),
     ) -> None:
         super().__init__()
-        self.path_b = PathBCNN(
-            in_channels=in_channels,
-            base_ch=base_ch,
-            hr_h=hr_h,
-            hr_w=hr_w,
-        )
+        if path_b_kind == "cnn":
+            self.path_b = PathBCNN(
+                in_channels=in_channels,
+                base_ch=base_ch,
+                hr_h=hr_h,
+                hr_w=hr_w,
+            )
+        elif path_b_kind == "unet":
+            from .regression_mean_predictor import (
+                RegressionMeanPredictor, RegressionPredictorConfig,
+            )
+            cfg = RegressionPredictorConfig(
+                in_channels=in_channels,
+                out_channels=1,
+                lr_height=int(path_b_unet_lr_shape[0]),
+                lr_width=int(path_b_unet_lr_shape[1]),
+                hr_height=hr_h,
+                hr_width=hr_w,
+                block_out_channels=tuple(path_b_unet_channels),
+                layers_per_block=2,
+                norm_num_groups=16,
+            )
+            self.path_b = RegressionMeanPredictor(cfg)
+        else:
+            raise ValueError(
+                f"path_b_kind must be 'cnn' or 'unet', got {path_b_kind!r}"
+            )
+        self.path_b_kind = path_b_kind
         self.gate = FusionGate(
             gate_init_bias=gate_init_bias,
             gate_max_mean=gate_max_mean,
