@@ -805,6 +805,7 @@ def train_epoch_dualpath_phase2(
     log_interval: int = 30,
     use_amp: bool = True,
     verbose: bool = True,
+    tail_weight_alpha: float = 0.0,
 ) -> dict:
     """Phase II: Train gate only. Path A and Path B are frozen by caller.
 
@@ -849,7 +850,12 @@ def train_epoch_dualpath_phase2(
                 if mu_total.shape != target.shape:
                     mu_total = F.interpolate(mu_total, size=target.shape[-2:],
                                               mode="bilinear", align_corners=False)
-                loss_mse = F.mse_loss(mu_total[valid], target[valid])
+                _err2 = (mu_total[valid] - target[valid]).pow(2)
+                if tail_weight_alpha > 0.0:
+                    _w = 1.0 + tail_weight_alpha * target[valid].abs()
+                    loss_mse = (_w * _err2).mean()
+                else:
+                    loss_mse = _err2.mean()
                 loss_div = dual_path.gate.diversity_loss(gate)
                 loss     = loss_mse + lambda_div * loss_div
             scaler.scale(loss / max(len(batches), 1)).backward()
@@ -900,11 +906,20 @@ def train_epoch_dualpath_phase3(
     log_interval:  int  = 30,
     use_amp:       bool = True,
     verbose:       bool = True,
+    tail_weight_alpha: float = 0.0,
 ) -> dict:
     """Phase III: Joint fine-tune. A_dag must be frozen by caller.
 
-    Loss = λ_causal·MSE(μ_A, HR) + (1−λ_causal)·MSE(μ_total, HR)
-           + λ_div·diversity_loss(gate)
+    Loss = λ_causal · WMSE(μ_A, HR) + (1−λ_causal) · WMSE(μ_total, HR)
+           + λ_div · diversity_loss(gate)
+
+    where WMSE(x, y) = mean( (1 + α·|y|) · (x - y)² )  if tail_weight_alpha > 0
+    else plain MSE.
+
+    Setting tail_weight_alpha > 0 (e.g. 5) forces BOTH Path A and Path B+gate
+    to capture variance instead of collapsing toward the conditional mean.
+    Critical for heavy-tail precipitation log1p residuals where target std
+    is much larger than what plain-MSE-trained models capture.
     """
     encoder.train()
     if hasattr(rcn_runner, "cell"):
@@ -950,8 +965,15 @@ def train_epoch_dualpath_phase3(
                                               mode="bilinear", align_corners=False)
                     mu_A = F.interpolate(mu_A, size=target.shape[-2:],
                                           mode="bilinear", align_corners=False)
-                loss_main = F.mse_loss(mu_total[valid], target[valid])
-                loss_caus = F.mse_loss(mu_A[valid],     target[valid])
+                _err_main2 = (mu_total[valid] - target[valid]).pow(2)
+                _err_caus2 = (mu_A[valid]     - target[valid]).pow(2)
+                if tail_weight_alpha > 0.0:
+                    _w = 1.0 + tail_weight_alpha * target[valid].abs()
+                    loss_main = (_w * _err_main2).mean()
+                    loss_caus = (_w * _err_caus2).mean()
+                else:
+                    loss_main = _err_main2.mean()
+                    loss_caus = _err_caus2.mean()
                 loss_div  = dual_path.gate.diversity_loss(gate)
                 loss = ((1.0 - lambda_causal) * loss_main
                         + lambda_causal        * loss_caus
