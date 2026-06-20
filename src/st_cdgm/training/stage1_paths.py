@@ -652,25 +652,38 @@ def train_epoch_dualpath_phase1(
     use_amp: bool = True,
     verbose: bool = True,
     tail_weight_alpha: float = 0.0,
+    lr_scheduler=None,
+    scaler=None,
+    scaler_init_scale: float = 2 ** 13,
 ) -> dict:
     """Phase I: Train Path B alone. Loss = weighted MSE(μ_B, HR_true).
 
-    The weight ``w(y) = 1 + α·|y|`` (in log1p residual space) breaks the
-    trivial "predict zero" optimum on heavy-tail precipitation targets.
-    With α=0 the loss reduces to plain MSE.
-
-    Path A (encoder/RCN/head) must be frozen by the caller before invoking
-    this function. The gate is not used in this phase.
+    Defaults aligned with CorrDiff (Mardani 2024 arXiv:2309.15214):
+      tail_weight_alpha=0 → plain MSE, no tail weighting
+      Adam β₂=0.99 should be set by the caller when constructing optimizer
 
     Parameters
     ----------
     tail_weight_alpha : float
-        Weight on |target| in the weighted-MSE loss. 0 → standard MSE.
-        Recommended 3-5 for log1p-space precipitation residuals.
+        Weight on |target| in the weighted-MSE loss. 0 → standard MSE
+        (CorrDiff default). Use 1-3 ONLY if predict-zero collapse appears.
+    lr_scheduler : optional
+        Per-step scheduler. ``.step()`` is called after each successful
+        optimizer step. Useful for LinearLR warmup.
+    scaler : torch.amp.GradScaler, optional
+        If provided, the scaler state persists across epochs (recommended).
+        Otherwise a fresh scaler is created with ``init_scale=scaler_init_scale``.
+    scaler_init_scale : float
+        Starting scale factor. Default 2**13 = 8192 (vs PyTorch default 2**16
+        = 65536 which can grow beyond FP16 max 65504 in long runs).
     """
     dual_path.path_b.train()
     dual_path.gate.eval()   # gate unused — frozen is fine too
-    scaler = torch.amp.GradScaler(enabled=(use_amp and device.type == "cuda"))
+    if scaler is None:
+        scaler = torch.amp.GradScaler(
+            enabled=(use_amp and device.type == "cuda"),
+            init_scale=scaler_init_scale,
+        )
 
     total_loss = 0.0
     n_batches = 0
@@ -708,28 +721,37 @@ def train_epoch_dualpath_phase1(
             scaler.scale(loss / max(len(batches), 1)).backward()
             step_loss += loss.item()
 
-        # ── If any micro produced NaN, skip optimizer step entirely
+        # ── If any micro produced NaN loss (BEFORE backward) ──
+        # Do NOT call scaler.update() — that could grow the scale and
+        # repeat the explosion. Manually halve the scale instead so the
+        # next batch has a smaller scaled loss and can recover.
         if any_nan:
             optimizer.zero_grad(set_to_none=True)
-            scaler.update()        # keep scaler healthy
+            if scaler.is_enabled():
+                with torch.no_grad():
+                    scaler._scale.mul_(0.5)  # manual backoff (private API)
             n_skipped_nan += 1
             if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
-                print(f"  [6A batch {batch_idx+1}] SKIP (NaN loss)", flush=True)
+                print(f"  [6A batch {batch_idx+1}] SKIP (NaN loss) "
+                      f"scale={scaler.get_scale():.0f}", flush=True)
             continue
 
         if gradient_clipping:
             if scaler.is_enabled():
                 scaler.unscale_(optimizer)
-            # ── NaN/Inf guard on gradients
+            # NaN grad guard — but scaler.step() also skips natively if NaN
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 dual_path.path_b.parameters(), gradient_clipping
             )
             if not torch.isfinite(grad_norm):
                 optimizer.zero_grad(set_to_none=True)
+                # scaler.step() will detect found_inf and skip step + reduce scale
+                scaler.step(optimizer)
                 scaler.update()
                 n_skipped_nan += 1
                 if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
-                    print(f"  [6A batch {batch_idx+1}] SKIP (NaN grad)", flush=True)
+                    print(f"  [6A batch {batch_idx+1}] SKIP (NaN grad) "
+                          f"scale={scaler.get_scale():.0f}", flush=True)
                 continue
 
         if scaler.is_enabled():
@@ -737,17 +759,25 @@ def train_epoch_dualpath_phase1(
         else:
             optimizer.step()
 
+        # LR scheduler steps after each successful optimizer step (for warmup)
+        if lr_scheduler is not None:
+            lr_scheduler.step()
+
         step_loss /= max(len(batches), 1)
         total_loss += step_loss
         n_batches += 1
 
         if verbose and (batch_idx == 0 or (batch_idx + 1) % log_interval == 0):
-            print(f"  [6A batch {batch_idx+1}] loss_B={step_loss:.5f}", flush=True)
+            _scale = scaler.get_scale() if scaler.is_enabled() else 1.0
+            _lr = optimizer.param_groups[0]["lr"]
+            print(f"  [6A batch {batch_idx+1}] loss_B={step_loss:.5f}  "
+                  f"lr={_lr:.2e}  scale={_scale:.0f}", flush=True)
 
     return {
         "loss_B":         total_loss / max(1, n_batches),
         "n_batches":      n_batches,
         "n_skipped_nan":  n_skipped_nan,
+        "final_scale":    scaler.get_scale() if scaler.is_enabled() else 1.0,
     }
 
 
