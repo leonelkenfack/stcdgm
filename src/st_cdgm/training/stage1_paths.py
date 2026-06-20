@@ -683,7 +683,7 @@ def train_epoch_dualpath_phase1(
                     mu_B = F.interpolate(mu_B, size=target.shape[-2:],
                                          mode="bilinear", align_corners=False)
                 loss = F.mse_loss(mu_B[valid], target[valid])
-                (loss / max(len(batches), 1)).backward()
+            scaler.scale(loss / max(len(batches), 1)).backward()
             step_loss += loss.item()
 
         if gradient_clipping:
@@ -768,7 +768,7 @@ def train_epoch_dualpath_phase2(
                 loss_mse = F.mse_loss(mu_total[valid], target[valid])
                 loss_div = dual_path.gate.diversity_loss(gate)
                 loss     = loss_mse + lambda_div * loss_div
-                (loss / max(len(batches), 1)).backward()
+            scaler.scale(loss / max(len(batches), 1)).backward()
             step_loss += loss_mse.item()
             step_div  += loss_div.item()
 
@@ -872,7 +872,7 @@ def train_epoch_dualpath_phase3(
                 loss = ((1.0 - lambda_causal) * loss_main
                         + lambda_causal        * loss_caus
                         + lambda_div           * loss_div)
-                (loss / max(len(batches), 1)).backward()
+            scaler.scale(loss / max(len(batches), 1)).backward()
             s_main += loss_main.item()
             s_caus += loss_caus.item()
             s_div  += loss_div.item()
