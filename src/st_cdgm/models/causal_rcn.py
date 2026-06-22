@@ -124,7 +124,10 @@ class RCNCell(nn.Module):
         self._dag_prior_noise = float(dag_prior_noise)
 
         # Matrice DAG apprenable
-        self.A_dag = nn.Parameter(torch.randn(num_vars, num_vars))
+        # Phase 8 fix (5-experts SMOKE review) : init douce 0.1*randn pour eviter gradient
+        # explosion sur lambda_dag * ||A||^2 (init randn donnait ||A||^2 ~ num_vars^2,
+        # loss_dag ~ 60 vs loss_mse ~ 1 -> NaN apres 1 step). Init 0.1*randn -> ||A||^2 ~ 100x plus petit.
+        self.A_dag = nn.Parameter(0.1 * torch.randn(num_vars, num_vars))
 
         # >>> BS35_CAUSAL_ABLATION — inference-time DAG perturbation.
         # ``dag_ablation_mode`` is a Python string attribute (not a
