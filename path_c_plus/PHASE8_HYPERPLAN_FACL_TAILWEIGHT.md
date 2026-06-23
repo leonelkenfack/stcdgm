@@ -262,3 +262,37 @@ Yang et al. 2024 (arXiv 2410.23159, Eq. 6) proposent un schedule probabiliste P(
 3. **Reproductibilité** : le schedule probabiliste ajoute un degré de non-déterminisme orthogonal au seed (uniform draw indépendant à chaque pas), incompatible avec le pattern de comparaison batch-mean utilisé par le abort gate.
 
 **Conséquence** : λ_FAL=0.2 et λ_FCL=0.3 ne sont pas directement comparables aux valeurs publiées dans Yang 2024 (puisque le combiner est différent). Ils ont été tunés empiriquement dans la section hyperplan FACL en accord avec l'équipe 5-expert.
+
+
+## Stage 1 phys-off remediation (post-commit 90c3519, FULL #1 collapse)
+
+**Empirical** : Stage 1 FULL run with phys losses activating at ep10 caused causal_frac
+to collapse from 0.725 (ep9, peak) to 0.028 (ep15), Cell 9 cache `mu_HR/target corr=0.091`
+(random). Pre-agreed abort threshold (corr<0.3) triggered.
+
+**5/5-expert UNANIMOUS vote on remediation** : Option A (`PHYS_LOSS_WARMUP_EPOCH=16`,
+phys NEVER active in Stage 1).
+
+- **ML** (82% conf) : Path A magnitude collapse via gradient on mu_A under fusion gate
+- **IA** (72% conf) : add global kill-switch + SMOKE pre-flight ; B/C/D rejected
+- **Climat** (70% P[F1@p99>=0.5505]) : per-batch ETCCDI proxies = noise (5-day window
+  vs annual aggregation), Rx1day target = unphysical compressed; Stage 2 tail-weight
+  x4/x12 + FACL handles extremes adequately
+- **Recherche** (literature consensus) : 0/8 reviewed papers use phys ETCCDI losses in
+  pre-training regression (CorrDiff/STVD/WassDiff/bias-informed CDM all MSE-only Stage 1)
+- **Math** (57-60% joint P) : critical insight -- the degenerate fixed point is a BASIN
+  not saddle, driven by FusionGate detach feedback on MSE alone (Rx1day was just the
+  trigger). Option B (lambda reduction) DOMINATED by Option A at any magnitude.
+
+**Code changes** :
+- Cell 2 : `PHYS_LOSS_WARMUP_EPOCH = 16` (was 10), PRE_REG marker `stage1_variant='phys_off'`
+- Cell 8 : ep==5 WARN replaced with GLOBAL kill-switch (causal_frac<0.05 for 2 consecutive
+  epochs from ep>=5 -> raise + save .collapse.pt forensic)
+
+**LAMBDA values kept** : R10MM=0.20, RX1DAY=0.15, CDD=0.10, CC=0.05 retained in PRE_REG
+for potential future reactivation (e.g., post-Stage2 fine-tune with annual batches,
+Phase 9 ablation per Climat).
+
+**Stage 2 unchanged** : tail-weight x4/x12 on >15/>35 mm/day + FACL (lambda_FAL=0.2,
+lambda_FCL=0.3, fixed alpha=beta=0.5) + Min-SNR-gamma=5 remain as the extreme-precip
+skill carriers.
