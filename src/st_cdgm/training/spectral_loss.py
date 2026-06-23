@@ -136,6 +136,7 @@ def facl_components(
     norm_p = amp_p.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()
     norm_t = amp_t.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()
     cos = inner / (norm_p * norm_t + eps)
+    cos = cos.clamp(-1.0, 1.0)   # H1 fix (3/3 expert) : parity with facl_loss
     fcl = (1.0 - cos).mean()
     return fal, fcl
 
