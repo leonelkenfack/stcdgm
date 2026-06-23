@@ -105,7 +105,10 @@ def facl_loss(
     inner = (Fp.conj() * Ft).real.flatten(start_dim=1).sum(dim=1)   # [B]
     norm_p = amp_p.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()    # [B]
     norm_t = amp_t.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()    # [B]
-    cos = inner / (norm_p * norm_t + eps)                            # [B]
+    # H2 fix (Math HIGH) : eps on EACH norm individually -- the original eps on
+    # the product floored the denominator but did NOT prevent the 1/norm_p
+    # gradient blow-up when norm_p underflows to ~0 (dry-day BF16 rfft2).
+    cos = inner / (norm_p.clamp_min(eps) * norm_t.clamp_min(eps))                            # [B]
     cos = cos.clamp(-1.0, 1.0)   # IA expert D7 defensive : avoid 1-cos overshoot on near-zero spectra
     fcl = (1.0 - cos).mean()
 
@@ -135,7 +138,10 @@ def facl_components(
     inner = (Fp.conj() * Ft).real.flatten(start_dim=1).sum(dim=1)
     norm_p = amp_p.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()
     norm_t = amp_t.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()
-    cos = inner / (norm_p * norm_t + eps)
+    # H2 fix (Math HIGH) : eps on EACH norm individually -- the original eps on
+    # the product floored the denominator but did NOT prevent the 1/norm_p
+    # gradient blow-up when norm_p underflows to ~0 (dry-day BF16 rfft2).
+    cos = inner / (norm_p.clamp_min(eps) * norm_t.clamp_min(eps))
     cos = cos.clamp(-1.0, 1.0)   # H1 fix (3/3 expert) : parity with facl_loss
     fcl = (1.0 - cos).mean()
     return fal, fcl

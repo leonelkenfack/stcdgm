@@ -251,3 +251,14 @@ FACL_WARMUP_EPOCHS = 3         # ramp 0→1 sur 3 ep (ML safety)
 - Cell 7 : `_tail_weight` défini (déplacé depuis Cell 10)
 - Cell 8 : MSE Stage 1 utilise tail_w_s1 avec normalisation `sum(w·v)/sum(w·v)`
 - Cell 11 : FACL ajouté avec warmup + float cast + logging + abort gardé
+
+
+## Note de divergence avec Yang 2024 (Recherche audit 5/5, post-commit 5761a9e)
+
+Yang et al. 2024 (arXiv 2410.23159, Eq. 6) proposent un schedule probabiliste P(t) qui décroît de 1.0→0.0, sélectionnant aléatoirement FAL **ou** FCL à chaque pas (jamais les deux). Notre implémentation utilise un **blend fixe α=0.5, β=0.5** (loss = α·FAL + β·FCL chaque pas), choix architectural retenu après validation 5/5 dans l'hyperplan original pour trois raisons :
+
+1. **Stabilité numérique sous FACL_WARMUP** : un schedule probabiliste amplifierait la variance des gradients pendant la phase de warmup (FCL ~1.0 à l'init = signal fort intermittent), risquant des spikes que le abort gate (3× EDM) déclenchait à tort.
+2. **Interaction contrôlée avec la tail-weight ×4/×12** : la tail-weight a son propre régime transitoire ; superposer une stochasticité FACL augmente la complexité du diagnostic en cas de divergence.
+3. **Reproductibilité** : le schedule probabiliste ajoute un degré de non-déterminisme orthogonal au seed (uniform draw indépendant à chaque pas), incompatible avec le pattern de comparaison batch-mean utilisé par le abort gate.
+
+**Conséquence** : λ_FAL=0.2 et λ_FCL=0.3 ne sont pas directement comparables aux valeurs publiées dans Yang 2024 (puisque le combiner est différent). Ils ont été tunés empiriquement dans la section hyperplan FACL en accord avec l'équipe 5-expert.
