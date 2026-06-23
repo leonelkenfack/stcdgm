@@ -106,6 +106,7 @@ def facl_loss(
     norm_p = amp_p.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()    # [B]
     norm_t = amp_t.flatten(start_dim=1).pow(2).sum(dim=1).sqrt()    # [B]
     cos = inner / (norm_p * norm_t + eps)                            # [B]
+    cos = cos.clamp(-1.0, 1.0)   # IA expert D7 defensive : avoid 1-cos overshoot on near-zero spectra
     fcl = (1.0 - cos).mean()
 
     return alpha_amplitude * fal + beta_correlation * fcl
