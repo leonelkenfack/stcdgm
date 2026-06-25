@@ -678,6 +678,12 @@ class CausalDiffusionDecoder(nn.Module):
                 "swd": loss_sw.detach() if isinstance(loss_sw, Tensor) else loss_sw,
                 "lambda_facl": lam_facl,
                 "lambda_sw": lam_sw,
+                # V6 MVP — expose D_y + target_clean + valid_mask so the V6
+                # training loop can compute pinball + log-det penalties on the
+                # same denoiser output (no re-forward needed).
+                "D_y": D_y,
+                "target_clean": target_clean,
+                "valid_mask": valid_mask,
             }
         return loss_total
 

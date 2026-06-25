@@ -66,10 +66,21 @@ class HeteroGraphBuilder:
         ``A_dag`` + ``physics_prior.G_phys`` (cf. PHASE0_SPEC_9NODE.md §4). Seules
         les arêtes ``spat_adj`` (auto-boucle spatiale) des nouveaux nœuds sont
         ajoutées, comme pour GP850/GP500/GP250.
+    extended_v6_wind :
+        Si True (V6 MVP), ajoute les nœuds vent bas niveau U850, V850. Opt-in
+        compatible avec ``extended_9node`` (ordre canonique : Q850, W500, IVT,
+        U850, V850 → 6 dynamiques V6). Climat verbatim ronde 1 :
+        "u850/v850 → précipitation orographique locale". Arêtes physiques
+        U850→SP_HR, V850→SP_HR, U850→IVT, V850→IVT sont portées par G_phys
+        prior 11×11 (cf. plan V6 §1.3), pas par edge_index — seules les
+        ``spat_adj`` auto-boucles sont ajoutées ici.
     """
 
     #: node types ajoutés par ``extended_9node`` (ordre = convention 9-node).
     EXTENDED_9NODE_TYPES = ("Q850", "W500", "IVT")
+
+    #: node types ajoutés par ``extended_v6_wind`` (V6 MVP, Climat recommandation).
+    EXTENDED_V6_WIND_TYPES = ("U850", "V850")
 
     def __init__(
         self,
@@ -80,6 +91,7 @@ class HeteroGraphBuilder:
         static_variables: Optional[Sequence[str]] = None,
         include_mid_layer: bool = True,
         extended_9node: bool = False,
+        extended_v6_wind: bool = False,
     ) -> None:
         self.lr_shape = lr_shape
         self.hr_shape = hr_shape
@@ -87,6 +99,7 @@ class HeteroGraphBuilder:
         self.static_variables = static_variables
         self.include_mid_layer = include_mid_layer
         self.extended_9node = extended_9node
+        self.extended_v6_wind = extended_v6_wind
 
         self._validate_shapes()
 
@@ -98,6 +111,8 @@ class HeteroGraphBuilder:
             self.dynamic_node_types.extend(["GP500", "GP250"])
         if self.extended_9node:
             self.dynamic_node_types.extend(self.EXTENDED_9NODE_TYPES)
+        if self.extended_v6_wind:
+            self.dynamic_node_types.extend(self.EXTENDED_V6_WIND_TYPES)
         
         # Static node types (always includes SP_HR if static dataset is provided)
         self.static_node_types = ["SP_HR"] if self.static_dataset is not None else []
@@ -149,6 +164,10 @@ class HeteroGraphBuilder:
             edges_spatial["GP250"] = spatial_index.size(1)
         if self.extended_9node:
             for nt in self.EXTENDED_9NODE_TYPES:
+                data[nt, "spat_adj", nt].edge_index = spatial_index.clone()
+                edges_spatial[nt] = spatial_index.size(1)
+        if self.extended_v6_wind:
+            for nt in self.EXTENDED_V6_WIND_TYPES:
                 data[nt, "spat_adj", nt].edge_index = spatial_index.clone()
                 edges_spatial[nt] = spatial_index.size(1)
 

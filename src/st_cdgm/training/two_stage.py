@@ -873,6 +873,7 @@ def precompute_stage1_outputs(
     device: torch.device,
     dag_variants: Sequence[str] = ("normal",),
     existing_cache: Optional[dict] = None,
+    cache_h_t_pooled: bool = False,
 ) -> dict:
     """Iterate ``train_dataset`` once, run Stage 1 forward per sample,
     and stack outputs into a dict of CPU tensors.
@@ -924,6 +925,9 @@ def precompute_stage1_outputs(
 
     rcn_cell = rcn_runner.cell if hasattr(rcn_runner, "cell") else None
     can_ablate = rcn_cell is not None and hasattr(rcn_cell, "set_dag_ablation_mode")
+    # V6 MVP — if cache_h_t_pooled, we additionally store H_T_pooled = mean(H_T, dim=N)
+    # → shape [q, hidden] per sample, ~few KB per sample.
+    # Used by Stage 2 r_phi(H) StructuredResidualHead (F4 dette critique).
 
     variants: list[str] = []
     seen: set[str] = set()
@@ -986,6 +990,8 @@ def precompute_stage1_outputs(
         base_list: list[Tensor] = []
         delta_list: list[Tensor] = []
         mask_list: list[Tensor] = []
+        # V6 MVP — H_T_pooled cache for r_phi (only for "normal" variant)
+        h_t_pooled_list: list[Tensor] = []
 
         t0 = _t.time()
         last_print = t0
@@ -1028,6 +1034,14 @@ def precompute_stage1_outputs(
             delta_list.append(delta_target.detach().squeeze(0).cpu())
             mask_list.append(valid_mask.detach().squeeze(0).cpu())
 
+            # V6 MVP — H_T_pooled (over N nodes) for r_phi(H) auxiliary head.
+            # Only stored for "normal" variant.
+            # H_T shape : [q, N, hidden] -> pool over N -> [q, hidden]
+            if cache_h_t_pooled and variant == "normal":
+                h_t_safe = torch.nan_to_num(H_T, nan=0.0, posinf=0.0, neginf=0.0)
+                h_pooled = h_t_safe.mean(dim=-2)  # [q, hidden]
+                h_t_pooled_list.append(h_pooled.detach().cpu())
+
             n_seen += 1
             now = _t.time()
             if (now - last_print) >= 5.0:
@@ -1059,6 +1073,9 @@ def precompute_stage1_outputs(
                 torch.stack(mask_list, dim=0) if mask_list else torch.empty(0)
             )
             delta_target_for_normal = delta_list
+            # V6 MVP — stack H_T_pooled if collected
+            if cache_h_t_pooled and h_t_pooled_list:
+                out["H_T_pooled"] = torch.stack(h_t_pooled_list, dim=0)  # [N, q, hidden]
 
     if can_ablate:
         try:
@@ -1099,6 +1116,25 @@ def train_epoch_stage2_cached(
     conditioning_dropout_prob: float = 0.0,
     # V5 — Track C : log FACL + Sliced-W si compute_loss_edm les retourne.
     log_loss_components: bool = True,
+    # ======================== V6 MVP additions ============================ #
+    # All V6 params are opt-in. If left at defaults, behavior is bit-identical
+    # to the 9-node seed 42 protocol (V5_causal). When provided, integrate :
+    #   - r_phi(H) auxiliary residual head (F4 dette critique, S1.1 module)
+    #   - pinball multi-tau loss (S1.2)
+    #   - log-det rank-promoting penalty (S1.2)
+    #   - r_phi warmup scheduler (gel N steps + ramp lambda_r 0->max)
+    # See V6 plan §2 + §3 garde-fous.
+    r_phi_module: Optional[nn.Module] = None,  # StructuredResidualHead, optimized via the same optimizer
+    lambda_pinball: float = 0.0,
+    pinball_taus: Sequence[float] = (0.5, 0.95, 0.99),
+    lambda_logdet: float = 0.0,
+    logdet_subsample_indices: Optional[Tensor] = None,
+    logdet_delta: float = 1e-3,
+    logdet_min_batch_size: int = 128,
+    r_phi_freeze_steps: int = 2000,
+    r_phi_ramp_steps: int = 5000,
+    r_phi_lambda_max: float = 0.20,
+    v6_global_step_start: int = 0,
 ) -> dict:
     """Thin Stage 2 training loop that consumes a pre-cached dataset.
 
@@ -1192,10 +1228,30 @@ def train_epoch_stage2_cached(
     contrastive_skipped_missing_key = 0
     n_cond_dropped = 0
 
+    # ====================== V6 MVP — init metrics ======================== #
+    v6_active = (r_phi_module is not None) or (lambda_pinball > 0.0) or (lambda_logdet > 0.0)
+    v6_metrics = {
+        "total_pinball": 0.0,
+        "total_logdet": 0.0,
+        "total_r_phi_norm_ratio": 0.0,  # mean ‖r_phi‖₂ / ‖mu_HR‖₂ per batch
+        "n_r_phi_batches": 0,
+        "lambda_r_last": 0.0,
+        "v6_global_step": int(v6_global_step_start),
+    }
+    if v6_active:
+        from st_cdgm.training.queue_losses import (
+            pinball_multi_tau as _v6_pinball_multi_tau,
+            log_det_rank_penalty as _v6_log_det_rank_penalty,
+        )
+
     for batch_idx, batch in enumerate(cached_dataloader):
         mu_HR = batch["mu_HR"].to(device, non_blocking=True)
         baseline_log = batch["baseline_log"].to(device, non_blocking=True)
         delta_target = batch["delta_target"].to(device, non_blocking=True)
+        # V6 MVP — H_T_pooled used by r_phi if present in cache
+        h_t_pooled = batch.get("H_T_pooled")
+        if h_t_pooled is not None:
+            h_t_pooled = h_t_pooled.to(device, non_blocking=True)
 
         do_contrastive = (
             contrastive_active and (batch_idx % interval == 0)
@@ -1290,6 +1346,72 @@ def train_epoch_stage2_cached(
 
             loss_total = loss_real + loss_contrast_value
 
+            # ================== V6 MVP — pinball + log-det + r_phi =========
+            if v6_active and log_loss_components and isinstance(_loss_out, tuple):
+                _, _v6_components = _loss_out
+                D_y = _v6_components.get("D_y")
+                target_clean_v6 = _v6_components.get("target_clean")
+                v_mask = _v6_components.get("valid_mask")
+
+                # --- r_phi contribution with warmup schedule ---------------
+                r_phi_pred: Optional[Tensor] = None
+                lam_r_eff = 0.0
+                if r_phi_module is not None and h_t_pooled is not None:
+                    step = v6_metrics["v6_global_step"]
+                    if step < r_phi_freeze_steps:
+                        # Freeze : compute r_phi but mask it to 0 contribution
+                        # (still want gradients flowing? No — fully frozen)
+                        with torch.no_grad():
+                            r_phi_pred = r_phi_module(h_t_pooled)
+                        lam_r_eff = 0.0
+                    else:
+                        r_phi_pred = r_phi_module(h_t_pooled)
+                        # Linear ramp 0 -> r_phi_lambda_max over r_phi_ramp_steps
+                        ramp_frac = float(step - r_phi_freeze_steps) / max(1, r_phi_ramp_steps)
+                        lam_r_eff = min(r_phi_lambda_max, r_phi_lambda_max * ramp_frac)
+                    v6_metrics["lambda_r_last"] = float(lam_r_eff)
+
+                # --- Pinball loss on D_y (predicts delta_target) -----------
+                if lambda_pinball > 0.0 and D_y is not None and target_clean_v6 is not None:
+                    # Optionally include r_phi in the prediction
+                    pred_for_pinball = D_y
+                    if r_phi_pred is not None and lam_r_eff > 0.0:
+                        pred_for_pinball = D_y + lam_r_eff * r_phi_pred
+                    loss_pinball = _v6_pinball_multi_tau(
+                        pred_for_pinball, target_clean_v6, taus=pinball_taus
+                    )
+                    loss_total = loss_total + lambda_pinball * loss_pinball
+                    v6_metrics["total_pinball"] += float(loss_pinball.detach().item())
+
+                # --- Log-det rank penalty on residual = (D_y + r_phi - delta_target)
+                if (
+                    lambda_logdet > 0.0
+                    and D_y is not None
+                    and target_clean_v6 is not None
+                    and logdet_subsample_indices is not None
+                    and D_y.shape[0] >= logdet_min_batch_size
+                ):
+                    pred_full = D_y
+                    if r_phi_pred is not None and lam_r_eff > 0.0:
+                        pred_full = D_y + lam_r_eff * r_phi_pred
+                    residual_v6 = pred_full - target_clean_v6
+                    loss_logdet = _v6_log_det_rank_penalty(
+                        residual_v6,
+                        logdet_subsample_indices.to(D_y.device),
+                        delta=logdet_delta,
+                    )
+                    loss_total = loss_total + lambda_logdet * loss_logdet
+                    v6_metrics["total_logdet"] += float(loss_logdet.detach().item())
+
+                # --- Monitoring : ‖r_phi‖ / ‖mu_HR‖ ratio per batch --------
+                if r_phi_pred is not None:
+                    with torch.no_grad():
+                        rn = float(r_phi_pred.norm(p=2).item())
+                        mn = float(mu_HR_used.norm(p=2).item())
+                        if mn > 1e-8:
+                            v6_metrics["total_r_phi_norm_ratio"] += rn / mn
+                            v6_metrics["n_r_phi_batches"] += 1
+
         if amp_mode == "cuda_fp16":
             scaler.scale(loss_total).backward()
         else:
@@ -1330,6 +1452,10 @@ def train_epoch_stage2_cached(
 
         total_loss += float(loss_real.detach().item())
         n_batches += 1
+
+        # V6 MVP — increment global step (used by r_phi warmup schedule)
+        if v6_active:
+            v6_metrics["v6_global_step"] += 1
 
         if verbose and (batch_idx == 0 or (batch_idx + 1) % log_every == 0):
             extra = ""
@@ -1396,7 +1522,7 @@ def train_epoch_stage2_cached(
                 flush=True,
             )
 
-    return {
+    out_metrics = {
         "loss_diff": total_loss / max(1, n_batches),
         "n_batches": n_batches,
         "loss_contrastive_dag": avg_contrast,
@@ -1414,6 +1540,21 @@ def train_epoch_stage2_cached(
         "cond_drop_prob": cond_drop_p,
         "n_samples_cond_dropped": n_cond_dropped,
     }
+    # V6 MVP — append V6 metrics (only meaningful if v6_active)
+    if v6_active:
+        nb = max(1, n_batches)
+        nr = max(1, v6_metrics["n_r_phi_batches"])
+        out_metrics["v6"] = {
+            "active": True,
+            "avg_loss_pinball": v6_metrics["total_pinball"] / nb,
+            "avg_loss_logdet": v6_metrics["total_logdet"] / nb,
+            "avg_r_phi_norm_ratio": v6_metrics["total_r_phi_norm_ratio"] / nr,
+            "lambda_r_last": v6_metrics["lambda_r_last"],
+            "global_step": v6_metrics["v6_global_step"],
+        }
+    else:
+        out_metrics["v6"] = {"active": False}
+    return out_metrics
 
 
 __all__ = [

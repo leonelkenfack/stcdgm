@@ -1,0 +1,134 @@
+{
+  "pre_registration": {
+    "schema_version": "v6-mvp-2026-06-25",
+    "date_iso": "2026-06-25",
+    "commit_hash_at_registration": "37319a274d322b0fe91ca30fb70539acf3f997a3",
+    "branch": "four-node-causal",
+    "plan_file": "path_c_plus/audit/PLAN_V6_BOOST_UNET.md",
+    "anti_harking_note": "Seuils figés AVANT tout run Stage 2 full V6 — Kerr 1998 Pers Soc Psychol Rev 2:196"
+  },
+  "experiment_id": "V6_MVP_seed42_11node_rphi_pinball_logdet",
+  "base_protocol": "st_cdgm_path_c_option_c_9node.ipynb seed 42 (V5_causal Path C+ Option C)",
+  "target_to_beat": {
+    "model": "noncausal_v4",
+    "metric": "F1_p99_pooled_convB",
+    "value": 0.550,
+    "source": "path_c_plus/results/eval_3way_dual_convention + ckpt_noncausal/final_validation_metrics.json"
+  },
+  "baseline_v5_causal_seed42": {
+    "F1_p99_convB_pooled": 0.453,
+    "RMSE_convB_pooled": 0.141,
+    "Pearson_global_convB": 0.767,
+    "F1_p99_convA_etccdi": 0.841,
+    "source": "_eval_3way_dual_convention.ipynb results"
+  },
+  "pass_fail_thresholds": {
+    "F1_p99_convB_pooled": {
+      "PASS_MINIMAL": 0.480,
+      "comment_minimal": "Bat V5_causal seed 42 (0.453)",
+      "PASS_TARGET": 0.550,
+      "comment_target": "EGALE noncausal_v4 — objectif principal",
+      "PASS_STRONG": 0.580,
+      "comment_strong": "Bat noncausal_v4 +5%"
+    },
+    "non_regression": {
+      "RMSE_convB_max_degradation_pct": 5.0,
+      "RMSE_convB_max_absolute": 0.148,
+      "Pearson_global_convB_max_degradation_pct": 3.0,
+      "Pearson_global_convB_min_absolute": 0.744
+    },
+    "OOD_robustness": {
+      "OOD_GCM": "EC-Earth3",
+      "F1_p99_OOD_min": 0.40,
+      "rationale": "Climat ronde 4 — EC-Earth3 plus discriminant que NorESM2 (jet subtropical SH + ARs Tasman, Reid 2021)"
+    },
+    "ablation_critical": {
+      "metric": "r_phi_attribution_pct_of_gain_F1_p99",
+      "max_pct_allowed": 40.0,
+      "action_if_exceeded": "REJECT_RUN",
+      "rationale": "ML ronde 4 — si r_phi > 40% du gain, MVP techniquement gagnant mais scientifiquement vide"
+    },
+    "live_monitoring": {
+      "ratio_rphi_over_mu": {
+        "check_after_epoch": 5,
+        "min_value": 0.05,
+        "action_if_below": "RED_FLAG_INVESTIGATE",
+        "rationale": "Math + ML + IA — détection collapse r_phi (F4 historique)"
+      },
+      "smoke_pass_criteria_pre_full_run": {
+        "pinball_gradient_norm_max": 1.0,
+        "r_phi_output_norm_post_warmup_min": 0.02,
+        "log_det_finite": true,
+        "batch_size_min": 128,
+        "abort_gates_silent": true
+      }
+    },
+    "interventional_test_optional": {
+      "do_SST_plus_2K_response": "~7%/K precipitation increase (Clausius-Clapeyron, Pall 2007 Nature)",
+      "tolerance_pct": 3.0,
+      "use_for": "validation causale réelle, narrative paper",
+      "non_blocking": true
+    }
+  },
+  "compute_budget": {
+    "total_estimated_hours_A100": 32,
+    "breakdown": {
+      "preproc_v6_features": 4,
+      "stage1A_refait_11node": 15,
+      "smoke_4h": 4,
+      "stage2_full": 9,
+      "validation": 2
+    },
+    "kill_switch": {
+      "after_seed1": true,
+      "criterion": "Si F1_p99_convB < 0.480 ET RMSE dégradé > 5% → abandon V6 + publication V5_causal seul (Recherche)"
+    }
+  },
+  "experts_consensus": {
+    "rounds_completed": 4,
+    "verdict": "5/5 GO",
+    "probability_beat_noncausal_F1_p99_550": {
+      "ML": "55-60%",
+      "Math": "52-58%",
+      "Recherche": "55-65%",
+      "IA": "55-60%",
+      "Climat": "58-62%",
+      "weighted_average": 57.0
+    }
+  },
+  "v6_additions_summary": {
+    "stage1A_modifications": [
+      "Pipeline LR: +6 features (w_700, theta_e_850/500, mucape_proxy, T_850-T_500, u850.grad_orog_HR)",
+      "Graph: +2 nodes (U850, V850) -> 11-node",
+      "G_phys: +4 edges (U850->SP_HR, V850->SP_HR, U850->IVT, V850->IVT)",
+      "lambda_l1: 0.04->0.005 cosine devient 0.028->0.0035 (x0.7 adaptation 11-node)"
+    ],
+    "stage2_additions_orthogonal": [
+      "StructuredResidualHead r_phi(H) avec structure spatiale (project + broadcast regional Trenberth + conv1x1)",
+      "Pinball loss multi-tau {0.5, 0.95, 0.99}, lambda_pinball <= 0.1*lambda_MSE",
+      "Log-det rank penalty subsample 256-512 pixels stratifies, batch_size >= 128 obligatoire"
+    ],
+    "dropped_from_v6_initial": [
+      "Softmax projection (Math: erreur conceptuelle, rank reste <= 5)",
+      "FiLM gating (ML: gamma<0 risque inversion mu_base)",
+      "ConvLSTM temporal encoder (reporté V6.1)",
+      "SST_TASMAN node (économie compute, retour V6.1)",
+      "CRPS-tail (redondant avec pinball)"
+    ],
+    "safeguards_mandatory": [
+      "Freeze A_dag pendant Stage 2 (ML)",
+      "r_phi warmup: init N(0,1e-3) + gel 2k steps + ramp lambda_r 0.05->0.2 sur 5k steps (IA)",
+      "Monitoring live ||r_phi||/||mu_theta|| >= 0.05 epoch 5+ (Math+ML+IA)",
+      "SMOKE 4h obligatoire avant full run (IA)",
+      "Pinball calibration p99 val set (Recherche+ML)",
+      "OOD EC-Earth3 obligatoire (Climat+Recherche)",
+      "Pre-enregistrement seuils (Recherche, ce JSON)"
+    ],
+    "optional_additions_publication_roi": [
+      "CRPS multi-echelle (Gneiting-Raftery 2007)",
+      "do(SST+2K) test causal interventionnel (validation Clausius-Clapeyron)",
+      "mask_ocean pour grad_orog_HR (Climat)",
+      "theta_w_850 feature (Browning 2004 warm conveyor belt)"
+    ]
+  }
+}
