@@ -37,6 +37,8 @@
 \usepackage{algpseudocode}
 
 \usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, shapes, arrows.meta, calc}
 
 \renewcommand{\thechapter}{\Roman{chapter}}
 \renewcommand{\thesection}{\thechapter.\arabic{section}}
@@ -586,8 +588,43 @@ L'examen de la littérature récente montre que les approches qui réussissent s
 
 \begin{figure}[ht]
   \centering
-  \figplaceholder[0.6\linewidth]{Figure F7 à produire --- triangle dont les trois sommets sont étiquetés \og Stabilité d'entraînement \fg{}, \og Réalisme des extrêmes \fg{}, \og Robustesse OOD \fg{} ; positionner symboliquement quelques familles d'approches à l'intérieur.}
-  \caption{Trilemme du downscaling génératif. Constat agrégé à partir de~\cite{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}.}
+  \begin{tikzpicture}[
+    vertex/.style={font=\small\bfseries, text=uridarkblue, align=center},
+    method/.style={circle, draw, thick, inner sep=2.5pt, font=\footnotesize\sffamily},
+    methodlbl/.style={font=\scriptsize\sffamily, align=center},
+  ]
+    % Triangle (equilateral, side ~6cm)
+    \coordinate (top)   at (0, 3.46);   % stabilité (haut)
+    \coordinate (left)  at (-3, -1.5);  % réalisme extrêmes (bas-gauche)
+    \coordinate (right) at (3, -1.5);   % robustesse OOD (bas-droite)
+
+    \draw[thick, uridarkblue, rounded corners=1pt]
+      (top) -- (left) -- (right) -- cycle;
+
+    % Etiquettes sommets
+    \node[vertex, above=0.15cm of top] {Stabilité \\ d'entraînement};
+    \node[vertex, below left=0.05cm and -0.4cm of left] {Réalisme \\ des extrêmes};
+    \node[vertex, below right=0.05cm and -0.4cm of right] {Robustesse \\ OOD};
+
+    % Points : approches positionnées qualitativement à l'intérieur
+    %  - cGAN : bon en extrêmes, faible en stabilité, faible en OOD
+    %  - CorrDiff : bon en stabilité, bon en extrêmes, faible OOD
+    %  - Oracle : bonne stabilité + extrêmes corrects + gain OOD
+    %  - Idéal : centroïde (équilibre des 3)
+
+    \node[method, fill=red!25] (cgan) at (-1.6, -0.6) {};
+    \node[methodlbl, below=2pt of cgan, text=red!60!black] {cGAN};
+
+    \node[method, fill=orange!40] (corrdiff) at (0.7, 1.0) {};
+    \node[methodlbl, above right=-2pt and 0pt of corrdiff, text=orange!70!black] {CorrDiff};
+
+    \node[method, fill=uriaccent!70] (oracle) at (0.4, 0.05) {};
+    \node[methodlbl, right=2pt of oracle, text=uriaccent] {\Oracle{}};
+
+    \node[method, fill=green!55!black, text=white] (ideal) at (0, 0.15) {};
+    \node[methodlbl, below=2pt of ideal, text=green!45!black] {Idéal};
+  \end{tikzpicture}
+  \caption{Trilemme du downscaling génératif. Les trois sommets représentent les verrous identifiés ; les points positionnent qualitativement les principales approches. Plus un point est proche d'un sommet, mieux l'approche traite ce verrou. Constat agrégé à partir de~\cite{rampal_cgan_2024,mardani_corrdiff_2023,harris_2022}.}
   \label{fig:trilemme}
 \end{figure}
 \label{ssec:positionnement-oracle}
@@ -596,7 +633,70 @@ L'examen de la littérature récente montre que les approches qui réussissent s
 
 \begin{figure}[ht]
   \centering
-  \figplaceholder{Figure F8 à produire --- cartouche conceptuel Oracle en deux étages : (Étage 1) entrée LR $\to$ encodeur $\to$ graphe causal appris (matrice $A_{\mathrm{dag}}$) $\to$ moyenne $\mu_{HR}$ ; (Étage 2) $\mu_{HR}$ + bruit $\to$ diffusion EDM $\to$ résiduel $\delta$ ; sortie HR = baseline + $\mu_{HR}$ + $\delta$.}
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    block/.style={rectangle, draw=uridarkblue, fill=uridarkblue!8, rounded corners=2pt,
+                  minimum height=1.1cm, minimum width=2.1cm, align=center, font=\small,
+                  inner sep=3pt},
+    cblock/.style={rectangle, draw=uriaccent, fill=uriaccent!10, rounded corners=2pt,
+                   minimum height=1.1cm, minimum width=2.1cm, align=center, font=\small,
+                   inner sep=3pt, very thick},
+    outblock/.style={rectangle, draw=urigray, fill=urigray!10, rounded corners=2pt,
+                     minimum height=1.0cm, minimum width=5.0cm, align=center, font=\small},
+    stagelbl/.style={font=\footnotesize\bfseries\itshape, text=urigray, align=center},
+    arr/.style={-{Stealth[length=2.2mm]}, thick, uridarkblue!75},
+    carr/.style={-{Stealth[length=2.2mm]}, thick, uriaccent!90},
+    causal/.style={font=\footnotesize\bfseries, text=uriaccent},
+  ]
+    % --- Stage 1 row (causalisé) ---
+    \node[block]                       (lr)  at (0,0)          {$\LR$\\ \scriptsize ACCESS-CM2};
+    \node[cblock, right=0.7cm of lr]   (enc)                   {Encodeur\\ \scriptsize intelligible};
+    \node[cblock, right=0.7cm of enc]  (dag)                   {Graphe causal\\ $\Adag$ \scriptsize (DAGMA)};
+    \node[cblock, right=0.7cm of dag]  (mu)                    {$\muHR$\\ \scriptsize moyenne};
+
+    % --- Stage 2 row (diffusion EDM) ---
+    \node[block, below=2.4cm of enc]   (noise)                 {Bruit $+$\\ $\muHR$};
+    \node[block, right=0.7cm of noise] (edm)                   {Diffusion\\ EDM};
+    \node[block, right=0.7cm of edm]   (delta)                 {Résidu $\widehat{\delta}$};
+
+    % --- Output row ---
+    \node[outblock, below=1.3cm of edm] (out)
+      {$\widehat{x}_{\HR} \,=\, \mathrm{baseline} \,+\, \muHR \,+\, \widehat{\delta}$};
+
+    % --- Stage frames + labels ---
+    \node[draw=uriaccent, dashed, rounded corners=4pt, inner sep=7pt,
+          fit=(lr) (enc) (dag) (mu)] (s1box) {};
+    \node[stagelbl, text=uriaccent, anchor=south west]
+      at (s1box.north west) {Stage 1 — causalisation \Oracle{}};
+
+    \node[draw=urigray, dashed, rounded corners=4pt, inner sep=7pt,
+          fit=(noise) (edm) (delta)] (s2box) {};
+    \node[stagelbl, anchor=south west]
+      at (s2box.north west) {Stage 2 — diffusion résiduelle EDM (paradigme \CorrDiff{})};
+
+    % --- Arrows Stage 1 ---
+    \draw[carr] (lr)  -- (enc);
+    \draw[carr] (enc) -- (dag);
+    \draw[carr] (dag) -- (mu);
+
+    % --- mu_HR -> noise (passe vers stage 2) ---
+    \draw[arr, dashed] (mu.south) -- ++(0, -0.6) -| (noise.north);
+
+    % --- Stage 2 row arrows ---
+    \draw[arr] (noise) -- (edm);
+    \draw[arr] (edm)   -- (delta);
+
+    % --- Convergence vers la sortie HR ---
+    \draw[arr] (delta.south) -- ++(0, -0.5) -| (out.north east);
+    \draw[arr] (mu.south)    -- ++(0, -0.3) -| ([xshift=2.0cm]out.north);
+    \draw[arr] (lr.west)     -- ++(-0.6, 0) |- (out.west)
+       node[pos=0.75, above, font=\scriptsize, text=urigray] {baseline};
+
+    % --- Causalisation annotation ---
+    \node[causal, above=0.45cm of dag] {causalisation};
+    \draw[uriaccent, thick, ->] ([yshift=2pt]dag.north) -- ++(0, 0.30);
+  \end{tikzpicture}%
+  }
   \caption{Cartouche conceptuel d'\Oracle{} : version causalisée du paradigme deux étages de \CorrDiff{}. L'étage 1 estime $\muHR$ via un graphe causal appris ; l'étage 2 échantillonne par diffusion le résiduel $\delta$.}
   \label{fig:cartouche-oracle}
 \end{figure}
@@ -642,7 +742,61 @@ Le chapitre précédent a identifié un trilemme pour le downscaling climatique 
 
 \begin{figure}[ht]
   \centering
-  \figplaceholder{Figure F1 (Chap II) à produire --- frise chronologique du downscaling profond 2017-2026 : SRCNN (2014), DeepSD (2017), U-Net climat, Rampal cGAN (2024), Ho DDPM (2020), Karras EDM (2022), Saharia SR3 (2022), Mardani CorrDiff (2023), foundation models ClimaX (2023) / GraphCast (2023) / GenCast (2024).}
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    yscale=1.0, xscale=0.92,
+    timearrow/.style={-{Stealth[length=2.5mm]}, very thick, uridarkblue},
+    tick/.style={uridarkblue, thick},
+    year/.style={font=\scriptsize\bfseries, text=uridarkblue, anchor=north},
+    detlabel/.style={font=\scriptsize, anchor=south, text=urigray, align=center,
+                     rectangle, draw=urigray!50, fill=urigray!8, rounded corners=1pt,
+                     inner sep=2pt, minimum height=5mm},
+    genlabel/.style={font=\scriptsize, anchor=south, text=uriaccent!85!black, align=center,
+                     rectangle, draw=uriaccent!60, fill=uriaccent!10, rounded corners=1pt,
+                     inner sep=2pt, minimum height=5mm},
+    diflabel/.style={font=\scriptsize, anchor=north, text=uridarkblue, align=center,
+                     rectangle, draw=uridarkblue!60, fill=uridarkblue!10, rounded corners=1pt,
+                     inner sep=2pt, minimum height=5mm},
+    paradigm/.style={font=\scriptsize\itshape, text=urigray},
+  ]
+    % --- Timeline arrow ---
+    \draw[timearrow] (-0.4, 0) -- (14.2, 0);
+
+    % --- Year ticks ---
+    \foreach \x/\y in {0/2014, 1.8/2017, 3.6/2020, 5.4/2022, 7.2/2023, 9.0/2024, 10.8/2025, 13.0/2026} {
+      \draw[tick] (\x, 0.18) -- (\x, -0.18);
+      \node[year] at (\x, -0.28) {\y};
+    }
+
+    % --- Determinist contributions (au-dessus, gris) ---
+    \node[detlabel] (srcnn)  at (0.0, 0.4)  {SRCNN \\ \scriptsize Dong+'14};
+    \node[detlabel] (deepsd) at (1.8, 0.4)  {DeepSD \\ \scriptsize Vandal+'17};
+
+    % --- Generative contributions (au-dessus, accent rouge) ---
+    \node[genlabel] (ddpm)    at (3.6, 1.5) {DDPM \\ \scriptsize Ho+'20};
+    \node[genlabel] (edm)     at (5.4, 1.5) {EDM \\ \scriptsize Karras+'22};
+    \node[genlabel] (sr3)     at (5.4, 0.4) {SR3 \\ \scriptsize Saharia+'22};
+    \node[genlabel] (corrdiff)at (7.2, 1.5) {CorrDiff \\ \scriptsize Mardani+'23};
+    \node[genlabel] (climax)  at (7.2, 0.4) {ClimaX / \\ GraphCast '23};
+    \node[genlabel] (gencast) at (9.0, 1.5) {GenCast \\ \scriptsize Price+'24};
+    \node[genlabel] (rampal)  at (9.0, 0.4) {cGAN-NZ \\ \scriptsize Rampal+'24};
+
+    % --- Oracle (en-dessous, accent fort) ---
+    \node[diflabel, fill=uriaccent!25, draw=uriaccent, very thick] (oracle)
+      at (13.0, -0.55) {\Oracle{} \\ \scriptsize ce mémoire};
+
+    % --- Paradigms (sous l'axe) ---
+    \draw[urigray, dashed, thick] (-0.4,-1.4) -- (3.0,-1.4)
+      node[midway, paradigm, below, yshift=-1pt] {\textbf{Déterministe}};
+    \draw[uriaccent!70, thick] (3.0,-1.4) -- (10.8,-1.4)
+      node[midway, paradigm, below, text=uriaccent, yshift=-1pt] {\textbf{Génératif (single-stage puis two-stage)}};
+    \draw[uridarkblue, very thick] (10.8,-1.4) -- (14.0,-1.4)
+      node[midway, paradigm, below, text=uridarkblue, yshift=-1pt] {\textbf{Two-stage causal}};
+
+    % Connector to Oracle
+    \draw[uriaccent, very thick, dashed] (13.0, -0.18) -- (oracle.north);
+  \end{tikzpicture}%
+  }
   \caption{Frise chronologique des principales contributions du downscaling climatique profond. Le glissement progressif du paradigme déterministe vers le paradigme génératif à deux étages est visible à partir de 2020.}
   \label{fig:frise}
 \end{figure}
@@ -1361,7 +1515,7 @@ Le Tableau~\ref{tab:exp-traj-versions} synthétise les résultats des principale
 \begin{table}[H]
 \centering
 \small
-\caption{Résultats accumulés des versions clés. \emph{RMSE} et \emph{Pearson} reportés en espace log1p mm/d (convention historique du projet). \emph{F1@p99} en Convention~B (seuil quantile pooled). Une version est \enquote{retenue} ssi ses métriques sont défendables sur ces trois axes simultanément.}
+\caption{Résultats accumulés des versions clés. \emph{RMSE} et \emph{Pearson} reportés en espace log1p mm/d (convention historique du projet). \emph{F1@p99} en Convention~B (seuil quantile pooled). Une version est « retenue » ssi ses métriques sont défendables sur ces trois axes simultanément.}
 \label{tab:exp-traj-versions}
 \begin{tabularx}{\linewidth}{l c c c c X}
 \toprule

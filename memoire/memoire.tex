@@ -31,11 +31,14 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{tabularx}
+\usepackage{longtable}
 
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 
 \usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, shapes, arrows.meta, calc}
 
 \renewcommand{\thechapter}{\Roman{chapter}}
 \renewcommand{\thesection}{\thechapter.\arabic{section}}
@@ -122,7 +125,7 @@
   left=1.5em,right=1.5em,top=0.8em,bottom=0.8em,
   title={\textsc{Sommaire}},
   attach boxed title to top center={yshift=-2mm,xshift=0mm},
-  boxed title style={colback=white,colframe=white,boxrule=0pt,
+  boxed title style={colback=white,colframe=white,coltitle=urigray,boxrule=0pt,
     left=0.8em,right=0.8em,top=0pt,bottom=0pt},
   fonttitle=\bfseries\small,
 }
@@ -1597,6 +1600,32 @@ Ce chapitre a présenté \Oracle{} dans sa forme architecturale finale, telle qu
 \bibitem{yue_resshift_2023} Z.~Yue, J.~Wang, and C.~C.~Loy. ResShift: Efficient diffusion model for image super-resolution by residual shifting. In \emph{NeurIPS}, 2023.
 
 \bibitem{zheng_notears_2018} X.~Zheng, B.~Aragam, P.~Ravikumar, and E.~P.~Xing. DAGs with NO TEARS: Continuous optimization for structure learning. In \emph{NeurIPS}, 2018.
+
+\bibitem{fey_pyg_2019} M.~Fey and J.~E.~Lenssen. Fast graph representation learning with PyTorch Geometric. In \emph{ICLR Workshop on Representation Learning on Graphs and Manifolds}, 2019.
+
+\bibitem{hoyer_xarray_2017} S.~Hoyer and J.~Hamman. xarray: N-D labeled arrays and datasets in Python. \emph{Journal of Open Research Software}, 5(1), 2017.
+
+\bibitem{yadan_hydra_2019} O.~Yadan. Hydra: A framework for elegantly configuring complex applications. GitHub, 2019.
+
+\bibitem{loshchilov_adamw_2019} I.~Loshchilov and F.~Hutter. Decoupled weight decay regularization. In \emph{ICLR}, 2019.
+
+\bibitem{lu_dpmpp_2022} C.~Lu, Y.~Zhou, F.~Bao, J.~Chen, C.~Li, and J.~Zhu. DPM-Solver++: Fast solver for guided sampling of diffusion probabilistic models. \emph{arXiv preprint arXiv:2211.01095}, 2022.
+
+\bibitem{sundararajan_ig_2017} M.~Sundararajan, A.~Taly, and Q.~Yan. Axiomatic attribution for deep networks. In \emph{ICML}, 2017.
+
+\bibitem{spirtes_2000} P.~Spirtes, C.~Glymour, and R.~Scheines. \emph{Causation, Prediction, and Search}. MIT Press, 2nd edition, 2000.
+
+\bibitem{fortin_sk_2014} V.~Fortin, M.~Abaza, F.~Anctil, and R.~Turcotte. Why should ensemble spread match the RMSE of the ensemble mean? \emph{Journal of Hydrometeorology}, 15(4):1708--1713, 2014.
+
+\bibitem{zhang_etccdi_2011} X.~Zhang, L.~Alexander, G.~C.~Hegerl, et al. Indices for monitoring changes in extremes based on daily temperature and precipitation data. \emph{WIREs Climate Change}, 2(6):851--870, 2011.
+
+\bibitem{lin_hgscm_2023} X.~Lin, Y.~Chen, M.~Li, J.~Wang, and H.~Liu. HG-SCM: Heterogeneous graph structural causal model. In \emph{Proceedings of the ACM SIGKDD Conference on Knowledge Discovery and Data Mining}, 2023.
+
+\bibitem{kyono_castle_2020} T.~Kyono, Y.~Zhang, and M.~van~der~Schaar. CASTLE: Regularization via auxiliary causal graph discovery. In \emph{Advances in Neural Information Processing Systems}, 2020.
+
+\bibitem{karniadakis_pinn_2021} G.~E.~Karniadakis, I.~G.~Kevrekidis, L.~Lu, P.~Perdikaris, S.~Wang, and L.~Yang. Physics-informed machine learning. \emph{Nature Reviews Physics}, 3:422--440, 2021.
+
+\bibitem{gneiting_emos_2005} T.~Gneiting, A.~E.~Raftery, A.~H.~Westveld, and T.~Goldman. Calibrated probabilistic forecasting using ensemble model output statistics and minimum CRPS estimation. \emph{Monthly Weather Review}, 133(5):1098--1118, 2005.
 
 \end{thebibliography}
 

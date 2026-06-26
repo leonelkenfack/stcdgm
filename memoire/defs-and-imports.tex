@@ -1,0 +1,150 @@
+% =============================================================
+% Mémoire de Master — Modèle Oracle pour le downscaling climatique causalisé
+% Fichier unifié combinant les chapitres I, II et III
+% Style cible : gabarit Donald FEUZING NTEMMA (URIFIA 2024)
+% =============================================================
+
+\documentclass[14pt,a4paper,openany]{extreport}
+
+% ---------- Encodage et langue ----------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\addto\captionsfrench{%
+  \renewcommand{\tablename}{Tableau}%
+  \renewcommand{\figurename}{Figure}%
+}
+
+\usepackage{lmodern}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage[a4paper,inner=3cm,outer=2.3cm,top=2.5cm,bottom=2.7cm,headheight=15pt,bindingoffset=0.3cm]{geometry}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{uridarkblue}{RGB}{30,40,90}
+\definecolor{urigray}{RGB}{70,70,70}
+\definecolor{uriaccent}{RGB}{180,60,40}
+
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{longtable}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, shapes, arrows.meta, calc}
+
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\thechapter.\arabic{section}}
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{20\p@}%
+  {\parindent \z@ \centering \normalfont
+    \textsc{\large Chapitre}\par
+    \vspace{0.3em}
+    {\color{uridarkblue}\fontsize{60}{72}\selectfont\bfseries\thechapter\par}
+    \vspace{1em}
+    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
+    \vspace{1em}
+    \rule{0.4\linewidth}{0.6pt}\par
+    \vspace{2em}
+  }}
+\renewcommand{\@makeschapterhead}[1]{%
+  \vspace*{20\p@}%
+  {\parindent \z@ \centering \normalfont
+    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
+    \vspace{1em}
+    \rule{0.4\linewidth}{0.6pt}\par
+    \vspace{2em}
+  }}
+\makeatother
+
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{uridarkblue}}
+  {\thesection.}{0.8em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}
+  {\thesubsection.}{0.7em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\itshape}
+  {\thesubsubsection.}{0.6em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textsc{\nouppercase{\leftmark}}}
+\fancyhead[R]{\thepage}
+\fancyfoot[L]{\footnotesize Mémoire de Master en Informatique, Université de Dschang}
+\fancyfoot[R]{\footnotesize URIFIA}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}{}}
+
+\usepackage[font=small,labelfont={sc,bf},textfont=it]{caption}
+\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\thetable}{\arabic{table}}
+
+\usepackage[numbers,square,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}[chapter]
+\newtheorem{propriete}[definition]{Propriété}
+\newtheorem{remarque}[definition]{Remarque}
+
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\LR}{\ensuremath{\text{LR}}}
+\newcommand{\HR}{\ensuremath{\text{HR}}}
+\newcommand{\xHR}{\ensuremath{x_{\HR}}}
+\newcommand{\yLR}{\ensuremath{y_{\LR}}}
+\newcommand{\muHR}{\ensuremath{\mu_{\HR}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+\newcommand{\Ht}{\ensuremath{H_t}}
+\newcommand{\HT}{\ensuremath{H_T}}
+\newcommand{\Lmse}{\ensuremath{\mathcal{L}_{\mathrm{mse}}}}
+\newcommand{\Lrec}{\ensuremath{\mathcal{L}_{\mathrm{rec}}}}
+\newcommand{\LDAGMA}{\ensuremath{\mathcal{L}_{\mathrm{DAGMA}}}}
+\newcommand{\LLone}{\ensuremath{\mathcal{L}_{L_1}}}
+\newcommand{\LEDM}{\ensuremath{\mathcal{L}_{\mathrm{EDM}}}}
+\newcommand{\Ltotal}{\ensuremath{\mathcal{L}_{\mathrm{total}}}}
+
+\newtcolorbox{sommairebox}{
+  enhanced,colback=white,colframe=urigray,boxrule=0.5pt,arc=0pt,
+  left=1.5em,right=1.5em,top=0.8em,bottom=0.8em,
+  title={\textsc{Sommaire}},
+  attach boxed title to top center={yshift=-2mm,xshift=0mm},
+  boxed title style={colback=white,colframe=white,coltitle=urigray,boxrule=0pt,
+    left=0.8em,right=0.8em,top=0pt,bottom=0pt},
+  fonttitle=\bfseries\small,
+}
+
+\newtcolorbox{disclaimerbox}{
+  enhanced,colback=uriaccent!4,colframe=uriaccent!60,boxrule=0.7pt,arc=2pt,
+  left=1em,right=1em,top=0.6em,bottom=0.6em,
+  title={\textsc{Portée et limites}},
+  attach boxed title to top left={yshift=-2mm,xshift=10pt},
+  boxed title style={colback=uriaccent!10,colframe=uriaccent!60,boxrule=0.5pt,
+    arc=2pt,left=0.6em,right=0.6em,top=0pt,bottom=0pt},
+  fonttitle=\bfseries\small\color{uriaccent},
+}
+
+\newcommand{\figplaceholder}[2][0.9\linewidth]{%
+  \begin{tcolorbox}[width=#1,height=5cm,valign=center,colback=gray!8,colframe=gray!45,arc=2pt,boxrule=0.5pt]
+    \centering\small\textit{#2}
+  \end{tcolorbox}%
+}
+
+\providecommand{\chaplabel}[1]{}
+
