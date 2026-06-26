@@ -1,0 +1,100 @@
+% =============================================================
+% Introduction générale — Mémoire ORACLE
+% Version compacte (cible ~3 pages)
+% =============================================================
+
+\documentclass[14pt,a4paper,openany]{extreport}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\addto\captionsfrench{%
+  \renewcommand{\tablename}{Tableau}%
+  \renewcommand{\figurename}{Figure}%
+}
+
+\usepackage{lmodern}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage[a4paper,inner=3cm,outer=2.3cm,top=2.5cm,bottom=2.7cm,headheight=15pt,bindingoffset=0.3cm]{geometry}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{uridarkblue}{RGB}{30,40,90}
+\definecolor{urigray}{RGB}{70,70,70}
+\definecolor{uriaccent}{RGB}{180,60,40}
+
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[most]{tcolorbox}
+
+\usepackage{titlesec}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{uridarkblue}}
+  {\thesection.}{0.8em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textsc{\nouppercase{\leftmark}}}
+\fancyhead[R]{\thepage}
+\fancyfoot[L]{\footnotesize Mémoire de Master en Informatique, Université de Dschang}
+\fancyfoot[R]{\footnotesize URIFIA}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+\usepackage[font=small,labelfont={sc,bf},textfont=it]{caption}
+\usepackage[numbers,square,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\HR}{\ensuremath{\text{HR}}}
+\newcommand{\LR}{\ensuremath{\text{LR}}}
+\newcommand{\muHR}{\ensuremath{\mu_{\HR}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+
+\setcounter{page}{1}
+\pagenumbering{roman}
+
+\begin{document}
+
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+Nous proposons une architecture de downscaling probabiliste dans laquelle un graphe structurel appris régularise un modèle de diffusion conditionnel. Nous n'identifions pas un effet causal au sens de Pearl ; nous mesurons une cohérence interventionnelle architecturale et nous en cartographions empiriquement les limites.
+
+\section*{Contexte et motivation}
+
+Le changement climatique impose des décisions à des échelles spatiales que les modèles climatiques globaux contributeurs au projet CMIP6~\cite{eyring_cmip6_2016} ne fournissent pas immédiatement. Ces modèles simulent l'atmosphère à une résolution de l'ordre de la centaine de kilomètres, suffisante pour les grands modes de variabilité, mais très en deçà de ce qu'exige la planification locale d'infrastructures, l'agriculture pluviale ou la gestion du risque hydrologique. La précipitation présente une structure spatiale qui se déploie sur quelques kilomètres et qui interagit fortement avec le relief : un modèle qui produit une valeur moyenne sur cent kilomètres ne peut pas restituer cette structure. C'est cet écart d'échelle que cherche à combler le \emph{downscaling} climatique.
+
+La motivation finale est l'aide à la décision dans des régions à forte vulnérabilité hydrologique et faible densité d'observations, dont l'Afrique subsaharienne. \textbf{Le présent mémoire n'apporte cependant aucune preuve directe de transférabilité géographique.} Nous traitons la Nouvelle-Zélande comme un terrain expérimental rigoureux --- orographie marquée, densité d'observations élevée --- pour isoler proprement l'effet de la causalisation. Toute extension à l'Afrique reste hypothétique au stade actuel et est portée comme axe 5 de perspectives. Les outils existants ne fournissent pas ce service de manière satisfaisante : ils sont soit déterministes (donc impropres au raisonnement sur le risque), soit insuffisamment résolus, soit non transférables hors de leur domaine de calibration~\cite{maraun_widmann_2018}.
+
+\section*{Problématique}
+
+Les architectures profondes récentes pour le downscaling --- réseaux antagonistes génératifs résiduels, modèles de diffusion à deux étages --- ont amélioré la qualité prédictive et la calibration probabiliste. Elles restent toutefois fragiles sous changement de distribution : un modèle entraîné sur le climat historique apprend des associations contingentes au régime d'entraînement, qu'aucune régularisation a posteriori ne garantit de redresser. La causalité structurelle est, en théorie, une réponse de principe à cette fragilité --- un modèle organisé autour de relations causales identifiées devrait mieux transférer en inter-GCM historique. Mais cette promesse n'a pas été opérationnalisée dans un downscaler génératif probabiliste qui aille au-delà du diagnostic post-hoc.
+
+Le paysage actuel peut être résumé par un trilemme : aucune approche existante ne garantit simultanément la stabilité d'entraînement, le réalisme des extrêmes et la robustesse inter-GCM en régime historique. Le paradigme \emph{two-stage} de Mardani et~al.~\cite{mardani_corrdiff_2023}, qui combine un prédicteur de moyenne déterministe et un décodeur de diffusion résiduelle, constitue à ce jour la réponse la plus crédible aux deux premières propriétés mais n'adresse pas la troisième : son premier étage n'est qu'un réseau de régression générique, aussi vulnérable au changement de climat qu'un modèle monolithique. La question centrale de ce mémoire est donc : \emph{est-il possible de causaliser le premier étage du paradigme two-stage de manière à doter le downscaling probabiliste d'une robustesse de principe sous changement climatique, sans dégrader la stabilité ni le réalisme acquis} ?
+
+\section*{Questions de recherche, objectifs et hypothèses}
+
+Trois questions structurent la suite. \textbf{Q1.} Les architectures génératives existantes (cGAN résiduel, \CorrDiff{}) suffisent-elles à garantir une robustesse inter-GCM en régime historique ? \textbf{Q2.} Un modèle causal structurel intégré dans une dynamique récurrente permet-il de mieux guider le downscaling probabiliste, et selon quelle interface avec un décodeur de diffusion résiduelle ? \textbf{Q3.} Quelles métriques permettent de discriminer une véritable causalité architecturale d'une simple structuration corrélationnelle ?
+
+La conception du modèle obéit à six objectifs notés O1 à O6, repris au chapitre III : \textbf{O1} stabilité d'entraînement, \textbf{O2} réalisme des extrêmes, \textbf{O3} causalité architecturale (la matrice $\Adag$ doit être indispensable à la prédiction par construction), \textbf{O4} robustesse inter-GCM en régime historique, \textbf{O5} efficacité computationnelle, \textbf{O6} interprétabilité.
+
+Trois hypothèses de travail sont formulées en début de projet. \textbf{H1.} Un modèle apprenant des relations structurelles sous contrainte d'acyclicité, dans une dynamique récurrente, généralise mieux qu'un modèle purement corrélatif. \textbf{H2.} La séparation entre moyenne causale déterministe et résidu stochastique stabilise l'entraînement et améliore la calibration. \textbf{H3.} L'indispensabilité architecturale du DAG limite le risque qu'il ne soit qu'un décor inopérant, sans pour autant garantir une identification causale au sens strict.
+
+\noindent\textbf{Précision terminologique.} L'expression « causalité architecturale » désigne une \emph{régularisation structurelle inductive} : la matrice $\Adag$ est indispensable au chemin de calcul (ablation $\Rightarrow$ chute de performance), ce qui prouve une dépendance fonctionnelle, non une identification causale au sens de Pearl~\cite{pearl_causality_2009}. La contrainte d'acyclicité DAGMA est un dispositif de traitabilité ; la physique atmosphérique réelle comporte des boucles de rétroaction qu'un graphe acyclique n'encode pas. Le DAG appris doit donc être lu comme un \emph{graphe de contraintes fonctionnelles}.
+
+\textbf{Évaluation prévue des hypothèses.} H1 (causalité $\to$ robustesse inter-GCM) sera évaluée par comparaison CRPS et signes interventionnels. H2 (moyenne déterministe + résidu stochastique $\to$ stabilité + calibration) par les ratios spread/skill et la convergence d'entraînement. H3 (O3 architectural $\to$ pas de DAG décoratif) par l'ablation de la matrice apprise. Le bilan détaillé figure en conclusion.
+
+\section*{Contributions et organisation}
+
+Le mémoire propose quatre contributions. \textbf{C1.} Une architecture \emph{two-stage} causale, \Oracle{}, qui place la causalité architecturale dans un chemin de calcul indispensable plutôt que dans une régularisation de la perte. \textbf{C2.} Un réseau causal récurrent (RCN) intégrant dans une seule cellule un modèle causal structurel dynamique, une mise à jour récurrente GRU et une pénalité d'acyclicité DAGMA~\cite{bello_dagma_2022}. \textbf{C3.} Une interface inter-étages par concaténation de canaux, qui garantit qu'aucune information ne contourne le chemin causal. \textbf{C4.} Un protocole expérimental centré sur la calibration probabiliste, les extrêmes et les ablations causales --- incluant un test d'intervention $Q_{\mathrm{int}}$ sur des variables atmosphériques, original dans le contexte du downscaling profond.
+
+Le manuscrit est organisé en quatre chapitres suivis d'une conclusion. Le \textbf{chapitre I} pose les fondements du downscaling climatique probabiliste et introduit le trilemme. Le \textbf{chapitre II} examine l'état de l'art par familles (déterministes, génératifs adversariaux, à vraisemblance, diffusion) et identifie le \emph{gap} scientifique qui motive la contribution. Le \textbf{chapitre III} présente formellement \Oracle{} : graphe atmosphérique hétérogène, encodeur intelligible, RCN, apprentissage du DAG sous contrainte DAGMA, décodeur graphe-à-grille, interface inter-étages, étage 2 de diffusion résiduelle EDM. Le \textbf{chapitre IV} décrit les matériels, méthodes, expérimentations et discussion : environnement, données, topologie effective d'\\Oracle{}, trajectoire de développement, protocole d'évaluation, résultats observés et discussion critique. La \textbf{conclusion générale} reprend les contributions, répond aux questions de recherche, identifie les limites et propose des perspectives.
+
+\end{document}
