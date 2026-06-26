@@ -54,7 +54,10 @@ class StructuredResidualHead(nn.Module):
     Parameters
     ----------
     num_vars : int
-        Number of variables in the causal graph (V6 = 11 : 9-node + U850 + V850).
+        Number of variables in the causal graph. V6 MVP = 8 dynamic node types
+        (6 from extended_9node : GP850/500/250, Q850, W500, IVT + 2 from
+        extended_v6_wind : U850, V850). The "11-node" naming in the plan refers
+        to a different spec. Pass ``len(builder.dynamic_node_types)`` to be safe.
     hidden : int
         Hidden dimension of H_T (must match ``encoder.hidden_dim``, default 128).
     emb_dim : int
@@ -69,7 +72,7 @@ class StructuredResidualHead(nn.Module):
 
     def __init__(
         self,
-        num_vars: int = 11,
+        num_vars: int = 8,
         hidden: int = 128,
         emb_dim: int = 16,
         n_regions: int = 4,
@@ -120,11 +123,13 @@ class StructuredResidualHead(nn.Module):
     def forward(self, H_T: Tensor) -> Tensor:
         """Compute r_φ(H_T).
 
-        Parameters
-        ----------
-        H_T : Tensor
-            Shape ``[B, q, N, hidden]`` (batched) or ``[q, N, hidden]`` (single).
-            ``q`` = num_vars, ``N`` = num_nodes_lr.
+        Accepts three input formats :
+          - ``[B, q, hidden]``    — already-pooled (V6 BS32b cache yields this)
+          - ``[B, q, N, hidden]`` — batched full (encoder/RCN runtime output)
+          - ``[q, N, hidden]``    — single-sample full
+
+        ``q`` = num_vars, ``N`` = num_nodes_lr. Pre-pooled input skips the
+        internal mean(dim=N).
 
         Returns
         -------
@@ -132,19 +137,40 @@ class StructuredResidualHead(nn.Module):
             Residual contribution of shape ``[B, 1, hr_h, hr_w]``.
         """
         if H_T.dim() == 3:
-            H_T = H_T.unsqueeze(0)
-        if H_T.dim() != 4:
+            # Can be either [B, q, hidden] (pre-pooled) or [q, N, hidden] (single full).
+            # Disambiguate by checking middle dim against num_vars : if middle == q,
+            # it's pre-pooled [B, q, hidden]. Otherwise treat as [q, N, hidden].
+            if H_T.shape[1] == self.num_vars and H_T.shape[-1] == self.hidden:
+                # Already-pooled [B, q, hidden]
+                h_pooled = H_T
+            elif H_T.shape[0] == self.num_vars and H_T.shape[-1] == self.hidden:
+                # Single-sample full [q, N, hidden] -> add batch + pool over N
+                h_pooled = H_T.unsqueeze(0).mean(dim=2)  # [1, q, hidden]
+            else:
+                raise ValueError(
+                    f"H_T 3D shape {tuple(H_T.shape)} ambiguous : "
+                    f"expected [B, q={self.num_vars}, hidden={self.hidden}] "
+                    f"or [q={self.num_vars}, N, hidden={self.hidden}]"
+                )
+        elif H_T.dim() == 4:
+            # [B, q, N, hidden] — pool over N
+            B_, q_, N_, h_ = H_T.shape
+            if q_ != self.num_vars:
+                raise ValueError(f"H_T q={q_} != num_vars={self.num_vars}")
+            if h_ != self.hidden:
+                raise ValueError(f"H_T hidden={h_} != self.hidden={self.hidden}")
+            h_pooled = H_T.mean(dim=2)  # [B, q, hidden]
+        else:
             raise ValueError(
-                f"H_T expected [B, q, N, hidden] or [q, N, hidden]; got {tuple(H_T.shape)}"
+                f"H_T expected 3D [B,q,hidden] or [q,N,hidden] "
+                f"or 4D [B,q,N,hidden]; got {tuple(H_T.shape)}"
             )
-        B, q, N, hidden = H_T.shape
-        if q != self.num_vars:
-            raise ValueError(f"H_T q={q} != num_vars={self.num_vars}")
-        if hidden != self.hidden:
-            raise ValueError(f"H_T hidden={hidden} != self.hidden={self.hidden}")
 
-        # 1) Spatial pool over N nodes (per variable)
-        h_pooled = H_T.mean(dim=2)  # [B, q, hidden]
+        B, q, hidden = h_pooled.shape
+        if q != self.num_vars:
+            raise ValueError(f"h_pooled q={q} != num_vars={self.num_vars}")
+        if hidden != self.hidden:
+            raise ValueError(f"h_pooled hidden={hidden} != self.hidden={self.hidden}")
 
         # 2) Per-node projection → [B, q, emb_dim]
         h_proj = self.node_proj(h_pooled)

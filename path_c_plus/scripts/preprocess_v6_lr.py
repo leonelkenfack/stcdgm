@@ -95,7 +95,12 @@ def _theta_e_bolton_1980(
         T_L = 1 / (1/(T − 55) − ln(RH)/2840) + 55
         θ_e = T (1000/p)^(0.2854·(1 − 0.28·r)) · exp((3376/T_L − 2.54)·r·(1 + 0.81·r))
     """
-    r = q / (1.0 - q.clip(min=EPS, max=1.0 - EPS))
+    # Clip q at a PHYSICALLY realistic upper bound (~0.05 in stratosphere/tropics)
+    # rather than (1-EPS), to avoid exp() overflow on aberrant GCM values.
+    # Atmospheric specific humidity is < 0.04 in 99.9% of cases.
+    Q_MAX_PHYSICAL = 0.05
+    q_safe = q.clip(min=EPS, max=Q_MAX_PHYSICAL)
+    r = q_safe / (1.0 - q_safe)
     # Saturation vapor pressure (Wexler 1976 approximation for simplicity)
     es = 6.112 * np.exp(17.67 * (T_K - 273.15) / (T_K - 29.65))
     # Actual vapor pressure from mixing ratio
@@ -103,12 +108,14 @@ def _theta_e_bolton_1980(
     RH = (e / es).clip(min=EPS, max=1.0)
     # Lifting condensation level temperature (Bolton Eq 22)
     T_L = 1.0 / (1.0 / (T_K - 55.0) - np.log(RH) / 2840.0) + 55.0
-    # Theta_e (Bolton Eq 39 simplified)
+    # Theta_e (Bolton Eq 39 simplified) — additional safety cap at 500K
+    # (physical theta_e is < 400K in all atmospheric conditions, so 500K = ample margin)
     theta_e = (
         T_K
         * (1000.0 / p_hPa) ** (0.2854 * (1.0 - 0.28 * r))
         * np.exp((3376.0 / T_L - 2.54) * r * (1.0 + 0.81 * r))
     )
+    theta_e = theta_e.clip(min=200.0, max=500.0)
     return theta_e
 
 
@@ -163,9 +170,15 @@ def compute_grad_orography_HR(orog_HR: xr.DataArray, mask_ocean: xr.DataArray) -
 
     Climat ronde 4 : ``mask_ocean`` (where land=1, ocean=0) avoids aberrant
     gradient at coast.
+
+    UNIT WARNING : if coords are in degrees, the output is in m / deg (not
+    m / m). For a physical gradient (dimensionless slope), the caller should
+    multiply by ~1 / (111000 m / deg) for lat ; lon scaling depends on cos(lat).
+    The pipeline normalizes features downstream so this scaling is absorbed,
+    BUT do not interpret raw values as ``tan(slope)`` without conversion.
     """
     # Use xarray differentiate (central differences in lat/lon)
-    # Assume orog_HR has lat, lon dims with metres or km values.
+    # Assume orog_HR has lat, lon dims with metres values.
     # mask_ocean broadcast : 1 on land, 0 on ocean.
     # We compute grad on the masked orography (ocean→0 so coastal grad is dominated by land).
     orog_land = orog_HR * mask_ocean
@@ -174,7 +187,8 @@ def compute_grad_orography_HR(orog_HR: xr.DataArray, mask_ocean: xr.DataArray) -
     grad_mag = np.sqrt(dh_dlat ** 2 + dh_dlon ** 2) * mask_ocean
     grad_mag.attrs = {
         "long_name": "magnitude_orography_gradient_HR_masked_ocean",
-        "units": "m / deg (or per grid unit)",
+        "units": "m / deg if coords in degrees ELSE m / grid_unit",
+        "physical_unit_note": "Multiply by ~1/111000 (m/deg) to get tan(slope) for lat. Pipeline normalizes.",
         "source": "V6 MVP preprocess — Climat ronde 4 mask_ocean fix",
     }
     return grad_mag
@@ -223,7 +237,8 @@ def compute_theta_w_850(T_K: xr.DataArray, q: xr.DataArray) -> xr.DataArray:
     """
     p_hPa = 850.0
     theta_e = _theta_e_bolton_1980(T_K, q, p_hPa)
-    r = q / (1.0 - q.clip(min=EPS, max=1.0 - EPS))
+    q_safe = q.clip(min=EPS, max=1.0 - EPS)
+    r = q_safe / (1.0 - q_safe)
     theta_w = theta_e - 36.0 * (1.0 - np.exp(-100.0 * r))
     theta_w.attrs = {
         "long_name": "wet_bulb_potential_temperature_850hPa",

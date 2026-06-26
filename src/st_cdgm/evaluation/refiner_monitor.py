@@ -159,30 +159,43 @@ def check_smoke_pass(
 
 def compute_rphi_attribution_pct(
     *,
-    f1_baseline_no_rphi: float,
     f1_with_rphi: float,
-    f1_target_noncausal: float = 0.550,
+    f1_without_rphi: float,
+    f1_baseline_v5: float = 0.453,
 ) -> tuple[float, bool]:
-    """Compute r_φ attribution % of the F1 gain vs baseline.
+    """Compute r_φ attribution % of the F1 gain vs V5_causal baseline.
 
-    Returns (pct_of_gain_attributable_to_r_phi, accept_run).
+    Decomposes :
+        total_gain_vs_V5    = f1_with_rphi - f1_baseline_v5
+        non_rphi_gain       = f1_without_rphi - f1_baseline_v5   (Stage1+features+pinball+logdet)
+        rphi_gain           = f1_with_rphi    - f1_without_rphi  (uniquement r_phi)
+        pct_due_to_rphi     = 100 · rphi_gain / total_gain_vs_V5
 
-    Per V6 plan §3.3 (ML ronde 4) : if r_φ contributes > 40% of the gain,
-    the model is "techniquement gagnant mais scientifiquement vide" — REJECT.
+    Per V6 plan §3.3 (ML ronde 4) : if r_φ contributes > 40% of the *total*
+    gain over V5_causal, the model is "techniquement gagnant mais scientifiquement
+    vide" (the causal narrative dies) — REJECT.
+
+    Parameters
+    ----------
+    f1_with_rphi : float
+        F1@p99 with r_phi enabled (full V6).
+    f1_without_rphi : float
+        F1@p99 with r_phi ablated (V6 minus r_phi only — pinball/logdet/features kept).
+    f1_baseline_v5 : float
+        V5_causal seed 42 F1@p99 (default 0.453, the publishable baseline).
+
+    Returns
+    -------
+    (pct, accept) :
+        pct : percentage of total gain attributable to r_phi
+        accept : True if pct <= 40%, False if REJECT_RUN
     """
-    gain_total = f1_with_rphi - f1_baseline_no_rphi
-    if gain_total <= 0.0:
-        # No gain from r_phi vs baseline (or worse) — refiner inutile
-        return 0.0, True   # ablation already shows r_phi doesn't help, no harm
-    # Attribution % = gain due to r_phi / total gain
-    pct = 100.0 * (gain_total / max(1e-8, f1_with_rphi - 0.0))
-    # Actually : pct = 100 * gain / final_score is misleading.
-    # Real attribution : pct = gain_r_phi / (f1_with_rphi - f1_target_noncausal)
-    # But since baseline_no_rphi IS V5_causal (~0.453), gain = f1_with_rphi - 0.453,
-    # and we want : does r_phi explain more than 40% of f1_with_rphi - 0.453 ?
-    pct = 100.0 * gain_total / max(1e-8, f1_with_rphi - f1_baseline_no_rphi + 1e-8)
-    # If 100% of the gain comes from r_phi (vs base = no-rphi), pct = 100.
-    # Acceptable if pct <= 40 (causal contribution remains >60%).
+    total_gain = f1_with_rphi - f1_baseline_v5
+    rphi_gain = f1_with_rphi - f1_without_rphi
+    if total_gain <= 1e-6:
+        # No improvement over V5 — refiner adds nothing meaningful
+        return 0.0, True
+    pct = 100.0 * rphi_gain / total_gain
     return pct, pct <= RPHI_CONTRIBUTION_MAX_PCT_OF_GAIN
 
 

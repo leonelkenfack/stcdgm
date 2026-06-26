@@ -52,7 +52,10 @@ def pinball_loss(pred: Tensor, target: Tensor, tau: float) -> Tensor:
         raise ValueError(f"tau must be in (0, 1), got {tau}")
     valid = torch.isfinite(target)
     if not valid.any():
-        return torch.tensor(0.0, device=pred.device, dtype=pred.dtype, requires_grad=True)
+        # Keep an autograd connection so .backward() doesn't fail upstream.
+        # Using pred * 0 propagates grad-of-zero through pred; this avoids
+        # "leaf tensor with requires_grad" disconnect.
+        return (pred * 0.0).sum()
     diff = target - pred
     # max(τ·diff, (τ-1)·diff) = (τ - I{diff<0}) · diff with positive value
     loss = torch.where(diff >= 0, tau * diff, (tau - 1.0) * diff)
@@ -163,8 +166,8 @@ def log_det_rank_penalty(
         raise ValueError(f"residual must be [B, 1, H, W] or [B, H, W]; got {tuple(residual.shape)}")
     B, H, W = residual.shape
     if B < 2:
-        # Cov undefined for B<2
-        return residual.new_tensor(0.0, requires_grad=True)
+        # Cov undefined for B<2 — keep autograd connection via residual*0
+        return (residual * 0.0).sum()
 
     flat = residual.reshape(B, -1)  # [B, H*W]
     sampled = flat[:, subsample_indices]  # [B, K]
@@ -178,9 +181,9 @@ def log_det_rank_penalty(
     eye = torch.eye(K, device=cov.device, dtype=cov.dtype)
     # Negative log-det (we want to MAXIMISE log det -> minimise negative)
     sign, logabs = torch.linalg.slogdet(delta * eye + cov)
-    # sign should be +1 for PSD + δ·I; if not, fallback to 0 (numerical issue)
+    # sign should be +1 for PSD + δ·I; if not, fallback to autograd-connected 0
     if not torch.all(sign > 0):
-        return residual.new_tensor(0.0, requires_grad=True)
+        return (residual * 0.0).sum()
     return -logabs
 
 
