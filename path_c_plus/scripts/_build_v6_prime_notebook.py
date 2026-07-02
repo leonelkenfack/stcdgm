@@ -84,6 +84,10 @@ for _p in (REPO_DIR, str(Path(REPO_DIR) / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# P0 FIX : chdir vers la racine du repo — sinon les chemins relatifs
+# (config/*.yaml, données, checkpoints) échouent depuis /content (Colab CWD).
+os.chdir(REPO_DIR)
+
 for pkg in ["torch_geometric", "diffusers", "omegaconf", "scipy"]:
     try: __import__(pkg)
     except Exception: subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
