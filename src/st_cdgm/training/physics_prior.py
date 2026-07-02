@@ -131,6 +131,59 @@ EXPECTED_EDGES_9NODE: List[Tuple[str, str, int]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Extension 11-node (V6, audit indépendant 2026-06-30) — OPT-IN.
+#
+# Ajoute les deux composantes du vent bas-niveau U850, V850 au-dessus de la
+# chaîne humide 9-node. Recommandation Climat (verbatim) : "u850/v850 →
+# précipitation orographique locale devrait surperformer structurellement sur
+# les queues". Les deux nœuds forcent (a) le transport de vapeur IVT (advection
+# horizontale de l'humidité) et (b) directement la précipitation orographique
+# SP_HR (soulèvement forcé sur les Alpes du Sud).
+#
+# Convention d'ordre (SP_HR TOUJOURS en dernier, comme 9-node) :
+#   0 GP850_spat  1 GP850->GP500  2 GP500_spat  3 GP500->GP250  4 GP250_spat
+#   5 Q850        6 W500          7 IVT          8 U850  9 V850  10 SP_HR
+#
+# G_phys 11×11 = 10 arêtes 9-node + 4 arêtes vent = 14 arêtes physiques.
+# La sparsité reste faible (14 / 121 ≈ 11.6 %).
+# ---------------------------------------------------------------------------
+VAR_LABELS_V6: List[str] = [
+    "GP850_spat",
+    "GP850->GP500",
+    "GP500_spat",
+    "GP500->GP250",
+    "GP250_spat",
+    "Q850",
+    "W500",
+    "IVT",
+    "U850",            # vent zonal 850 hPa (advection zonale)
+    "V850",            # vent méridien 850 hPa (advection méridienne, ARs N→S)
+    "SP_HR",           # pression de surface HR (static, repoussé à l'index 10)
+]
+
+
+EXPECTED_EDGES_V6: List[Tuple[str, str, int]] = [
+    # --- chaîne sèche QG ---
+    ("GP250_spat", "GP500_spat", +1),
+    ("GP500_spat", "GP850_spat", +1),
+    ("GP850_spat", "SP_HR", +1),
+    ("GP850->GP500", "GP500_spat", +1),
+    ("GP500->GP250", "GP250_spat", +1),
+    # --- chaîne humide (Held-Soden) ---
+    ("GP850_spat", "Q850", +1),
+    ("GP500_spat", "W500", +1),
+    ("Q850", "IVT", +1),
+    ("W500", "SP_HR", +1),
+    ("IVT", "SP_HR", +1),
+    # --- chaîne vent bas-niveau (V6, audit Climat) ---
+    ("U850", "IVT", +1),        # vent zonal -> transport zonal de vapeur
+    ("V850", "IVT", +1),        # vent méridien -> transport méridien de vapeur
+    ("U850", "SP_HR", +1),      # forçage orographique zonal (West Coast)
+    ("V850", "SP_HR", +1),      # forçage orographique méridien (ARs)
+]
+
+
 def build_physical_mask(
     num_vars: int = 6,
     var_labels: Sequence[str] = None,
@@ -273,6 +326,8 @@ __all__ = [
     "EXPECTED_EDGES",
     "VAR_LABELS_9NODE",
     "EXPECTED_EDGES_9NODE",
+    "VAR_LABELS_V6",
+    "EXPECTED_EDGES_V6",
     "build_physical_mask",
     "physical_prior_loss",
 ]

@@ -11,22 +11,17 @@ Source : `path_c_plus/audit/PLAN_V6_BOOST_UNET.md` §1.2 + S2.1 preproc script.
 from __future__ import annotations
 
 # --- 15 NONCAUSAL_15_VARS (baseline 9-node seed 42) ----------------------- #
+# CORRIGÉ (audit V6' full, 2026-06-30) : ce sont les noms RÉELS des canaux LR
+# atmosphériques (u/v/w/q/t à 850/500/250 hPa), PAS les node-types du graphe.
+# Vérifié contre config/training_config.yaml + corrdiff_normal.
+# L'ancienne liste (GP850, Q850, ...) était fabriquée et aurait planté au
+# runtime (lr_grid_to_nodes indexe par ces noms de canaux).
 NONCAUSAL_15_VARS = [
-    "GP850",
-    "GP500",
-    "GP250",
-    "Q850",
-    "Q500",
-    "T850",
-    "T500",
-    "U850",
-    "U500",
-    "U250",
-    "V850",
-    "V500",
-    "V250",
-    "W850",
-    "W500",
+    "u_850", "u_500", "u_250",
+    "v_850", "v_500", "v_250",
+    "w_850", "w_500", "w_250",
+    "q_850", "q_500", "q_250",
+    "t_850", "t_500", "t_250",
 ]
 
 # --- 6 V6' features Climat (obligatoires — noms POST-fixes P1/P3/P4) ------ #
@@ -58,15 +53,28 @@ V6_LR_VARS_FULL = V6_LR_VARS_OBLIGATORY + V6_CLIMAT_BONUS  # 22
 # = len(V6_LR_VARS_FULL) — UNet_in = [c_in·y_noisy, mu_HR, baseline] + ces canaux.
 V6_PRIME_LR_CONDITIONING_CHANNELS = len(V6_LR_VARS_FULL)  # 22
 
-# --- V6 graph node types ------------------------------------------------- #
-# Existing 9-node : GP850, GP500, GP250, Q850, W500, IVT (6 dynamic) + SP_HR
-# V6 adds : U850, V850 (2 new dynamic) → 8 dynamic + SP_HR
+# --- V6 graph node types (builder.dynamic_node_types) -------------------- #
+# extended_9node : GP850, GP500, GP250, Q850, W500, IVT (6 dynamic)
+# extended_v6_wind : + U850, V850 → 8 dynamic node types (+ SP_HR static)
 V6_DYNAMIC_NODE_TYPES = [
     "GP850", "GP500", "GP250",          # always-on (mid_layer)
     "Q850", "W500", "IVT",              # extended_9node
-    "U850", "V850",                     # extended_v6_wind (V6 MVP)
+    "U850", "V850",                     # extended_v6_wind
 ]
-V6_NUM_DYNAMIC_NODES = len(V6_DYNAMIC_NODE_TYPES)  # 8 → A_dag ∈ R^{8×8} (not 11×11)
+V6_NUM_DYNAMIC_NODES = len(V6_DYNAMIC_NODE_TYPES)  # 8 builder node types
+# NOTE : num_vars (encoder intelligible variables = metapaths + static SP_HR)
+# = 5 base GP metapaths + 3 humid (Q850/W500/IVT) + 2 wind (U850/V850) + 1
+# static SP_HR = 11 → A_dag ∈ R^{11×11}, aligned with physics_prior.VAR_LABELS_V6.
+V6_NUM_ENCODER_VARS = 11
+
+# Per-node channel routing (V6) : which raw LR channels feed each humid/wind node
+V6_NODE_CHANNEL_ROUTING = {
+    "Q850": ["q_850", "q_500", "q_250"],   # humidity at 3 levels
+    "W500": ["w_850", "w_500", "w_250"],   # vertical velocity at 3 levels
+    "U850": ["u_850", "u_500", "u_250"],   # zonal wind at 3 levels
+    "V850": ["v_850", "v_500", "v_250"],   # meridional wind at 3 levels
+    # IVT : derived proxy ; GP850/GP500/GP250 : full LR
+}
 
 # --- Hyperparam adaptation 11-node → V6 wind (Climat ronde 3 : λ_l1 -30%) - #
 # Original 9-node seed 42 : λ_l1 cosine 0.04 → 0.005
