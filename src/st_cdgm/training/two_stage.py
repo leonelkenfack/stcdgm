@@ -1270,6 +1270,15 @@ def train_epoch_stage2_cached(
     n_batches = 0
     contrastive_skipped_missing_key = 0
     n_cond_dropped = 0
+    # V6' — déclencheur variante V6'.1 (audit ML, vérif code) : monitorer
+    # corr(D_y, mu_HR) LIVE. Si fortement négative (< -0.3), la diffusion
+    # dépense sa capacité à ANNULER mu_HR (pattern anti-copy A3/A11) → basculer
+    # sur la cible delta = HR - baseline (variante pré-enregistrée V6'.1).
+    # NOTE : volontairement HORS du bloc v6_active — en V6' les hooks
+    # r_phi/pinball/logdet sont désactivés donc v6_active=False, ce monitoring
+    # doit tourner quand même. Requiert log_loss_components=True (D_y exposé).
+    corr_dy_mu_sum = 0.0
+    n_corr_dy_mu = 0
 
     # ====================== V6 MVP — init metrics ======================== #
     v6_active = (r_phi_module is not None) or (lambda_pinball > 0.0) or (lambda_logdet > 0.0)
@@ -1402,6 +1411,18 @@ def train_epoch_stage2_cached(
                 n_contrastive += 1
 
             loss_total = loss_real + loss_contrast_value
+
+            # ---- V6' : corr(D_y, mu_HR) live (déclencheur V6'.1) ----------
+            if log_loss_components and isinstance(_loss_out, tuple):
+                _dy_mon = _loss_out[1].get("D_y")
+                if _dy_mon is not None:
+                    with torch.no_grad():
+                        _a = (_dy_mon - _dy_mon.mean()).flatten().float()
+                        _b = (mu_HR_used - mu_HR_used.mean()).flatten().float()
+                        _d = _a.norm() * _b.norm()
+                        if _d > 1e-8:
+                            corr_dy_mu_sum += float((_a @ _b) / _d)
+                            n_corr_dy_mu += 1
 
             # ================== V6 MVP — pinball + log-det + r_phi =========
             if v6_active and log_loss_components and isinstance(_loss_out, tuple):
@@ -1596,6 +1617,10 @@ def train_epoch_stage2_cached(
         "cond_drop_active": cond_drop_active,
         "cond_drop_prob": cond_drop_p,
         "n_samples_cond_dropped": n_cond_dropped,
+        # V6' — déclencheur variante V6'.1 (cible résiduelle) : si < -0.3
+        # de façon persistante, la diffusion annule mu_HR (anti-copy) →
+        # basculer sur delta = HR - baseline (pré-enregistré).
+        "corr_dy_mu": (corr_dy_mu_sum / n_corr_dy_mu) if n_corr_dy_mu > 0 else float("nan"),
     }
     # V6 MVP — append V6 metrics (only meaningful if v6_active)
     if v6_active:

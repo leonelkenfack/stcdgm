@@ -130,19 +130,30 @@ def evaluate_ensemble(
     clim_p99: torch.Tensor,
     clim_p95: torch.Tensor,
 ) -> dict:
-    """Compose HR = baseline + mu_HR + mean(ensemble residual), convert to mm/day,
-    and compute the full metric suite (both conventions + RMSE/MAE/Pearson/RAPSD/Rx1day).
+    """Compose HR per ensemble member, convert to mm/day PER MEMBER, then
+    average in mm-space (historical eval convention, noncausal_cell_061).
+
+    V6' P0 FIX (audit Math 2026-06-30) : the previous version averaged the
+    ensemble in log1p space THEN applied expm1. Jensen's inequality makes
+    ``expm1(mean(log)) < mean(expm1(log))`` — measured −2% to −15% at p99
+    extremes depending on ensemble spread. The historical baselines
+    (0.550 pooled / per-gridpoint refs) were produced with per-member expm1
+    then mean-in-mm ; this function now matches that convention exactly
+    (apples-to-apples).
 
     All inputs in log1p space. Returns a flat dict of scalar metrics.
     """
     K = ensemble_residual_log1p.shape[0]
-    res_mean = ensemble_residual_log1p.mean(dim=0)   # [B,1,H,W]
-    res_std = ensemble_residual_log1p.std(dim=0) if K > 1 else torch.zeros_like(res_mean)
 
-    hr_pred_log = baseline_log + mu_HR + res_mean
+    # Per-member HR composition in log1p, then convert EACH member to mm/day
+    hr_members_log = baseline_log.unsqueeze(0) + mu_HR.unsqueeze(0) + ensemble_residual_log1p
+    members_mm = to_mm_day(hr_members_log)           # [K,B,1,H,W]
+    pred_mm = members_mm.mean(dim=0).squeeze(1)      # mean IN MM-SPACE [B,H,W]
+    spread_mm = (
+        members_mm.std(dim=0).squeeze(1) if K > 1 else torch.zeros_like(pred_mm)
+    )
+
     hr_target_log = baseline_log + mu_HR + target_residual_log1p  # = true HR log1p
-
-    pred_mm = to_mm_day(hr_pred_log).squeeze(1)      # [B,H,W]
     target_mm = to_mm_day(hr_target_log).squeeze(1)
 
     out = {}
@@ -150,13 +161,10 @@ def evaluate_ensemble(
     cg, cps, _ = compute_pearson_global_and_per_sample(pred_mm, target_mm)
     out["pearson_global"] = cg
     out["pearson_per_sample"] = cps
-    rmse, mae, spr = compute_rmse_mae_spread(
-        to_mm_day(hr_pred_log).squeeze(1),
-        to_mm_day(baseline_log + mu_HR + res_std).squeeze(1) - to_mm_day(baseline_log + mu_HR).squeeze(1),
-        target_mm,
-    )
+    rmse, mae, spr = compute_rmse_mae_spread(pred_mm, spread_mm, target_mm)
     out["rmse"] = rmse
     out["mae"] = mae
+    out["spread_mean"] = spr
     out["rapsd_distance"] = compute_rapsd_batch(pred_mm, target_mm)
     out["rx1day_bias"] = rx1day_bias_mm(pred_mm, target_mm)
     return out

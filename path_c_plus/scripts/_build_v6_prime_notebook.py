@@ -114,6 +114,12 @@ LR_COND_CHANNELS = len(STAGE2_COND_LR_VARS)
 print(f"[Cell 2] Stage 1 LR vars = {len(STAGE1_LR_VARS)} (drivers)  |  "
       f"Stage 2 LR conditioning channels = {LR_COND_CHANNELS}")
 
+# --- OOD parameterization (fix ML : évite le re-run manuel skippable) -------
+# Pour l'OOD, changer UNIQUEMENT GCM_ID — les stats de normalisation restent
+# celles d'ACCESS-CM2 (fichiers explicites, cf. Cell 3). PAS de re-norm per-GCM.
+GCM_ID = "ACCESS-CM2"           # "EC-Earth3" pour le run OOD
+IS_OOD_RUN = GCM_ID != "ACCESS-CM2"
+
 CONFIG = OmegaConf.load("config/training_config.yaml")
 CONFIG = OmegaConf.merge(CONFIG, OmegaConf.load("config/training_config_corrdiff_normal.yaml"))
 OmegaConf.set_struct(CONFIG, False)
@@ -134,11 +140,39 @@ from st_cdgm.data.pipeline import NetCDFDataPipeline
 from st_cdgm.models.graph_builder import HeteroGraphBuilder
 from omegaconf import OmegaConf as _OC
 
-LR_PATH_V6  = f"{DRIVE_ROOT}/lr_ACCESS-CM2_v6.nc"   # from preprocess_v6_lr.py
+LR_PATH_V6  = f"{DRIVE_ROOT}/lr_{GCM_ID}_v6.nc"     # from preprocess_v6_lr.py
 HR_PATH     = f"{DRIVE_ROOT}/hr_NIWA-REMS.nc"
 STATIC_PATH = f"{DRIVE_ROOT}/static_HR_v6.nc"
-MEANS_PATH  = f"{DRIVE_ROOT}/train/means_ACCESS-CM2.nc"
-STDS_PATH   = f"{DRIVE_ROOT}/train/stds_ACCESS-CM2.nc"
+# --- P1-C fix (audit IA) + fix OOD (audit ML) --------------------------------
+# Les anciens means/stds (15 vars) ne couvrent PAS les 22 vars V6' → KeyError.
+# Protocole : on génère UNE FOIS des stats v6 explicites sur la fenêtre train
+# d'ACCESS-CM2, sauvegardées sur Drive, et TOUT run (train ET OOD EC-Earth3)
+# les charge explicitement. Jamais de fallback silencieux None (qui ferait
+# recalculer les stats sur le GCM OOD = fuite de re-normalisation per-GCM).
+import xarray as _xr
+MEANS_PATH_V6 = f"{DRIVE_ROOT}/train/means_ACCESS-CM2_v6.nc"
+STDS_PATH_V6  = f"{DRIVE_ROOT}/train/stds_ACCESS-CM2_v6.nc"
+
+if not (Path(MEANS_PATH_V6).exists() and Path(STDS_PATH_V6).exists()):
+    if IS_OOD_RUN:
+        raise FileNotFoundError(
+            f"OOD run ({GCM_ID}) : les stats train ACCESS-CM2 v6 sont OBLIGATOIRES "
+            f"({MEANS_PATH_V6}). Lancer d'abord le run in-distribution qui les génère. "
+            f"Recalculer les stats sur {GCM_ID} masquerait les biais moyens (audit ML)."
+        )
+    print("[Cell 3] Génération des stats train v6 (une fois) ...")
+    _ds_access = _xr.open_dataset(f"{DRIVE_ROOT}/lr_ACCESS-CM2_v6.nc")
+    _tr = _ds_access.sel(time=slice(K9_DATES["train"][0], K9_DATES["train"][1]))
+    _tr = _tr[STAGE1_LR_VARS]
+    _tr.mean(dim="time").to_netcdf(MEANS_PATH_V6)
+    _tr.std(dim="time").to_netcdf(STDS_PATH_V6)
+    _ds_access.close()
+    print(f"[Cell 3] stats v6 sauvegardées : {MEANS_PATH_V6}")
+# Vérifie que les stats couvrent bien les 22 vars (fail loud, pas de KeyError tardif)
+_m_check = _xr.open_dataset(MEANS_PATH_V6)
+_missing_stats = [v for v in STAGE1_LR_VARS if v not in _m_check.data_vars]
+_m_check.close()
+assert not _missing_stats, f"Stats v6 incomplètes, vars manquantes : {_missing_stats}"
 
 pipeline = NetCDFDataPipeline(
     lr_path=LR_PATH_V6, hr_path=HR_PATH,
@@ -152,8 +186,8 @@ pipeline = NetCDFDataPipeline(
     lr_variables=STAGE1_LR_VARS,
     hr_variables=list(CONFIG.data.hr_variables),
     static_variables=list(CONFIG.data.static_variables) if CONFIG.data.get("static_variables") else [],
-    means_path=MEANS_PATH if Path(MEANS_PATH).exists() else None,
-    stds_path=STDS_PATH if Path(STDS_PATH).exists() else None,
+    means_path=MEANS_PATH_V6,   # EXPLICITE — jamais None (M1 + fix OOD)
+    stds_path=STDS_PATH_V6,
     train_start_date=K9_DATES["train"][0], train_end_date=K9_DATES["train"][1],
     val_start_date=K9_DATES["val"][0],     val_end_date=K9_DATES["val"][1],
     test_start_date=K9_DATES["test"][0],   test_end_date=K9_DATES["test"][1],
@@ -266,7 +300,11 @@ def build_fresh_stack(seed: int):
     assert num_vars == V6_NUM_ENCODER_VARS, f"num_vars={num_vars} != {V6_NUM_ENCODER_VARS} (11)"
     print(f"   encoder : {num_vars} intelligible variables (11-node V6)")
 
-    _probe = builder.lr_grid_to_nodes(torch.zeros(tuple(CONFIG.graph.lr_shape)))
+    # P0-A fix (audit IA) : lr_grid_to_nodes exige un tenseur 3D [C, H, W] —
+    # un zeros 2D (lr_shape seul) levait ValueError. Probe avec les 22 canaux.
+    _probe = builder.lr_grid_to_nodes(
+        torch.zeros(len(STAGE1_LR_VARS), *tuple(CONFIG.graph.lr_shape))
+    )
     RCN_DRIVER_DIM = _probe.shape[-1]
     rcn_cell = RCNCell(num_vars=num_vars, hidden_dim=int(CONFIG.rcn.hidden_dim),
         driver_dim=RCN_DRIVER_DIM, reconstruction_dim=RCN_DRIVER_DIM,
@@ -311,11 +349,17 @@ from st_cdgm.training.physics_prior import build_physical_mask, VAR_LABELS_V6, E
 from path_c_plus.scripts.option_c_helpers import PATHCPLUS_HYPERPARAM_OVERRIDES
 from scripts.finetune_stage1_bundle_b import schedule_lambdas, DEFAULT_HYPERPARAMS
 
+from st_cdgm.v6_constants import V6_LAMBDA_L1_START, V6_LAMBDA_L1_END
+
 HP = copy.deepcopy(DEFAULT_HYPERPARAMS)
 HP.update({
-    "lambda_dag_prior": PATHCPLUS_HYPERPARAM_OVERRIDES["lambda_dag_prior"],
-    "lambda_l1_start":  PATHCPLUS_HYPERPARAM_OVERRIDES["lambda_l1_start"],
-    "lambda_l1_end":    PATHCPLUS_HYPERPARAM_OVERRIDES["lambda_l1_end"],
+    "lambda_dag_prior": PATHCPLUS_HYPERPARAM_OVERRIDES["lambda_dag_prior"],  # 0.40
+    # P2-i fix (audit IA) : le plan V6' §2 spécifie λ_l1 ×0.7 (adaptation
+    # 11-node) — utiliser les constantes V6, pas les overrides 9-node.
+    # (Audit Math : strictement inutile car gradient L1 par-entrée, mais
+    # inoffensif — on suit le plan pré-enregistré.)
+    "lambda_l1_start":  V6_LAMBDA_L1_START,   # 0.028 (9-node : 0.04)
+    "lambda_l1_end":    V6_LAMBDA_L1_END,     # 0.0035 (9-node : 0.005)
     "g_phys_alpha":     PATHCPLUS_HYPERPARAM_OVERRIDES["g_phys_alpha"],
     "dag_gate_warmup_start_epoch": PATHCPLUS_HYPERPARAM_OVERRIDES["dag_gate_warmup_start_epoch"],
     "dag_gate_warmup_end_epoch":   PATHCPLUS_HYPERPARAM_OVERRIDES["dag_gate_warmup_end_epoch"],
@@ -367,10 +411,13 @@ print("[Cell 6] Stage 1 (11-node) trained")
 
 
 CELL_7 = """# >>> Cell 7 : O3 gate + freeze + A_dag freeze verification
+# P0-B fix (audit IA) : causal_ablation_check appelle
+# iterate_batches_fn(data_loader, builder, device) — 3 arguments positionnels.
+# iterate_batches_v6 a exactement cette signature → le passer DIRECTEMENT.
 ablation = causal_ablation_check(
     encoder=encoder, rcn_runner=rcn_runner, rcn_cell=rcn_cell,
     regression_head=regression_head, data_loader=val_dataset,
-    iterate_batches_fn=lambda ds: iterate_batches_v6(ds, builder, DEVICE),
+    iterate_batches_fn=iterate_batches_v6,
     builder=builder, device=DEVICE,
     n_samples=int(CONFIG.two_stage.causal_ablation.n_samples),
     threshold=float(CONFIG.two_stage.causal_ablation.threshold))
@@ -416,7 +463,15 @@ opt_smoke = torch.optim.AdamW(diffusion_smoke.parameters(), lr=float(CONFIG.two_
 for ep in range(3):
     m = train_epoch_stage2_cached(diffusion_decoder=diffusion_smoke, optimizer=opt_smoke,
         cached_dataloader=cached_loader, device=DEVICE, use_amp=True, gradient_clipping=1.0, log_every=50)
-    print(f"SMOKE ep{ep+1} loss_diff={m['loss_diff']:.4f}")
+    print(f"SMOKE ep{ep+1} loss_diff={m['loss_diff']:.4f}  corr(D_y,mu_HR)={m.get('corr_dy_mu', float('nan')):+.3f}")
+    # Declencheur V6'.1 pre-enregistre (audit ML) : si la diffusion ANNULE
+    # mu_HR (anti-copy A3/A11), corr(D_y, mu_HR) devient fortement negative.
+    _c = m.get("corr_dy_mu", float("nan"))
+    if _c == _c and _c < -0.3:
+        raise RuntimeError(
+            f"SMOKE ABORT : corr(D_y, mu_HR) = {_c:.3f} < -0.3 — la diffusion "
+            "depense sa capacite a annuler mu_HR. Basculer sur la variante "
+            "V6'.1 pre-enregistree (delta = HR - baseline, mu_HR conditioning seul).")
 
 diffusion_smoke.eval()
 def _val_loss(zero_lr=False, n=5):
@@ -460,94 +515,163 @@ print(f"[Cell 10] saved → {save_dir}/v6_prime_seed42.pth")
 """
 
 
-CELL_11 = """# >>> Cell 11 : Eval + ablations A1 (mu_HR->0) / A2 (LR->0) — END-TO-END
+CELL_11 = """# >>> Cell 11 : Eval FULL TEST SPLIT + ablations A1/A2 — END-TO-END
+# P0 fix (audits Recherche + ML) : verdict co-primaire sur le TEST SPLIT
+# COMPLET (2 ans), pas 16 echantillons (~0.16 evenement p99/pixel sur 16 jours
+# = statistiquement indefini, incomparable aux references).
+# Protocole : VERDICT = full split, K=64. ATTRIBUTION A1/A2 = full split, K=16
+# (3 conditions au MEME K -> differences comparables, compute maitrise).
 import torch.nn.functional as F, numpy as np, json
 from st_cdgm.evaluation.eval_metrics_dual_convention import evaluate_ensemble
 
-K_SAMPLES = 8 if SMOKE_MODE else 64
-NUM_STEPS = 32
+K_VERDICT   = 8 if SMOKE_MODE else 64
+K_ABLATION  = 4 if SMOKE_MODE else 16
+NUM_STEPS   = 32
+EVAL_BATCH  = 16   # sampling batch size (memoire)
 
-# --- climatology per-pixel thresholds (Convention A) -----------------------
+# --- climatology per-pixel thresholds (Convention A, ETCCDI) ---------------
 CLIM_PATH = f"{DRIVE_ROOT}/oracle_9node/seed_42/phase8/clim_p95_p99.npz"
 _alt = f"{DRIVE_ROOT}/ckpt_v2_corrdiff_normal/clim_p95_p99.npz"
 _cp = CLIM_PATH if Path(CLIM_PATH).exists() else _alt
 _clim = np.load(_cp)
-clim_p99 = torch.from_numpy(_clim["clim_p99"].astype(np.float32))
-clim_p95 = torch.from_numpy(_clim["clim_p95"].astype(np.float32))
+# P1-D fix (audit IA) : .to(DEVICE) — mismatch device CPU/CUDA sinon
+clim_p99 = torch.from_numpy(_clim["clim_p99"].astype(np.float32)).to(DEVICE)
+clim_p95 = torch.from_numpy(_clim["clim_p95"].astype(np.float32)).to(DEVICE)
 print(f"[Cell 11] climatology loaded from {_cp}")
 
-# --- materialise test conditioning (mu_HR, baseline, delta, lr_fields) ------
+# --- materialise test conditioning on the FULL split ------------------------
 test_cache = precompute_stage1_outputs(
     encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
     train_dataset=test_dataset,
     iterate_batches_fn=lambda s: convert_sample_to_batch(s, builder, DEVICE),
     device=DEVICE, dag_variants=["normal"], cache_lr_fields=True)
 
-N_TEST = min(16, test_cache["mu_HR"].shape[0])
-mu_t   = test_cache["mu_HR"][:N_TEST].to(DEVICE)
-base_t = test_cache["baseline_log"][:N_TEST].to(DEVICE)
-delta_t= test_cache["delta_target"][:N_TEST].to(DEVICE)
-lr_t   = test_cache["lr_fields"][:N_TEST].to(DEVICE)
-if lr_t.shape[-2:] != mu_t.shape[-2:]:
-    lr_t = F.interpolate(lr_t, size=mu_t.shape[-2:], mode="bilinear", align_corners=False)
+N_TOTAL = test_cache["mu_HR"].shape[0]
+N_TEST = min(16, N_TOTAL) if SMOKE_MODE else N_TOTAL   # FULL split hors smoke
+print(f"[Cell 11] test samples : {N_TEST} / {N_TOTAL}")
+mu_all    = test_cache["mu_HR"][:N_TEST]
+base_all  = test_cache["baseline_log"][:N_TEST]
+delta_all = test_cache["delta_target"][:N_TEST]
+lr_all    = test_cache["lr_fields"][:N_TEST]
 
-def sample_ensemble(zero_mu=False, zero_lr=False, K=K_SAMPLES):
-    mu_ = torch.zeros_like(mu_t) if zero_mu else mu_t
-    lr_ = torch.zeros_like(lr_t) if zero_lr else lr_t   # A2 = post-norm zero
-    outs = []
+def sample_ensemble(zero_mu=False, zero_lr=False, K=None):
+    \"\"\"Batched ensemble sampler avec commutateurs A1/A2 (M3 : lr_fields requis).
+    cfg_scale=0.0 (P2-ii audit IA) : semantique conditioned-only identique a
+    1.0 sur edm_karras, mais evite tout double-forward CFG.\"\"\"
+    if K is None: K = K_VERDICT
     ema.eval()
+    members = []
     with torch.no_grad():
         for k in range(K):
             torch.manual_seed(1000 + k)
-            o = ema.sample(conditioning=None, num_steps=NUM_STEPS, scheduler_type="edm_karras",
-                           cfg_scale=1.0, mu_HR=mu_, baseline_log=base_t, lr_fields=lr_)
-            outs.append(o.residual)
-    return torch.stack(outs, 0)   # [K, N, 1, H, W]
+            chunks = []
+            for i0 in range(0, N_TEST, EVAL_BATCH):
+                sl = slice(i0, min(i0 + EVAL_BATCH, N_TEST))
+                mu_ = mu_all[sl].to(DEVICE); bl_ = base_all[sl].to(DEVICE)
+                lr_ = lr_all[sl].to(DEVICE)
+                if lr_.shape[-2:] != mu_.shape[-2:]:
+                    lr_ = F.interpolate(lr_, size=mu_.shape[-2:], mode="bilinear", align_corners=False)
+                if zero_mu: mu_ = torch.zeros_like(mu_)
+                if zero_lr: lr_ = torch.zeros_like(lr_)   # A2 = zero post-norm
+                o = ema.sample(conditioning=None, num_steps=NUM_STEPS,
+                               scheduler_type="edm_karras", cfg_scale=0.0,
+                               mu_HR=mu_, baseline_log=bl_, lr_fields=lr_)
+                chunks.append(o.residual.cpu())
+            members.append(torch.cat(chunks, dim=0))
+    return torch.stack(members, 0)   # [K, N_TEST, 1, H, W] sur CPU
 
-print("[Cell 11] sampling V6' (full) ..."); ens_full = sample_ensemble()
-print("[Cell 11] sampling A1 (mu_HR->0) ..."); ens_a1 = sample_ensemble(zero_mu=True)
-print("[Cell 11] sampling A2 (LR->0) ...");    ens_a2 = sample_ensemble(zero_lr=True)
+mu_t, base_t, delta_t = mu_all.to(DEVICE), base_all.to(DEVICE), delta_all.to(DEVICE)
+def M(ens):
+    return evaluate_ensemble(ens.to(DEVICE), mu_t, base_t, delta_t, clim_p99, clim_p95)
 
-M = lambda ens: evaluate_ensemble(ens, mu_t, base_t, delta_t, clim_p99, clim_p95)
-res_full, res_a1, res_a2 = M(ens_full), M(ens_a1), M(ens_a2)
+print(f"[Cell 11] VERDICT sampling (full split, K={K_VERDICT}) ...")
+res_full = M(sample_ensemble(K=K_VERDICT))
+print(f"[Cell 11] ATTRIBUTION sampling (K={K_ABLATION} x 3 conditions) ...")
+res_refA  = M(sample_ensemble(K=K_ABLATION))
+res_a1    = M(sample_ensemble(zero_mu=True, K=K_ABLATION))
+res_a2    = M(sample_ensemble(zero_lr=True, K=K_ABLATION))
+
 results = {
     "F1_p99_pergrid": res_full["conv_A_F1p99"],
     "F1_p99_pooled":  res_full["conv_B_F1p99"],
     "RMSE": res_full["rmse"], "Pearson": res_full["pearson_global"],
     "Rx1day_bias": res_full["rx1day_bias"], "RAPSD": res_full["rapsd_distance"],
-    "A1_mu_off_F1_pergrid": res_a1["conv_A_F1p99"], "A1_mu_off_F1_pooled": res_a1["conv_B_F1p99"],
-    "A2_lr_off_F1_pergrid": res_a2["conv_A_F1p99"], "A2_lr_off_F1_pooled": res_a2["conv_B_F1p99"],
+    "n_test": int(N_TEST), "K_verdict": int(K_VERDICT), "K_ablation": int(K_ABLATION),
+    # Attribution : triple au MEME K (comparabilite interne, semantique A1
+    # INFORMATIONNELLE : conditioning ablate, mu reel conserve en recomposition
+    # — pre-declare dans le prereg)
+    "ref_KA_F1_pooled":    res_refA["conv_B_F1p99"],
+    "A1_mu_off_F1_pooled": res_a1["conv_B_F1p99"],
+    "A2_lr_off_F1_pooled": res_a2["conv_B_F1p99"],
+    "ref_KA_F1_pergrid":    res_refA["conv_A_F1p99"],
+    "A1_mu_off_F1_pergrid": res_a1["conv_A_F1p99"],
+    "A2_lr_off_F1_pergrid": res_a2["conv_A_F1p99"],
 }
-print("\\n=== V6' RESULTS ===")
-for k, v in results.items(): print(f"  {k:28s} = {v:.4f}")
-# Attribution : gain lost when each channel is ablated
-print(f"\\n  A1 (causal) contribution to pooled F1 = {results['F1_p99_pooled']-results['A1_mu_off_F1_pooled']:+.4f}")
-print(f"  A2 (full-LR pivot) contribution pooled F1 = {results['F1_p99_pooled']-results['A2_lr_off_F1_pooled']:+.4f}")
+print(); print("=== V6' RESULTS (full test split) ===")
+for k, v in results.items(): print(f"  {k:26s} = {v}")
+print(); print(f"  A1 (causal) contribution pooled  = {results['ref_KA_F1_pooled']-results['A1_mu_off_F1_pooled']:+.4f}")
+print(f"  A2 (full-LR) contribution pooled = {results['ref_KA_F1_pooled']-results['A2_lr_off_F1_pooled']:+.4f}")
 """
 
 
-CELL_12 = """# >>> Cell 12 : Verdict vs pre-registered thresholds + save JSON
-import json
+CELL_12 = """# >>> Cell 12 : Verdict vs seuils pre-enregistres + gate OOD
+import json, os
 seuils = json.load(open("path_c_plus/audit/V6_PRIME_seuils_preregistered.json"))
 thr_pg = seuils["targets_to_beat"]["co_primary_1_per_gridpoint"]
 thr_pl = seuils["targets_to_beat"]["co_primary_2_pooled"]
 
+# --- P0 (audit Recherche) : les references per-gridpoint 0.841/0.816 ont ete
+# calculees avec l'ANCIENNE metrique Conv A (quantile scalaire, buggee).
+# Elles doivent etre RECOMPUTEES avec la metrique corrigee (broadcast per-pixel)
+# via _eval_3way_dual_convention re-execute. Ce notebook cherche le fichier de
+# references recomputees ; sinon le verdict per-gridpoint est marque STALE.
+RECOMPUTED_REFS = f"{DRIVE_ROOT}/oracle_v6_prime/recomputed_pergrid_references.json"
+if Path(RECOMPUTED_REFS).exists():
+    _refs = json.load(open(RECOMPUTED_REFS))
+    ref_pg_noncausal = float(_refs["noncausal_v4_F1p99_pergrid"])
+    ref_pg_v5        = float(_refs["v5_causal_F1p99_pergrid"])
+    refs_status = "RECOMPUTED"
+else:
+    ref_pg_noncausal = float(thr_pg["noncausal_v4"])
+    ref_pg_v5        = float(thr_pg["v5_causal_seed42"])
+    refs_status = "STALE_OLD_METRIC"
+    print("  !! References per-gridpoint NON recomputees avec la metrique corrigee")
+    print("  !! -> verdict co-primaire 1 = provisoire. Re-executer le 3-way eval")
+    print(f"  !! et sauvegarder {RECOMPUTED_REFS}")
+
 pg, pl = results["F1_p99_pergrid"], results["F1_p99_pooled"]
-v_pg = "PASS" if (pg >= thr_pg["noncausal_v4"] and pg >= thr_pg["v5_causal_seed42"]) else "FAIL"
+v_pg = "PASS" if (pg >= ref_pg_noncausal and pg >= ref_pg_v5) else "FAIL"
+if refs_status != "RECOMPUTED":
+    v_pg = f"{v_pg}_PROVISOIRE_REFS_STALE"
 v_pl = ("PASS_STRONG" if pl >= thr_pl["PASS_STRONG"] else "PASS_TARGET" if pl >= thr_pl["PASS_TARGET"]
         else "PASS_MINIMAL" if pl >= thr_pl["PASS_MINIMAL"] else "FAIL")
-verdict = {"per_gridpoint": v_pg, "pooled": v_pl,
-           "at_least_one_coprimary": (v_pg == "PASS" or v_pl != "FAIL"),
-           "results": results}
-print("=== V6' VERDICT ===")
-print(f"  per-gridpoint : {v_pg}  (F1={pg:.4f} vs noncausal {thr_pg['noncausal_v4']} / V5 {thr_pg['v5_causal_seed42']})")
-print(f"  pooled        : {v_pl}  (F1={pl:.4f} vs target {thr_pl['PASS_TARGET']})")
-print(f"  >>> at least one co-primary : {'PASS' if verdict['at_least_one_coprimary'] else 'FAIL'}")
 
-import os
+# --- Gate OOD (P1 audit Recherche + fix ML) : le verdict n'est FINAL qu'avec
+# l'OOD EC-Earth3 complete. Le run OOD = relancer CE notebook avec
+# GCM_ID="EC-Earth3" (Cell 2) — il ecrira son propre verdict ; ce champ trace.
+OOD_VERDICT_PATH = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/v6_prime_verdict_EC-Earth3.json"
+ood_status = "DONE" if Path(OOD_VERDICT_PATH).exists() else "PENDING"
+
+verdict = {
+    "gcm": GCM_ID,
+    "per_gridpoint": v_pg, "pooled": v_pl,
+    "pergrid_refs_status": refs_status,
+    "at_least_one_coprimary": (v_pg.startswith("PASS") or v_pl != "FAIL"),
+    "ood_EC-Earth3": ood_status if not IS_OOD_RUN else "THIS_IS_THE_OOD_RUN",
+    "final": (ood_status == "DONE" and refs_status == "RECOMPUTED") if not IS_OOD_RUN else True,
+    "results": results,
+}
+print("=== V6' VERDICT ===")
+print(f"  per-gridpoint : {v_pg}  (F1={pg:.4f} vs noncausal {ref_pg_noncausal} / V5 {ref_pg_v5} [{refs_status}])")
+print(f"  pooled        : {v_pl}  (F1={pl:.4f} vs target {thr_pl['PASS_TARGET']})")
+print(f"  OOD EC-Earth3 : {verdict['ood_EC-Earth3']}")
+print(f"  FINAL         : {verdict['final']}  (exige OOD DONE + refs RECOMPUTED)")
+
 os.makedirs(f"{DRIVE_ROOT}/oracle_v6_prime/seed_42", exist_ok=True)
-json.dump(verdict, open(f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/v6_prime_verdict.json", "w"), indent=2)
-print(f"\\n[Cell 12] verdict saved. OOD EC-Earth3 : re-run Cells 3/8/11 with EC-Earth3 v6 NetCDF.")
+_out = (f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/v6_prime_verdict_{GCM_ID}.json"
+        if IS_OOD_RUN else f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/v6_prime_verdict.json")
+json.dump(verdict, open(_out, "w"), indent=2)
+print(f"[Cell 12] verdict saved -> {_out}")
 """
 
 

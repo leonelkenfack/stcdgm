@@ -208,16 +208,42 @@ def compute_grad_orography_components_HR(
     Retourne les COMPOSANTES SIGNÉES (pas la magnitude) — le signe distingue
     soulèvement amont vs subsidence foehn aval (audit Climat V6').
     """
-    orog_land = orog_HR * mask_ocean
-    lat_name = "lat" if "lat" in orog_land.dims else "y"
-    lon_name = "lon" if "lon" in orog_land.dims else "x"
+    # Garde V6' (audit Climat, vérif code) : le fallback y/x sur des coords en
+    # INDICES produit du garbage silencieux (differentiate par indice, puis
+    # /111000·cos(indice interprété en degrés) → valeurs ~1e12 mesurées).
+    # Durcissement post-test : des indices 0..N ressemblent à des latitudes
+    # valides → le range-check seul ne suffit pas. On EXIGE des dims nommées
+    # lat/lon (pas de fallback y/x pour cette fonction physique).
+    if "lat" not in orog_HR.dims or "lon" not in orog_HR.dims:
+        raise ValueError(
+            f"compute_grad_orography_components_HR: dims {tuple(orog_HR.dims)} — "
+            f"les dimensions DOIVENT s'appeler 'lat'/'lon' avec coords en degrés. "
+            f"Le fallback y/x (indices) produirait un gradient garbage silencieux "
+            f"(mesuré ~1e12). Renommer les dims : ds.rename({{'y':'lat','x':'lon'}})."
+        )
+    lat_name, lon_name = "lat", "lon"
+    lat_vals = np.asarray(orog_HR[lat_name].values, dtype=float)
+    lon_vals = np.asarray(orog_HR[lon_name].values, dtype=float)
+    if not (
+        -90.0 <= lat_vals.min() and lat_vals.max() <= 90.0
+        and -360.0 <= lon_vals.min() and lon_vals.max() <= 360.0
+        and lat_vals.max() - lat_vals.min() < 90.0
+    ):
+        raise ValueError(
+            f"compute_grad_orography_components_HR: coords lat/lon hors plage "
+            f"degrés (lat range [{lat_vals.min():.1f}, {lat_vals.max():.1f}])."
+        )
 
-    dh_dlat = orog_land.differentiate(lat_name)   # m / deg
-    dh_dlon = orog_land.differentiate(lon_name)   # m / deg
+    # Fix V6' (audit Climat, vérif code) : gradient sur l'orographie BRUTE puis
+    # multiplication par le masque — PAS ∇(orog·mask). Un masque fractionnaire
+    # côtier (0<sftlf<1) créerait sinon une pente artificielle pilotée par le
+    # masque (mesuré : 0.0385 m/m sur plateau plat à sftlf=0.5).
+    dh_dlat = orog_HR.differentiate(lat_name)   # m / deg
+    dh_dlon = orog_HR.differentiate(lon_name)   # m / deg
 
     # Convert to physical slope (m/m)
     dh_dy = (dh_dlat / EARTH_M_PER_DEG) * mask_ocean
-    coslat = np.cos(np.deg2rad(orog_land[lat_name]))
+    coslat = np.cos(np.deg2rad(orog_HR[lat_name]))
     dh_dx = (dh_dlon / (EARTH_M_PER_DEG * coslat)) * mask_ocean
 
     dh_dx.attrs = {

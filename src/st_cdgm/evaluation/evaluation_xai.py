@@ -539,26 +539,46 @@ def compute_f1_extremes(
     """
     # K2 fix: dispatch on threshold strategy
     if climatology is not None:
-        # Climatology mode: per-pixel threshold from climatology tensor
-        # Climatology shape must broadcast with target (e.g., spatial dims match)
+        # Climatology mode: TRUE per-pixel ETCCDI threshold.
+        #
+        # V6' P0 FIX (audit indépendant 2026-06-30, expert Recherche) : the
+        # previous implementation computed ``torch.quantile(climatology, p)``
+        # — a SINGLE scalar (the p-quantile OF the per-pixel thresholds, a
+        # double-percentile hybrid that is neither ETCCDI nor pooled). The
+        # ``climatology`` tensor IS ALREADY the per-pixel threshold map for
+        # the requested percentile (e.g. clim_p99[H, W] = training-period p99
+        # per pixel). Correct ETCCDI behavior: broadcast element-wise.
+        #
+        # IMPORTANT : any per-gridpoint reference computed with the old code
+        # (e.g. V5=0.841 / noncausal=0.816) must be RECOMPUTED with this fix
+        # before being used as a target (cf. V6_PRIME_seuils_preregistered).
         results = {}
+        # Broadcast climatology [H, W] against pred/target [..., H, W]
+        clim = climatology.to(device=target.device, dtype=target.dtype)
+        if clim.shape != target.shape:
+            # e.g. clim [H, W] vs target [N, H, W] or [N, C, H, W]
+            n_extra = target.dim() - clim.dim()
+            if n_extra < 0 or clim.shape != target.shape[n_extra:]:
+                raise ValueError(
+                    f"climatology shape {tuple(clim.shape)} does not broadcast "
+                    f"with target {tuple(target.shape)} (trailing dims must match)"
+                )
+            clim = clim.expand(target.shape)
         for percentile in threshold_percentiles:
-            clim_flat = climatology.flatten()
-            valid_clim = clim_flat[torch.isfinite(clim_flat)]
-            if valid_clim.numel() == 0:
+            # NOTE: the percentile value is informational here — the
+            # climatology tensor passed by the caller must already correspond
+            # to it (clim_p99 for 99.0, clim_p95 for 95.0).
+            valid_mask = (
+                torch.isfinite(pred) & torch.isfinite(target) & torch.isfinite(clim)
+            )
+            if not valid_mask.any():
                 results[f"p{int(percentile)}"] = 0.0
                 continue
-            threshold = torch.quantile(valid_clim, percentile / 100.0)
-            pred_flat = pred.flatten()
-            target_flat = target.flatten()
-            valid_mask = torch.isfinite(pred_flat) & torch.isfinite(target_flat)
-            pred_valid = pred_flat[valid_mask]
-            target_valid = target_flat[valid_mask]
-            pred_binary = (pred_valid >= threshold).float()
-            target_binary = (target_valid >= threshold).float()
-            tp = (pred_binary * target_binary).sum().item()
-            fp = (pred_binary * (1 - target_binary)).sum().item()
-            fn = ((1 - pred_binary) * target_binary).sum().item()
+            pred_binary = (pred >= clim) & valid_mask
+            target_binary = (target >= clim) & valid_mask
+            tp = (pred_binary & target_binary).sum().item()
+            fp = (pred_binary & ~target_binary).sum().item()
+            fn = (~pred_binary & target_binary).sum().item()
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
             f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0

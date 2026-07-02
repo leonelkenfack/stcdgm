@@ -176,11 +176,13 @@ EXPECTED_EDGES_V6: List[Tuple[str, str, int]] = [
     ("Q850", "IVT", +1),
     ("W500", "SP_HR", +1),
     ("IVT", "SP_HR", +1),
-    # --- chaîne vent bas-niveau (V6, audit Climat) ---
+    # --- chaîne vent bas-niveau (V6, audit Climat — vérif code 2026-06-30) ---
     ("U850", "IVT", +1),        # vent zonal -> transport zonal de vapeur
-    ("V850", "IVT", +1),        # vent méridien -> transport méridien de vapeur
-    ("U850", "SP_HR", +1),      # forçage orographique zonal (West Coast)
-    ("V850", "SP_HR", +1),      # forçage orographique méridien (ARs)
+    ("V850", "IVT", -1),        # ARs NZ = flux NW : humide = northerly = v<0 (HS)
+    ("U850", "SP_HR", +1),      # westerlies dominants + West Coast domine le total
+    ("V850", "SP_HR", -1),      # signe climatologique : v<0 (northerly) = humide,
+                                # v>0 (southerly) = air froid sec. Audit Climat :
+                                # "un prior de signe faux est pire que pas de prior".
 ]
 
 
