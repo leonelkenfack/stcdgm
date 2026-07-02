@@ -675,10 +675,309 @@ print(f"[Cell 12] verdict saved -> {_out}")
 """
 
 
+
+
+CELL_13 = """# >>> Cell 13 : 3-WAY — BUILD des baselines (V5_causal + noncausal_v4)
+# Re-evalue les DEUX baselines avec la metrique Conv A CORRIGEE, sur le MEME
+# test split, meme K, meme composition mm -> les references per-gridpoint
+# sont recomputees IN-PLACE (resout le probleme REFS_STALE du prereg).
+import torch, numpy as np
+from omegaconf import OmegaConf as _OC13
+from st_cdgm.models.intelligible_encoder import IntelligibleVariableEncoder, IntelligibleVariableConfig
+from st_cdgm.models.causal_rcn import RCNCell, RCNSequenceRunner
+from st_cdgm.models.regression_head import GraphToGridDecoder
+from st_cdgm.models.regression_mean_predictor import RegressionMeanPredictor, RegressionPredictorConfig
+from st_cdgm.models import CausalDiffusionDecoder
+from st_cdgm.models.edm_preconditioner import EDMConfig
+from st_cdgm.data.pipeline import NetCDFDataPipeline
+from st_cdgm.models.graph_builder import HeteroGraphBuilder
+from st_cdgm.v6_constants import NONCAUSAL_15_VARS
+
+V5_CAUSAL_CKPT = f"{DRIVE_ROOT}/ckpt_v2_corrdiff_normal/epoch_last.pth"
+NONCAUSAL_CKPT = f"{DRIVE_ROOT}/ckpt_noncausal/epoch_last.pth"
+
+def _persist_load_state_dict(module, sd, strict=True):
+    if sd is None:
+        raise RuntimeError(f"state_dict manquant pour {type(module).__name__}")
+    missing, unexpected = module.load_state_dict(sd, strict=False)
+    if strict and missing:
+        _crit = [k for k in missing if "_state_adapter" not in k]
+        if _crit:
+            raise RuntimeError(f"missing keys: {_crit[:6]}")
+    return module
+
+def _sd_tensor(sd, key):
+    return sd.get(key) if sd else None
+
+def _infer_unet_arch_from_sd(sd):
+    conv_w = _sd_tensor(sd, "unet.conv_in.weight")
+    proj_w = _sd_tensor(sd, "unet.class_embedding.linear_1.weight")
+    causal_concat = bool(conv_w is not None and int(conv_w.shape[1]) == 3)
+    proj_dim = int(proj_w.shape[1]) if proj_w is not None else None
+    return causal_concat, proj_dim
+
+# --- CONFIG baselines : base + corrdiff_normal, 15 vars, normalisation 15-var
+CONFIG_B = _OC13.load("config/training_config.yaml")
+CONFIG_B = _OC13.merge(CONFIG_B, _OC13.load("config/training_config_corrdiff_normal.yaml"))
+_OC13.set_struct(CONFIG_B, False)
+CONFIG_B.data.lr_variables = list(NONCAUSAL_15_VARS)
+
+MEANS_15 = f"{DRIVE_ROOT}/train/means_ACCESS-CM2.nc"
+STDS_15  = f"{DRIVE_ROOT}/train/stds_ACCESS-CM2.nc"
+pipeline_15 = NetCDFDataPipeline(
+    lr_path=LR_PATH_V6, hr_path=HR_PATH,
+    static_path=STATIC_PATH if Path(STATIC_PATH).exists() else None,
+    seq_len=int(CONFIG_B.data.seq_len),
+    baseline_strategy=str(CONFIG_B.data.baseline_strategy),
+    baseline_factor=int(CONFIG_B.data.baseline_factor),
+    normalize=bool(CONFIG_B.data.normalize),
+    nan_fill_strategy=str(CONFIG_B.data.nan_fill_strategy),
+    precipitation_delta=float(CONFIG_B.data.precipitation_delta),
+    lr_variables=list(NONCAUSAL_15_VARS),
+    hr_variables=list(CONFIG_B.data.hr_variables),
+    static_variables=list(CONFIG_B.data.static_variables) if CONFIG_B.data.get("static_variables") else [],
+    means_path=MEANS_15 if Path(MEANS_15).exists() else None,
+    stds_path=STDS_15 if Path(STDS_15).exists() else None,
+    train_start_date=K9_DATES["train"][0], train_end_date=K9_DATES["train"][1],
+    val_start_date=K9_DATES["val"][0],     val_end_date=K9_DATES["val"][1],
+    test_start_date=K9_DATES["test"][0],   test_end_date=K9_DATES["test"][1],
+    temporal_holdout_start_date=K9_DATES["holdout"][0],
+    temporal_holdout_end_date=K9_DATES["holdout"][1],
+)
+builder_15 = HeteroGraphBuilder(
+    lr_shape=tuple(CONFIG_B.graph.lr_shape), hr_shape=tuple(CONFIG_B.graph.hr_shape),
+    static_dataset=pipeline_15.get_static_dataset(), include_mid_layer=True,
+    extended_9node=False, extended_v6_wind=False)   # baselines = ere 6-node
+test_15 = pipeline_15.build_sequence_dataset(split="test", seq_len=int(CONFIG_B.data.seq_len),
+    stride=int(CONFIG_B.data.stride), as_torch=True)
+
+# --- V5_causal stack ---------------------------------------------------------
+_allowed_b = set(builder_15.dynamic_node_types) | set(builder_15.static_node_types)
+_enc_cfgs_b = [IntelligibleVariableConfig(name=m.name, meta_path=(m.src, m.relation, m.target),
+                                          pool=m.get("pool", "mean"))
+               for m in CONFIG_B.encoder.metapaths if m.src in _allowed_b and m.target in _allowed_b]
+if pipeline_15.get_static_dataset() is not None:
+    _enc_cfgs_b.append(IntelligibleVariableConfig(name="static",
+        meta_path=("SP_HR", "causes", "GP850"), pool="mean"))
+v5_encoder = IntelligibleVariableEncoder(configs=_enc_cfgs_b,
+    hidden_dim=int(CONFIG_B.encoder.hidden_dim),
+    conditioning_dim=int(CONFIG_B.encoder.conditioning_dim)).to(DEVICE)
+_nvars_b = len(_enc_cfgs_b)
+_probe_b = builder_15.lr_grid_to_nodes(torch.zeros(len(NONCAUSAL_15_VARS), *tuple(CONFIG_B.graph.lr_shape)))
+v5_rcn_cell = RCNCell(num_vars=_nvars_b, hidden_dim=int(CONFIG_B.rcn.hidden_dim),
+    driver_dim=_probe_b.shape[-1], reconstruction_dim=_probe_b.shape[-1],
+    dropout=float(CONFIG_B.rcn.dropout)).to(DEVICE)
+v5_rcn_runner = RCNSequenceRunner(v5_rcn_cell, detach_interval=CONFIG_B.rcn.get("detach_interval"))
+_rh_b = CONFIG_B.two_stage.regression_head
+v5_regression_head = GraphToGridDecoder(d_model=int(_rh_b.d_model),
+    hr_h=int(CONFIG_B.diffusion.height), hr_w=int(CONFIG_B.diffusion.width),
+    intermediate_h=int(_rh_b.intermediate_h), intermediate_w=int(_rh_b.intermediate_w),
+    n_heads=int(_rh_b.n_heads), refine_channels=int(_rh_b.refine_channels),
+    output_channels=1).to(DEVICE)
+
+print(f"[Cell 13] Loading V5_causal : {V5_CAUSAL_CKPT}")
+_ck_v5 = torch.load(V5_CAUSAL_CKPT, map_location=DEVICE, weights_only=False)
+_persist_load_state_dict(v5_encoder, _ck_v5.get("encoder_state_dict"))
+_persist_load_state_dict(v5_rcn_cell, _ck_v5.get("rcn_cell_state_dict"))
+_persist_load_state_dict(v5_regression_head, _ck_v5.get("regression_head_state_dict"))
+
+_v5_sd = _ck_v5.get("diffusion_ema_state_dict") or _ck_v5.get("ema_state_dict") or _ck_v5.get("diffusion_state_dict")
+_v5_cc, _v5_proj = _infer_unet_arch_from_sd(_v5_sd)
+_uk_b = _OC13.to_container(CONFIG_B.diffusion.unet_kwargs, resolve=True)
+for _k in ("down_block_types", "up_block_types"):
+    if _k in _uk_b and isinstance(_uk_b[_k], list): _uk_b[_k] = tuple(_uk_b[_k])
+if _v5_proj is not None: _uk_b["projection_class_embeddings_input_dim"] = _v5_proj
+v5_diffusion = CausalDiffusionDecoder(
+    in_channels=1, conditioning_dim=int(CONFIG_B.diffusion.conditioning_dim),
+    height=int(CONFIG_B.diffusion.height), width=int(CONFIG_B.diffusion.width),
+    unet_kwargs=_uk_b, scheduler_type="edm_karras",
+    edm_config=EDMConfig.from_yaml_dict(CONFIG_B.diffusion.get("edm", {})),
+    causal_concat=_v5_cc).to(DEVICE)
+_persist_load_state_dict(v5_diffusion, _v5_sd)
+for _m in (v5_encoder, v5_rcn_cell, v5_regression_head, v5_diffusion):
+    _m.eval()
+    for _p in _m.parameters(): _p.requires_grad_(False)
+print(f"[Cell 13] V5_causal loaded (causal_concat={_v5_cc})")
+
+# --- noncausal_v4 stack ------------------------------------------------------
+print(f"[Cell 13] Loading noncausal_v4 : {NONCAUSAL_CKPT}")
+_ck_nc = torch.load(NONCAUSAL_CKPT, map_location=DEVICE, weights_only=False)
+_nc_sd = _ck_nc.get("diffusion_ema_state_dict") or _ck_nc.get("ema_state_dict") or _ck_nc.get("diffusion_state_dict")
+_nc_cc, _nc_proj = _infer_unet_arch_from_sd(_nc_sd)
+_uk_nc = _OC13.to_container(CONFIG_B.diffusion.unet_kwargs, resolve=True)
+for _k in ("down_block_types", "up_block_types"):
+    if _k in _uk_nc and isinstance(_uk_nc[_k], list): _uk_nc[_k] = tuple(_uk_nc[_k])
+if _nc_proj is not None: _uk_nc["projection_class_embeddings_input_dim"] = _nc_proj
+nc_diffusion = CausalDiffusionDecoder(
+    in_channels=1, conditioning_dim=int(CONFIG_B.diffusion.conditioning_dim),
+    height=int(CONFIG_B.diffusion.height), width=int(CONFIG_B.diffusion.width),
+    unet_kwargs=_uk_nc, scheduler_type="edm_karras",
+    edm_config=EDMConfig.from_yaml_dict(CONFIG_B.diffusion.get("edm", {})),
+    causal_concat=_nc_cc).to(DEVICE)
+_persist_load_state_dict(nc_diffusion, _nc_sd)
+
+# noncausal Stage 1 head = RegressionMeanPredictor (mu direct depuis lr_grid)
+nc_regression_head = RegressionMeanPredictor(
+    RegressionPredictorConfig(
+        in_channels=len(NONCAUSAL_15_VARS), out_channels=1,
+        lr_height=int(CONFIG_B.graph.lr_shape[0]), lr_width=int(CONFIG_B.graph.lr_shape[1]),
+        hr_height=int(CONFIG_B.diffusion.height), hr_width=int(CONFIG_B.diffusion.width),
+        block_out_channels=(64, 128, 192), layers_per_block=2, norm_num_groups=16,
+        state_adapter_hidden_dim=int(CONFIG_B.rcn.hidden_dim))).to(DEVICE)
+_rh_nc_sd = _ck_nc.get("regression_head_state_dict")
+_rh_strict = any("_state_adapter." in k for k in (_rh_nc_sd or {}).keys())
+_persist_load_state_dict(nc_regression_head, _rh_nc_sd, strict=_rh_strict)
+nc_diffusion.eval(); nc_regression_head.eval()
+for _p in list(nc_diffusion.parameters()) + list(nc_regression_head.parameters()):
+    _p.requires_grad_(False)
+print(f"[Cell 13] noncausal_v4 loaded (causal_concat={_nc_cc})")
+"""
+
+
+CELL_14 = """# >>> Cell 14 : 3-WAY — SAMPLE + EVAL des baselines (metrique corrigee)
+# Meme protocole que V6-prime (Cell 11) : full test split, K_VERDICT membres,
+# cfg 0.0 (conditioned-only), composition mm par membre, Conv A per-pixel.
+import time
+from st_cdgm.evaluation.two_stage_inference import build_two_stage_inputs
+from st_cdgm.evaluation.eval_metrics_dual_convention import evaluate_ensemble
+
+K_BASELINE = 8 if SMOKE_MODE else K_VERDICT   # meme K que le verdict V6-prime
+
+# convert 15-var samples (baseline builder, pas de lr_grid V6 requis)
+def convert_sample_to_batch_15(sample):
+    lr_seq = sample["lr"]
+    seq_len = lr_seq.shape[0]
+    lr_nodes = [builder_15.lr_grid_to_nodes(lr_seq[t]) for t in range(seq_len)]
+    lr_tensor = torch.stack(lr_nodes, dim=0)
+    lr0 = lr_nodes[0]
+    dyn = {nt: lr0 for nt in builder_15.dynamic_node_types}
+    hetero = builder_15.prepare_step_data(dyn).to(DEVICE)
+    return {"lr": lr_tensor, "lr_grid": lr_seq, "residual": sample["residual"],
+            "baseline": sample.get("baseline"), "hetero": hetero, "time": sample.get("time")}
+
+def eval_baseline(name, variant, regression_head, encoder=None, rcn_runner=None,
+                  diffusion=None, causal_concat=True, K=None):
+    if K is None: K = K_BASELINE
+    core = getattr(diffusion, "_orig_mod", diffusion)
+    core = getattr(core, "module", core)
+    mus, bls, deltas = [], [], []
+    n_done = 0
+    t0 = time.time()
+    for _sample in test_15:
+        if SMOKE_MODE and n_done >= 16: break
+        _batch = convert_sample_to_batch_15(_sample)
+        _cond, _mu, _bl, _tgt = build_two_stage_inputs(
+            _batch, variant=variant, regression_head=regression_head,
+            encoder=encoder, rcn_runner=rcn_runner, builder=builder_15, device=DEVICE)
+        _delta = torch.nan_to_num(_tgt - _mu, nan=0.0, posinf=0.0, neginf=0.0)
+        mus.append(_mu.cpu()); bls.append(_bl.cpu()); deltas.append(_delta.cpu())
+        n_done += 1
+    mu_c = torch.cat(mus, 0); bl_c = torch.cat(bls, 0); dl_c = torch.cat(deltas, 0)
+    N = mu_c.shape[0]
+    print(f"  [{name}] {N} test samples, sampling K={K} ...")
+    member_list = []
+    with torch.no_grad():
+        for k in range(K):
+            torch.manual_seed(1000 + k)
+            chunks = []
+            for i0 in range(0, N, EVAL_BATCH):
+                sl = slice(i0, min(i0 + EVAL_BATCH, N))
+                kw = dict(num_steps=NUM_STEPS, scheduler_type="edm_karras",
+                          cfg_scale=0.0, apply_constraints=False)
+                if causal_concat:
+                    kw["mu_HR"] = mu_c[sl].to(DEVICE)
+                    kw["baseline_log"] = bl_c[sl].to(DEVICE)
+                o = core.sample(conditioning=None, **kw)
+                chunks.append(o.residual.cpu())
+            member_list.append(torch.cat(chunks, 0))
+            if (k + 1) % 16 == 0:
+                print(f"    member {k+1}/{K}  elapsed={time.time()-t0:.0f}s")
+    ens = torch.stack(member_list, 0)
+    res = evaluate_ensemble(ens.to(DEVICE), mu_c.to(DEVICE), bl_c.to(DEVICE),
+                            dl_c.to(DEVICE), clim_p99, clim_p95)
+    print(f"  [{name}] conv_A F1p99={res['conv_A_F1p99']:.4f}  conv_B F1p99={res['conv_B_F1p99']:.4f}  RMSE={res['rmse']:.4f}")
+    return res
+
+print("[Cell 14] === V5_causal (metrique corrigee) ===")
+res_v5 = eval_baseline("V5_causal", "causal", v5_regression_head,
+                        encoder=v5_encoder, rcn_runner=v5_rcn_runner,
+                        diffusion=v5_diffusion, causal_concat=_v5_cc)
+print("[Cell 14] === noncausal_v4 (metrique corrigee) ===")
+res_nc = eval_baseline("noncausal_v4", "noncausal", nc_regression_head,
+                        diffusion=nc_diffusion, causal_concat=_nc_cc)
+"""
+
+
+CELL_15 = """# >>> Cell 15 : 3-WAY TABLE + references recomputees + VERDICT FINAL
+import json, os
+
+table_metrics = ["conv_A_F1p99", "conv_A_F1p95", "conv_B_F1p99", "conv_B_F1p95",
+                 "rmse", "mae", "pearson_global", "rapsd_distance", "rx1day_bias"]
+rows = {"V6_prime": res_full, "V5_causal": res_v5, "noncausal_v4": res_nc}
+
+print("=" * 88)
+print("3-WAY COMPARISON (Conv A CORRIGEE per-pixel, composition mm, full test split)")
+print("=" * 88)
+hdr = f"{'Metric':24s} " + " ".join(f"{n:>14s}" for n in rows)
+print(hdr)
+lower_better = {"rmse", "mae", "rapsd_distance"}
+for met in table_metrics:
+    vals = {n: rows[n].get(met, float("nan")) for n in rows}
+    _finite = [n for n in vals if vals[n] == vals[n]]
+    best = (min if met in lower_better else max)(_finite, key=lambda n: vals[n]) if _finite else None
+    line = f"{met:24s} " + " ".join(f"{vals[n]:14.4f}" for n in rows)
+    print(line + (f"   <- best: {best}" if best else ""))
+
+# --- Save RECOMPUTED per-gridpoint references (resout REFS_STALE) -----------
+os.makedirs(f"{DRIVE_ROOT}/oracle_v6_prime", exist_ok=True)
+recomputed = {
+    "computed_with": "Conv A per-pixel ETCCDI corrigee + composition mm par membre",
+    "protocol": {"n_test": int(results.get("n_test", 0)),
+                  "K": int(K_BASELINE), "num_steps": int(NUM_STEPS), "gcm": GCM_ID},
+    "noncausal_v4_F1p99_pergrid": float(res_nc["conv_A_F1p99"]),
+    "v5_causal_F1p99_pergrid":    float(res_v5["conv_A_F1p99"]),
+    "noncausal_v4_F1p99_pooled":  float(res_nc["conv_B_F1p99"]),
+    "v5_causal_F1p99_pooled":     float(res_v5["conv_B_F1p99"]),
+}
+REFS_OUT = f"{DRIVE_ROOT}/oracle_v6_prime/recomputed_pergrid_references.json"
+json.dump(recomputed, open(REFS_OUT, "w"), indent=2)
+print(); print(f"[Cell 15] references recomputees sauvegardees -> {REFS_OUT}")
+
+# --- VERDICT FINAL (references recomputees, in-protocol) ---------------------
+pg, pl = results["F1_p99_pergrid"], results["F1_p99_pooled"]
+ref_pg_nc, ref_pg_v5 = recomputed["noncausal_v4_F1p99_pergrid"], recomputed["v5_causal_F1p99_pergrid"]
+ref_pl_nc = recomputed["noncausal_v4_F1p99_pooled"]
+v_pg_final = "PASS" if (pg >= ref_pg_nc and pg >= ref_pg_v5) else "FAIL"
+v_pl_final = "PASS" if pl >= ref_pl_nc else ("PASS_MINIMAL" if pl >= 0.480 else "FAIL")
+
+final = {
+    "gcm": GCM_ID,
+    "co_primary_1_pergrid": {"v6": pg, "ref_noncausal": ref_pg_nc, "ref_v5": ref_pg_v5, "verdict": v_pg_final},
+    "co_primary_2_pooled":  {"v6": pl, "ref_noncausal": ref_pl_nc, "verdict": v_pl_final},
+    "at_least_one_coprimary": (v_pg_final == "PASS" or v_pl_final.startswith("PASS")),
+    "refs_status": "RECOMPUTED_IN_PROTOCOL",
+    "ood_EC-Earth3": "PENDING" if not IS_OOD_RUN else "THIS_IS_THE_OOD_RUN",
+    "three_way": {n: {m: float(rows[n].get(m, float("nan"))) for m in table_metrics} for n in rows},
+    "v6_ablations": {k: results[k] for k in results if str(k).startswith(("A1_", "A2_", "ref_KA"))},
+}
+print(); print("=== VERDICT FINAL (references recomputees) ===")
+print(f"  co-primaire 1 per-gridpoint : {v_pg_final}  (V6={pg:.4f} vs noncausal={ref_pg_nc:.4f} / V5={ref_pg_v5:.4f})")
+print(f"  co-primaire 2 pooled        : {v_pl_final}  (V6={pl:.4f} vs noncausal={ref_pl_nc:.4f})")
+print(f"  >>> au moins un co-primaire : {'PASS' if final['at_least_one_coprimary'] else 'FAIL'}")
+print(f"  OOD EC-Earth3 : {final['ood_EC-Earth3']} (verdict definitif exige le run OOD)")
+
+_fout = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/v6_prime_3way_final_{GCM_ID}.json"
+os.makedirs(os.path.dirname(_fout), exist_ok=True)
+json.dump(final, open(_fout, "w"), indent=2)
+print(f"[Cell 15] verdict final 3-way sauvegarde -> {_fout}")
+"""
+
+
 def build():
     cells = [md(CELL_0), code(CELL_1), code(CELL_2), code(CELL_3), code(CELL_4),
              code(CELL_5), code(CELL_6), code(CELL_7), code(CELL_8), code(CELL_9),
-             code(CELL_10), code(CELL_11), code(CELL_12)]
+             code(CELL_10), code(CELL_11), code(CELL_12),
+             code(CELL_13), code(CELL_14), code(CELL_15)]
     return {"cells": cells,
             "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
                          "language_info": {"name": "python", "version": "3.11"},
