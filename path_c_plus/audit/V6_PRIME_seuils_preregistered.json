@@ -1,0 +1,102 @@
+{
+  "pre_registration": {
+    "schema_version": "v6-prime-2026-06-30",
+    "date_iso": "2026-06-30",
+    "commit_hash_at_registration": "4d1c404c330bf50dc998c7ef74c5ac3cc3e6ed9b",
+    "branch": "four-node-causal",
+    "plan_file": "path_c_plus/audit/PLAN_V6_PRIME.md",
+    "supersedes": "path_c_plus/audit/V6_MVP_seuils_preregistered.json (V6 MVP rejete par audit independant 2026-06-30)",
+    "metric_amendment_declaration": "Amendement DECLARE avant tout run : per-gridpoint ETCCDI devient co-primaire aux cotes du pooled. Justification : audit Recherche + Climat — le pooled est domine par les pixels West Coast (gradient 400->8000 mm/an) et mesure surtout la climatologie orographique ; le per-gridpoint est le standard ETCCDI/NIWA/Rampal 2025. Cet amendement est fait AVANT tout entrainement V6-prime (anti-HARKing, Kerr 1998).",
+    "anti_harking_note": "Seuils et interpretations figes AVANT tout run Stage 1/Stage 2 V6-prime."
+  },
+  "experiment_id": "V6_PRIME_seed42_fullLR_conditioning",
+  "base_protocol": "st_cdgm_path_c_option_c_9node.ipynb seed 42 (V5_causal Path C+ Option C), Stage 1 conserve avec fixes physiques, Stage 2 = EDM identique + 21 canaux LR dans le concat",
+  "structural_change": {
+    "description": "UNet_in passe de [c_in*y_noisy, mu_HR, baseline_log] (3 canaux) a + 21 champs LR upsamples bilineairement (24 canaux)",
+    "rationale": "Audit independant : le vrai goulot est informationnel (toy diffusion : F1@p99 0.053 conditioning pauvre vs 0.639 full-info). Pattern CorrDiff/StormCast/Rampal 2025. Sur-ensemble strict de l'information du baseline noncausal (0.550).",
+    "single_attributable_change": true
+  },
+  "targets_to_beat": {
+    "co_primary_1_per_gridpoint": {
+      "metric": "F1_p99_per_gridpoint_ETCCDI_convA",
+      "noncausal_v4": 0.816,
+      "v5_causal_seed42": 0.841,
+      "PASS": "beat noncausal 0.816 ET ne pas regresser sous V5 0.841",
+      "FAIL": "< 0.841 (regression vs V5)"
+    },
+    "co_primary_2_pooled": {
+      "metric": "F1_p99_pooled_convB",
+      "noncausal_v4": 0.550,
+      "v5_causal_seed42": 0.453,
+      "PASS_MINIMAL": 0.480,
+      "PASS_TARGET": 0.550,
+      "PASS_STRONG": 0.580
+    },
+    "secondary_non_regression": {
+      "RMSE_convB_max_degradation_pct_vs_v5": 5.0,
+      "Pearson_global_convB_max_degradation_pct_vs_v5": 3.0,
+      "others_tracked": ["CRPS", "RAPSD", "Rx1day_bias", "FSS"]
+    },
+    "OOD": {
+      "GCM": "EC-Earth3",
+      "F1_p99_pooled_min": 0.40,
+      "note_norESM2": "interpretation prudente sans SST Tasman (Climat, validation finale)"
+    }
+  },
+  "preregistered_ablations": {
+    "A1_mu_HR_to_zero": {
+      "procedure": "mu_HR -> 0 a l'inference (canal concat mis a zero), memes seeds/batches",
+      "measures": "contribution de la voie causale par-dessus le LR brut",
+      "PREDECLARED_EXPECTED_RESULT": "A1 = 0-2% (Math, validation finale). mu_HR n'est non-redondant que par sa memoire temporelle : le RCN voit toute la sequence T_seq, le cache LR ne stocke que le dernier pas. C'est l'interpretation correcte pre-declaree — pas de sur-vente du narratif causal si A1 est faible.",
+      "if_A1_near_zero": "conclusion honnete : le DAG contribue a l'interpretabilite (Q_phys, do-tests) mais pas a la skill — negative result publiable GMD/AIES"
+    },
+    "A2_lr_fields_to_zero": {
+      "procedure": "lr_fields -> ZERO POST-NORMALISATION (= moyenne du canal en espace physique, 0.0 en espace z-score) a l'inference. JAMAIS zero brut pre-normalisation (champ hors-distribution, recidive bug C3).",
+      "measures": "contribution du LR brut par-dessus mu_HR (attendu : dominante)",
+      "per_channel_variant": "A2 par canal individuel pour detecter les canaux-bequilles (Climat)",
+      "monitored_from_smoke": true
+    }
+  },
+  "mandatory_modifications_M1_M7": {
+    "M1_lr_normalization": "z-score par canal, stats FIGEES sur train ACCESS-CM2, stockees checkpoint + cache, une seule cle config train/eval. PAS de re-normalisation per-GCM a l'inference OOD (masquerait les biais moyens).",
+    "M2_all_concat_sites_one_commit": "forward_edm, sample, _sample_edm_karras, _sample_dpm_solver (x2), chemins contrastif + cond_dropout — un commit, re-grep de verification",
+    "M3_inference_parity": "sample() recoit les vrais lr_fields ; assert + sanity-eval 1 batch avant full run ; existing_cache preserve lr_fields au resume",
+    "M4_no_lr_dropout": "PAS de dropout de canaux LR pour forcer l'usage de mu_HR (biais methodologique — A1 mesurerait un artefact)",
+    "M5_A1_interpretation_predeclared": "voir preregistered_ablations.A1",
+    "M6_A2_from_smoke": "A2 monitore des le SMOKE, pas seulement en eval finale",
+    "M7_upsample_batch_time": "cache stocke LR natif [N,21,23,26] (~700MB fp32) ; F.interpolate au batch-time (~ms) ; pre-compute HR (36GB) exclu"
+  },
+  "risk_1_and_contingency": {
+    "risk": "delta_target = HR - baseline - mu_HR force la diffusion a annuler l'erreur d'un mu_HR pauvre avant d'ajouter du detail (ML, validation finale)",
+    "v6_prime_0_decision": "cible residuelle INCHANGEE (principe un-seul-changement-attribuable)",
+    "preregistered_variant_v6_prime_1": "delta = HR - baseline, mu_HR conditioning seul. Declencheur : SMOKE ou eval montre D_y anti-correle a mu_HR (la diffusion passe sa capacite a annuler mu_HR). Seuil declencheur : corr(D_y, mu_HR) < -0.3 sur le val set."
+  },
+  "physics_fixes_P1_P4": {
+    "P1_signed_dot_product": "(u850*dh/dx + v850*dh/dy) avec facteur cos(lat) sur d/dlon — remplace u850*|grad_h| (perdait le signe soulevement/subsidence)",
+    "P2_sftlf_normalization": "si max(sftlf) > 1.5, diviser par 100 (CMIP fournit des %)",
+    "P3_conditional_instability": "theta_e_850 - theta_e_star_sat_500 (saturated equivalent potential temperature a 500 hPa) — remplace mucape_proxy=theta_e850-theta_e500 (mal defini, valeurs negatives sur profil AR)",
+    "P4_drop_theta_w": "theta_w_850 droppe (approximation fausse de +14K vs Davies-Jones 2008 exact)",
+    "P5_kept_but_info_neutral": "w_700 et T_850-T_500 conserves (deja codes, inoffensifs) mais documentes comme information-neutres (combinaisons lineaires d'entrees presentes)",
+    "bonus_ivt_72h": "IVT moyenne 72h (persistance AR) ajoutee si preproc < 1h, sinon V6'.1"
+  },
+  "audit_validation_final": {
+    "date": "2026-06-30",
+    "verdicts": {
+      "ML": {"verdict": "GO-AVEC-MODIFS", "p_at_least_one_coprimary": 0.75},
+      "Math": {"verdict": "GO-AVEC-MODIFS", "p_at_least_one_coprimary": 0.80},
+      "Recherche": {"verdict": "GO", "p_at_least_one_coprimary": 0.75},
+      "IA": {"verdict": "CODE-FAISABLE", "p_at_least_one_coprimary": 0.55},
+      "Climat": {"verdict": "GO-AVEC-MODIFS", "p_at_least_one_coprimary": 0.80}
+    },
+    "median_p": 0.75,
+    "v6_mvp_rejected_p_range": "0.07-0.35 (median ~0.15)"
+  },
+  "kill_switch": {
+    "criterion": "si V6-prime < V5_causal sur LES DEUX co-primaires -> stop, publier V5 + audit comme negative result",
+    "after_seed": 42
+  },
+  "compute_budget_hours_A100": {
+    "preproc": 5, "stage1A": 15, "cache_o3": 1, "smoke": 2, "stage2_full": 10, "eval_ablations_ood": 3,
+    "total": 36
+  }
+}

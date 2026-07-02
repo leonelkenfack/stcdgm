@@ -96,6 +96,7 @@ class CausalDiffusionDecoder(nn.Module):
         anti_checkerboard: bool = False,
         edm_config: Optional["EDMConfig"] = None,  # noqa: F821
         causal_concat: bool = False,
+        lr_conditioning_channels: int = 0,
     ) -> None:
         super().__init__()
         # ``causal_concat`` activates the Two-Stage architecture (hyperplan
@@ -105,8 +106,28 @@ class CausalDiffusionDecoder(nn.Module):
         # channel). The cross-attention conditioning path is then unused —
         # causality flows architecturally through ``mu_HR`` (which is itself
         # a function of ``H_T(A_dag)`` via ``GraphToGridDecoder``).
+        #
+        # V6' PIVOT (audit indépendant 2026-06-30) — ``lr_conditioning_channels``:
+        # when > 0, the UNet input additionally concatenates that many
+        # bilinearly-upsampled LR fields (already z-scored with train-frozen
+        # stats by the pipeline, M1) :
+        #   [c_in·y_noisy, mu_HR, baseline_log, LR_1..LR_n]
+        # Rationale : the real bottleneck of the causal Stage 2 was
+        # INFORMATIONAL (3 channels vs the noncausal's full-info mu_HR).
+        # This is the CorrDiff/StormCast/Rampal-2025 conditioning pattern —
+        # a strict superset of both the causal and noncausal information.
+        # Opt-in : default 0 = bit-identical to the 9-node seed 42 protocol.
         self.causal_concat = causal_concat
-        unet_in_channels = in_channels + 2 if causal_concat else in_channels
+        self.lr_conditioning_channels = int(lr_conditioning_channels)
+        if self.lr_conditioning_channels > 0 and not causal_concat:
+            raise ValueError(
+                "lr_conditioning_channels > 0 requires causal_concat=True "
+                "(V6' pivot extends the concat pathway)"
+            )
+        unet_in_channels = (
+            in_channels + 2 + self.lr_conditioning_channels
+            if causal_concat else in_channels
+        )
         unet_out_channels = in_channels  # always residual ``delta`` of in_channels
 
         self.in_channels = in_channels
@@ -399,6 +420,62 @@ class CausalDiffusionDecoder(nn.Module):
     # EDM (Karras 2022) path. Activated by ``scheduler_type='edm_karras'``.
     # ------------------------------------------------------------------
 
+    def _build_causal_concat_input(
+        self,
+        x_scaled: Tensor,
+        mu_HR: Tensor,
+        baseline_log: Tensor,
+        lr_fields: Optional[Tensor] = None,
+    ) -> Tensor:
+        """SINGLE shared builder for the causal-concat UNet input (M2, V6').
+
+        All call sites (forward_edm, _sample_edm_karras, _sample_dpm_solver)
+        MUST route through this method so the channel layout can never
+        diverge between training and inference (leçon C3/C8).
+
+        Layout : ``[x_scaled, mu_HR, baseline_log(, LR_1..LR_n)]``.
+
+        ``lr_fields`` : ``[B, n, H, W]`` — REQUIRED iff
+        ``self.lr_conditioning_channels > 0`` (V6' pivot), forbidden otherwise.
+        The fields must already be z-scored (pipeline train-frozen stats, M1)
+        and bilinearly upsampled to (H, W) by the caller.
+        """
+        if mu_HR.shape != x_scaled.shape:
+            raise ValueError(
+                f"mu_HR shape {tuple(mu_HR.shape)} != x_noisy {tuple(x_scaled.shape)}"
+            )
+        if baseline_log.shape != x_scaled.shape:
+            raise ValueError(
+                f"baseline_log shape {tuple(baseline_log.shape)} != "
+                f"x_noisy {tuple(x_scaled.shape)}"
+            )
+        parts = [x_scaled, mu_HR, baseline_log]
+        if self.lr_conditioning_channels > 0:
+            if lr_fields is None:
+                raise ValueError(
+                    f"lr_conditioning_channels={self.lr_conditioning_channels} "
+                    "but lr_fields is None — V6' requires the LR fields at "
+                    "EVERY forward (training AND sampling; M3 inference parity)"
+                )
+            if (
+                lr_fields.shape[0] != x_scaled.shape[0]
+                or lr_fields.shape[1] != self.lr_conditioning_channels
+                or lr_fields.shape[-2:] != x_scaled.shape[-2:]
+            ):
+                raise ValueError(
+                    f"lr_fields shape {tuple(lr_fields.shape)} incompatible: "
+                    f"expected [B={x_scaled.shape[0]}, "
+                    f"{self.lr_conditioning_channels}, "
+                    f"{x_scaled.shape[-2]}, {x_scaled.shape[-1]}]"
+                )
+            parts.append(lr_fields.to(dtype=x_scaled.dtype))
+        elif lr_fields is not None:
+            raise ValueError(
+                "lr_fields provided but lr_conditioning_channels=0 — "
+                "decoder was not built for LR conditioning"
+            )
+        return torch.cat(parts, dim=1)
+
     def forward_edm(
         self,
         x_noisy: Tensor,
@@ -407,6 +484,7 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        lr_fields: Optional[Tensor] = None,
     ) -> Tensor:
         """EDM denoiser ``D(x; sigma, c)`` (Karras Eq. 7).
 
@@ -442,23 +520,13 @@ class CausalDiffusionDecoder(nn.Module):
                 raise ValueError(
                     "causal_concat=True requires mu_HR and baseline_log"
                 )
-            # Verify shapes match x_noisy
-            if mu_HR.shape != x_noisy.shape:
-                raise ValueError(
-                    f"mu_HR shape {tuple(mu_HR.shape)} != x_noisy "
-                    f"{tuple(x_noisy.shape)}"
-                )
-            if baseline_log.shape != x_noisy.shape:
-                raise ValueError(
-                    f"baseline_log shape {tuple(baseline_log.shape)} != "
-                    f"x_noisy {tuple(x_noisy.shape)}"
-                )
             # Concat along channel dim: x_noisy is preconditioned (c_in),
             # mu_HR and baseline_log are passed through unchanged (they are
             # already at the right scale for the network — they live in the
-            # same log1p space as the diffusion target).
-            unet_input = torch.cat(
-                [c_in * x_noisy, mu_HR, baseline_log], dim=1
+            # same log1p space as the diffusion target). V6' : lr_fields
+            # (z-scored, upsampled) appended via the SINGLE shared builder.
+            unet_input = self._build_causal_concat_input(
+                c_in * x_noisy, mu_HR, baseline_log, lr_fields=lr_fields
             )
         else:
             unet_input = c_in * x_noisy
@@ -519,6 +587,7 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        lr_fields: Optional[Tensor] = None,
         *,
         return_components: bool = False,
     ) -> Tensor:
@@ -589,6 +658,7 @@ class CausalDiffusionDecoder(nn.Module):
             conditioning_spatial=conditioning_spatial,
             mu_HR=mu_HR,
             baseline_log=baseline_log,
+            lr_fields=lr_fields,
         )
 
         if not torch.isfinite(D_y).all():
@@ -752,6 +822,7 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        lr_fields: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Génère une sortie par diffusion conditionnée.
@@ -768,6 +839,17 @@ class CausalDiffusionDecoder(nn.Module):
             if mu_HR is None or baseline_log is None:
                 raise ValueError(
                     "sample(causal_concat=True) requires mu_HR and baseline_log"
+                )
+            # V6' M3 (inference parity) : if the decoder was built with LR
+            # conditioning, sampling MUST receive the real lr_fields — a
+            # silent None here would mean train/inference distribution split
+            # (leçon C3). Fail loudly.
+            if self.lr_conditioning_channels > 0 and lr_fields is None:
+                raise ValueError(
+                    f"M3 inference parity: decoder built with "
+                    f"lr_conditioning_channels={self.lr_conditioning_channels} "
+                    "but sample() received lr_fields=None. Pass the z-scored, "
+                    "upsampled LR fields used at training."
                 )
         else:
             conditioning = self._prepare_conditioning(conditioning)
@@ -809,6 +891,7 @@ class CausalDiffusionDecoder(nn.Module):
                 conditioning_spatial=conditioning_spatial,
                 mu_HR=mu_HR,
                 baseline_log=baseline_log,
+                lr_fields=lr_fields,
             )
         if scheduler_type == "edm_restart":
             # V5 Track A4 — Restart sampling (Xu 2023, arXiv:2306.14878).
@@ -824,6 +907,7 @@ class CausalDiffusionDecoder(nn.Module):
                 conditioning_spatial=conditioning_spatial,
                 mu_HR=mu_HR,
                 baseline_log=baseline_log,
+                lr_fields=lr_fields,
                 use_restart=True,
             )
         if scheduler_type == "edm":
@@ -854,6 +938,7 @@ class CausalDiffusionDecoder(nn.Module):
                 cfg_scale=cfg_scale,
                 mu_HR=mu_HR,
                 baseline_log=baseline_log,
+                lr_fields=lr_fields,
             )
         
         # Original DDPM sampling
@@ -949,6 +1034,7 @@ class CausalDiffusionDecoder(nn.Module):
         conditioning_spatial: Optional[Tensor] = None,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        lr_fields: Optional[Tensor] = None,
         *,
         use_restart: bool = False,
         restart_cycles: int = 2,
@@ -1006,6 +1092,7 @@ class CausalDiffusionDecoder(nn.Module):
                 conditioning_spatial=conditioning_spatial,
                 mu_HR=mu_HR,
                 baseline_log=baseline_log,
+                lr_fields=lr_fields,
             )
 
         if use_restart:
@@ -1173,6 +1260,7 @@ class CausalDiffusionDecoder(nn.Module):
         cfg_scale: float = 0.0,
         mu_HR: Optional[Tensor] = None,
         baseline_log: Optional[Tensor] = None,
+        lr_fields: Optional[Tensor] = None,
     ) -> DiffusionOutput:
         """
         Phase E1: DPM-Solver++ sampling for ultra-fast inference.
@@ -1274,7 +1362,9 @@ class CausalDiffusionDecoder(nn.Module):
         # Sampling loop with DPM-Solver++
         for t in dpm_scheduler.timesteps:
             if self.causal_concat:
-                unet_input = torch.cat([sample, mu_HR, baseline_log], dim=1)
+                unet_input = self._build_causal_concat_input(
+                    sample, mu_HR, baseline_log, lr_fields=lr_fields
+                )
                 cond_out = self.unet(
                     sample=unet_input,
                     timestep=t,
@@ -1282,8 +1372,8 @@ class CausalDiffusionDecoder(nn.Module):
                     class_labels=class_labels,
                 ).sample
                 if use_cfg:
-                    unet_input_u = torch.cat(
-                        [sample, mu_uncond, baseline_log], dim=1
+                    unet_input_u = self._build_causal_concat_input(
+                        sample, mu_uncond, baseline_log, lr_fields=lr_fields
                     )
                     uncond_out = self.unet(
                         sample=unet_input_u,

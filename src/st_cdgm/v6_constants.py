@@ -29,26 +29,34 @@ NONCAUSAL_15_VARS = [
     "W500",
 ]
 
-# --- 6 V6 features Climat (obligatoires) --------------------------------- #
+# --- 6 V6' features Climat (obligatoires — noms POST-fixes P1/P3/P4) ------ #
+# P3 : conditional_instability = θe850 − θe*_sat500 (remplace mucape_proxy)
+# P1 : w_orog_signed_LR_repr = (u,v)·∇h signé (remplace u850·|∇h|)
+# P4 : theta_w_850 DROPPÉ (approximation fausse de +14 K)
 V6_CLIMAT_OBLIGATORY = [
     "w_700",
     "theta_e_850",
     "theta_e_500",
-    "mucape_proxy",
+    "conditional_instability",
     "T_850_minus_T_500",
-    "u850_grad_orog_HR_LR_repr",
+    "w_orog_signed_LR_repr",
 ]
 
-# --- 1 V6 feature optionnelle (§4.4) ------------------------------------- #
-V6_CLIMAT_OPTIONAL = [
-    "theta_w_850",
+# --- Bonus V6' (audit Climat validation finale) — persistance AR ---------- #
+V6_CLIMAT_BONUS = [
+    "ivt_persistence_72h",
 ]
 
 # --- V6 LR vars total (obligatoires) ------------------------------------- #
 V6_LR_VARS_OBLIGATORY = NONCAUSAL_15_VARS + V6_CLIMAT_OBLIGATORY  # 15 + 6 = 21
 
-# --- V6 LR vars complet (avec optionnel) --------------------------------- #
-V6_LR_VARS_FULL = V6_LR_VARS_OBLIGATORY + V6_CLIMAT_OPTIONAL  # 22
+# --- V6' LR vars complet (avec bonus IVT-72h) ----------------------------- #
+V6_LR_VARS_FULL = V6_LR_VARS_OBLIGATORY + V6_CLIMAT_BONUS  # 22
+
+# --- V6' Stage 2 conditioning ---------------------------------------------- #
+# Nombre de canaux LR concaténés dans l'UNet de diffusion (pivot V6').
+# = len(V6_LR_VARS_FULL) — UNet_in = [c_in·y_noisy, mu_HR, baseline] + ces canaux.
+V6_PRIME_LR_CONDITIONING_CHANNELS = len(V6_LR_VARS_FULL)  # 22
 
 # --- V6 graph node types ------------------------------------------------- #
 # Existing 9-node : GP850, GP500, GP250, Q850, W500, IVT (6 dynamic) + SP_HR
@@ -84,8 +92,8 @@ def assert_lr_vars_match(yaml_lr_vars: list[str], require_optional: bool = False
     yaml_lr_vars : list[str]
         List captured from a config YAML.
     require_optional : bool
-        If True, also expects ``V6_CLIMAT_OPTIONAL`` features. Default False
-        (= V6 MVP obligatoire only).
+        If True, also expects ``V6_CLIMAT_BONUS`` features (ivt_persistence_72h).
+        Default False (= 21 vars obligatoires only).
     """
     expected = V6_LR_VARS_FULL if require_optional else V6_LR_VARS_OBLIGATORY
     if set(yaml_lr_vars) != set(expected):
@@ -103,7 +111,8 @@ def assert_lr_vars_match(yaml_lr_vars: list[str], require_optional: bool = False
 __all__ = [
     "NONCAUSAL_15_VARS",
     "V6_CLIMAT_OBLIGATORY",
-    "V6_CLIMAT_OPTIONAL",
+    "V6_CLIMAT_BONUS",
+    "V6_PRIME_LR_CONDITIONING_CHANNELS",
     "V6_LR_VARS_OBLIGATORY",
     "V6_LR_VARS_FULL",
     "V6_DYNAMIC_NODE_TYPES",

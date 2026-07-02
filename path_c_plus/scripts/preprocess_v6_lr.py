@@ -134,17 +134,45 @@ def compute_theta_e_at(
 
 
 # --------------------------------------------------------------------------- #
-# Feature 4 — mucape_proxy
+# Feature 4 — conditional_instability (P3 fix, audit Climat V6')
+#   theta_e_850 − theta_e*_sat_500 (saturated equivalent potential temp at 500)
+#   Remplace l'ancien mucape_proxy = theta_e_850 − theta_e_500 qui était mal
+#   défini (θe500 avec q observé → valeurs négatives sur profil AR typique).
+#   Convention : > 0 = instabilité conditionnelle (parcelle 850 saturée plus
+#   chaude que l'environnement saturé à 500).
 # --------------------------------------------------------------------------- #
-def compute_mucape_proxy(theta_e_850: xr.DataArray, theta_e_500: xr.DataArray) -> xr.DataArray:
-    mucape = theta_e_850 - theta_e_500
-    mucape.attrs = {
-        "long_name": "MUCAPE_proxy",
+def _q_saturation(T_K: xr.DataArray, p_hPa: float) -> xr.DataArray:
+    """Saturation specific humidity (kg/kg) at temperature T and pressure p.
+
+    es via Wexler/Bolton approximation (consistent with _theta_e_bolton_1980),
+    q_sat = 0.622·es / (p − 0.378·es).
+    """
+    es = 6.112 * np.exp(17.67 * (T_K - 273.15) / (T_K - 29.65))  # hPa
+    q_sat = 0.622 * es / (p_hPa - 0.378 * es)
+    return q_sat.clip(min=EPS, max=0.05)
+
+
+def compute_conditional_instability(
+    T_850: xr.DataArray, q_850: xr.DataArray, T_500: xr.DataArray
+) -> xr.DataArray:
+    """P3 (V6') : θe_850(q observé) − θe*_500(q saturé).
+
+    θe* (saturated equivalent potential temperature) évalue l'environnement à
+    500 hPa comme s'il était saturé — le critère standard d'instabilité
+    conditionnelle (θe_low > θe*_mid ⇒ instable pour une parcelle saturée).
+    """
+    theta_e_850 = _theta_e_bolton_1980(T_850, q_850, 850.0)
+    q_sat_500 = _q_saturation(T_500, 500.0)
+    theta_e_star_500 = _theta_e_bolton_1980(T_500, q_sat_500, 500.0)
+    out = theta_e_850 - theta_e_star_500
+    out.attrs = {
+        "long_name": "conditional_instability_thetae850_minus_thetaestar500",
         "units": "K",
-        "formula": "theta_e_850 - theta_e_500",
-        "source": "V6 MVP preprocess (proxy CAPE Climat verbatim)",
+        "formula": "theta_e_850(q_obs) - theta_e_star_500(q_sat(T_500))",
+        "note": "P3 fix audit Climat V6' — remplace mucape_proxy (mal defini)",
+        "source": "V6' preprocess",
     }
-    return mucape
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -165,65 +193,97 @@ def compute_T_diff(T_850: xr.DataArray, T_500: xr.DataArray) -> xr.DataArray:
 # --------------------------------------------------------------------------- #
 # Feature 6 — u850·∇h_HR (foehn dynamique, résolution-cohérent)
 # --------------------------------------------------------------------------- #
-def compute_grad_orography_HR(orog_HR: xr.DataArray, mask_ocean: xr.DataArray) -> xr.DataArray:
-    """Compute ∇h_HR magnitude with ocean mask applied.
+EARTH_M_PER_DEG = 111_000.0  # metres per degree of latitude
 
-    Climat ronde 4 : ``mask_ocean`` (where land=1, ocean=0) avoids aberrant
-    gradient at coast.
 
-    UNIT WARNING : if coords are in degrees, the output is in m / deg (not
-    m / m). For a physical gradient (dimensionless slope), the caller should
-    multiply by ~1 / (111000 m / deg) for lat ; lon scaling depends on cos(lat).
-    The pipeline normalizes features downstream so this scaling is absorbed,
-    BUT do not interpret raw values as ``tan(slope)`` without conversion.
+def compute_grad_orography_components_HR(
+    orog_HR: xr.DataArray, mask_ocean: xr.DataArray
+) -> tuple[xr.DataArray, xr.DataArray]:
+    """P1 (V6') : SIGNED orography gradient components ∂h/∂x, ∂h/∂y in m/m.
+
+    - ∂h/∂y (northward) = differentiate(lat) / 111000
+    - ∂h/∂x (eastward)  = differentiate(lon) / (111000 · cos(lat))
+      → le facteur cos(lat) corrige l'anisotropie (~37% à 43°S sinon)
+
+    Retourne les COMPOSANTES SIGNÉES (pas la magnitude) — le signe distingue
+    soulèvement amont vs subsidence foehn aval (audit Climat V6').
     """
-    # Use xarray differentiate (central differences in lat/lon)
-    # Assume orog_HR has lat, lon dims with metres values.
-    # mask_ocean broadcast : 1 on land, 0 on ocean.
-    # We compute grad on the masked orography (ocean→0 so coastal grad is dominated by land).
     orog_land = orog_HR * mask_ocean
-    dh_dlat = orog_land.differentiate("lat") if "lat" in orog_land.dims else orog_land.differentiate("y")
-    dh_dlon = orog_land.differentiate("lon") if "lon" in orog_land.dims else orog_land.differentiate("x")
-    grad_mag = np.sqrt(dh_dlat ** 2 + dh_dlon ** 2) * mask_ocean
-    grad_mag.attrs = {
-        "long_name": "magnitude_orography_gradient_HR_masked_ocean",
-        "units": "m / deg if coords in degrees ELSE m / grid_unit",
-        "physical_unit_note": "Multiply by ~1/111000 (m/deg) to get tan(slope) for lat. Pipeline normalizes.",
-        "source": "V6 MVP preprocess — Climat ronde 4 mask_ocean fix",
+    lat_name = "lat" if "lat" in orog_land.dims else "y"
+    lon_name = "lon" if "lon" in orog_land.dims else "x"
+
+    dh_dlat = orog_land.differentiate(lat_name)   # m / deg
+    dh_dlon = orog_land.differentiate(lon_name)   # m / deg
+
+    # Convert to physical slope (m/m)
+    dh_dy = (dh_dlat / EARTH_M_PER_DEG) * mask_ocean
+    coslat = np.cos(np.deg2rad(orog_land[lat_name]))
+    dh_dx = (dh_dlon / (EARTH_M_PER_DEG * coslat)) * mask_ocean
+
+    dh_dx.attrs = {
+        "long_name": "signed_eastward_orography_slope_HR",
+        "units": "m/m (dimensionless slope)",
+        "note": "cos(lat) applied — P1 fix audit Climat V6'",
     }
-    return grad_mag
+    dh_dy.attrs = {
+        "long_name": "signed_northward_orography_slope_HR",
+        "units": "m/m (dimensionless slope)",
+    }
+    return dh_dx, dh_dy
 
 
-def compute_u850_grad_orog_HR(
+def compute_wind_dot_grad_orog_HR(
     u850_LR: xr.DataArray,
-    grad_orog_HR: xr.DataArray,
-    target_hr_shape: tuple[int, int] | None = None,
+    v850_LR: xr.DataArray,
+    dh_dx: xr.DataArray,
+    dh_dy: xr.DataArray,
 ) -> xr.DataArray:
-    """Resolution-coherent foehn dynamique :
-        u850_HR_bilin (interp 4km) · ∇h_HR_4km
+    """P1 (V6') : SIGNED foehn/uplift proxy — (u,v)·∇h en HR.
 
-    Climat ronde 4 : ``u850_HR_bilin · ∇h_HR_4km``, sinon scale mismatch
-    (Elvidge-Renfrew 2016 BAMS 97:455).
+        w_orog ≈ u850·∂h/∂x + v850·∂h/∂y     [m/s]
 
-    Parameters
-    ----------
-    u850_LR : DataArray
-        LR u-wind at 850 hPa.
-    grad_orog_HR : DataArray
-        HR orography gradient magnitude (with ocean masked).
-    target_hr_shape : (H, W) optional override; otherwise inferred from grad_orog_HR.
+    C'est la vitesse verticale orographique linéaire (Smith & Barstad 2004) :
+    > 0 = soulèvement forcé (upwind), < 0 = subsidence foehn (downwind).
+    Remplace l'ancien u850·|∇h| qui perdait le signe (soulèvement côte Ouest
+    et subsidence Est donnaient la même valeur — audit Climat V6').
+
+    Resolution-coherent : u/v interpolés bilinéairement sur la grille HR avant
+    le produit (Elvidge-Renfrew 2016 BAMS 97:455).
     """
-    # Bilinear interp u850_LR to HR grid (using grad_orog_HR's coords as target).
-    u850_HR = u850_LR.interp_like(grad_orog_HR, method="linear")
-    out = u850_HR * grad_orog_HR
-    out.attrs = {
-        "long_name": "u850_HR_bilin_times_grad_orog_HR_4km_foehn_dynamique",
-        "units": "m/s · (orography grad units)",
-        "formula": "(u850 bilin-interp HR) · ∇h_HR_4km",
-        "reference": "Elvidge-Renfrew 2016 BAMS 97:455 — resolution-coherent",
-        "source": "V6 MVP preprocess",
+    u_HR = u850_LR.interp_like(dh_dx, method="linear")
+    v_HR = v850_LR.interp_like(dh_dy, method="linear")
+    w_orog = u_HR * dh_dx + v_HR * dh_dy
+    w_orog.attrs = {
+        "long_name": "signed_orographic_vertical_velocity_wind_dot_grad_h",
+        "units": "m/s",
+        "formula": "u850_HR_bilin * dh/dx + v850_HR_bilin * dh/dy (signed)",
+        "reference": "Smith-Barstad 2004 ; Elvidge-Renfrew 2016 BAMS 97:455",
+        "note": "P1 fix audit Climat V6' — remplace u850*|grad_h| (signe perdu)",
+        "source": "V6' preprocess",
     }
-    return out
+    return w_orog
+
+
+def compute_ivt_persistence_72h(
+    q_850: xr.DataArray, u_850: xr.DataArray, v_850: xr.DataArray,
+    time_dim: str = "time",
+) -> xr.DataArray:
+    """Bonus V6' (audit Climat, validation finale) : persistance AR.
+
+    Proxy IVT bas-niveau = q850·|V850| (kg/kg · m/s), moyenné sur 72h
+    (3 pas quotidiens, fenêtre right-aligned = ne voit que le passé — pas de
+    fuite future). La DURÉE du stalling des ARs domine l'accumulation des
+    extrêmes West Coast (Weather Clim. Extremes 2024).
+    """
+    ivt_proxy = q_850 * np.sqrt(u_850 ** 2 + v_850 ** 2)
+    ivt_72h = ivt_proxy.rolling({time_dim: 3}, min_periods=1).mean()
+    ivt_72h.attrs = {
+        "long_name": "low_level_moisture_flux_72h_mean_AR_persistence_proxy",
+        "units": "kg/kg * m/s",
+        "formula": "rolling_mean_3d( q850 * sqrt(u850^2+v850^2) ), right-aligned (past-only)",
+        "source": "V6' preprocess — audit Climat validation finale",
+    }
+    return ivt_72h
 
 
 # --------------------------------------------------------------------------- #
@@ -335,33 +395,50 @@ def main(args: argparse.Namespace) -> None:
         ds_lr[args.t_500_name], ds_lr[args.q_500_name], p_hPa=500.0, level_label="500hPa"
     )
 
-    print("[V6 preproc] Feature 4 : mucape_proxy")
-    mucape = compute_mucape_proxy(theta_e_850, theta_e_500)
+    print("[V6' preproc] Feature 4 : conditional_instability (P3 fix)")
+    cond_instab = compute_conditional_instability(
+        ds_lr[args.t_850_name], ds_lr[args.q_850_name], ds_lr[args.t_500_name]
+    )
 
     print("[V6 preproc] Feature 5 : T_850 − T_500")
     t_diff = compute_T_diff(ds_lr[args.t_850_name], ds_lr[args.t_500_name])
 
-    # ----- mask_ocean + ∇h_HR (HR static) -----
-    print("[V6 preproc] mask_ocean (Climat ronde 4)")
+    # ----- mask_ocean + ∇h_HR (HR static) — P2 fix sftlf -----
+    print("[V6' preproc] mask_ocean (P2 fix : normalisation sftlf %)")
     if args.land_sea_mask_name in ds_static_hr.data_vars:
         mask_ocean = ds_static_hr[args.land_sea_mask_name].astype("float32")
+        # P2 (audit Climat V6') : CMIP sftlf est en % (0-100), pas en fraction.
+        if float(mask_ocean.max()) > 1.5:
+            print(f"  P2 fix : sftlf max = {float(mask_ocean.max()):.1f} > 1.5 → division par 100")
+            mask_ocean = mask_ocean / 100.0
+        mask_ocean = mask_ocean.clip(min=0.0, max=1.0)
     else:
         # Fallback : threshold orography > 0 as land
         print(f"  WARN : '{args.land_sea_mask_name}' not in static_HR — deriving from orog>0")
         mask_ocean = (ds_static_hr[args.orog_name] > 0.0).astype("float32")
-    mask_ocean.attrs = {"long_name": "land_mask_1land_0ocean", "source": "V6 MVP preproc"}
+    mask_ocean.attrs = {"long_name": "land_mask_1land_0ocean_fraction", "source": "V6' preproc (P2 fix)"}
 
-    print("[V6 preproc] ∇h_HR with mask_ocean")
-    grad_orog_HR = compute_grad_orography_HR(ds_static_hr[args.orog_name], mask_ocean)
+    print("[V6' preproc] ∂h/∂x, ∂h/∂y signés avec cos(lat) (P1 fix)")
+    dh_dx, dh_dy = compute_grad_orography_components_HR(ds_static_hr[args.orog_name], mask_ocean)
 
-    print("[V6 preproc] Feature 6 : u850_HR_bilin · ∇h_HR_4km (Climat ronde 4)")
-    u850_grad = compute_u850_grad_orog_HR(ds_lr[args.u_850_name], grad_orog_HR)
+    print("[V6' preproc] Feature 6 : (u,v)·∇h signé — vitesse verticale orographique (P1 fix)")
+    w_orog = compute_wind_dot_grad_orog_HR(
+        ds_lr[args.u_850_name], ds_lr[args.v_850_name], dh_dx, dh_dy
+    )
 
-    # ----- Optional Feature 7 : theta_w_850 -----
-    theta_w_850 = None
-    if args.theta_w_850:
-        print("[V6 preproc] Feature 7 (optional §4.4) : theta_w_850")
-        theta_w_850 = compute_theta_w_850(ds_lr[args.t_850_name], ds_lr[args.q_850_name])
+    # ----- Bonus V6' : persistance AR (IVT proxy 72h) -----
+    ivt_72h = None
+    if not args.no_ivt_72h:
+        print("[V6' preproc] Bonus : IVT proxy moyenné 72h (persistance AR)")
+        time_dim = "time" if "time" in ds_lr.dims else list(ds_lr.dims)[0]
+        ivt_72h = compute_ivt_persistence_72h(
+            ds_lr[args.q_850_name], ds_lr[args.u_850_name], ds_lr[args.v_850_name],
+            time_dim=time_dim,
+        )
+
+    # P4 (audit Climat V6') : theta_w_850 DROPPÉ — l'approximation était fausse
+    # de +14 K vs Davies-Jones 2008 exact. La fonction reste dans le module
+    # pour référence mais n'est plus appelée.
 
     # ----- Region masks (West/East/North/South NZ) for r_φ broadcast -----
     print("[V6 preproc] Region masks for r_φ (S1.1 StructuredResidualHead)")
@@ -376,37 +453,35 @@ def main(args: argparse.Namespace) -> None:
         },
     )
 
-    # ----- Write LR augmented (original + 6 V6 features) -----
+    # ----- Write LR augmented (original + V6' features) -----
     ds_lr_aug = ds_lr.copy()
     ds_lr_aug["w_700"] = w_700
     ds_lr_aug["theta_e_850"] = theta_e_850
     ds_lr_aug["theta_e_500"] = theta_e_500
-    ds_lr_aug["mucape_proxy"] = mucape
+    ds_lr_aug["conditional_instability"] = cond_instab       # P3 fix (ex mucape_proxy)
     ds_lr_aug["T_850_minus_T_500"] = t_diff
-    ds_lr_aug["u850_grad_orog_HR_LR_repr"] = u850_grad.coarsen(
-        # Decimate HR back to LR for storage (we'll re-interp at use-time)
-        # NOTE: u850·∇h_HR is HR-resolution feature; we store the LR
-        # representation for compactness — the model will use the LR repr
-        # and resolve grad at HR via the existing static_HR_v6 dataset.
-        # Actually, to keep it simple, we save it as HR feature in the static
-        # dataset instead — see below.
-        # Here we just keep a placeholder; the real HR feature is in static_HR_v6.
-    ).mean() if False else u850_grad.interp_like(ds_lr[args.t_850_name], method="linear")
-    ds_lr_aug["u850_grad_orog_HR_LR_repr"].attrs = {
-        "long_name": "u850_grad_orog_HR_resampled_back_to_LR_for_pipeline_storage",
-        "note": "Original HR resolution conserved in static_HR_v6",
-    }
-    if theta_w_850 is not None:
-        ds_lr_aug["theta_w_850"] = theta_w_850
+    # w_orog est en résolution HR ; on stocke la représentation LR pour le
+    # pipeline (re-interp bilinéaire cohérente au chargement). La version HR
+    # exacte est conservée dans static_HR_v6 (variable temporelle → gros ;
+    # on garde LR ici, le modèle voit déjà ∇h via le conditioning statique).
+    ds_lr_aug["w_orog_signed_LR_repr"] = w_orog.interp_like(
+        ds_lr[args.t_850_name], method="linear"
+    )
+    ds_lr_aug["w_orog_signed_LR_repr"].attrs = dict(w_orog.attrs)
+    ds_lr_aug["w_orog_signed_LR_repr"].attrs["note"] = (
+        "LR representation of signed (u,v)·∇h — P1 fix. HR slope components in static_HR_v6."
+    )
+    if ivt_72h is not None:
+        ds_lr_aug["ivt_persistence_72h"] = ivt_72h           # Bonus V6'
 
-    print(f"[V6 preproc] LR augmented variables : {list(ds_lr_aug.data_vars)[:15]}...")
-    print(f"  Total LR vars : {len(ds_lr_aug.data_vars)} (original {len(ds_lr.data_vars)} + V6)")
+    print(f"[V6' preproc] LR augmented variables : {list(ds_lr_aug.data_vars)[:15]}...")
+    print(f"  Total LR vars : {len(ds_lr_aug.data_vars)} (original {len(ds_lr.data_vars)} + V6')")
 
-    # ----- Write static_HR_v6 (original + mask_ocean + grad_orog_HR + region_masks) -----
+    # ----- Write static_HR_v6 (original + mask_ocean + slope components + region_masks) -----
     ds_static_hr_v6 = ds_static_hr.copy()
     ds_static_hr_v6["mask_ocean"] = mask_ocean
-    ds_static_hr_v6["grad_orog_HR"] = grad_orog_HR
-    ds_static_hr_v6["u850_grad_orog_HR_4km"] = u850_grad  # HR resolution preserved
+    ds_static_hr_v6["dh_dx_signed"] = dh_dx                  # P1 : composantes signées m/m
+    ds_static_hr_v6["dh_dy_signed"] = dh_dy
     ds_static_hr_v6["region_masks_v6"] = region_masks_da
 
     # ----- Save outputs -----
@@ -440,8 +515,8 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--orog-name", default="orog")
     p.add_argument("--land-sea-mask-name", default="sftlf")
     p.add_argument(
-        "--theta-w-850", action="store_true",
-        help="Also compute optional feature theta_w_850 (§4.4 Browning 2004)",
+        "--no-ivt-72h", action="store_true",
+        help="Skip the AR-persistence bonus feature (IVT proxy 72h rolling mean)",
     )
     return p
 

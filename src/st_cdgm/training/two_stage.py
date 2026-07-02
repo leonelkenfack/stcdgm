@@ -874,9 +874,17 @@ def precompute_stage1_outputs(
     dag_variants: Sequence[str] = ("normal",),
     existing_cache: Optional[dict] = None,
     cache_h_t_pooled: bool = False,
+    cache_lr_fields: bool = False,
 ) -> dict:
     """Iterate ``train_dataset`` once, run Stage 1 forward per sample,
     and stack outputs into a dict of CPU tensors.
+
+    V6' (audit indépendant 2026-06-30) — ``cache_lr_fields`` : when True,
+    also cache the RAW LR grid of the LAST timestep at native resolution
+    (from ``batch["lr_grid"]``, shape ``[N, C_LR, H_LR, W_LR]``, ~700MB fp32
+    for 14k samples). Used by Stage 2 as the full-LR conditioning that lifts
+    the informational bottleneck (CorrDiff/StormCast pattern). Upsampling to
+    HR is done at batch-time in ``train_epoch_stage2_cached`` (M7).
 
     Stage 1 modules must be frozen (``requires_grad=False``, ``eval()``).
     Result keys: ``mu_HR``, ``baseline_log``, ``delta_target``,
@@ -944,7 +952,10 @@ def precompute_stage1_outputs(
 
     out: dict = {}
     if existing_cache is not None:
-        for k in ("baseline_log", "delta_target", "valid_mask"):
+        # M3 (V6') — preserve auxiliary caches at resume, else Stage 2
+        # would silently lose full-LR conditioning / r_phi H_T (same class of
+        # bug as the historical C3 train/eval mismatch).
+        for k in ("baseline_log", "delta_target", "valid_mask", "H_T_pooled", "lr_fields"):
             if k in existing_cache:
                 out[k] = existing_cache[k]
         for v in variants:
@@ -954,8 +965,18 @@ def precompute_stage1_outputs(
 
     needed_variants = [v for v in variants if _key_for(v) not in out]
 
+    # V6' — if LR fields requested but absent from a resumed cache, force a
+    # recompute of the "normal" variant so lr_fields gets populated.
+    if cache_lr_fields and "lr_fields" not in out and "normal" not in needed_variants:
+        needed_variants.insert(0, "normal")
+    if cache_h_t_pooled and "H_T_pooled" not in out and "normal" not in needed_variants:
+        needed_variants.insert(0, "normal")
+
     has_targets = all(k in out for k in ("baseline_log", "delta_target", "valid_mask"))
-    if not needed_variants and has_targets:
+    aux_ok = (not cache_lr_fields or "lr_fields" in out) and (
+        not cache_h_t_pooled or "H_T_pooled" in out
+    )
+    if not needed_variants and has_targets and aux_ok:
         print(
             f"  precompute Stage 1 : tous les variants {variants!r} "
             f"déjà présents dans le cache → skip",
@@ -992,6 +1013,8 @@ def precompute_stage1_outputs(
         mask_list: list[Tensor] = []
         # V6 MVP — H_T_pooled cache for r_phi (only for "normal" variant)
         h_t_pooled_list: list[Tensor] = []
+        # V6' — raw LR grid (last timestep, native res) for full-LR conditioning
+        lr_fields_list: list[Tensor] = []
 
         t0 = _t.time()
         last_print = t0
@@ -1003,6 +1026,23 @@ def precompute_stage1_outputs(
             target = batch["residual"][-1].to(device)
             if target.dim() == 3:
                 target = target.unsqueeze(0)
+
+            # V6' — grab the raw LR grid of the LAST timestep (native res).
+            # batch["lr_grid"] : [seq_len, C_LR, H_LR, W_LR] (added by
+            # convert_sample_to_batch V6'). Cache only for "normal" variant.
+            if cache_lr_fields and variant == "normal":
+                lr_grid = batch.get("lr_grid")
+                if lr_grid is None:
+                    raise RuntimeError(
+                        "cache_lr_fields=True but batch has no 'lr_grid' key. "
+                        "convert_sample_to_batch must pass the raw LR grid "
+                        "(V6' pivot)."
+                    )
+                lr_grid_last = lr_grid[-1]  # [C_LR, H_LR, W_LR]
+                lr_grid_last = torch.nan_to_num(
+                    lr_grid_last.to(device), nan=0.0, posinf=0.0, neginf=0.0
+                )
+                lr_fields_list.append(lr_grid_last.detach().cpu())
 
             baseline_t = batch.get("baseline")
             if baseline_t is not None:
@@ -1076,6 +1116,9 @@ def precompute_stage1_outputs(
             # V6 MVP — stack H_T_pooled if collected
             if cache_h_t_pooled and h_t_pooled_list:
                 out["H_T_pooled"] = torch.stack(h_t_pooled_list, dim=0)  # [N, q, hidden]
+            # V6' — stack raw LR fields if collected
+            if cache_lr_fields and lr_fields_list:
+                out["lr_fields"] = torch.stack(lr_fields_list, dim=0)  # [N, C_LR, H_LR, W_LR]
 
     if can_ablate:
         try:
@@ -1252,6 +1295,18 @@ def train_epoch_stage2_cached(
         h_t_pooled = batch.get("H_T_pooled")
         if h_t_pooled is not None:
             h_t_pooled = h_t_pooled.to(device, non_blocking=True)
+        # V6' — full-LR conditioning : upsample cached native LR to HR (M7).
+        # lr_fields cached at [B, C_LR, H_LR, W_LR] (z-scored, native res) ->
+        # bilinear upsample to (H_HR, W_HR) at batch-time (a few ms on A100).
+        lr_fields = batch.get("lr_fields")
+        if lr_fields is not None:
+            lr_fields = lr_fields.to(device, non_blocking=True)
+            if lr_fields.shape[-2:] != delta_target.shape[-2:]:
+                lr_fields = F.interpolate(
+                    lr_fields, size=delta_target.shape[-2:],
+                    mode="bilinear", align_corners=False,
+                )
+            lr_fields = torch.nan_to_num(lr_fields, nan=0.0, posinf=0.0, neginf=0.0)
 
         do_contrastive = (
             contrastive_active and (batch_idx % interval == 0)
@@ -1302,6 +1357,7 @@ def train_epoch_stage2_cached(
                 conditioning_spatial=None,
                 mu_HR=mu_HR_used,
                 baseline_log=baseline_log,
+                lr_fields=lr_fields,   # V6' full-LR conditioning
                 return_components=log_loss_components,
             )
             if log_loss_components and isinstance(_loss_out, tuple):
@@ -1329,6 +1385,7 @@ def train_epoch_stage2_cached(
                         conditioning_spatial=None,
                         mu_HR=mu_HR_ablated,
                         baseline_log=baseline_log,
+                        lr_fields=lr_fields,   # V6' full-LR conditioning
                     )
                 margin_t = torch.as_tensor(
                     contrastive_dag_margin,
