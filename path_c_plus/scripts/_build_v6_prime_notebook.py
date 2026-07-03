@@ -615,7 +615,14 @@ S1_EPOCHS = 3 if SMOKE_MODE else 75
 
 # --- Checkpointing (safeguard 9-node reintegre — resiste aux deconnexions Colab)
 CKPT_DIR = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42"; os.makedirs(CKPT_DIR, exist_ok=True)
-S1_CKPT  = f"{CKPT_DIR}/stage1_seed42.pth"
+S1_CKPT  = f"{CKPT_DIR}/stage1_seed42.pth"           # final (poids figes + sigma)
+S1_PROG  = f"{CKPT_DIR}/stage1_progress_seed42.pth"  # progression par epoque
+
+def _atomic_save(obj, path):
+    # ecriture .tmp + os.replace : jamais de checkpoint corrompu si Colab meurt
+    # en pleine ecriture (le fichier final reste l'ancien complet).
+    _tmp = path + ".tmp"
+    torch.save(obj, _tmp); os.replace(_tmp, path)
 
 stack = build_fresh_stack(SEED)
 encoder, rcn_cell = stack["encoder"], stack["rcn_cell"]
@@ -629,17 +636,35 @@ opt_s1 = torch.optim.AdamW(
     list(encoder.parameters()) + list(rcn_cell.parameters()) + list(regression_head.parameters()),
     lr=float(ts.lr), weight_decay=float(ts.get("weight_decay", 1e-4)))
 
-# RESUME : si Stage 1 deja entraine (ckpt present), charger et sauter les 75 ep.
+def _save_stage1_progress(epoch_done):
+    _atomic_save({"encoder_state_dict": encoder.state_dict(),
+                  "rcn_cell_state_dict": rcn_cell.state_dict(),
+                  "regression_head_state_dict": regression_head.state_dict(),
+                  "opt_state_dict": opt_s1.state_dict(), "epoch_done": epoch_done}, S1_PROG)
+
+# RESUME (3 cas) : (a) Stage 1 fini -> S1_CKPT existe -> skip. (b) partiel ->
+# S1_PROG existe -> reprend a l'epoque exacte. (c) rien -> from scratch.
 S1_RESUMED = (not SMOKE_MODE) and os.path.exists(S1_CKPT)
+_s1_start = 0
 if S1_RESUMED:
     _s1 = torch.load(S1_CKPT, map_location=DEVICE)
     encoder.load_state_dict(_s1["encoder_state_dict"])
     rcn_cell.load_state_dict(_s1["rcn_cell_state_dict"])
     regression_head.load_state_dict(_s1["regression_head_state_dict"])
     S1_SIGMA_DATA = float(_s1.get("sigma_data", float("nan")))
-    print(f"[Cell 6] Stage 1 RESUME depuis {S1_CKPT} — entrainement saute "
+    print(f"[Cell 6] Stage 1 DEJA FINI ({S1_CKPT}) — entrainement saute "
           f"(sigma_data={S1_SIGMA_DATA:.5f})")
-for ep in ([] if S1_RESUMED else range(S1_EPOCHS)):
+elif (not SMOKE_MODE) and os.path.exists(S1_PROG):
+    _sp = torch.load(S1_PROG, map_location=DEVICE)
+    encoder.load_state_dict(_sp["encoder_state_dict"])
+    rcn_cell.load_state_dict(_sp["rcn_cell_state_dict"])
+    regression_head.load_state_dict(_sp["regression_head_state_dict"])
+    try: opt_s1.load_state_dict(_sp["opt_state_dict"])
+    except Exception as _e: print(f"[Cell 6] opt_s1 state non repris ({_e})")
+    _s1_start = int(_sp.get("epoch_done", 0))
+    print(f"[Cell 6] Stage 1 RESUME a l'epoque {_s1_start}/{S1_EPOCHS}")
+
+for ep in ([] if S1_RESUMED else range(_s1_start, S1_EPOCHS)):
     sch = schedule_lambdas(ep, S1_EPOCHS, HP)
     m = train_epoch_stage1(
         encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
@@ -652,6 +677,8 @@ for ep in ([] if S1_RESUMED else range(S1_EPOCHS)):
         abort_on_collapse=True, collapse_threshold=0.05,
         dag_floor_projection=True, dag_floor_min_norm=0.10,
         gradient_clipping=CONFIG.training.gradient_clipping)
+    if not SMOKE_MODE:
+        _save_stage1_progress(ep + 1)   # checkpoint APRES CHAQUE epoque (choix user)
     if (ep+1) % 5 == 0 or ep == 0:
         # fix (grep-all-callsites) : train_epoch_stage1 retourne 'loss'/'loss_rec'/
         # 'loss_dag' + sante DAG (a_*_end), PAS 'loss_total'.
@@ -707,9 +734,9 @@ CONFIG.diffusion.edm.sigma_min  = _new_sm
 diffusion.edm_config = _EDMConfig.from_yaml_dict(CONFIG.diffusion.get("edm", {}))
 print(f"[Cell 7] edm sigma_data={_new_sd:.5f} sigma_min={_new_sm:.5f}")
 
-# --- Sauvegarde Stage 1 (poids figes + A_dag + sigma_data) — protege les ~15h.
+# --- Sauvegarde Stage 1 FINAL (poids figes + A_dag + sigma_data) — protege les ~15h.
 if not (SMOKE_MODE or S1_RESUMED):
-    torch.save({
+    _atomic_save({
         "encoder_state_dict": encoder.state_dict(),
         "rcn_cell_state_dict": rcn_cell.state_dict(),
         "regression_head_state_dict": regression_head.state_dict(),
@@ -717,7 +744,11 @@ if not (SMOKE_MODE or S1_RESUMED):
         "sigma_data": _new_sd, "sigma_min": _new_sm,
         "o3_ratio": float(ablation["ratio"]),
     }, S1_CKPT)
-    print(f"[Cell 7] Stage 1 checkpoint sauve -> {S1_CKPT}")
+    # progression obsolete une fois le final ecrit (evite un resume partiel a tort)
+    if os.path.exists(S1_PROG):
+        try: os.remove(S1_PROG)
+        except OSError: pass
+    print(f"[Cell 7] Stage 1 checkpoint FINAL sauve -> {S1_CKPT}")
 """
 
 
@@ -736,7 +767,7 @@ else:
         iterate_batches_fn=lambda s: convert_sample_to_batch(s, builder, DEVICE),
         device=DEVICE, dag_variants=["normal"], cache_lr_fields=True)
     if not SMOKE_MODE:
-        torch.save(cache, CACHE_PATH)
+        _atomic_save(cache, CACHE_PATH)
         print(f"[Cell 8] cache sauve -> {CACHE_PATH}")
 assert "lr_fields" in cache, "V6' cache MUST contain lr_fields"
 print(f"[Cell 8] cache keys = {sorted(cache.keys())}")
@@ -816,13 +847,13 @@ if (not SMOKE_MODE) and os.path.exists(S2_CKPT):
     print(f"[Cell 10] Stage 2 RESUME depuis epoque {_start_ep}/{S2_EPOCHS}")
 
 def _save_stage2(epoch_done, path):
-    torch.save({"diffusion_state_dict": diffusion.state_dict(), "ema_state_dict": ema.state_dict(),
-                "opt_state_dict": opt_s2.state_dict(), "epoch_done": epoch_done,
-                "encoder_state_dict": encoder.state_dict(), "rcn_cell_state_dict": rcn_cell.state_dict(),
-                "regression_head_state_dict": regression_head.state_dict(),
-                "lr_conditioning_channels": LR_COND_CHANNELS, "stage2_cond_lr_vars": STAGE2_COND_LR_VARS,
-                "sigma_data": float(CONFIG.diffusion.edm.sigma_data),
-                "A_dag_final": rcn_cell.A_dag.detach().cpu().numpy()}, path)
+    _atomic_save({"diffusion_state_dict": diffusion.state_dict(), "ema_state_dict": ema.state_dict(),
+                  "opt_state_dict": opt_s2.state_dict(), "epoch_done": epoch_done,
+                  "encoder_state_dict": encoder.state_dict(), "rcn_cell_state_dict": rcn_cell.state_dict(),
+                  "regression_head_state_dict": regression_head.state_dict(),
+                  "lr_conditioning_channels": LR_COND_CHANNELS, "stage2_cond_lr_vars": STAGE2_COND_LR_VARS,
+                  "sigma_data": float(CONFIG.diffusion.edm.sigma_data),
+                  "A_dag_final": rcn_cell.A_dag.detach().cpu().numpy()}, path)
 
 for ep in range(_start_ep, S2_EPOCHS):
     m = train_epoch_stage2_cached(diffusion_decoder=diffusion, optimizer=opt_s2,
@@ -830,10 +861,9 @@ for ep in range(_start_ep, S2_EPOCHS):
         log_every=50, ema_model=ema, ema_decay=0.9999)
     if (ep+1) % 10 == 0 or ep == 0:
         print(f"[S2 ep{ep+1}/{S2_EPOCHS}] loss_diff={m['loss_diff']:.5f}")
-    # Checkpoint periodique tous les 10 ep (protege les ~10h de Stage 2).
-    if (not SMOKE_MODE) and (ep + 1) % 10 == 0:
+    # Checkpoint APRES CHAQUE epoque (choix user) — ecriture atomique (.tmp+replace).
+    if not SMOKE_MODE:
         _save_stage2(ep + 1, S2_CKPT)
-        print(f"  [ckpt] Stage 2 sauve @ep{ep+1} -> {S2_CKPT}")
 
 _save_stage2(S2_EPOCHS, FINAL_CKPT)   # checkpoint FINAL (consomme par eval/3-way)
 print(f"[Cell 10] saved → {FINAL_CKPT}")
