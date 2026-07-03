@@ -638,7 +638,13 @@ for ep in range(S1_EPOCHS):
         dag_floor_projection=True, dag_floor_min_norm=0.10,
         gradient_clipping=CONFIG.training.gradient_clipping)
     if (ep+1) % 5 == 0 or ep == 0:
-        print(f"  S1 ep{ep+1}/{S1_EPOCHS} loss={m['loss_total']:.4f} A_dag_norm={float(rcn_cell.A_dag.norm()):.3f}")
+        # fix (grep-all-callsites) : train_epoch_stage1 retourne 'loss'/'loss_rec'/
+        # 'loss_dag' + sante DAG (a_*_end), PAS 'loss_total'.
+        print(f"  S1 ep{ep+1}/{S1_EPOCHS} loss={m.get('loss', float('nan')):.4f} "
+              f"rec={m.get('loss_rec', float('nan')):.4f} dag={m.get('loss_dag', float('nan')):+.4f} "
+              f"| ||A||_F={m.get('a_norm_F_end', float(rcn_cell.A_dag.norm())):.3f} "
+              f"max|A|={m.get('a_max_abs_end', float('nan')):.3f} "
+              f"sparsity≈0={100*m.get('a_sparsity_end', float('nan')):.1f}%")
 print("[Cell 6] Stage 1 (11-node) trained")
 """
 
