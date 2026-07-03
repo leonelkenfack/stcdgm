@@ -647,7 +647,7 @@ def _save_stage1_progress(epoch_done):
 S1_RESUMED = (not SMOKE_MODE) and os.path.exists(S1_CKPT)
 _s1_start = 0
 if S1_RESUMED:
-    _s1 = torch.load(S1_CKPT, map_location=DEVICE)
+    _s1 = torch.load(S1_CKPT, map_location=DEVICE, weights_only=False)
     encoder.load_state_dict(_s1["encoder_state_dict"])
     rcn_cell.load_state_dict(_s1["rcn_cell_state_dict"])
     regression_head.load_state_dict(_s1["regression_head_state_dict"])
@@ -655,7 +655,7 @@ if S1_RESUMED:
     print(f"[Cell 6] Stage 1 DEJA FINI ({S1_CKPT}) — entrainement saute "
           f"(sigma_data={S1_SIGMA_DATA:.5f})")
 elif (not SMOKE_MODE) and os.path.exists(S1_PROG):
-    _sp = torch.load(S1_PROG, map_location=DEVICE)
+    _sp = torch.load(S1_PROG, map_location=DEVICE, weights_only=False)
     encoder.load_state_dict(_sp["encoder_state_dict"])
     rcn_cell.load_state_dict(_sp["rcn_cell_state_dict"])
     regression_head.load_state_dict(_sp["regression_head_state_dict"])
@@ -759,7 +759,7 @@ CELL_8 = """# >>> Cell 8 : BS32b cache WITH lr_fields (full-LR conditioning)
 CACHE_PATH = f"{CKPT_DIR}/bs32b_cache_seed42.pt"
 if (not SMOKE_MODE) and os.path.exists(CACHE_PATH):
     print(f"[Cell 8] cache present -> chargement {CACHE_PATH}")
-    cache = torch.load(CACHE_PATH, map_location="cpu")
+    cache = torch.load(CACHE_PATH, map_location="cpu", weights_only=False)
 else:
     cache = precompute_stage1_outputs(
         encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
@@ -838,7 +838,7 @@ opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(CONFIG.two_stage.sta
 # RESUME Stage 2 : reprend a l'epoque sauvee (survie deconnexion Colab).
 _start_ep = 0
 if (not SMOKE_MODE) and os.path.exists(S2_CKPT):
-    _c2 = torch.load(S2_CKPT, map_location=DEVICE)
+    _c2 = torch.load(S2_CKPT, map_location=DEVICE, weights_only=False)
     diffusion.load_state_dict(_c2["diffusion_state_dict"])
     ema.load_state_dict(_c2["ema_state_dict"])
     try: opt_s2.load_state_dict(_c2["opt_state_dict"])
