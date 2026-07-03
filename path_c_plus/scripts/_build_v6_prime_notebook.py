@@ -245,16 +245,58 @@ LR_PATH_V6  = f"{DRIVE_ROOT}/lr_{GCM_ID}_v6.nc"
 STATIC_PATH = f"{DRIVE_ROOT}/static_HR_v6.nc"
 HR_PATH     = str(BASE_HR)   # HR de base reel (remplace l'ancien hr_NIWA-REMS.nc invente)
 
+# --- Auto-detection des noms de variables (insensible casse : t_850 vs T_850) --
+import xarray as _xr2
+def _resolve(ds, cands):
+    _low = {v.lower(): v for v in ds.data_vars}
+    for c in cands:
+        if c in ds.data_vars: return c
+        if c.lower() in _low: return _low[c.lower()]
+    return None
+
+_lr_ds = _xr2.open_dataset(str(BASE_LR))
+_st_ds = _xr2.open_dataset(str(BASE_STATIC))
+_VNAMES = {
+    "--w-850-name": _resolve(_lr_ds, ["w_850", "wap_850"]),
+    "--w-500-name": _resolve(_lr_ds, ["w_500", "wap_500"]),
+    "--t-850-name": _resolve(_lr_ds, ["t_850", "T_850", "ta_850"]),
+    "--t-500-name": _resolve(_lr_ds, ["t_500", "T_500", "ta_500"]),
+    "--q-850-name": _resolve(_lr_ds, ["q_850", "hus_850"]),
+    "--q-500-name": _resolve(_lr_ds, ["q_500", "hus_500"]),
+    "--u-850-name": _resolve(_lr_ds, ["u_850", "ua_850"]),
+    "--v-850-name": _resolve(_lr_ds, ["v_850", "va_850"]),
+    "--orog-name":  _resolve(_st_ds, ["orog", "he", "topo", "elevation", "z"]),
+    "--land-sea-mask-name": _resolve(_st_ds, ["sftlf", "land_sea_mask", "lsm", "mask"]) or "sftlf",
+}
+print(f"[Cell 2B] LR vars dispo : {list(_lr_ds.data_vars)}")
+print(f"[Cell 2B] static vars dispo : {list(_st_ds.data_vars)}")
+_lr_ds.close(); _st_ds.close()
+_missing = [k for k, v in _VNAMES.items() if v is None and k != "--land-sea-mask-name"]
+if _missing:
+    raise RuntimeError(f"[Cell 2B] variables preproc introuvables : {_missing} — "
+                       f"ajuster les candidats de _resolve dans Cell 2B.")
+_NAME_ARGS = []
+for _k, _v in _VNAMES.items():
+    if _v is not None: _NAME_ARGS += [_k, _v]
+print(f"[Cell 2B] mapping noms : { {k: v for k, v in _VNAMES.items()} }")
+
 _need_preproc = not (Path(LR_PATH_V6).exists() and Path(STATIC_PATH).exists())
 if _need_preproc:
     print(f"[Cell 2B] preproc v6 ({GCM_ID}) -> {LR_PATH_V6}")
-    subprocess.check_call([
-        sys.executable, "path_c_plus/scripts/preprocess_v6_lr.py",
-        "--lr-path",          str(BASE_LR),
-        "--static-hr-path",   str(BASE_STATIC),
-        "--out-lr-augmented", LR_PATH_V6,
-        "--out-static-hr-v6", STATIC_PATH,
-    ])
+    _r = subprocess.run(
+        [sys.executable, "path_c_plus/scripts/preprocess_v6_lr.py",
+         "--lr-path",          str(BASE_LR),
+         "--static-hr-path",   str(BASE_STATIC),
+         "--out-lr-augmented", LR_PATH_V6,
+         "--out-static-hr-v6", STATIC_PATH,
+         *_NAME_ARGS],
+        capture_output=True, text=True,
+    )
+    if _r.stdout: print(_r.stdout[-3000:])
+    if _r.returncode != 0:
+        print("----- STDERR preproc -----")
+        print(_r.stderr[-5000:])
+        raise RuntimeError("[Cell 2B] preproc v6 a echoue — voir STDERR ci-dessus")
     print("[Cell 2B] preproc v6 termine")
 else:
     print(f"[Cell 2B] sorties v6 deja presentes : {LR_PATH_V6}")
