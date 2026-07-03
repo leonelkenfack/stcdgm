@@ -609,9 +609,13 @@ print("[Cell 5] thresholds : path_c_plus/audit/V6_PRIME_seuils_preregistered.jso
 
 
 CELL_6 = """# >>> Cell 6 : Stage 1 (11-node) training from scratch (seed 42)
-import torch.nn.functional as F
+import torch.nn.functional as F, os
 SEED = 42
 S1_EPOCHS = 3 if SMOKE_MODE else 75
+
+# --- Checkpointing (safeguard 9-node reintegre — resiste aux deconnexions Colab)
+CKPT_DIR = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42"; os.makedirs(CKPT_DIR, exist_ok=True)
+S1_CKPT  = f"{CKPT_DIR}/stage1_seed42.pth"
 
 stack = build_fresh_stack(SEED)
 encoder, rcn_cell = stack["encoder"], stack["rcn_cell"]
@@ -624,7 +628,18 @@ ts = CONFIG.two_stage.stage1
 opt_s1 = torch.optim.AdamW(
     list(encoder.parameters()) + list(rcn_cell.parameters()) + list(regression_head.parameters()),
     lr=float(ts.lr), weight_decay=float(ts.get("weight_decay", 1e-4)))
-for ep in range(S1_EPOCHS):
+
+# RESUME : si Stage 1 deja entraine (ckpt present), charger et sauter les 75 ep.
+S1_RESUMED = (not SMOKE_MODE) and os.path.exists(S1_CKPT)
+if S1_RESUMED:
+    _s1 = torch.load(S1_CKPT, map_location=DEVICE)
+    encoder.load_state_dict(_s1["encoder_state_dict"])
+    rcn_cell.load_state_dict(_s1["rcn_cell_state_dict"])
+    regression_head.load_state_dict(_s1["regression_head_state_dict"])
+    S1_SIGMA_DATA = float(_s1.get("sigma_data", float("nan")))
+    print(f"[Cell 6] Stage 1 RESUME depuis {S1_CKPT} — entrainement saute "
+          f"(sigma_data={S1_SIGMA_DATA:.5f})")
+for ep in ([] if S1_RESUMED else range(S1_EPOCHS)):
     sch = schedule_lambdas(ep, S1_EPOCHS, HP)
     m = train_epoch_stage1(
         encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
@@ -675,27 +690,54 @@ print("[Cell 7] Stage 1 frozen (encoder + rcn_cell incl. A_dag + regression_head
 # mal centre -> Stage 2 sous-optimal (Karras 2022 Eq. 7). deepcopy en Cell 9/10
 # heritent de l'edm_config recalibre car faits APRES ce bloc.
 from st_cdgm.models.edm_preconditioner import EDMConfig as _EDMConfig
-_calib = calibrate_sigma_data_two_stage(
-    encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
-    data_loader=train_dataset, iterate_batches_fn=iterate_batches_v6,
-    builder=builder, device=DEVICE, max_samples=200)
-_new_sd = float(_calib["sigma_data"])
+if S1_RESUMED and S1_SIGMA_DATA == S1_SIGMA_DATA:   # resume : sigma deja calcule
+    _new_sd = S1_SIGMA_DATA
+    print(f"[Cell 7] sigma_data repris du ckpt = {_new_sd:.5f} (pas de recalcul)")
+else:
+    _calib = calibrate_sigma_data_two_stage(
+        encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
+        data_loader=train_dataset, iterate_batches_fn=iterate_batches_v6,
+        builder=builder, device=DEVICE, max_samples=200)
+    _new_sd = float(_calib["sigma_data"])
+    print(f"[Cell 7] sigma_data recalibre = {_new_sd:.5f} (mean={_calib.get('mean', float('nan')):+.4f})")
 _scale  = float(CONFIG.two_stage.stage2.get("sigma_min_scale_factor", 0.02))
 _new_sm = max(1e-4, _new_sd * _scale)
 CONFIG.diffusion.edm.sigma_data = _new_sd
 CONFIG.diffusion.edm.sigma_min  = _new_sm
 diffusion.edm_config = _EDMConfig.from_yaml_dict(CONFIG.diffusion.get("edm", {}))
-print(f"[Cell 7] sigma_data recalibre = {_new_sd:.5f} (mean={_calib.get('mean', float('nan')):+.4f}) "
-      f"sigma_min = {_new_sm:.5f}")
+print(f"[Cell 7] edm sigma_data={_new_sd:.5f} sigma_min={_new_sm:.5f}")
+
+# --- Sauvegarde Stage 1 (poids figes + A_dag + sigma_data) — protege les ~15h.
+if not (SMOKE_MODE or S1_RESUMED):
+    torch.save({
+        "encoder_state_dict": encoder.state_dict(),
+        "rcn_cell_state_dict": rcn_cell.state_dict(),
+        "regression_head_state_dict": regression_head.state_dict(),
+        "A_dag_final": rcn_cell.A_dag.detach().cpu().numpy(),
+        "sigma_data": _new_sd, "sigma_min": _new_sm,
+        "o3_ratio": float(ablation["ratio"]),
+    }, S1_CKPT)
+    print(f"[Cell 7] Stage 1 checkpoint sauve -> {S1_CKPT}")
 """
 
 
 CELL_8 = """# >>> Cell 8 : BS32b cache WITH lr_fields (full-LR conditioning)
-cache = precompute_stage1_outputs(
-    encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
-    train_dataset=train_dataset,
-    iterate_batches_fn=lambda s: convert_sample_to_batch(s, builder, DEVICE),
-    device=DEVICE, dag_variants=["normal"], cache_lr_fields=True)
+# Persistance (safeguard 9-node) : le cache (mu_HR/baseline/delta/lr_fields sur
+# tout le train) coute cher a recalculer — on le sauve/recharge pour survivre a
+# une deconnexion Colab entre Stage 1 et Stage 2.
+CACHE_PATH = f"{CKPT_DIR}/bs32b_cache_seed42.pt"
+if (not SMOKE_MODE) and os.path.exists(CACHE_PATH):
+    print(f"[Cell 8] cache present -> chargement {CACHE_PATH}")
+    cache = torch.load(CACHE_PATH, map_location="cpu")
+else:
+    cache = precompute_stage1_outputs(
+        encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
+        train_dataset=train_dataset,
+        iterate_batches_fn=lambda s: convert_sample_to_batch(s, builder, DEVICE),
+        device=DEVICE, dag_variants=["normal"], cache_lr_fields=True)
+    if not SMOKE_MODE:
+        torch.save(cache, CACHE_PATH)
+        print(f"[Cell 8] cache sauve -> {CACHE_PATH}")
 assert "lr_fields" in cache, "V6' cache MUST contain lr_fields"
 print(f"[Cell 8] cache keys = {sorted(cache.keys())}")
 print(f"[Cell 8] lr_fields cached shape = {tuple(cache['lr_fields'].shape)} (native res)")
@@ -754,23 +796,47 @@ print("  ✓ denoiser USES LR" if l_off > l_on*1.02 else "  ⚠ A2 <2% — inves
 CELL_10 = """# >>> Cell 10 : Stage 2 FULL (full-LR conditioning) + EMA + persist
 import copy, os
 S2_EPOCHS = 5 if SMOKE_MODE else 150
+save_dir = CKPT_DIR   # {DRIVE_ROOT}/oracle_v6_prime/seed_42 (defini Cell 6)
+FINAL_CKPT = f"{save_dir}/v6_prime_seed42.pth"
+S2_CKPT    = f"{save_dir}/stage2_ckpt_seed42.pth"   # checkpoint periodique (resume)
+
 ema = copy.deepcopy(diffusion).eval()
 for p in ema.parameters(): p.requires_grad_(False)
 opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(CONFIG.two_stage.stage2.lr), weight_decay=1e-4)
-for ep in range(S2_EPOCHS):
+
+# RESUME Stage 2 : reprend a l'epoque sauvee (survie deconnexion Colab).
+_start_ep = 0
+if (not SMOKE_MODE) and os.path.exists(S2_CKPT):
+    _c2 = torch.load(S2_CKPT, map_location=DEVICE)
+    diffusion.load_state_dict(_c2["diffusion_state_dict"])
+    ema.load_state_dict(_c2["ema_state_dict"])
+    try: opt_s2.load_state_dict(_c2["opt_state_dict"])
+    except Exception as _e: print(f"[Cell 10] opt state non repris ({_e})")
+    _start_ep = int(_c2.get("epoch_done", 0))
+    print(f"[Cell 10] Stage 2 RESUME depuis epoque {_start_ep}/{S2_EPOCHS}")
+
+def _save_stage2(epoch_done, path):
+    torch.save({"diffusion_state_dict": diffusion.state_dict(), "ema_state_dict": ema.state_dict(),
+                "opt_state_dict": opt_s2.state_dict(), "epoch_done": epoch_done,
+                "encoder_state_dict": encoder.state_dict(), "rcn_cell_state_dict": rcn_cell.state_dict(),
+                "regression_head_state_dict": regression_head.state_dict(),
+                "lr_conditioning_channels": LR_COND_CHANNELS, "stage2_cond_lr_vars": STAGE2_COND_LR_VARS,
+                "sigma_data": float(CONFIG.diffusion.edm.sigma_data),
+                "A_dag_final": rcn_cell.A_dag.detach().cpu().numpy()}, path)
+
+for ep in range(_start_ep, S2_EPOCHS):
     m = train_epoch_stage2_cached(diffusion_decoder=diffusion, optimizer=opt_s2,
         cached_dataloader=cached_loader, device=DEVICE, use_amp=True, gradient_clipping=1.0,
         log_every=50, ema_model=ema, ema_decay=0.9999)
     if (ep+1) % 10 == 0 or ep == 0:
         print(f"[S2 ep{ep+1}/{S2_EPOCHS}] loss_diff={m['loss_diff']:.5f}")
-save_dir = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42"; os.makedirs(save_dir, exist_ok=True)
-torch.save({"diffusion_state_dict": diffusion.state_dict(), "ema_state_dict": ema.state_dict(),
-            "encoder_state_dict": encoder.state_dict(), "rcn_cell_state_dict": rcn_cell.state_dict(),
-            "regression_head_state_dict": regression_head.state_dict(),
-            "lr_conditioning_channels": LR_COND_CHANNELS, "stage2_cond_lr_vars": STAGE2_COND_LR_VARS,
-            "A_dag_final": rcn_cell.A_dag.detach().cpu().numpy()},
-           f"{save_dir}/v6_prime_seed42.pth")
-print(f"[Cell 10] saved → {save_dir}/v6_prime_seed42.pth")
+    # Checkpoint periodique tous les 10 ep (protege les ~10h de Stage 2).
+    if (not SMOKE_MODE) and (ep + 1) % 10 == 0:
+        _save_stage2(ep + 1, S2_CKPT)
+        print(f"  [ckpt] Stage 2 sauve @ep{ep+1} -> {S2_CKPT}")
+
+_save_stage2(S2_EPOCHS, FINAL_CKPT)   # checkpoint FINAL (consomme par eval/3-way)
+print(f"[Cell 10] saved → {FINAL_CKPT}")
 """
 
 
