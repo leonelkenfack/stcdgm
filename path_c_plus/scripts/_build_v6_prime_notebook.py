@@ -611,7 +611,7 @@ print("[Cell 5] thresholds : path_c_plus/audit/V6_PRIME_seuils_preregistered.jso
 CELL_6 = """# >>> Cell 6 : Stage 1 (11-node) training from scratch (seed 42)
 import torch.nn.functional as F, os
 SEED = 42
-S1_EPOCHS = 3 if SMOKE_MODE else 75
+S1_EPOCHS = 3 if SMOKE_MODE else 30
 
 # --- Checkpointing (safeguard 9-node reintegre — resiste aux deconnexions Colab)
 CKPT_DIR = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42"; os.makedirs(CKPT_DIR, exist_ok=True)
@@ -826,7 +826,7 @@ print("  ✓ denoiser USES LR" if l_off > l_on*1.02 else "  ⚠ A2 <2% — inves
 
 CELL_10 = """# >>> Cell 10 : Stage 2 FULL (full-LR conditioning) + EMA + persist
 import copy, os
-S2_EPOCHS = 5 if SMOKE_MODE else 150
+S2_EPOCHS = 5 if SMOKE_MODE else 200
 save_dir = CKPT_DIR   # {DRIVE_ROOT}/oracle_v6_prime/seed_42 (defini Cell 6)
 FINAL_CKPT = f"{save_dir}/v6_prime_seed42.pth"
 S2_CKPT    = f"{save_dir}/stage2_ckpt_seed42.pth"   # checkpoint periodique (resume)
