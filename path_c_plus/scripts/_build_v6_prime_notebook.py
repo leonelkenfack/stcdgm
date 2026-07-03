@@ -88,9 +88,23 @@ for _p in (REPO_DIR, str(Path(REPO_DIR) / "src")):
 # (config/*.yaml, données, checkpoints) échouent depuis /content (Colab CWD).
 os.chdir(REPO_DIR)
 
-for pkg in ["torch_geometric", "diffusers", "omegaconf", "scipy"]:
-    try: __import__(pkg)
-    except Exception: subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+# P0 FIX (revue dev/ML 2026-07) : liste de deps EPINGLEE identique au 9-node qui
+# tournait. La liste a 4 items causait la cascade "une erreur par run" :
+#   cftime  -> decode calendrier 'noleap' (sinon crash sur TOUT open NetCDF)
+#   xbatcher-> NetCDFDataPipeline.__init__ leve ImportError sans lui
+#   diffusers==0.36.0 + stack epingle -> build UNet2DConditionModel stable
+#   h5netcdf/netcdf4 -> moteurs de lecture + fallback robuste du pipeline
+try:
+    import torch_geometric, cftime, h5netcdf, xbatcher, diffusers, omegaconf  # noqa: F401
+    print("[Cell 1] deps critiques OK — pip install saute.")
+except Exception as _e:
+    print(f"[Cell 1] pip install requis : {_e}")
+    _EXTRA = ["omegaconf==2.3.0", "hydra-core==1.3.2", "diffusers==0.36.0",
+              "transformers==4.57.6", "accelerate==1.12.0", "huggingface-hub==0.36.0",
+              "safetensors==0.7.0", "xbatcher", "webdataset", "cftime", "h5netcdf",
+              "netcdf4", "numcodecs", "scipy", "torch-geometric", "xformers"]
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+                           "--no-warn-script-location", *_EXTRA])
 
 _sha = subprocess.check_output(["git", "-C", REPO_DIR, "rev-parse", "HEAD"]).decode().strip()
 print(f"[Cell 1] Bootstrap OK — commit {_sha[:8]} — sys.path has src/ (P0 fix)")
@@ -254,8 +268,10 @@ def _resolve(ds, cands):
         if c.lower() in _low: return _low[c.lower()]
     return None
 
-_lr_ds = _xr2.open_dataset(str(BASE_LR))
-_st_ds = _xr2.open_dataset(str(BASE_STATIC))
+# decode_times=False : on ne lit que des noms de variables ici — pas besoin de
+# decoder le calendrier 'noleap' (qui exigerait cftime). Evite un crash inutile.
+_lr_ds = _xr2.open_dataset(str(BASE_LR), decode_times=False)
+_st_ds = _xr2.open_dataset(str(BASE_STATIC), decode_times=False)
 _VNAMES = {
     "--w-850-name": _resolve(_lr_ds, ["w_850", "wap_850"]),
     "--w-500-name": _resolve(_lr_ds, ["w_500", "wap_500"]),
@@ -270,9 +286,9 @@ _VNAMES = {
 }
 print(f"[Cell 2B] LR vars dispo : {list(_lr_ds.data_vars)}")
 print(f"[Cell 2B] static vars dispo : {list(_st_ds.data_vars)}")
-_lr_ds.close(); _st_ds.close()
 _missing = [k for k, v in _VNAMES.items() if v is None and k != "--land-sea-mask-name"]
 if _missing:
+    _lr_ds.close(); _st_ds.close()
     raise RuntimeError(f"[Cell 2B] variables preproc introuvables : {_missing} — "
                        f"ajuster les candidats de _resolve dans Cell 2B.")
 _NAME_ARGS = []
@@ -280,7 +296,35 @@ for _k, _v in _VNAMES.items():
     if _v is not None: _NAME_ARGS += [_k, _v]
 print(f"[Cell 2B] mapping noms : { {k: v for k, v in _VNAMES.items()} }")
 
-_need_preproc = not (Path(LR_PATH_V6).exists() and Path(STATIC_PATH).exists())
+# --- P1 fix (revue dev) : le preproc HARD-crash si l'orographie n'a pas des
+# dims litteralement 'lat'/'lon' (gradient orographique signe). Rename defensif
+# vers un fichier static temporaire si les dims sont y/x ou rlat/rlon.
+_orog_name = _VNAMES["--orog-name"]
+_st_dims = list(_st_ds[_orog_name].dims)
+_RENAME = {}
+for _cand, _canon in [("y","lat"),("x","lon"),("rlat","lat"),("rlon","lon"),
+                      ("latitude","lat"),("longitude","lon")]:
+    if _cand in _st_dims and _canon not in _st_dims:
+        _RENAME[_cand] = _canon
+if _RENAME:
+    _static_fixed = f"{DRIVE_ROOT}/static_HR_dimfix.nc"
+    print(f"[Cell 2B] rename dims static {_RENAME} -> {_static_fixed}")
+    _xr2.open_dataset(str(BASE_STATIC), decode_times=False).rename(_RENAME).to_netcdf(_static_fixed)
+    BASE_STATIC = _static_fixed
+_lr_ds.close(); _st_ds.close()
+
+# --- P2 fix (revue ML) : ne pas reutiliser un cache v6 PERIME (ex. 21 vars,
+# genere sans le bonus IVT-72h) — valider qu'il contient TOUTES les STAGE1_LR_VARS.
+def _v6_has_all_vars(path):
+    if not Path(path).exists(): return False
+    _d = _xr2.open_dataset(str(path), decode_times=False)
+    _ok = all(v in _d.data_vars for v in STAGE1_LR_VARS)
+    _d.close()
+    return _ok
+
+_need_preproc = not (_v6_has_all_vars(LR_PATH_V6) and Path(STATIC_PATH).exists())
+if _need_preproc and Path(LR_PATH_V6).exists():
+    print(f"[Cell 2B] cache v6 present mais incomplet (vars manquantes) -> re-preproc")
 if _need_preproc:
     print(f"[Cell 2B] preproc v6 ({GCM_ID}) -> {LR_PATH_V6}")
     _r = subprocess.run(
@@ -303,7 +347,17 @@ else:
 
 assert Path(LR_PATH_V6).exists(), f"preproc n'a pas produit {LR_PATH_V6}"
 assert Path(STATIC_PATH).exists(), f"preproc n'a pas produit {STATIC_PATH}"
-print("[Cell 2B] provisioning OK — Cell 3 peut consommer LR_PATH_V6 / HR_PATH / STATIC_PATH")
+# Validation dure : le fichier v6 doit exposer les 22 STAGE1_LR_VARS (sinon
+# KeyError plus tard dans Cell 3 apres avoir gaspille le preproc). Fail loud ici.
+_dchk = _xr2.open_dataset(str(LR_PATH_V6), decode_times=False)
+_vmiss = [v for v in STAGE1_LR_VARS if v not in _dchk.data_vars]
+_dvars = list(_dchk.data_vars); _dchk.close()
+if _vmiss:
+    raise RuntimeError(
+        f"[Cell 2B] {LR_PATH_V6} n'expose pas {_vmiss}. Presentes : {_dvars}. "
+        f"Cause probable : casse des noms de base (ex. T_850 vs t_850) preservee "
+        f"par le preproc (ds_lr.copy). Etendre le renommage canonique.")
+print(f"[Cell 2B] provisioning OK — {len(STAGE1_LR_VARS)} vars presentes — Cell 3 peut consommer")
 '''
 
 
@@ -336,6 +390,7 @@ if not (Path(MEANS_PATH_V6).exists() and Path(STDS_PATH_V6).exists()):
             f"Recalculer les stats sur {GCM_ID} masquerait les biais moyens (audit ML)."
         )
     print("[Cell 3] Génération des stats train v6 (une fois) ...")
+    os.makedirs(os.path.dirname(MEANS_PATH_V6), exist_ok=True)   # fix revue dev : Drive propre
     _ds_access = _xr.open_dataset(f"{DRIVE_ROOT}/lr_ACCESS-CM2_v6.nc")
     _tr = _ds_access.sel(time=slice(K9_DATES["train"][0], K9_DATES["train"][1]))
     _tr = _tr[STAGE1_LR_VARS]
@@ -519,6 +574,7 @@ import copy, subprocess as _sp
 from st_cdgm.training.training_loop import train_epoch_stage1
 from st_cdgm.training.two_stage import (
     freeze_stage1, causal_ablation_check, precompute_stage1_outputs, train_epoch_stage2_cached,
+    calibrate_sigma_data_two_stage,   # safeguard 9-node reintegre (revue ML)
 )
 from st_cdgm.training.physics_prior import build_physical_mask, VAR_LABELS_V6, EXPECTED_EDGES_V6
 from path_c_plus.scripts.option_c_helpers import PATHCPLUS_HYPERPARAM_OVERRIDES
@@ -603,6 +659,26 @@ if not ablation["passes"]:
 freeze_stage1(encoder, rcn_runner.cell, regression_head)
 assert not rcn_cell.A_dag.requires_grad, "A_dag NOT frozen"
 print("[Cell 7] Stage 1 frozen (encoder + rcn_cell incl. A_dag + regression_head)")
+
+# --- Recalibration sigma_data (safeguard 9-node perdu — revue ML) -----------
+# OBLIGATOIRE entre Stage 1 fige et Stage 2 : le mu_HR 11-node change
+# std(delta_target = log1p(HR) - log1p(baseline) - mu_HR) vs la valeur du yaml.
+# Sans recalibration, le poids de preconditionnement EDM lambda(sigma) est
+# mal centre -> Stage 2 sous-optimal (Karras 2022 Eq. 7). deepcopy en Cell 9/10
+# heritent de l'edm_config recalibre car faits APRES ce bloc.
+from st_cdgm.models.edm_preconditioner import EDMConfig as _EDMConfig
+_calib = calibrate_sigma_data_two_stage(
+    encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
+    data_loader=train_dataset, iterate_batches_fn=iterate_batches_v6,
+    builder=builder, device=DEVICE, max_samples=200)
+_new_sd = float(_calib["sigma_data"])
+_scale  = float(CONFIG.two_stage.stage2.get("sigma_min_scale_factor", 0.02))
+_new_sm = max(1e-4, _new_sd * _scale)
+CONFIG.diffusion.edm.sigma_data = _new_sd
+CONFIG.diffusion.edm.sigma_min  = _new_sm
+diffusion.edm_config = _EDMConfig.from_yaml_dict(CONFIG.diffusion.get("edm", {}))
+print(f"[Cell 7] sigma_data recalibre = {_new_sd:.5f} (mean={_calib.get('mean', float('nan')):+.4f}) "
+      f"sigma_min = {_new_sm:.5f}")
 """
 
 
