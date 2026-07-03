@@ -139,14 +139,143 @@ print("[Cell 2] V6' FULL config ready (11-node + full-LR conditioning)")
 """
 
 
+CELL_2B = r'''# >>> Cell 2B : Data provisioning — download base si absent + preproc v6 si absent
+# Rend le notebook end-to-end : garantit que lr_{GCM}_v6.nc, static_HR_v6.nc et le
+# HR de base existent AVANT Cell 3. Reutilise le mecanisme Zenodo du 9-node.
+import os, sys, glob, time, subprocess
+import urllib.request as _ureq, urllib.error as _uerr
+from pathlib import Path
+
+DATA_ROOT = Path(f"{DRIVE_ROOT}/data")
+for _sub in ("train", "static_predictors", "test"):
+    (DATA_ROOT / _sub).mkdir(parents=True, exist_ok=True)
+
+# --- Streaming download avec reprise + backoff (porte du 9-node Cell 3) ------
+def _stream_dl(url, dest, retries=5, chunk=1024*1024):
+    dest = Path(dest); dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_suffix(dest.suffix + ".part")
+    for attempt in range(1, retries + 1):
+        already = part.stat().st_size if part.exists() else 0
+        req = _ureq.Request(url)
+        if already > 0:
+            req.add_header("Range", f"bytes={already}-")
+        try:
+            with _ureq.urlopen(req, timeout=30) as resp:
+                mode = "ab" if already > 0 else "wb"
+                with open(part, mode) as f:
+                    got = already; last = time.time(); last_b = got
+                    while True:
+                        c = resp.read(chunk)
+                        if not c: break
+                        f.write(c); got += len(c)
+                        if time.time() - last >= 5:
+                            sp = (got - last_b) / (time.time() - last) / 1e6
+                            print(f"    {got/1e6:7.1f} MB -- {sp:5.1f} MB/s")
+                            last = time.time(); last_b = got
+            os.replace(part, dest)
+            print(f"  OK {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
+            return True
+        except (_uerr.HTTPError, _uerr.URLError, TimeoutError, ConnectionError) as e:
+            wait = min(60, 2 ** attempt)
+            print(f"  WARN {type(e).__name__}: {e} -- retry {wait}s"); time.sleep(wait)
+    raise RuntimeError(f"Echec download {url}")
+
+# --- Recherche robuste d'un fichier de base (glob recursif) ------------------
+def _find(patterns, roots):
+    for r in roots:
+        for pat in patterns:
+            hits = sorted(glob.glob(str(Path(r) / "**" / pat), recursive=True))
+            if hits:
+                return hits[0]
+    return None
+
+_ROOTS = [DATA_ROOT, DRIVE_ROOT]
+
+# ACCESS-CM2 (in-distribution) : base LR/HR telechargeables depuis Zenodo.
+# Autres GCM (OOD) : doivent deja etre sur le Drive (pas sur Zenodo).
+_ZENODO = {
+    "predictor_ACCESS-CM2_hist.nc":
+        "https://zenodo.org/records/10889046/files/predictor_ACCESS-CM2_hist.nc?download=1",
+    "pr_ACCESS-CM2_hist.nc":
+        "https://zenodo.org/records/10889046/files/pr_ACCESS-CM2_hist.nc?download=1",
+}
+
+if GCM_ID == "ACCESS-CM2":
+    _lr_names = ["predictor_ACCESS-CM2_hist.nc", "lr_ACCESS-CM2.nc"]
+    _hr_names = ["pr_ACCESS-CM2_hist.nc", "hr_NIWA-REMS.nc"]
+else:
+    # OOD : conventions test/ du 9-node (compressed) + variantes plausibles
+    _lr_names = [f"{GCM_ID}_histupdated_compressed.nc", f"predictor_{GCM_ID}*.nc", f"lr_{GCM_ID}.nc"]
+    _hr_names = [f"{GCM_ID}_historical_precip_compressed.nc", f"pr_{GCM_ID}*.nc", f"hr_{GCM_ID}.nc"]
+
+BASE_LR     = _find(_lr_names, _ROOTS)
+BASE_HR     = _find(_hr_names, _ROOTS)
+BASE_STATIC = _find(["*Invariant*.nc", "*invariant*.nc", "static_HR.nc",
+                     "ERA5_eval_ccam_12km*.nc"], _ROOTS)
+
+# --- Download Zenodo si absent (ACCESS-CM2 uniquement) -----------------------
+if BASE_LR is None and GCM_ID == "ACCESS-CM2":
+    BASE_LR = str(DATA_ROOT / "train" / "predictor_ACCESS-CM2_hist.nc")
+    print(f"[Cell 2B] base LR absent -> Zenodo -> {BASE_LR}")
+    _stream_dl(_ZENODO["predictor_ACCESS-CM2_hist.nc"], BASE_LR)
+if BASE_HR is None and GCM_ID == "ACCESS-CM2":
+    BASE_HR = str(DATA_ROOT / "train" / "pr_ACCESS-CM2_hist.nc")
+    print(f"[Cell 2B] base HR absent -> Zenodo -> {BASE_HR}")
+    _stream_dl(_ZENODO["pr_ACCESS-CM2_hist.nc"], BASE_HR)
+
+# --- Diagnostics durs (fail loud, jamais de fallback silencieux) -------------
+if BASE_LR is None:
+    raise FileNotFoundError(
+        f"[Cell 2B] LR de base introuvable pour {GCM_ID}. "
+        f"Cherche {_lr_names} sous {[str(r) for r in _ROOTS]}. "
+        f"OOD : deposer le fichier LR du GCM sur le Drive (non Zenodo).")
+if BASE_HR is None:
+    raise FileNotFoundError(
+        f"[Cell 2B] HR de base introuvable pour {GCM_ID}. Cherche {_hr_names}.")
+if BASE_STATIC is None:
+    raise FileNotFoundError(
+        "[Cell 2B] static HR (orographie/masque) introuvable. "
+        "Cherche *Invariant*.nc — doit venir du run noncausal (non Zenodo).")
+print(f"[Cell 2B] BASE_LR     = {BASE_LR}")
+print(f"[Cell 2B] BASE_HR     = {BASE_HR}")
+print(f"[Cell 2B] BASE_STATIC = {BASE_STATIC}")
+
+# --- Sorties v6 : preproc si absent -----------------------------------------
+LR_PATH_V6  = f"{DRIVE_ROOT}/lr_{GCM_ID}_v6.nc"
+STATIC_PATH = f"{DRIVE_ROOT}/static_HR_v6.nc"
+HR_PATH     = str(BASE_HR)   # HR de base reel (remplace l'ancien hr_NIWA-REMS.nc invente)
+
+_need_preproc = not (Path(LR_PATH_V6).exists() and Path(STATIC_PATH).exists())
+if _need_preproc:
+    print(f"[Cell 2B] preproc v6 ({GCM_ID}) -> {LR_PATH_V6}")
+    subprocess.check_call([
+        sys.executable, "path_c_plus/scripts/preprocess_v6_lr.py",
+        "--lr-path",          str(BASE_LR),
+        "--static-hr-path",   str(BASE_STATIC),
+        "--out-lr-augmented", LR_PATH_V6,
+        "--out-static-hr-v6", STATIC_PATH,
+    ])
+    print("[Cell 2B] preproc v6 termine")
+else:
+    print(f"[Cell 2B] sorties v6 deja presentes : {LR_PATH_V6}")
+
+assert Path(LR_PATH_V6).exists(), f"preproc n'a pas produit {LR_PATH_V6}"
+assert Path(STATIC_PATH).exists(), f"preproc n'a pas produit {STATIC_PATH}"
+print("[Cell 2B] provisioning OK — Cell 3 peut consommer LR_PATH_V6 / HR_PATH / STATIC_PATH")
+'''
+
+
 CELL_3 = """# >>> Cell 3 : Pipeline + 11-node builder + metapath injection + routing
 from st_cdgm.data.pipeline import NetCDFDataPipeline
 from st_cdgm.models.graph_builder import HeteroGraphBuilder
 from omegaconf import OmegaConf as _OC
 
-LR_PATH_V6  = f"{DRIVE_ROOT}/lr_{GCM_ID}_v6.nc"     # from preprocess_v6_lr.py
-HR_PATH     = f"{DRIVE_ROOT}/hr_NIWA-REMS.nc"
-STATIC_PATH = f"{DRIVE_ROOT}/static_HR_v6.nc"
+# Chemins fournis par Cell 2B (provisioning : download base + preproc v6).
+# Fallback defensif si Cell 3 est lancee seule, mais Cell 2B doit tourner avant.
+LR_PATH_V6  = globals().get("LR_PATH_V6",  f"{DRIVE_ROOT}/lr_{GCM_ID}_v6.nc")
+HR_PATH     = globals().get("HR_PATH",      f"{DRIVE_ROOT}/data/train/pr_{GCM_ID}_hist.nc")
+STATIC_PATH = globals().get("STATIC_PATH",  f"{DRIVE_ROOT}/static_HR_v6.nc")
+assert Path(LR_PATH_V6).exists(), f"{LR_PATH_V6} absent — lancer Cell 2B (provisioning) d'abord"
 # --- P1-C fix (audit IA) + fix OOD (audit ML) --------------------------------
 # Les anciens means/stds (15 vars) ne couvrent PAS les 22 vars V6' → KeyError.
 # Protocole : on génère UNE FOIS des stats v6 explicites sur la fenêtre train
@@ -978,7 +1107,7 @@ print(f"[Cell 15] verdict final 3-way sauvegarde -> {_fout}")
 
 
 def build():
-    cells = [md(CELL_0), code(CELL_1), code(CELL_2), code(CELL_3), code(CELL_4),
+    cells = [md(CELL_0), code(CELL_1), code(CELL_2), code(CELL_2B), code(CELL_3), code(CELL_4),
              code(CELL_5), code(CELL_6), code(CELL_7), code(CELL_8), code(CELL_9),
              code(CELL_10), code(CELL_11), code(CELL_12),
              code(CELL_13), code(CELL_14), code(CELL_15)]
