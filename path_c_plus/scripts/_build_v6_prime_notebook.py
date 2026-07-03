@@ -618,10 +618,12 @@ encoder, rcn_cell = stack["encoder"], stack["rcn_cell"]
 rcn_runner, regression_head = stack["rcn_runner"], stack["regression_head"]
 diffusion = stack["diffusion"]
 
+ts = CONFIG.two_stage.stage1
+# fix (grep-all-callsites) : CONFIG.training.learning_rate n'existe pas dans le
+# merge — le 9-node utilise two_stage.stage1.lr (0.0003) + stage1.weight_decay.
 opt_s1 = torch.optim.AdamW(
     list(encoder.parameters()) + list(rcn_cell.parameters()) + list(regression_head.parameters()),
-    lr=float(CONFIG.training.learning_rate), weight_decay=1e-4)
-ts = CONFIG.two_stage.stage1
+    lr=float(ts.lr), weight_decay=float(ts.get("weight_decay", 1e-4)))
 for ep in range(S1_EPOCHS):
     sch = schedule_lambdas(ep, S1_EPOCHS, HP)
     m = train_epoch_stage1(
