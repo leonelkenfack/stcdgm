@@ -915,10 +915,13 @@ CELL_11 = """# >>> Cell 11 : Eval FULL TEST SPLIT + ablations A1/A2 — END-TO-E
 import torch.nn.functional as F, numpy as np, json
 from st_cdgm.evaluation.eval_metrics_dual_convention import evaluate_ensemble
 
-K_VERDICT   = 8 if SMOKE_MODE else 64
-K_ABLATION  = 4 if SMOKE_MODE else 16
-NUM_STEPS   = 32
-EVAL_BATCH  = 16   # sampling batch size (memoire)
+# Budget éval adapté au GPU (L4 22GB ~3-4x plus lent que A100). K plus petit +
+# moins de pas -> tractable. La comparaison 3-way reste valide (memes reglages
+# pour V6'/V5/noncausal dans le meme run). Remonter K/NUM_STEPS si A100 dispo.
+K_VERDICT   = 8 if SMOKE_MODE else 32
+K_ABLATION  = 4 if SMOKE_MODE else 12
+NUM_STEPS   = 24
+EVAL_BATCH  = 16   # sampling batch size (memoire) — baisser a 8 si OOM sur L4
 
 # --- climatology per-pixel thresholds (Convention A, ETCCDI) ---------------
 # P0 fix : clim_p95_p99.npz (issu du run phase8/9-node) peut etre absent. On le
@@ -966,13 +969,16 @@ base_all  = test_cache["baseline_log"][:N_TEST]
 delta_all = test_cache["delta_target"][:N_TEST]
 lr_all    = test_cache["lr_fields"][:N_TEST]
 
-def sample_ensemble(zero_mu=False, zero_lr=False, K=None):
+import time as _time
+def sample_ensemble(zero_mu=False, zero_lr=False, K=None, label="verdict"):
     \"\"\"Batched ensemble sampler avec commutateurs A1/A2 (M3 : lr_fields requis).
     cfg_scale=0.0 (P2-ii audit IA) : semantique conditioned-only identique a
-    1.0 sur edm_karras, mais evite tout double-forward CFG.\"\"\"
+    1.0 sur edm_karras, mais evite tout double-forward CFG. Prints de progression
+    par membre (+ ETA) : le sampling L4 est long, il faut voir qu'il avance.\"\"\"
     if K is None: K = K_VERDICT
     ema.eval()
     members = []
+    _t0 = _time.time()
     with torch.no_grad():
         for k in range(K):
             torch.manual_seed(1000 + k)
@@ -990,6 +996,10 @@ def sample_ensemble(zero_mu=False, zero_lr=False, K=None):
                                mu_HR=mu_, baseline_log=bl_, lr_fields=lr_)
                 chunks.append(o.residual.cpu())
             members.append(torch.cat(chunks, dim=0))
+            if (k + 1) % 2 == 0 or k == 0:
+                _el = _time.time() - _t0
+                _eta = _el / (k + 1) * (K - k - 1)
+                print(f"    [{label}] membre {k+1}/{K} | {_el:.0f}s ecoule | ETA {_eta:.0f}s", flush=True)
     return torch.stack(members, 0)   # [K, N_TEST, 1, H, W] sur CPU
 
 mu_t, base_t, delta_t = mu_all.to(DEVICE), base_all.to(DEVICE), delta_all.to(DEVICE)
@@ -997,11 +1007,11 @@ def M(ens):
     return evaluate_ensemble(ens.to(DEVICE), mu_t, base_t, delta_t, clim_p99, clim_p95)
 
 print(f"[Cell 11] VERDICT sampling (full split, K={K_VERDICT}) ...")
-res_full = M(sample_ensemble(K=K_VERDICT))
+res_full = M(sample_ensemble(K=K_VERDICT, label="verdict"))
 print(f"[Cell 11] ATTRIBUTION sampling (K={K_ABLATION} x 3 conditions) ...")
-res_refA  = M(sample_ensemble(K=K_ABLATION))
-res_a1    = M(sample_ensemble(zero_mu=True, K=K_ABLATION))
-res_a2    = M(sample_ensemble(zero_lr=True, K=K_ABLATION))
+res_refA  = M(sample_ensemble(K=K_ABLATION, label="attr-ref"))
+res_a1    = M(sample_ensemble(zero_mu=True, K=K_ABLATION, label="A1(mu=0)"))
+res_a2    = M(sample_ensemble(zero_lr=True, K=K_ABLATION, label="A2(lr=0)"))
 
 results = {
     "F1_p99_pergrid": res_full["conv_A_F1p99"],
