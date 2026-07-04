@@ -921,14 +921,35 @@ NUM_STEPS   = 32
 EVAL_BATCH  = 16   # sampling batch size (memoire)
 
 # --- climatology per-pixel thresholds (Convention A, ETCCDI) ---------------
-CLIM_PATH = f"{DRIVE_ROOT}/oracle_9node/seed_42/phase8/clim_p95_p99.npz"
-_alt = f"{DRIVE_ROOT}/ckpt_v2_corrdiff_normal/clim_p95_p99.npz"
-_cp = CLIM_PATH if Path(CLIM_PATH).exists() else _alt
-_clim = np.load(_cp)
-# P1-D fix (audit IA) : .to(DEVICE) — mismatch device CPU/CUDA sinon
-clim_p99 = torch.from_numpy(_clim["clim_p99"].astype(np.float32)).to(DEVICE)
-clim_p95 = torch.from_numpy(_clim["clim_p95"].astype(np.float32)).to(DEVICE)
-print(f"[Cell 11] climatology loaded from {_cp}")
+# P0 fix : clim_p95_p99.npz (issu du run phase8/9-node) peut etre absent. On le
+# CALCULE alors depuis le HR CIBLE de la fenetre train : HR_vrai = baseline_log +
+# mu_HR + delta_target reconstruit exactement le HR (independant du modele), en
+# mm/day, puis quantiles per-pixel. Standard ETCCDI (reference = train).
+from st_cdgm.evaluation.eval_metrics_dual_convention import to_mm_day as _to_mm_day
+_gen_clim = f"{DRIVE_ROOT}/oracle_v6_prime/seed_42/clim_p95_p99.npz"
+_cp = next((p for p in (
+    f"{DRIVE_ROOT}/oracle_9node/seed_42/phase8/clim_p95_p99.npz",
+    f"{DRIVE_ROOT}/ckpt_v2_corrdiff_normal/clim_p95_p99.npz",
+    _gen_clim) if Path(p).exists()), None)
+if _cp is not None:
+    _clim = np.load(_cp)
+    clim_p99 = torch.from_numpy(_clim["clim_p99"].astype(np.float32)).to(DEVICE)
+    clim_p95 = torch.from_numpy(_clim["clim_p95"].astype(np.float32)).to(DEVICE)
+    print(f"[Cell 11] climatology loaded from {_cp}")
+else:
+    print("[Cell 11] clim absente -> calcul depuis le cache train (HR cible, mm/day)")
+    _tc = cache if "cache" in globals() else torch.load(CACHE_PATH, map_location="cpu", weights_only=False)
+    with torch.no_grad():
+        _hr_log = (_tc["baseline_log"] + _tc["mu_HR"] + _tc["delta_target"]).float()
+        _hr_mm = _to_mm_day(_hr_log).squeeze(1).cpu().numpy()   # [N,H,W] mm/day
+    _p95 = np.nanpercentile(_hr_mm, 95.0, axis=0).astype(np.float32)
+    _p99 = np.nanpercentile(_hr_mm, 99.0, axis=0).astype(np.float32)
+    os.makedirs(os.path.dirname(_gen_clim), exist_ok=True)
+    np.savez(_gen_clim, clim_p95=_p95, clim_p99=_p99)
+    clim_p95 = torch.from_numpy(_p95).to(DEVICE)
+    clim_p99 = torch.from_numpy(_p99).to(DEVICE)
+    print(f"[Cell 11] climatology CALCULEE sur {_hr_mm.shape[0]} jours train -> {_gen_clim} "
+          f"| p99 median={np.nanmedian(_p99):.1f} mm/day p95 median={np.nanmedian(_p95):.1f}")
 
 # --- materialise test conditioning on the FULL split ------------------------
 test_cache = precompute_stage1_outputs(
