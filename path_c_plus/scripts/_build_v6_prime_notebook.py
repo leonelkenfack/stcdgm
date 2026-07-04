@@ -560,6 +560,9 @@ def build_fresh_stack(seed: int):
         edm_config=EDMConfig.from_yaml_dict(CONFIG.diffusion.get("edm", {})),
         causal_concat=True,
         lr_conditioning_channels=LR_COND_CHANNELS,   # <<< V6' PIVOT
+        # fix mémoire GPU : REQUIS pour batch=64 sur A100 (yaml corrdiff_normal).
+        # Recompute activations au backward -> ~30% plus lent, ~50% moins de VRAM.
+        use_gradient_checkpointing=bool(CONFIG.diffusion.get("use_gradient_checkpointing", True)),
     ).to(DEVICE)
     print(f"   diffusion conv_in in_channels = {diffusion.unet.conv_in.in_channels} (=3+{LR_COND_CHANNELS})")
     return dict(encoder=encoder, rcn_cell=rcn_cell, rcn_runner=rcn_runner,
@@ -782,7 +785,7 @@ class _CondDS(_DS):
     def __getitem__(self, i):
         return {"mu_HR": self.mu[i], "baseline_log": self.base[i], "delta_target": self.delta[i],
                 "valid_mask": self.mask[i], "lr_fields": self.lr[i]}
-BATCH = 32 if SMOKE_MODE else 64
+BATCH = 32 if SMOKE_MODE else 48   # 64->48 : plafond VRAM <70GB (+ grad checkpointing)
 cached_loader = _DL(_CondDS(cache), batch_size=BATCH, shuffle=True, num_workers=0, drop_last=True)
 print(f"[Cell 8] cached_loader ready (batch={BATCH}, {len(cached_loader)} batches)")
 """
@@ -821,6 +824,15 @@ def _val_loss(zero_lr=False, n=5):
 l_on, l_off = _val_loss(False), _val_loss(True)
 print(f"[SMOKE A2] loss(LR on)={l_on:.4f} loss(LR->0)={l_off:.4f} degradation={100*(l_off-l_on)/max(1e-6,l_on):+.1f}%")
 print("  ✓ denoiser USES LR" if l_off > l_on*1.02 else "  ⚠ A2 <2% — investigate before full run")
+
+# fix mémoire GPU : libérer la copie smoke (+ son optimiseur) AVANT le Stage 2 —
+# sinon diffusion + diffusion_smoke + ema coexistent sur le GPU.
+import gc as _gc
+del diffusion_smoke, opt_smoke
+_gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    print(f"[Cell 9] VRAM après nettoyage smoke : {torch.cuda.memory_allocated()/1e9:.1f} GB alloués")
 """
 
 
