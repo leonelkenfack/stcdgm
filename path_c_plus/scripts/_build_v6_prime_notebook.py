@@ -921,7 +921,8 @@ from st_cdgm.evaluation.eval_metrics_dual_convention import evaluate_ensemble
 K_VERDICT   = 8 if SMOKE_MODE else 32
 K_ABLATION  = 4 if SMOKE_MODE else 12
 NUM_STEPS   = 24
-EVAL_BATCH  = 16   # sampling batch size (memoire) — baisser a 8 si OOM sur L4
+EVAL_BATCH  = 8    # L4 22GB : batch 16 peut faire du thrashing VRAM (crawl) sur
+                   # les modeles baseline -> 8 pour rester en VRAM. Monter si A100.
 
 # --- climatology per-pixel thresholds (Convention A, ETCCDI) ---------------
 # P0 fix : clim_p95_p99.npz (issu du run phase8/9-node) peut etre absent. On le
@@ -1312,8 +1313,10 @@ def eval_baseline(name, variant, regression_head, encoder=None, rcn_runner=None,
                 o = core.sample(conditioning=None, **kw)
                 chunks.append(o.residual.cpu())
             member_list.append(torch.cat(chunks, 0))
-            if (k + 1) % 16 == 0:
-                print(f"    member {k+1}/{K}  elapsed={time.time()-t0:.0f}s")
+            if (k + 1) % 2 == 0 or k == 0:   # visibilite : print par membre (etait %16)
+                _el = time.time() - t0
+                _eta = _el / (k + 1) * (K - k - 1)
+                print(f"    [{name}] membre {k+1}/{K} | {_el:.0f}s ecoule | ETA {_eta:.0f}s", flush=True)
     ens = torch.stack(member_list, 0)
     res = evaluate_ensemble(ens.to(DEVICE), mu_c.to(DEVICE), bl_c.to(DEVICE),
                             dl_c.to(DEVICE), clim_p99, clim_p95)
