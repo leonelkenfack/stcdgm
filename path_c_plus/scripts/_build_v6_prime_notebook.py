@@ -916,8 +916,8 @@ from st_cdgm.evaluation.eval_metrics_dual_convention import evaluate_ensemble
 K_VERDICT   = 8 if SMOKE_MODE else 32
 K_ABLATION  = 4 if SMOKE_MODE else 12
 NUM_STEPS   = 24
-EVAL_BATCH  = 8    # L4 22GB : batch 16 peut faire du thrashing VRAM (crawl) sur
-                   # les modeles baseline -> 8 pour rester en VRAM. Monter si A100.
+EVAL_BATCH  = 16   # A100 80GB : 16 OK (sampling forward-only). Baisser a 8 (L4)
+                   # ou 4 si OOM. Le thrashing L4 venait de 22GB, pas d'un souci ici.
 
 # --- climatology per-pixel thresholds (Convention A, ETCCDI) ---------------
 # P0 fix : clim_p95_p99.npz (issu du run phase8/9-node) peut etre absent. On le
