@@ -106,7 +106,13 @@ def compute_rapsd_batch(pred_mean: torch.Tensor, targets: torch.Tensor, n_sample
     dists = []
     for i in range(min(n_samples, pred_mean.shape[0])):
         try:
-            dists.append(float(compute_spectrum_distance(pred_mean[i], targets[i])))
+            # fix : les champs precip ont des NaN (ocean) -> la FFT propage NaN et
+            # rapsd_distance devenait nan. nan_to_num(0) avant le spectre.
+            _p = torch.nan_to_num(pred_mean[i], nan=0.0, posinf=0.0, neginf=0.0)
+            _t = torch.nan_to_num(targets[i], nan=0.0, posinf=0.0, neginf=0.0)
+            _d = float(compute_spectrum_distance(_p, _t))
+            if _d == _d:  # exclut un nan residuel
+                dists.append(_d)
         except Exception:  # noqa: BLE001
             pass
     return float(np.mean(dists)) if dists else float("nan")
