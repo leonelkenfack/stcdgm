@@ -132,6 +132,60 @@ def rx1day_bias_mm(pred_mm: torch.Tensor, target_mm: torch.Tensor) -> float:
         return float("nan")
 
 
+def compute_crps_ensemble(members_mm: torch.Tensor, target_mm: torch.Tensor) -> float:
+    """CRPS (estimateur fair/unbiased) de l'ensemble, en mm/day. LA metrique
+    probabiliste de reference : recompense calibration + finesse de l'ensemble
+    (ce que le F1-sur-moyenne ne voit pas). members_mm [K,B,1,H,W], target [B,H,W].
+    Formule triee : CRPS = mean_k|x_k-y| - (1/(K(K-1))) sum_k (2k-K-1) x_(k)."""
+    try:
+        m = members_mm.squeeze(2).float()               # [K,B,H,W]
+        K = m.shape[0]
+        if K < 2:
+            return float("nan")
+        valid = torch.isfinite(target_mm)               # [B,H,W]
+        y = torch.nan_to_num(target_mm, nan=0.0)
+        m = torch.nan_to_num(m, nan=0.0)
+        term1 = (m - y.unsqueeze(0)).abs().mean(dim=0)  # [B,H,W]
+        xs, _ = torch.sort(m, dim=0)                    # ascending [K,B,H,W]
+        k = torch.arange(1, K + 1, device=m.device, dtype=m.dtype).view(K, 1, 1, 1)
+        gini = ((2 * k - K - 1) * xs).sum(dim=0) / (K * (K - 1))
+        crps = term1 - gini                             # [B,H,W]
+        return float(crps[valid].mean().item())
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
+def _pooled_quantile_bias_pct(pred_mm: torch.Tensor, target_mm: torch.Tensor, q: float) -> float:
+    """Biais relatif (%) du quantile poole q (ex 0.99, 0.999) : fidelite de
+    l'INTENSITE de queue (complementaire au Rx1day). <0 = sous-estimation."""
+    try:
+        pv = pred_mm[torch.isfinite(pred_mm)].detach().cpu().numpy().ravel()
+        tv = target_mm[torch.isfinite(target_mm)].detach().cpu().numpy().ravel()
+        qp = float(np.quantile(pv, q)); qt = float(np.quantile(tv, q))
+        return float(100.0 * (qp - qt) / qt) if qt > 1e-6 else float("nan")
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
+def compute_fss(pred_mm: torch.Tensor, target_mm: torch.Tensor,
+                clim_p99: torch.Tensor, window: int = 5) -> float:
+    """Fractions Skill Score au seuil per-pixel p99, voisinage window x window
+    (standard verification precip spatiale). 1 = parfait, 0 = sans skill."""
+    try:
+        import torch.nn.functional as _F
+        thr = clim_p99 if clim_p99.dim() == 2 else clim_p99.squeeze()
+        po = torch.nan_to_num((pred_mm > thr).float())
+        oo = torch.nan_to_num((target_mm > thr).float())
+        pad = window // 2
+        Pf = _F.avg_pool2d(po.unsqueeze(1), window, stride=1, padding=pad).squeeze(1)
+        Of = _F.avg_pool2d(oo.unsqueeze(1), window, stride=1, padding=pad).squeeze(1)
+        num = float(((Pf - Of) ** 2).mean().item())
+        den = float((Pf ** 2).mean().item()) + float((Of ** 2).mean().item())
+        return float(1.0 - num / den) if den > 1e-9 else float("nan")
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
 def evaluate_ensemble(
     ensemble_residual_log1p: torch.Tensor,   # [K, B, 1, H, W] diffusion residual
     mu_HR: torch.Tensor,                      # [B, 1, H, W] log1p
@@ -177,6 +231,16 @@ def evaluate_ensemble(
     out["spread_mean"] = spr
     out["rapsd_distance"] = compute_rapsd_batch(pred_mm, target_mm)
     out["rx1day_bias"] = rx1day_bias_mm(pred_mm, target_mm)
+
+    # --- Metriques ajoutees (demande user) : probabiliste + calibration + queue ---
+    out["crps"] = compute_crps_ensemble(members_mm, target_mm)   # probabiliste (mm/day, plus bas = mieux)
+    # SSR (spread-skill ratio) ~1 = ensemble bien calibre ; <1 = sous-disperse (typique diffusion)
+    out["ssr"] = float(spr / rmse) if (rmse == rmse and rmse > 1e-9) else float("nan")
+    _valid = torch.isfinite(target_mm)
+    out["bias_mm"] = float((torch.nan_to_num(pred_mm) - torch.nan_to_num(target_mm))[_valid].mean().item())
+    out["qbias_p99_pct"]  = _pooled_quantile_bias_pct(pred_mm, target_mm, 0.99)    # intensite de queue
+    out["qbias_p999_pct"] = _pooled_quantile_bias_pct(pred_mm, target_mm, 0.999)
+    out["fss_p99"] = compute_fss(pred_mm, target_mm, clim_p99, window=5)           # skill spatial extremes
     return out
 
 
@@ -189,5 +253,7 @@ __all__ = [
     "compute_rmse_mae_spread",
     "compute_rapsd_batch",
     "rx1day_bias_mm",
+    "compute_crps_ensemble",
+    "compute_fss",
     "evaluate_ensemble",
 ]

@@ -1030,6 +1030,13 @@ results = {
     "F1_p99_pooled":  res_full["conv_B_F1p99"],
     "RMSE": res_full["rmse"], "Pearson": res_full["pearson_global"],
     "Rx1day_bias": res_full["rx1day_bias"], "RAPSD": res_full["rapsd_distance"],
+    # --- metriques generatives/queue ajoutees ---
+    "CRPS": res_full.get("crps", float("nan")),
+    "SSR": res_full.get("ssr", float("nan")),
+    "bias_mm": res_full.get("bias_mm", float("nan")),
+    "qbias_p99_pct": res_full.get("qbias_p99_pct", float("nan")),
+    "qbias_p999_pct": res_full.get("qbias_p999_pct", float("nan")),
+    "FSS_p99": res_full.get("fss_p99", float("nan")),
     "n_test": int(N_TEST), "K_verdict": int(K_VERDICT), "K_ablation": int(K_ABLATION),
     # Attribution : triple au MEME K (comparabilite interne, semantique A1
     # INFORMATIONNELLE : conditioning ablate, mu reel conserve en recomposition
@@ -1348,7 +1355,8 @@ CELL_15 = """# >>> Cell 15 : 3-WAY TABLE + references recomputees + VERDICT FINA
 import json, os
 
 table_metrics = ["conv_A_F1p99", "conv_A_F1p95", "conv_B_F1p99", "conv_B_F1p95",
-                 "rmse", "mae", "pearson_global", "rapsd_distance", "rx1day_bias"]
+                 "pearson_global", "rmse", "mae", "crps", "ssr", "fss_p99",
+                 "rapsd_distance", "bias_mm", "rx1day_bias", "qbias_p99_pct", "qbias_p999_pct"]
 rows = {"V6_prime": res_full, "V5_causal": res_v5, "noncausal_v4": res_nc}
 
 print("=" * 88)
@@ -1356,11 +1364,21 @@ print("3-WAY COMPARISON (Conv A CORRIGEE per-pixel, composition mm, full test sp
 print("=" * 88)
 hdr = f"{'Metric':24s} " + " ".join(f"{n:>14s}" for n in rows)
 print(hdr)
-lower_better = {"rmse", "mae", "rapsd_distance"}
+lower_better = {"rmse", "mae", "rapsd_distance", "crps"}          # min = best
+abs_best     = {"bias_mm", "rx1day_bias", "qbias_p99_pct", "qbias_p999_pct"}  # proche de 0
 for met in table_metrics:
     vals = {n: rows[n].get(met, float("nan")) for n in rows}
     _finite = [n for n in vals if vals[n] == vals[n]]
-    best = (min if met in lower_better else max)(_finite, key=lambda n: vals[n]) if _finite else None
+    if not _finite:
+        best = None
+    elif met in abs_best:
+        best = min(_finite, key=lambda n: abs(vals[n]))
+    elif met == "ssr":
+        best = min(_finite, key=lambda n: abs(vals[n] - 1.0))    # calibre ~1
+    elif met in lower_better:
+        best = min(_finite, key=lambda n: vals[n])
+    else:
+        best = max(_finite, key=lambda n: vals[n])
     line = f"{met:24s} " + " ".join(f"{vals[n]:14.4f}" for n in rows)
     print(line + (f"   <- best: {best}" if best else ""))
 
