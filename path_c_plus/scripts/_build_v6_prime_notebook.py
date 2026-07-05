@@ -791,72 +791,67 @@ print(f"[Cell 8] cached_loader ready (batch={BATCH}, {len(cached_loader)} batche
 """
 
 
-CELL_9 = """# >>> Cell 9 : SMOKE Stage 2 + A2 monitor (M6) BEFORE full run
-import copy, torch.nn.functional as F
-S9_EPOCHS = 8   # + d'epoques : l'usage du LR par le debruiteur peut emerger tard
-diffusion_smoke = copy.deepcopy(diffusion)
-opt_smoke = torch.optim.AdamW(diffusion_smoke.parameters(), lr=float(CONFIG.two_stage.stage2.lr), weight_decay=1e-4)
-
-# --- A2 APPARIE (fix revue) : meme bruit on/off -> la difference ne vient QUE du LR.
-# L'ancienne mesure tirait un bruit different pour on et off (n=5) -> ±5% de bruit
-# noyait le signal. Ici : seed identique par batch, 20 batches.
-def _a2_paired(n=20):
-    diffusion_smoke.eval()
-    d_on = d_off = 0.0; k = 0
-    with torch.no_grad():
-        for b in cached_loader:
-            mu=b["mu_HR"].to(DEVICE); bl=b["baseline_log"].to(DEVICE); dt=b["delta_target"].to(DEVICE)
-            lr=b["lr_fields"].to(DEVICE)
-            if lr.shape[-2:] != dt.shape[-2:]:
-                lr = F.interpolate(lr, size=dt.shape[-2:], mode="bilinear", align_corners=False)
-            _sd = 4321 + k
-            torch.manual_seed(_sd)
-            l_on = float(diffusion_smoke.compute_loss_edm(target=dt, mu_HR=mu, baseline_log=bl, lr_fields=lr))
-            torch.manual_seed(_sd)   # MEME bruit -> comparaison appariee
-            l_off = float(diffusion_smoke.compute_loss_edm(target=dt, mu_HR=mu, baseline_log=bl, lr_fields=torch.zeros_like(lr)))
-            d_on += l_on; d_off += l_off; k += 1
-            if k >= n: break
-    diffusion_smoke.train()
-    return d_on/max(1,k), d_off/max(1,k)
-
-_a2_hist = []
-for ep in range(S9_EPOCHS):
-    m = train_epoch_stage2_cached(diffusion_decoder=diffusion_smoke, optimizer=opt_smoke,
-        cached_dataloader=cached_loader, device=DEVICE, use_amp=True, gradient_clipping=1.0, log_every=50)
-    _lon, _loff = _a2_paired()
-    _a2 = 100*(_loff - _lon)/max(1e-6, _lon)   # >0 => zeroter le LR AUGMENTE la perte => LR utilise
-    _a2_hist.append(_a2)
-    print(f"SMOKE ep{ep+1}/{S9_EPOCHS} loss_diff={m['loss_diff']:.4f}  "
-          f"corr(D_y,mu_HR)={m.get('corr_dy_mu', float('nan')):+.3f}  A2(apparie)={_a2:+.1f}%")
-    _c = m.get("corr_dy_mu", float("nan"))
-    if _c == _c and _c < -0.3:
-        raise RuntimeError(
-            f"SMOKE ABORT : corr(D_y, mu_HR) = {_c:.3f} < -0.3 — la diffusion "
-            "depense sa capacite a annuler mu_HR. Basculer sur la variante "
-            "V6'.1 pre-enregistree (delta = HR - baseline, mu_HR conditioning seul).")
-
-# Verdict A2 : tendance sur les 3 dernieres epoques (le LR doit devenir utile).
-_a2_final = sum(_a2_hist[-3:]) / max(1, len(_a2_hist[-3:]))
-print()
-print(f"[SMOKE A2] historique = {['%+.1f%%'%x for x in _a2_hist]}")
-print(f"[SMOKE A2] moyenne 3 dernieres = {_a2_final:+.1f}%  (>+2% => le debruiteur UTILISE le LR)")
-if _a2_final > 2.0:
-    print("  ✓ A2 POSITIF — la these full-LR tient, GO full run")
-elif _a2_final > 0.0:
-    print("  ~ A2 FAIBLE mais positif — LR marginalement utile ; le full run peut le renforcer")
+CELL_9 = """# >>> Cell 9 : SMOKE Stage 2 (optionnel) — deja validee, sautee par defaut
+import copy, torch.nn.functional as F, os
+# SMOKE deja validee (A2 apparie +6.4%). Inutile une fois le Stage 2 entraine.
+# Sautee par defaut ; auto-skip si le checkpoint Stage 2 final existe deja.
+# Mettre RUN_SMOKE=True pour la re-executer explicitement.
+RUN_SMOKE = False
+_stage2_done = os.path.exists(f"{CKPT_DIR}/v6_prime_seed42.pth")
+if (not RUN_SMOKE) or _stage2_done:
+    print(f"[Cell 9] SMOKE sautee (RUN_SMOKE={RUN_SMOKE}, stage2_done={_stage2_done}) — "
+          "deja validee : A2 apparie +6.4%.")
 else:
-    print("  ⛔ A2 <= 0 apres {} ep — le debruiteur N'UTILISE PAS le LR. C'est le signal".format(S9_EPOCHS))
-    print("     d'abandon pre-declare (conseil) : le full-LR conditioning n'apporte pas de skill.")
-    print("     NE PAS lancer les 200 epoques a l'aveugle — decider (pivot OOD/V7).")
+    S9_EPOCHS = 8   # + d'epoques : l'usage du LR par le debruiteur peut emerger tard
+    diffusion_smoke = copy.deepcopy(diffusion)
+    opt_smoke = torch.optim.AdamW(diffusion_smoke.parameters(), lr=float(CONFIG.two_stage.stage2.lr), weight_decay=1e-4)
 
-# fix mémoire GPU : libérer la copie smoke (+ son optimiseur) AVANT le Stage 2 —
-# sinon diffusion + diffusion_smoke + ema coexistent sur le GPU.
-import gc as _gc
-del diffusion_smoke, opt_smoke
-_gc.collect()
-if torch.cuda.is_available():
-    torch.cuda.empty_cache()
-    print(f"[Cell 9] VRAM après nettoyage smoke : {torch.cuda.memory_allocated()/1e9:.1f} GB alloués")
+    # --- A2 APPARIE : meme bruit on/off -> la difference ne vient QUE du LR.
+    def _a2_paired(n=20):
+        diffusion_smoke.eval()
+        d_on = d_off = 0.0; k = 0
+        with torch.no_grad():
+            for b in cached_loader:
+                mu=b["mu_HR"].to(DEVICE); bl=b["baseline_log"].to(DEVICE); dt=b["delta_target"].to(DEVICE)
+                lr=b["lr_fields"].to(DEVICE)
+                if lr.shape[-2:] != dt.shape[-2:]:
+                    lr = F.interpolate(lr, size=dt.shape[-2:], mode="bilinear", align_corners=False)
+                _sd = 4321 + k
+                torch.manual_seed(_sd)
+                l_on = float(diffusion_smoke.compute_loss_edm(target=dt, mu_HR=mu, baseline_log=bl, lr_fields=lr))
+                torch.manual_seed(_sd)   # MEME bruit -> comparaison appariee
+                l_off = float(diffusion_smoke.compute_loss_edm(target=dt, mu_HR=mu, baseline_log=bl, lr_fields=torch.zeros_like(lr)))
+                d_on += l_on; d_off += l_off; k += 1
+                if k >= n: break
+        diffusion_smoke.train()
+        return d_on/max(1,k), d_off/max(1,k)
+
+    _a2_hist = []
+    for ep in range(S9_EPOCHS):
+        m = train_epoch_stage2_cached(diffusion_decoder=diffusion_smoke, optimizer=opt_smoke,
+            cached_dataloader=cached_loader, device=DEVICE, use_amp=True, gradient_clipping=1.0, log_every=50)
+        _lon, _loff = _a2_paired()
+        _a2 = 100*(_loff - _lon)/max(1e-6, _lon)
+        _a2_hist.append(_a2)
+        print(f"SMOKE ep{ep+1}/{S9_EPOCHS} loss_diff={m['loss_diff']:.4f}  "
+              f"corr(D_y,mu_HR)={m.get('corr_dy_mu', float('nan')):+.3f}  A2(apparie)={_a2:+.1f}%")
+        _c = m.get("corr_dy_mu", float("nan"))
+        if _c == _c and _c < -0.3:
+            raise RuntimeError(
+                f"SMOKE ABORT : corr(D_y, mu_HR) = {_c:.3f} < -0.3 — basculer sur V6'.1.")
+
+    _a2_final = sum(_a2_hist[-3:]) / max(1, len(_a2_hist[-3:]))
+    print()
+    print(f"[SMOKE A2] historique = {['%+.1f%%'%x for x in _a2_hist]}")
+    print(f"[SMOKE A2] moyenne 3 dernieres = {_a2_final:+.1f}%  (>+2% => le debruiteur UTILISE le LR)")
+    print("  ✓ A2 POSITIF" if _a2_final > 2.0 else ("  ~ A2 FAIBLE" if _a2_final > 0 else "  ⛔ A2 <= 0"))
+
+    import gc as _gc
+    del diffusion_smoke, opt_smoke
+    _gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        print(f"[Cell 9] VRAM apres nettoyage smoke : {torch.cuda.memory_allocated()/1e9:.1f} GB")
 """
 
 
@@ -1007,12 +1002,28 @@ mu_t, base_t, delta_t = mu_all.to(DEVICE), base_all.to(DEVICE), delta_all.to(DEV
 def M(ens):
     return evaluate_ensemble(ens.to(DEVICE), mu_t, base_t, delta_t, clim_p99, clim_p95)
 
-print(f"[Cell 11] VERDICT sampling (full split, K={K_VERDICT}) ...")
-res_full = M(sample_ensemble(K=K_VERDICT, label="verdict"))
-print(f"[Cell 11] ATTRIBUTION sampling (K={K_ABLATION} x 3 conditions) ...")
-res_refA  = M(sample_ensemble(K=K_ABLATION, label="attr-ref"))
-res_a1    = M(sample_ensemble(zero_mu=True, K=K_ABLATION, label="A1(mu=0)"))
-res_a2    = M(sample_ensemble(zero_lr=True, K=K_ABLATION, label="A2(lr=0)"))
+# PERSISTANCE (demande user) : le sampling V6' coute ~8h sur L4. On sauve les
+# resultats (dicts de metriques) et on les RECHARGE au prochain run -> plus jamais
+# de re-sampling V6'. Supprimer le .json pour forcer un recalcul.
+V6_EVAL_JSON = f"{CKPT_DIR}/v6_prime_eval_results.json"
+if (not SMOKE_MODE) and os.path.exists(V6_EVAL_JSON):
+    with open(V6_EVAL_JSON) as _f: _sv = json.load(_f)
+    res_full, res_refA = _sv["res_full"], _sv["res_refA"]
+    res_a1, res_a2 = _sv["res_a1"], _sv["res_a2"]
+    print(f"[Cell 11] resultats V6' RECHARGES depuis {V6_EVAL_JSON} (pas de re-sampling)")
+else:
+    print(f"[Cell 11] VERDICT sampling (full split, K={K_VERDICT}) ...")
+    res_full = M(sample_ensemble(K=K_VERDICT, label="verdict"))
+    print(f"[Cell 11] ATTRIBUTION sampling (K={K_ABLATION} x 3 conditions) ...")
+    res_refA  = M(sample_ensemble(K=K_ABLATION, label="attr-ref"))
+    res_a1    = M(sample_ensemble(zero_mu=True, K=K_ABLATION, label="A1(mu=0)"))
+    res_a2    = M(sample_ensemble(zero_lr=True, K=K_ABLATION, label="A2(lr=0)"))
+    if not SMOKE_MODE:
+        _sv = {k: {kk: float(vv) for kk, vv in d.items()}
+               for k, d in [("res_full", res_full), ("res_refA", res_refA),
+                            ("res_a1", res_a1), ("res_a2", res_a2)]}
+        with open(V6_EVAL_JSON, "w") as _f: json.dump(_sv, _f, indent=2)
+        print(f"[Cell 11] resultats V6' SAUVES -> {V6_EVAL_JSON}")
 
 results = {
     "F1_p99_pergrid": res_full["conv_A_F1p99"],
