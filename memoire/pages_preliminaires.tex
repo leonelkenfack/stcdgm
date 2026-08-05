@@ -1,0 +1,231 @@
+% =============================================================
+% Pages préliminaires — Mémoire ORACLE
+% Page de garde + Dédicace + Remerciements + Résumé/Abstract + Sigles
+% Style URIFIA / Université de Dschang
+% =============================================================
+
+\documentclass[14pt,a4paper,openany]{extreport}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\addto\captionsfrench{%
+  \renewcommand{\tablename}{Tableau}%
+  \renewcommand{\figurename}{Figure}%
+}
+
+\usepackage{lmodern}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage[a4paper,inner=3cm,outer=2.3cm,top=2.5cm,bottom=2.7cm,headheight=15pt,bindingoffset=0.3cm]{geometry}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{uridarkblue}{RGB}{30,40,90}
+\definecolor{urigray}{RGB}{70,70,70}
+\definecolor{uriaccent}{RGB}{180,60,40}
+
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage[most]{tcolorbox}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textsc{\nouppercase{\leftmark}}}
+\fancyhead[R]{\thepage}
+\fancyfoot[L]{\footnotesize Mémoire de Master en Informatique, Université de Dschang}
+\fancyfoot[R]{\footnotesize URIFIA}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+
+\begin{document}
+
+% =============================================================
+% PAGE DE GARDE
+% =============================================================
+\thispagestyle{empty}
+\begin{titlepage}
+\centering
+
+% --- Bandeau supérieur ---
+{\large \textsc{République du Cameroun} \par}
+\vspace{0.2em}
+{\small \textit{Paix -- Travail -- Patrie} \par}
+\vspace{0.5em}
+{\large \textsc{Ministère de l'Enseignement Supérieur} \par}
+\vspace{0.5em}
+{\large \textbf{Université de Dschang} \par}
+\vspace{0.3em}
+{\large \textit{Faculté des Sciences} \par}
+\vspace{0.3em}
+{\large \textit{Unité de Recherche d'Informatique Fondamentale et Appliquée (URIFIA)} \par}
+
+\vspace{2em}
+% --- Logo placeholder ---
+\begin{tcolorbox}[width=4cm,height=4cm,valign=center,colback=gray!10,colframe=gray!50,arc=2pt]
+\centering\small\textit{Logo UD}
+\end{tcolorbox}
+
+\vspace{2em}
+% --- Type de document ---
+{\Large \textsc{Mémoire de Master en Informatique} \par}
+\vspace{0.5em}
+{\large \textit{Option : Intelligence Artificielle et Sciences des Données} \par}
+
+\vspace{2.5em}
+% --- Titre principal ---
+\begin{tcolorbox}[colback=uridarkblue!5,colframe=uridarkblue,boxrule=1pt,arc=2pt,
+                  left=0.5em,right=0.5em,top=0.8em,bottom=0.8em]
+\centering
+{\LARGE\bfseries\color{uridarkblue}
+ORACLE : une architecture causale à deux étages\\pour le downscaling climatique probabiliste \par}
+\vspace{0.8em}
+{\large\itshape Application à la précipitation haute résolution\\sous changement climatique \par}
+\vspace{0.8em}
+{\normalsize\itshape Une architecture conditionnelle structurée pour le downscaling probabiliste des précipitations : entre causalité architecturale et identification physique. \par}
+\end{tcolorbox}
+
+\vspace{2.5em}
+% --- Auteur ---
+{\large \textit{Présenté et soutenu publiquement par :} \par}
+\vspace{0.5em}
+{\Large\bfseries Leonel KENFACK \par}
+\vspace{0.2em}
+{\normalsize \textit{en vue de l'obtention du diplôme de Master en Informatique} \par}
+
+\vspace{2em}
+% --- Jury ---
+{\large \textit{Sous la direction de :} \par}
+\vspace{0.4em}
+{\large \textsc{Pr.~[Nom du directeur]} \par}
+{\small \textit{[Titre, affiliation, Université de Dschang]} \par}
+
+\vspace{1.5em}
+% --- Date ---
+{\large \textbf{Année académique 2025--2026} \par}
+
+\end{titlepage}
+
+% =============================================================
+% DÉDICACE
+% =============================================================
+\clearpage
+\thispagestyle{empty}
+\vspace*{4cm}
+\begin{flushright}
+\textit{À mes parents,}\\[0.5em]
+\textit{dont la patience et le soutien constant ont rendu possible}\\[0.3em]
+\textit{ce parcours d'études supérieures.}\\[1em]
+\textit{À celles et ceux qui, en Afrique centrale comme ailleurs,}\\[0.3em]
+\textit{cherchent des outils pour comprendre et anticiper}\\[0.3em]
+\textit{le climat de leur quotidien.}\\[2em]
+\end{flushright}
+
+% =============================================================
+% REMERCIEMENTS
+% =============================================================
+\clearpage
+\chapter*{Remerciements}
+\addcontentsline{toc}{chapter}{Remerciements}
+\markboth{Remerciements}{Remerciements}
+
+Ce mémoire n'aurait pu être mené sans l'apport et le soutien de plusieurs personnes et structures que je tiens à remercier.
+
+Je remercie mon directeur de mémoire, le \textbf{Pr.~[Nom à compléter]}, pour sa disponibilité, la rigueur de ses relectures et la confiance qu'il m'a accordée. Ses conseils méthodologiques, en particulier sur la nécessité d'expliciter les variantes écartées, ont structuré la forme finale du manuscrit. Je remercie les membres du jury qui ont accepté d'évaluer ce travail.
+
+Je remercie l'\textbf{Unité de Recherche d'Informatique Fondamentale et Appliquée (URIFIA)} de l'Université de Dschang pour le cadre scientifique offert pendant les deux années de master, ainsi que les contributeurs des projets logiciels open-source --- \textsc{PyTorch}, \textsc{PyTorch~Geometric}, l'implémentation \textsc{NVIDIA~PhysicsNeMo} de \textsc{CorrDiff} --- et les jeux de données mis à disposition par les contributeurs au \emph{Coupled Model Intercomparison Project} (CMIP6).
+
+Je remercie enfin ma famille et mes proches, dont le soutien quotidien a rendu ces deux années fertiles.
+
+% =============================================================
+% RÉSUMÉ + ABSTRACT (sur une seule page)
+% =============================================================
+\clearpage
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Résumé / Abstract}
+\markboth{Résumé / Abstract}{Résumé / Abstract}
+
+\begingroup
+\small
+\setlength{\parskip}{0.3em}
+
+\begin{center}{\large\bfseries\color{uridarkblue}Résumé}\end{center}
+
+Le \emph{downscaling} climatique transforme des champs atmosphériques basse résolution issus de modèles globaux en champs haute résolution exploitables localement. Les architectures profondes récentes (cGAN résiduels, diffusion à deux étages) améliorent qualité prédictive et calibration mais restent fragiles sous changement de distribution. Ce mémoire propose \Oracle{}, une architecture à deux étages qui place la causalité dans la topologie du graphe de calcul : un encodeur intelligible par variable, un graphe hétérogène à six nœuds, un réseau causal récurrent gouverné par une matrice apprise sous contrainte DAGMA et un décodeur graphe-à-grille produisent une moyenne haute résolution ; une diffusion EDM résiduelle conditionnée par concaténation de canaux échantillonne le résidu, garantissant par construction la propriété d'indispensabilité du DAG~(O3).
+
+Sur la Nouvelle-Zélande (ACCESS-CM2 en distribution ; EC-Earth3, NorESM2-MM hors-distribution), \Oracle{} réduit le CRPS de $40\%$ en ID et de $30\%$ en inter-GCM historique. Le ratio \emph{spread-skill} passe de $0{,}20$ à $0{,}69$ ($\times 3{,}5$) ; la distance spectrale chute d'un facteur $450$. La réponse à deux perturbations contrôlées ($\Delta q+20\%$, $\Delta t+3$~K) coïncide avec le signe physique attendu, là où la baseline non-causale échoue sur l'intervention thermique. Le mémoire assume ses limites : le DAG appris reste à magnitudes plates ($Q_{\mathrm{phys}}=0{,}40$), à lire comme une régularisation structurelle inductive plutôt qu'une cartographie causale identifiée.
+
+\noindent\textbf{Mots-clés :} downscaling climatique, modèles de diffusion, EDM, causalité architecturale, DAGMA, robustesse inter-GCM en régime historique, précipitation, CMIP6, intervention contrôlée, calibration d'ensemble.
+
+\vspace{0.6em}\hrule\vspace{0.6em}
+
+\begin{center}{\large\bfseries\color{uridarkblue}Abstract}\end{center}
+
+Climate downscaling transforms low-resolution atmospheric fields from global climate models into high-resolution fields suitable for local decision-making. Recent deep architectures (residual cGANs, two-stage diffusion) improve predictive accuracy and probabilistic calibration but remain fragile under distribution shift. This thesis proposes \textsc{Oracle}, a two-stage architecture that places causality in the computation graph topology: a per-variable intelligible encoder, a six-node heterogeneous graph, a recurrent causal network governed by a DAGMA-constrained learned matrix and a graph-to-grid decoder produce a high-resolution mean; a residual EDM diffusion conditioned by channel concatenation samples the residual, guaranteeing by construction the DAG indispensability property (O3).
+
+Over New Zealand (ACCESS-CM2 in-distribution; EC-Earth3, NorESM2-MM out-of-distribution), \textsc{Oracle} reduces the CRPS by $40\%$ in-distribution and by $30\%$ inter-GCM. The spread-skill ratio rises from $0.20$ to $0.69$ ($\times 3.5$); the spectral distance drops by a factor of $450$. The response to two controlled perturbations ($\Delta q+20\%$, $\Delta t+3$~K) matches the expected physical sign, whereas the non-causal baseline fails on the thermal intervention. The thesis openly assumes its limitations: the learned DAG remains with flat magnitudes ($Q_{\mathrm{phys}}=0.40$), to be read as inductive structural regularisation rather than identified causal mapping.
+
+\noindent\textbf{Keywords:} climate downscaling, diffusion models, EDM, architectural causality, DAGMA, inter-GCM robustness in historical regime, precipitation, CMIP6, controlled intervention, ensemble calibration.
+
+\endgroup
+
+% =============================================================
+% LISTE DES ABRÉVIATIONS ET SIGLES
+% =============================================================
+\clearpage
+\chapter*{Liste des abréviations et sigles}
+\addcontentsline{toc}{chapter}{Liste des abréviations et sigles}
+\markboth{Liste des abréviations et sigles}{Liste des abréviations et sigles}
+
+\begin{longtable}{p{3cm} p{11.5cm}}
+\toprule
+\textbf{Sigle} & \textbf{Signification} \\
+\midrule
+\endhead
+
+ACCESS-CM2 & GCM australien utilisé en distribution (CMIP6) \\
+CASTLE & \emph{Causal Structure Learning via Auxiliary Causal Graph Discovery} (Kyono~2020) \\
+CC & Clausius-Clapeyron, relation vapeur saturante / température \\
+CDD & \emph{Consecutive Dry Days}, jours secs consécutifs (ETCCDI) \\
+cGAN & \emph{Conditional Generative Adversarial Network} \\
+CMIP6 & \emph{Coupled Model Intercomparison Project Phase 6} \\
+\CorrDiff{} & Architecture two-stage de diffusion résiduelle (Mardani~2024) \\
+CRPS / CRPS-SS & \emph{Continuous Ranked Probability Score} et son skill score \\
+DAG & \emph{Directed Acyclic Graph}, graphe acyclique dirigé \\
+DAGMA & \emph{DAG via M-matrices and log-determinant Acyclicity} (Bello~2022) \\
+DDPM / EDM & \emph{Denoising Diffusion Probabilistic Models} (Ho~2020) / EDM (Karras~2022) \\
+EC-Earth3, NorESM2-MM & GCM utilisés en hors-distribution \\
+ERA5 & Réanalyse atmosphérique de référence (Hersbach~2020) \\
+ETCCDI & \emph{Expert Team on Climate Change Detection and Indices} \\
+F1@p95/p99 & Score F1 sur les pixels excédant le quantile p95 ou p99 \\
+FNO / FSS & \emph{Fourier Neural Operator} / \emph{Fractions Skill Score} \\
+GAN & \emph{Generative Adversarial Network} \\
+GCM / RCM & Modèle de circulation générale / modèle climatique régional \\
+GIEC / IPCC & Groupe d'experts intergouvernemental sur l'évolution du climat \\
+GP & Géopotentiel, à différents niveaux de pression (GP850, GP500, GP250) \\
+GRU & \emph{Gated Recurrent Unit} (Cho~2014) \\
+HR / LR & Haute / basse résolution \\
+ID / OOD & En distribution / hors-distribution \\
+IG & \emph{Integrated Gradients} (Sundararajan~2017) \\
+MAE / MSE / RMSE & Erreurs ponctuelles standards \\
+$Q_{\mathrm{int}}$, $Q_{\mathrm{phys}}$ & Score interventionnel / orientation physique du DAG \\
+RAPSD / PSD & \emph{Power Spectral Density} radialement moyennée \\
+RCN & \emph{Recurrent Causal Network}, réseau causal récurrent \\
+R10mm / RX1day / CDD & Indices ETCCDI sur la précipitation \\
+SCM & \emph{Structural Causal Model} (Pearl) \\
+SSP & \emph{Shared Socioeconomic Pathway}, scénario CMIP6 \\
+UNet & Architecture U pour segmentation et diffusion (Ronneberger~2015) \\
+URIFIA & Unité de Recherche d'Informatique Fondamentale et Appliquée \\
+\bottomrule
+\end{longtable}
+
+\end{document}

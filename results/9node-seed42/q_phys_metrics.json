@@ -1,0 +1,93 @@
+{
+  "seed": 42,
+  "q_phys_binary": 1.0,
+  "q_phys_adaptive": 1.0,
+  "q_phys_continuous": 0.9997145490835596,
+  "q_phys_collapsed": false,
+  "phys_mag_gained": 6.367338722571731,
+  "skeleton_f1": 1.0,
+  "n_extra_edges": 0,
+  "A_dag_final_norm_frobenius": 2.1804946716118176,
+  "A_dag_initial_norm_frobenius": 3.0013374732361693,
+  "schema_version": "path-c-plus-option-c-v1",
+  "path_c_plus_batch": "option-c",
+  "option_c_run_type": "seed_42",
+  "valid_for_analysis": true,
+  "seeds_lineage": [
+    42
+  ],
+  "k9_temporal_split": {
+    "train": [
+      "1980-01-01",
+      "2009-12-31"
+    ],
+    "val": [
+      "2010-01-01",
+      "2011-12-31"
+    ],
+    "test": [
+      "2012-01-01",
+      "2013-12-31"
+    ],
+    "holdout": [
+      "2014-01-01",
+      "2014-12-31"
+    ]
+  },
+  "pathcplus_hyperparams": {
+    "lambda_dag_prior": 0.4,
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
+    "g_phys_alpha": 0.25,
+    "dag_gate_warmup_start_epoch": null,
+    "dag_gate_warmup_end_epoch": null
+  },
+  "pre_registration_commit": "e139c94",
+  "path_c_plus_full_fix_lineage": {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": [
+      "J29",
+      "K2",
+      "K3",
+      "K9",
+      "K5"
+    ],
+    "batch_E": [
+      "J29 default",
+      "K2 plumbing",
+      "K5 raise",
+      "K9 assert",
+      "tombstone schema"
+    ],
+    "batch_F": [
+      "DEFAULT_HYPERPARAMS gate",
+      "Q_phys variants",
+      "projection hook",
+      "sigma_data calib",
+      "PC5-PC8"
+    ],
+    "batch_F_bis": [
+      "3-point projection hook",
+      "PC5/PC8 amendments",
+      "smoke JSON HARKing-resistant tag"
+    ],
+    "batch_F_blindspots": [
+      "#1 path_b doc",
+      "#2-3 phys_mag_gained criterion",
+      "#6 collapse explicit",
+      "#7 rename",
+      "#8 fetch depth 200",
+      "#9 adaptive skeleton F1"
+    ],
+    "option_c": [
+      "full Stage 1+2 from-scratch",
+      "CorrDiff Normal V2 config",
+      "Path C+ hyperparam override",
+      "K9 temporal split",
+      "3 seeds",
+      "noncausal baseline paired comparison"
+    ]
+  }
+}

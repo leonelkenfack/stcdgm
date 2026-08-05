@@ -1,0 +1,59 @@
+% =============================================================
+% PAGE DE CERTIFICATION (engagement sur l'originalité)
+% Apparaît juste après la page de garde
+% =============================================================
+\cleardoublepage
+% Titre remonté (même procédé que le Résumé) pour dégager la place des
+% espaces de signature sans déborder sur une seconde page.
+\let\oldprintchaptertitle=\printchaptertitle
+\renewcommand{\printchaptertitle}[1]{%
+	\vspace*{-78pt}
+	\oldprintchaptertitle{#1}
+}%
+\chapter*{Certification}
+\let\printchaptertitle=\oldprintchaptertitle
+\addcontentsline{toc}{chapter}{Certification}
+\markboth{Certification}{Certification}
+
+\begin{SingleSpace}% attestation compacte : la page doit tenir sur une seule page
+\noindent
+Je soussigné, \textbf{KENFACK Leonel}, étudiant en Master~2 en Informatique, option \emph{Informatique Fondamentale}, spécialisation \emph{Intelligence Artificielle} au Département de Mathématiques et Informatique, matricule CM-UDS-17SCI0998, Faculté des Sciences, Université de Dschang, certifie que les présents travaux de recherche intitulés \emph{«~Développement d'une méthode d'apprentissage automatique pour la mise à l'échelle spatiale des données climatiques~»}, réalisés au sein de l'Unité de Recherche en Informatique Fondamentale, Ingénierie et Applications (URIFIA) de l'Université de Dschang sous la direction du \textbf{Pr~BOMGNI Alain Bertrand}, Maître de Conférences à l'Université de Dschang, sont le fruit de mes propres travaux de recherche.
+
+\vspace{0.4em}
+
+\noindent Cela n'a jamais été publié auparavant pour l'obtention d'un diplôme.
+
+\vspace{1em}
+
+% Sous chaque intitulé, un blanc de 4em est laissé pour la signature
+% manuscrite ; le nom et la date figurent en dessous.
+\begin{center}
+{\itshape L'étudiant}
+
+\vspace{3em}
+
+{\bfseries KENFACK Leonel}\\[0.2em]
+Date~: \makebox[5cm]{\dotfill}
+
+\vspace{1em}
+
+{\itshape Le superviseur}
+
+\vspace{3em}
+
+{\bfseries Pr~BOMGNI Alain Bertrand}\\[0.2em]
+{\small (Maître de Conférences)}\\[0.2em]
+Date~: \makebox[5cm]{\dotfill}
+
+\vspace{1em}
+
+{\itshape Le chef de département}
+
+\vspace{3em}
+
+{\bfseries Pr~NKENLIFACK Marcellin Julius}\\[0.2em]
+Date~: \makebox[5cm]{\dotfill}
+\end{center}
+\end{SingleSpace}
+
+\vfill

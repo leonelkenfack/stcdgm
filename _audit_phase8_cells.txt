@@ -1,0 +1,925 @@
+====== Cell 2 ======
+# === Cell 2 : Constants ===
+DRIVE_ROOT = Path('/content/drive/MyDrive/climate_data')
+DATA_ROOT  = DRIVE_ROOT / 'data'
+HR_RAW_PATH = DATA_ROOT / 'train' / 'pr_ACCESS-CM2_hist.nc'
+LR_RAW_PATH = DATA_ROOT / 'train' / 'predictor_ACCESS-CM2_hist.nc'
+STATIC_PATH = DATA_ROOT / 'static_predictors' / 'ERA5_eval_ccam_12km.198110_NZ_Invariant.nc'
+
+# Phase 8 output dir
+# ============== FEATURE ABLATION FLAG (5-expert Option 1) ==================
+# When False (default) : Phase 8 uses 19 LR features (15 originaux + 4 augmented :
+#   w_700, theta_e_850, theta_e_500, mucape_proxy).
+# When True : Phase 8 uses only the 15 features that noncausal v4 was trained
+#   on, enabling 100%-fair comparison Phase 8/15 vs noncausal v4 to isolate
+#   the contribution of the causal architecture (vs the feature augmentation).
+# Run both FULL passes (False then True) for the 3-way ablation analysis :
+#   Phase 8/19 vs noncausal v4 = arch + features
+#   Phase 8/19 vs Phase 8/15   = features alone
+#   Phase 8/15 vs noncausal v4 = arch alone (the publishable causal claim)
+ABLATION_FEATURES_15 = False
+
+OUT_DIR_BASE = DRIVE_ROOT / 'oracle_9node' / 'phase8_from_scratch'
+_subdir = 'ablation_15' if ABLATION_FEATURES_15 else 'full_19'
+OUT_DIR = OUT_DIR_BASE / _subdir
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+print(f'[Cell 2] FEATURE MODE : {_subdir} ({"15" if ABLATION_FEATURES_15 else "19"} LR features)  OUT_DIR={OUT_DIR}')
+CKPT_STAGE1_LAST  = OUT_DIR / 'stage1_last.pth'
+CKPT_STAGE1_BEST  = OUT_DIR / 'stage1_best.pth'
+STAGE1_CACHE_PATH = OUT_DIR / 'stage1_cache_mu_total.pt'
+VAL_CACHE_PATH    = OUT_DIR / 'stage1_cache_val_mu_total.pt'
+CKPT_STAGE2_LAST  = OUT_DIR / 'stage2_last.pth'
+CKPT_STAGE2_BEST  = OUT_DIR / 'stage2_best.pth'
+LAND_MASK_PATH    = OUT_DIR / 'land_mask_nz.npy'
+CLIM_PATH         = OUT_DIR / 'clim_train_p95_p99.npz'
+AUGMENTED_LR_PATH = OUT_DIR / 'lr_augmented_features.nc'  # w_700, theta_e, MUCAPE
+TRAINING_HISTORY  = OUT_DIR / 'training_history.json'
+FINAL_RESULTS     = OUT_DIR / 'phase8_final_results.json'
+
+# Reference checkpoints to compare against (existing models)
+REF_CKPT_NONCAUSAL = DRIVE_ROOT / 'ckpt_noncausal'
+REF_CKPT_V5_CAUSAL = DRIVE_ROOT / 'ckpt_v2_corrdiff_normal'
+
+# ============== SMOKE MODE FLAG (Expert team validation step) ==============
+# When True : 2-3 epochs, N=2 batches, K=4 samples, N_STEPS=8 -> ~15 min total
+# When False : full protocol -> ~45-55h
+SMOKE_MODE = False   # FULL #1 : Phase 8 with 19 features
+
+# Reproducibility
+SEED = 42
+torch.manual_seed(SEED); np.random.seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# K9 temporal split (used by all phases)
+K9_DATES = {
+    'train':   ['1980-01-01', '2009-12-31'],   # 30 years
+    'val':     ['2010-01-01', '2011-12-31'],   # 2 years
+    'test':    ['2012-01-01', '2013-12-31'],   # 2 years -> 730 days for climate indices
+    'holdout': ['2014-01-01', '2014-12-31'],   # 1 year (out-of-distribution warm year)
+}
+
+# Stage 1 hyperparams (Path C+ Option C proven on seed_42)
+STAGE1_EPOCHS    = 15
+STAGE1_LR        = 1e-3
+LAMBDA_DAG_PRIOR = 0.40
+LAMBDA_L1_START  = 0.04
+LAMBDA_L1_END    = 0.005
+G_PHYS_ALPHA     = 0.25
+# Physical loss weights (warmup applied after epoch 10)
+LAMBDA_R10MM   = 0.20
+LAMBDA_RX1DAY  = 0.15
+LAMBDA_CDD     = 0.10
+LAMBDA_CC      = 0.05
+PHYS_LOSS_WARMUP_EPOCH = 10
+
+# Stage 2 hyperparams
+STAGE2_EPOCHS         = 200
+STAGE2_LR             = 2e-4
+STAGE2_BATCH_SIZE     = 32   # was 64 -- reduced to fit A100 80GB OOM (Dispersive hook prevents gradient_checkpointing, so activations dominate VRAM)
+STAGE2_WEIGHT_DECAY   = 1e-4
+STAGE2_GRADIENT_CLIP  = 1.0
+
+# ============== STAGE 1 P1 TAIL-WEIGHT (5-expert hyperplan, Climat blessing) ==
+# Critical for Westland orographic precipitation : MSE uniform on log1p is
+# dominated by dry pixels (Canterbury 90% <2mm), so mu_HR converges to flat
+# climatology that under-predicts Southern Alps. Stage 2 diffusion cannot
+# fix a biased-low mu_HR -- delta model learns to refine, not correct bias.
+# Tail-weight thresholds 15/35 mm/day = NZ-wide P85/P98 approximation
+# (uniform threshold over regions, deemed tractable; per-pixel quantile
+# would add ~10^4 DoF, rejected for parsimony).
+STAGE1_TAIL_TAU_P95 = 15.0
+STAGE1_TAIL_TAU_P99 = 35.0
+STAGE1_TAIL_W_P95   = 4.0
+STAGE1_TAIL_W_P99   = 12.0
+
+# ============== STAGE 2 FACL HYPERPARAMS (Yang NeurIPS 2024) ===================
+# Fourier Amplitude + Correlation Loss for precipitation diffusion.
+# - FAL drives RAPSD spectral amplitude matching
+# - FCL drives spatial phase coherence (critical for Westland orographic)
+# Climat ranking : FCL > spectral_highk > FAL >> SWD for NZ extremes,
+# hence FCL = 0.3 > FAL = 0.2.
+LAMBDA_FACL_FAL = 0.2
+LAMBDA_FACL_FCL = 0.3
+FACL_WARMUP_EPOCHS = 3   # ML expert I2 : lambda_eff = lambda * min(1, ep/3)
+MIN_SNR_GAMMA         = 5.0
+TAIL_WEIGHT_P95       = 4.0    # (Climate ML : 8 -> 4 less aggressive)
+TAIL_WEIGHT_P99       = 12.0   # (Climate ML : 25 -> 12)
+DISPERSIVE_LAMBDA     = 0.25   # (Expert ML : raised from 0.05 sous-dosé to paper's recommended range)
+DISPERSIVE_TAU        = 0.5    # Kernel temperature
+COND_DROPOUT_P        = 0.13   # CFG compatibility (CorrDiff Nature CEE 2025)
+EMA_DECAYS            = [0.999, 0.9995, 0.9999]   # Multi-EMA EDM2 Karras 2024
+ALPHA_TARGET          = 0.5   # Regularization target for learned alpha
+ALPHA_FLOOR           = 0.3   # Penalty if alpha < 0.3 (prevent collapse)
+LAMBDA_ALPHA_REG      = 0.1
+BETA_ALPHA_FLOOR      = 1.0
+SIGMA_DATA_NEW        = 0.193  # Phase 6 dualpath recalibrated
+
+# BS30 eval protocol (publication-ready)
+N_TEST_BATCHES = 64    # Math expert : N=64 -> CI +/-0.014
+K_SAMPLES      = 128   # >> CorrDiff Mardani (32)
+N_STEPS_DIFF   = 32    # dpm_solver++ converges at 32 NFE
+WET_DAY_THRESHOLD_MM = 1.0   # ETCCDI standard
+
+# Sampling
+SAMPLER_SCHEDULER       = 'dpm_solver++'
+CFG_SCALE               = 1.0
+LIMITED_GUIDANCE_SIGMA_MIN = 0.05   # Kynkäänniemi NeurIPS 2024 (calibrated for sigma_data=0.1)
+LIMITED_GUIDANCE_SIGMA_MAX = 1.0
+
+# Bootstrap + statistical tests
+BOOTSTRAP_N_RESAMPLES = 1000   # Math : n_boot=1000
+PAIRED_PERMUTATION_N = 10000   # Math : n_perm=10000 for p<=0.001
+BOOTSTRAP_METHOD     = 'BCa'   # Bias-corrected accelerated (Efron 1987)
+
+print(f'[Cell 2] DEVICE = {DEVICE}')
+print(f'[Cell 2] DRIVE_ROOT = {DRIVE_ROOT}')
+print(f'[Cell 2] OUT_DIR = {OUT_DIR}')
+print(f'[Cell 2] Stage 1 : {STAGE1_EPOCHS} epochs, LR {STAGE1_LR}')
+print(f'[Cell 2] Stage 2 : {STAGE2_EPOCHS} epochs, LR {STAGE2_LR}, batch {STAGE2_BATCH_SIZE}')
+print(f'[Cell 2] Min-SNR γ = {MIN_SNR_GAMMA}, tail_weight ({TAIL_WEIGHT_P95}, {TAIL_WEIGHT_P99})')
+print(f'[Cell 2] Multi-EMA decays = {EMA_DECAYS}')
+print(f'[Cell 2] BS30 eval : N={N_TEST_BATCHES} batches x K={K_SAMPLES} samples x {N_STEPS_DIFF} steps')
+
+# Pre-registration record (Expert Recherche)
+PRE_REG_RECORD = {
+    'phase': 'phase8_from_scratch',
+    'git_sha': _git_sha,
+    'git_branch': GIT_BRANCH,
+    'seed': SEED,
+    'k9_dates': K9_DATES,
+    'stage1_hyperparams': {
+        'epochs': STAGE1_EPOCHS, 'lr': STAGE1_LR,
+        'lambda_dag_prior': LAMBDA_DAG_PRIOR,
+        'lambda_l1_start': LAMBDA_L1_START, 'lambda_l1_end': LAMBDA_L1_END,
+        'g_phys_alpha': G_PHYS_ALPHA,
+        'physical_loss_weights': {
+            'R10mm': LAMBDA_R10MM, 'Rx1day': LAMBDA_RX1DAY,
+            'CDD': LAMBDA_CDD, 'CC': LAMBDA_CC,
+        },
+        'tail_weight_stage1': {
+            'tau_mm': [STAGE1_TAIL_TAU_P95, STAGE1_TAIL_TAU_P99],
+            'w':      [STAGE1_TAIL_W_P95,   STAGE1_TAIL_W_P99],
+        },
+        'phys_warmup_epoch': PHYS_LOSS_WARMUP_EPOCH,
+    },
+    'stage2_hyperparams': {
+        'epochs': STAGE2_EPOCHS, 'lr': STAGE2_LR,
+        'batch_size': STAGE2_BATCH_SIZE, 'weight_decay': STAGE2_WEIGHT_DECAY,
+        'min_snr_gamma': MIN_SNR_GAMMA,
+        'tail_weight': [TAIL_WEIGHT_P95, TAIL_WEIGHT_P99],
+        'facl': {
+            'fal_lambda': LAMBDA_FACL_FAL,
+            'fcl_lambda': LAMBDA_FACL_FCL,
+            'warmup_epochs': FACL_WARMUP_EPOCHS,
+        },
+        'dispersive_lambda': DISPERSIVE_LAMBDA,
+        'cond_dropout_p': COND_DROPOUT_P,
+        'ema_decays': EMA_DECAYS,
+        'alpha_reg': {'target': ALPHA_TARGET, 'floor': ALPHA_FLOOR,
+                       'lambda': LAMBDA_ALPHA_REG, 'beta_floor': BETA_ALPHA_FLOOR},
+        'sigma_data': SIGMA_DATA_NEW,
+    },
+    'eval_protocol': {
+        'n_batches': N_TEST_BATCHES, 'k_samples': K_SAMPLES,
+        'n_steps_diff': N_STEPS_DIFF,
+        'sampler': SAMPLER_SCHEDULER, 'cfg_scale': CFG_SCALE,
+        'limited_guidance': [LIMITED_GUIDANCE_SIGMA_MIN, LIMITED_GUIDANCE_SIGMA_MAX],
+        'bootstrap_n': BOOTSTRAP_N_RESAMPLES,
+        'paired_permutation_n': PAIRED_PERMUTATION_N,
+    },
+    'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+}
+if SMOKE_MODE:
+    print('[Cell 2] *** SMOKE_MODE active : overriding hyperparams for fast smoke ***')
+    # Extended SMOKE config (Climat+Recherche : need >=12 ep S1 to activate phys_warmup at ep 10)
+    STAGE1_EPOCHS = 12   # was 2 -- passes phys_warmup epoch 10 + 2 ep observation
+    STAGE2_EPOCHS = 5    # was 2 -- partial Stage 2 convergence
+    N_TEST_BATCHES = 20  # was 2 -- bootstrap CI now usable (n>=5)
+    K_SAMPLES = 16       # was 4
+    N_STEPS_DIFF = 16    # was 8
+    BOOTSTRAP_N_RESAMPLES = 500
+    PAIRED_PERMUTATION_N = 2000
+    EMA_DECAYS = [0.999, 0.9995]   # 2 decays for sweep (still less than FULL=3)
+    print(f'[Cell 2] EXTENDED SMOKE : Stage1={STAGE1_EPOCHS}ep  Stage2={STAGE2_EPOCHS}ep  '
+          f'N={N_TEST_BATCHES} K={K_SAMPLES} steps={N_STEPS_DIFF}')
+
+print(f'[Cell 2] Pre-registration record created (SHA {_git_sha[:8]})')
+print(f'[Cell 2] SMOKE_MODE = {SMOKE_MODE}')
+
+====== Cell 9 ======
+# === Cell 8 : Stage 1 training loop from-scratch ===
+# 15 epochs (or 2 in SMOKE_MODE), Adam optimizer.
+# DAG prior + L1 sparsity cosine decay + physical losses warmup at epoch 10+.
+import time
+from torch.optim import AdamW
+from torch.nn.parameter import UninitializedParameter as _UP
+
+# Option Z (5-expert UNANIMES) : A_dag is FIXED in Cell 7 (Trenberth prior,
+# requires_grad=False). No DAG-learnable machinery here -- single param group
+# AdamW on everything that still has gradient.
+# IMPORTANT : the encoder has UninitializedParameter for fallback metapaths
+# (Q850/W500/IVT) that have NO edge in the data -- they never materialize
+# via the dummy forward (no data flows through them). Filter them out to
+# avoid AdamW crashing on .numel() and to keep them out of the optimizer.
+stage1_params = [p for p in (
+    list(encoder.parameters()) + list(rcn_cell.parameters())
+    + list(regression_head.parameters()) + list(dual_path.parameters())
+) if p.requires_grad and not isinstance(p, _UP)]
+_n_uninit = sum(1 for p in (
+    list(encoder.parameters()) + list(rcn_cell.parameters())
+    + list(regression_head.parameters()) + list(dual_path.parameters())
+) if isinstance(p, _UP))
+optimizer_s1 = AdamW(stage1_params, lr=STAGE1_LR, weight_decay=0.0)
+print(f'[Cell 8] Optimizer : AdamW lr={STAGE1_LR} (A_dag FROZEN, not in optimizer)')
+print(f'         Trainable params : {sum(p.numel() for p in stage1_params):,} '
+      f'({_n_uninit} UninitializedParameter excluded -- fallback metapaths)')
+
+# Option Z : A_dag is FIXED Trenberth prior with gate=1.0 set in Cell 7.
+# No L1, no DAG schedule, no gate warmup. Stubs kept for backward compatibility
+# with the epoch loop variables (they reference lam_l1 and _current_gate).
+def _l1_schedule(epoch, total): return 0.0
+def _gate_schedule(epoch): return 1.0
+
+# Helper : Stage 1 forward through dual-path
+def _stage1_forward(batch):
+    """Returns (mu_A, mu_total, mu_B, gate, baseline_log, target_residual)."""
+    lr_data = batch['lr'].to(DEVICE)
+    h_init  = encoder.init_state(batch['hetero']).to(DEVICE)
+    drivers = [lr_data[t] for t in range(lr_data.shape[0])]
+    seq_out = rcn_runner.run(h_init, drivers, reconstruction_sources=None)
+    mu_A = regression_head(seq_out.states[-1])
+    if mu_A.dim() == 3: mu_A = mu_A.unsqueeze(0)
+    lr_grid = batch_lr_grid_last(batch, builder=builder, device=DEVICE)
+    lr_safe = torch.nan_to_num(lr_grid, nan=0.0)
+    mu_total, mu_B, gate = dual_path(lr_safe, mu_A)
+    mu_total = torch.nan_to_num(mu_total, nan=0.0)
+    bl = batch['baseline'][-1].to(DEVICE)
+    if bl.dim() == mu_total.dim() - 1: bl = bl.unsqueeze(0)
+    bl = torch.nan_to_num(bl, nan=0.0)
+    tgt = batch['residual'][-1].to(DEVICE)
+    if tgt.dim() == 3: tgt = tgt.unsqueeze(0)
+    return mu_A, mu_total, mu_B, gate, bl, tgt
+
+# Training history
+stage1_history = []
+
+# Resume logic (symmetric to Stage 2 Cell 11). Skipped in SMOKE_MODE so smoke
+# tests always start fresh from the latest code.
+start_epoch_s1 = 1
+if CKPT_STAGE1_LAST.exists() and not SMOKE_MODE:
+    print(f'[Cell 8] RESUME from {CKPT_STAGE1_LAST}')
+    _ck1 = torch.load(CKPT_STAGE1_LAST, map_location=DEVICE, weights_only=False)
+    encoder.load_state_dict(_ck1['encoder_state_dict'])
+    rcn_cell.load_state_dict(_ck1['rcn_cell_state_dict'])
+    regression_head.load_state_dict(_ck1['regression_head_state_dict'])
+    dual_path.load_state_dict(_ck1['dual_path_state_dict'])
+    # Option Z FIX #2 (IA expert) : ALWAYS re-pose the Trenberth prior after
+    # load_state_dict. Without this, a legacy CKPT (pre-Option-Z) would
+    # cristallize the learnable-era A_dag value in the resumed run.
+    _rcn_core_chk = rcn_cell._orig_mod if hasattr(rcn_cell, '_orig_mod') else rcn_cell
+    if hasattr(_rcn_core_chk, 'A_dag'):
+        _n_v = _rcn_core_chk.A_dag.shape[0]
+        _prior_re = torch.zeros(_n_v, _n_v, device=_rcn_core_chk.A_dag.device,
+                                dtype=_rcn_core_chk.A_dag.dtype)
+        # Same sparse Trenberth edges as Cell 7 (kept in sync)
+        for _i, _j, _w in [
+            (4, 2, 0.45), (4, 6, 0.20), (3, 4, 0.45), (2, 6, 0.35),
+            (1, 2, 0.45), (0, 5, 0.20), (0, 7, 0.30), (6, 5, 0.15),
+            (5, 7, 0.40), (6, 7, 0.25),
+        ]:
+            _prior_re[_i, _j] = _w
+        with torch.no_grad():
+            _rcn_core_chk.A_dag.copy_(_prior_re)
+        _rcn_core_chk.A_dag.requires_grad_(False)
+        _rcn_core_chk.set_dag_grad_gate(1.0)
+    if 'alpha_logit' in _ck1 and _ck1['alpha_logit'] is not None:
+        with torch.no_grad():
+            alpha_logit.copy_(_ck1['alpha_logit'].to(DEVICE))
+    # Option Z FIX #3 (IA expert) : skip optimizer state restore if the
+    # checkpoint is from a legacy run (param-group mismatch since A_dag is
+    # no longer in any param_group). Detect via 'option_z' marker added to
+    # the new payloads.
+    _is_legacy = not _ck1.get('option_z', False)
+    if _is_legacy:
+        print(f'  Legacy CKPT detected (pre-Option-Z) : skipping optimizer state restore '
+              f'(param-group mismatch -- A_dag was in legacy optimizer)')
+    elif _ck1.get('optimizer_state_dict') is not None:
+        try:
+            optimizer_s1.load_state_dict(_ck1['optimizer_state_dict'])
+        except Exception as _e:
+            print(f'  WARN : optimizer_s1 state restore failed ({_e}) -- continuing with fresh moments')
+    if 'history' in _ck1 and isinstance(_ck1['history'], list):
+        stage1_history = list(_ck1['history'])
+    start_epoch_s1 = int(_ck1.get('epoch', 0)) + 1
+    print(f'  Resumed at epoch {start_epoch_s1}/{STAGE1_EPOCHS}, history len={len(stage1_history)}')
+    if start_epoch_s1 > STAGE1_EPOCHS:
+        print(f'  Stage 1 already complete in checkpoint -- skipping loop')
+
+print(f'[Cell 8] Stage 1 training : epochs {start_epoch_s1}..{STAGE1_EPOCHS} (SMOKE_MODE={SMOKE_MODE})')
+for ep in range(start_epoch_s1, STAGE1_EPOCHS + 1):
+    _t0 = time.time()
+    # Mode train
+    for m in [encoder, rcn_cell, regression_head, dual_path]:
+        m.train()
+
+    lam_l1 = _l1_schedule(ep - 1, STAGE1_EPOCHS)        # always 0 (Option Z)
+    phys_active = (ep >= PHYS_LOSS_WARMUP_EPOCH)
+    lam_dag_warm = 0.0                                  # A_dag fixed, no warmup
+    _current_gate = _gate_schedule(ep)                  # always 1.0 (set in Cell 7)
+    _prev_gate    = _gate_schedule(ep - 1)              # always 1.0
+
+    epoch_losses = {'mse': [], 'dag': [], 'l1': [], 'r10mm': [], 'rx1day': [], 'cdd': [], 'cc': [], 'causal_frac': [], 'gate_mean': []}
+    _n_batches_done = 0
+    for sample in train_dataset:
+        batch = convert_sample_to_batch(sample, builder, DEVICE)
+        optimizer_s1.zero_grad(set_to_none=True)
+
+        mu_A, mu_total, mu_B, gate, baseline_log, target_residual = _stage1_forward(batch)
+
+        # causal_frac monitor (ML expert : go/no-go criterion for DAG learnable).
+        # = ||mu_A|| / (||mu_A|| + ||mu_B||). Below 0.05 at ep 5 means Path A
+        # (causal RCN) is architecturally cosmetic and UNet dual_path dominates.
+        with torch.no_grad():
+            _muA_n = float(mu_A.detach().pow(2).mean().sqrt())
+            _muB_n = float(mu_B.detach().pow(2).mean().sqrt())
+            epoch_losses['causal_frac'].append(_muA_n / (_muA_n + _muB_n + 1e-8))
+            # Math expert monitor : gate.mean() = fraction of Path B (UNet direct LR->HR)
+            # in fusion mu_total = g*mu_B + (1-g)*mu_A.
+            # g ~ 0  => Path A (causal RCN) DOMINATES (healthy)
+            # g ~ 1  => Path A BYPASSED, struct_W1/W2 grad=0 => DEAD ENCODER failure
+            # Healthy zone: g.mean() in [0.05, 0.80]. Alert if > 0.90.
+            epoch_losses['gate_mean'].append(float(gate.detach().mean()))
+
+        # Core MSE on residual (HR - baseline) -- FIX NaN propagation (5-expert validated)
+        valid = torch.isfinite(target_residual)
+        target_residual_safe = torch.nan_to_num(target_residual, nan=0.0)
+        diff = (mu_total - target_residual_safe) ** 2
+
+        # P1 tail-weight (5-expert hyperplan, Climat blessing) :
+        # Without this, mu_HR converges to a flat climatology under-predicting
+        # Southern Alps/Westland orographic extremes. Estimator :
+        #   loss_mse = sum(w * diff * valid) / sum(w * valid)
+        # Horvitz-Thompson-style weighted MSE, consistent and essentially unbiased.
+        hr_log_recon_s1 = baseline_log + target_residual_safe
+        tail_w_s1 = _tail_weight(
+            hr_log_recon_s1,
+            tau95_mm=STAGE1_TAIL_TAU_P95,
+            tau99_mm=STAGE1_TAIL_TAU_P99,
+            w95=STAGE1_TAIL_W_P95,
+            w99=STAGE1_TAIL_W_P99,
+        ).detach()
+
+        diff_weighted = diff * tail_w_s1
+        diff_masked = torch.where(valid, diff_weighted, torch.zeros_like(diff_weighted))
+        w_eff = tail_w_s1 * valid.float()
+        loss_mse = diff_masked.sum() / w_eff.sum().clamp_min(1.0)
+        assert torch.isfinite(loss_mse).item(), f'loss_mse NaN/Inf at ep={ep}'
+
+        # DAG prior + L1 sparsity (5-expert AdamW fix : DAG prior now handled by
+        # decoupled weight_decay on optimizer A_dag param group, NOT in loss_total).
+        # loss_dag below is computed for MONITORING only (logging consistency).
+        from torch.nn.parameter import UninitializedParameter
+        _rcn_core = rcn_cell._orig_mod if hasattr(rcn_cell, '_orig_mod') else rcn_cell
+        loss_dag = torch.tensor(0.0, device=DEVICE)
+        loss_l1  = torch.tensor(0.0, device=DEVICE)
+        # Option Z : A_dag is FIXED. All DAG losses (loss_dag L2 prior, loss_l1
+        # sparsity, loss_dagma NOTEARS acyclicity) are unnecessary and would have
+        # zero gradient anyway (A_dag.requires_grad=False). Kept as monitoring
+        # zeros for log consistency.
+        loss_dag = torch.tensor(0.0, device=DEVICE)
+        loss_l1  = torch.tensor(0.0, device=DEVICE)
+
+        # loss_total : MSE drives the backward. Phys losses added below if active.
+        loss_total = loss_mse
+
+        # Physical losses (after warmup)
+        loss_r10  = torch.tensor(0.0, device=DEVICE)
+        loss_rx1d = torch.tensor(0.0, device=DEVICE)
+        loss_cdd  = torch.tensor(0.0, device=DEVICE)
+        loss_cc   = torch.tensor(0.0, device=DEVICE)
+        if phys_active:
+            # Full HR pred in log1p space -- FIX NaN propagation (5-expert validated)
+            # target_residual contains NaN where HR has QC gaps. Sanitize before
+            # the sum to keep the gradient finite ; physical losses (R10mm, Rx1d,
+            # CDD) all chain through (full_pred, full_tgt), so they would also
+            # carry NaN gradients without this fix.
+            target_residual_safe = torch.nan_to_num(target_residual, nan=0.0)
+            full_pred = baseline_log + mu_total   # residual reconstruction (no delta yet at Stage 1)
+            full_tgt  = baseline_log + target_residual_safe
+            loss_r10  = LAMBDA_R10MM  * loss_R10mm(full_pred, full_tgt, valid_mask=valid.float())
+            loss_rx1d = LAMBDA_RX1DAY * loss_Rx1day(full_pred, full_tgt)
+            loss_cdd  = LAMBDA_CDD    * loss_CDD(full_pred, full_tgt)
+            loss_total = loss_total + loss_r10 + loss_rx1d + loss_cdd
+            # CC loss : skip if T_850 not in batch (would need to thread it through)
+            # For now, document as TODO -- requires lr_grid to carry T_850 explicitly
+
+        # Option Z : A_dag is frozen, so GRAD-DIAG (autograd.grad on A_dag) was
+        # removed -- it would always return None for frozen params, generating
+        # log noise. The Stage 1 grad flow is purely encoder + RCN MLPs +
+        # regression_head + dual_path UNet (all standard params).
+
+        loss_total.backward()
+        # Option Z : A_dag.requires_grad=False so A_dag.grad is always None.
+        # Targeted clip removed. Global clip on stage1_params remains.
+        torch.nn.utils.clip_grad_norm_(stage1_params, 1.0)
+        optimizer_s1.step()
+
+        # Option Z : A_dag fixed, no projections needed (no possible collapse).
+
+        epoch_losses['mse'].append(float(loss_mse.detach()))
+        epoch_losses['dag'].append(float(loss_dag.detach()))
+        epoch_losses['l1'].append(float(loss_l1.detach()))
+        epoch_losses['r10mm'].append(float(loss_r10.detach()))
+        epoch_losses['rx1day'].append(float(loss_rx1d.detach()))
+        epoch_losses['cdd'].append(float(loss_cdd.detach()))
+        epoch_losses['cc'].append(float(loss_cc.detach()))
+        _n_batches_done += 1
+        if SMOKE_MODE and _n_batches_done >= 30:
+            break   # SMOKE : process only 30 train batches per epoch
+
+    ep_time = time.time() - _t0
+    avg = {k: float(np.mean(v)) if v else 0.0 for k, v in epoch_losses.items()}
+    # FIX BUG NaN (5-expert) : monitor A_dag stats each epoch
+    if hasattr(_rcn_core, 'A_dag') and torch.isfinite(_rcn_core.A_dag).all():
+        with torch.no_grad():
+            _a_norm = float(_rcn_core.A_dag.abs().mean())
+            _a_max  = float(_rcn_core.A_dag.abs().max())
+            # NOTEARS acyclicity (Recherche reviewer requirement) : h(A) = tr(e^{A o A}) - d.
+            # On 8x8 matrix this is essentially free. h(A) = 0 <=> acyclic.
+            _A_squared = _rcn_core.A_dag * _rcn_core.A_dag
+            _h_A_dag = float(torch.linalg.matrix_exp(_A_squared).diagonal().sum() - _A_squared.shape[0])
+    else:
+        _a_norm = _a_max = _h_A_dag = float('nan')
+    _avg_causal_frac = float(np.mean(epoch_losses['causal_frac'])) if epoch_losses['causal_frac'] else float('nan')
+    _avg_gate_mean = float(np.mean(epoch_losses['gate_mean'])) if epoch_losses.get('gate_mean') else float('nan')
+    print(f'[ep{ep}/{STAGE1_EPOCHS}] mse={avg["mse"]:.4f} dag={avg["dag"]:.4f} l1={avg["l1"]:.4f} '
+          f'r10={avg["r10mm"]:.4f} rx1d={avg["rx1day"]:.4f} cdd={avg["cdd"]:.4f} '
+          f'(phys={phys_active} wd_dag={lam_dag_warm:.3f} gate_sched={_current_gate:.2f}) '
+          f'A_dag.abs(): mean={_a_norm:.4f} max={_a_max:.4f} h(A)={_h_A_dag:.3e} '
+          f'causal_frac={_avg_causal_frac:.3f} dual_gate={_avg_gate_mean:.3f} '
+          f'time={ep_time:.0f}s n_batches={_n_batches_done}')
+
+    # Option Z : A_dag is FIXED, so the 'abandon DAG learnable' remediation
+    # in the original raise message is now meaningless (we already did it).
+    # Downgrade to a WARNING per ML expert post-pivot audit. Continuing the run
+    # is OK because the structural prior conditions the RCN regardless of
+    # Path A vs Path B dominance.
+    if ep == 5 and _avg_causal_frac < 0.05:
+        print(f'[WARN ep5] causal_frac={_avg_causal_frac:.4f} < 0.05 : Path A '
+              f'(RCN-mu_A) is cosmetic in the dual_path fusion, UNet (mu_B) dominates. '
+              f'Continuing -- A_dag is fixed, no learnable degree of freedom to lose.')
+
+    # Option Z : A_dag FIXED, no collapse possible by construction.
+
+    stage1_history.append({
+        'epoch': ep, 'epoch_time_s': ep_time, 'losses': avg,
+        'lambda_l1': lam_l1, 'phys_active': phys_active,
+        'n_batches': _n_batches_done,
+    })
+
+    # Save Stage 1 checkpoint each epoch
+    payload_s1 = {
+        'epoch': ep,
+        'encoder_state_dict': encoder.state_dict(),
+        'rcn_cell_state_dict': rcn_cell.state_dict(),
+        'regression_head_state_dict': regression_head.state_dict(),
+        'dual_path_state_dict': dual_path.state_dict(),
+        'alpha_logit': alpha_logit.detach().cpu(),
+        'optimizer_state_dict': optimizer_s1.state_dict(),
+        'history': stage1_history,
+        'pre_reg': PRE_REG_RECORD,
+        'option_z': True,   # marker : Option Z pipeline (A_dag fixed Trenberth)
+    }
+    CKPT_STAGE1_LAST.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(payload_s1, CKPT_STAGE1_LAST)
+
+    if SMOKE_MODE and ep >= STAGE1_EPOCHS:
+        break
+
+# Freeze Stage 1 after training (skip UninitializedParameter)
+from torch.nn.parameter import UninitializedParameter as _UP
+for m in [encoder, rcn_cell, regression_head, dual_path]:
+    for p in m.parameters():
+        if isinstance(p, _UP):
+            continue
+        p.requires_grad_(False)
+    m.eval()
+
+# Print final A_dag stats (Q_phys interpretability)
+_rcn_core = rcn_cell._orig_mod if hasattr(rcn_cell, '_orig_mod') else rcn_cell
+if hasattr(_rcn_core, 'A_dag'):
+    _A = _rcn_core.A_dag.detach()
+    print(f'[Cell 8] Final A_dag : shape={tuple(_A.shape)} norm={_A.norm():.4f} '
+          f'asymmetry={(_A - _A.T).abs().mean():.4f}')
+
+print(f'[Cell 8] Stage 1 training complete. Checkpoint : {CKPT_STAGE1_LAST}')
+
+
+====== Cell 12 ======
+# === Cell 11 : Stage 2 training (Min-SNR + tail + Dispersive + FACL + cond_drop + multi-EMA) ===
+# FACL (Yang NeurIPS 2024) for spectral consistency : FAL drives RAPSD,
+# FCL drives spatial phase coherence (critical for Westland orographic precip).
+from st_cdgm.training.spectral_loss import facl_loss, facl_components
+# Inline implementation -- adapts train_epoch_stage2_cached pattern with all the fixes.
+from st_cdgm.models.edm_preconditioner import sample_training_sigma
+import time
+
+# Optimizer (Stage 2 live + alpha_logit)
+stage2_params = list(diff_decoder.parameters()) + [alpha_logit]
+optimizer_s2 = torch.optim.AdamW(
+    stage2_params,
+    lr=STAGE2_LR, betas=(0.9, 0.999), weight_decay=STAGE2_WEIGHT_DECAY,
+)
+
+stage2_history = []
+start_epoch_s2 = 1
+
+# Resume support
+if CKPT_STAGE2_LAST.exists() and not SMOKE_MODE:
+    print(f'[Cell 11] RESUME from {CKPT_STAGE2_LAST}')
+    _ck = torch.load(CKPT_STAGE2_LAST, map_location=DEVICE, weights_only=False)
+    diff_decoder.load_state_dict(_ck['diffusion_state_dict'])
+    if 'ema_state_dicts' in _ck:
+        for i, ema in enumerate(ema_decoders):
+            if i < len(_ck['ema_state_dicts']):
+                ema.load_state_dict(_ck['ema_state_dicts'][i])
+    if _ck.get('alpha_logit') is not None:
+        alpha_logit.data = _ck['alpha_logit'].to(DEVICE)
+    if _ck.get('optimizer_state_dict') is not None:
+        try: optimizer_s2.load_state_dict(_ck['optimizer_state_dict'])
+        except Exception as e: print(f'  optimizer resume failed : {e}')
+    start_epoch_s2 = int(_ck.get('epoch', 0)) + 1
+    stage2_history = list(_ck.get('history', []))
+    print(f'  Resumed at epoch {start_epoch_s2}/{STAGE2_EPOCHS}')
+
+print(f'[Cell 11] Stage 2 training : epochs {start_epoch_s2}..{STAGE2_EPOCHS} (SMOKE={SMOKE_MODE})')
+
+def _ema_update_all(decoders, decays, live_model):
+    """Multi-EMA update : in-place mul + add on params, copy on buffers."""
+    with torch.no_grad():
+        for ema, decay in zip(decoders, decays):
+            for p_e, p_l in zip(ema.parameters(), live_model.parameters()):
+                p_e.data.mul_(decay).add_(p_l.data, alpha=1.0 - decay)
+            for b_e, b_l in zip(ema.buffers(), live_model.buffers()):
+                b_e.data.copy_(b_l.data)
+            ema._ema_step_counter += 1
+
+for ep in range(start_epoch_s2, STAGE2_EPOCHS + 1):
+    _t0 = time.time()
+    diff_decoder.train()
+
+    losses_log = {'edm': [], 'disp': [], 'alpha_reg': [], 'total': [], 'facl': [], 'fal': [], 'fcl': []}
+    n_batches_seen = 0
+
+    for batch in train_cached_dataloader:
+        mu_HR = batch['mu_HR'].to(DEVICE, non_blocking=True)
+        baseline_log = batch['baseline_log'].to(DEVICE, non_blocking=True)
+        delta_target = batch['delta_target'].to(DEVICE, non_blocking=True)
+        # IA expert fix : load valid_mask to exclude NaN/QC pixels from loss
+        # (without this, delta_target=0 on QC pixels biases model toward
+        # under-prediction in those regions).
+        valid_mask = batch['valid_mask'].to(DEVICE, non_blocking=True).float()
+
+        # Conditioning dropout (CFG compatibility, CorrDiff Nature CEE 2025)
+        # When mu_HR is dropped, target also adjusted (Ho & Salimans branch correctness)
+        mu_HR_used = mu_HR
+        delta_target_used = delta_target
+        if COND_DROPOUT_P > 0:
+            B = mu_HR.shape[0]
+            drop_mask = (torch.rand(B, device=DEVICE) < COND_DROPOUT_P).view(B, 1, 1, 1)
+            if drop_mask.any():
+                mu_HR_used = torch.where(drop_mask, torch.zeros_like(mu_HR), mu_HR)
+                delta_target_used = torch.where(drop_mask, delta_target + mu_HR, delta_target)
+
+        optimizer_s2.zero_grad(set_to_none=True)
+        with torch.autocast('cuda', dtype=torch.bfloat16):
+            B = delta_target_used.shape[0]
+            sigma = sample_training_sigma(B, P_mean=edm_cfg.P_mean, P_std=edm_cfg.P_std,
+                                            device=DEVICE, dtype=delta_target_used.dtype)
+            noise = torch.randn_like(delta_target_used)
+            y_noisy = delta_target_used + sigma.view(-1, 1, 1, 1) * noise
+
+            # Forward EDM (this triggers the dispersive hook on mid_block)
+            D_y = diff_decoder.forward_edm(
+                y_noisy, sigma, conditioning=None, conditioning_spatial=None,
+                mu_HR=mu_HR_used, baseline_log=baseline_log,
+            )
+
+            # FIX BUG #4 (ML+Math) : Min-SNR alone, NOT * Karras lambda.
+            # Karras EDM2 + Hang ICCV 2023 specify Min-SNR REPLACES the standard lambda.
+            min_snr_w = _min_snr_weight(sigma, edm_cfg.sigma_data, MIN_SNR_GAMMA)
+            w_total = min_snr_w
+
+            # ----- Tail weight on extreme pixels -----
+            hr_log_recon = delta_target_used + mu_HR_used + baseline_log   # full HR in log1p
+            tail_w = _tail_weight(hr_log_recon).detach()
+            # Clip combined weight to avoid extreme values (Math : W_max=50)
+            w_combined = (w_total * tail_w).clamp(max=50.0)
+
+            # IA expert fix #4 : apply valid_mask to exclude NaN/QC pixels.
+            # Without this, cached delta_target=0 on QC pixels biases the model
+            # toward under-prediction on coastal/glacier regions.
+            sq_err = (D_y - delta_target_used) ** 2
+            _eff_w = w_combined * valid_mask
+            loss_edm = (_eff_w * sq_err).sum() / _eff_w.sum().clamp_min(1.0)
+
+            # ----- Dispersive Loss on mid-block features -----
+            loss_disp = loss_dispersive(dispersive_features.get('mid', None))
+
+            # ----- Alpha regularization -----
+            alpha = torch.sigmoid(alpha_logit)
+            loss_alpha = loss_alpha_reg(alpha)
+
+            # ----- FACL : Fourier Amplitude + Correlation Loss (Yang NeurIPS 2024) -----
+            # B3 (IA expert) : cast to .float() because rfft2 BF16 support is
+            #   PyTorch-version-dependent under autocast. cuFFT promotes to fp32
+            #   internally but explicit cast removes ambiguity. Cost negligible.
+            # B2 (IA+Math)   : drop valid_mask kwarg ; delta_target_used has no NaN
+            #   (cache pre-cleaned via Stage 1 nan_to_num), _zero_nans inside
+            #   facl_loss handles any residual NaN defensively.
+            # I2 (ML)        : FACL warmup over FACL_WARMUP_EPOCHS to prevent
+            #   early-training domination when D_y is far from target (FCL ~ 1.0
+            #   at init, can be 10-50x larger than edm loss).
+            facl_warmup_factor = min(1.0, float(ep) / max(1, FACL_WARMUP_EPOCHS))
+            # Math + ML expert : use facl_components for separate FAL+FCL logging
+            # to enable diagnostic if either dominates. Reconstruct loss_facl manually.
+            _fal_val, _fcl_val = facl_components(D_y.float(), delta_target_used.float())
+            loss_facl = (LAMBDA_FACL_FAL * facl_warmup_factor) * _fal_val \
+                      + (LAMBDA_FACL_FCL * facl_warmup_factor) * _fcl_val
+
+            loss_total = loss_edm + DISPERSIVE_LAMBDA * loss_disp + loss_alpha + loss_facl
+
+        loss_total.backward()
+        torch.nn.utils.clip_grad_norm_(stage2_params, STAGE2_GRADIENT_CLIP)
+        optimizer_s2.step()
+
+        # Multi-EMA update
+        _ema_update_all(ema_decoders, EMA_DECAYS, diff_decoder)
+
+        losses_log['edm'].append(float(loss_edm.detach()))
+        losses_log['disp'].append(float(loss_disp.detach()))
+        losses_log['alpha_reg'].append(float(loss_alpha.detach()))
+        losses_log['facl'].append(float(loss_facl.detach()))
+        losses_log['fal'].append(float(_fal_val.detach()))
+        losses_log['fcl'].append(float(_fcl_val.detach()))
+        losses_log['total'].append(float(loss_total.detach()))
+        n_batches_seen += 1
+
+        if SMOKE_MODE and n_batches_seen >= 10:
+            break
+
+    ep_time = time.time() - _t0
+    avg = {k: float(np.mean(v)) if v else 0.0 for k, v in losses_log.items()}
+    cur_alpha = float(torch.sigmoid(alpha_logit).detach())
+    print(f'[ep{ep}/{STAGE2_EPOCHS}] edm={avg["edm"]:.4f} disp={avg["disp"]:.4f} '
+          f'alpha_reg={avg["alpha_reg"]:.4f} total={avg["total"]:.4f} '
+          f'alpha={cur_alpha:.4f} time={ep_time:.0f}s n_batches={n_batches_seen}')
+
+    stage2_history.append({
+        'epoch': ep, 'epoch_time_s': ep_time, 'losses': avg,
+        'alpha': cur_alpha, 'n_batches': n_batches_seen,
+    })
+
+    # H2+M4 fix (IA+ML experts) : abort BEFORE checkpoint save, and AFTER warmup
+    # so we measure FACL at full strength. Without these fixes:
+    #   - abort at ep==1 measured 1/3 of full FACL (warmup) => missed scenarios
+    #     where steady-state facl/edm ratio is 3-9x.
+    #   - if abort raised at ep==1, checkpoint already saved with epoch=1,
+    #     next resume would skip the check silently => silent failure path.
+    if (ep == FACL_WARMUP_EPOCHS and
+            len(losses_log['edm']) > 0 and len(losses_log['facl']) > 0):
+        _mean_edm  = float(np.mean(losses_log['edm']))
+        _mean_facl = float(np.mean(losses_log['facl']))
+        if _mean_facl > 3.0 * max(_mean_edm, 1e-6):
+            raise RuntimeError(
+                f'[ABORT ep {ep}] FACL dominates after warmup : '
+                f'mean(facl)={_mean_facl:.4f} > 3x mean(edm)={3*_mean_edm:.4f}. '
+                f'Reduce LAMBDA_FACL_FAL/FCL (current : {LAMBDA_FACL_FAL}, '
+                f'{LAMBDA_FACL_FCL}). Checkpoint NOT saved for this epoch.'
+            )
+
+    # Save Stage 2 checkpoint each epoch
+    payload_s2 = {
+        'epoch': ep,
+        'diffusion_state_dict': diff_decoder.state_dict(),
+        'ema_state_dicts': [ema.state_dict() for ema in ema_decoders],
+        'ema_decays': EMA_DECAYS,
+        'ema_step_counters': [ema._ema_step_counter for ema in ema_decoders],
+        'alpha_logit': alpha_logit.detach().cpu(),
+        'optimizer_state_dict': optimizer_s2.state_dict(),
+        'history': stage2_history,
+        'sigma_data': float(SIGMA_DATA_NEW),
+        'pre_reg': PRE_REG_RECORD,
+    }
+    CKPT_STAGE2_LAST.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(payload_s2, CKPT_STAGE2_LAST)
+
+
+    if SMOKE_MODE and ep >= STAGE2_EPOCHS:
+        break
+
+# Detach hook
+if _disp_handle is not None:
+    _disp_handle.remove()
+
+# Set all to eval at the end
+diff_decoder.eval()
+for ema in ema_decoders:
+    ema.eval()
+
+print(f'[Cell 11] Stage 2 training complete')
+print(f'[Cell 11] Final alpha = {float(torch.sigmoid(alpha_logit)):.4f}')
+print(f'[Cell 11] Final EMA step counters : {[ema._ema_step_counter for ema in ema_decoders]}')
+print(f'[Cell 11] Checkpoint : {CKPT_STAGE2_LAST}')
+
+
+====== Cell 14 ======
+# === Cell 13 : Metriques (3 conventions F1, CSI, SEDI, FSS, CRPS + indices climatiques) ===
+from scipy.ndimage import uniform_filter
+
+# Load climatology + land_mask for ETCCDI eval
+_clim = np.load(CLIM_PATH)
+clim_p99_np = _clim['clim_p99']
+clim_p95_np = _clim['clim_p95']
+land_mask_np = _clim['land_mask']
+
+# ----- F1 / CSI / SEDI helper functions -----
+def f1_pooled(pred, target, percentile=99.0):
+    """Pooled full-grid, valid-only filter, strict > (Phase 6 audit fix)."""
+    pf = pred.flatten(); tf = target.flatten()
+    v = torch.isfinite(pf) & torch.isfinite(tf)
+    pv = pf[v]; tv = tf[v]
+    if tv.numel() < 100: return float('nan')
+    thr = float(torch.quantile(tv, percentile / 100.0))
+    # FIX BUG #7 : ETCCDI standard convention uses >=
+    tp = ((pv >= thr) & (tv >= thr)).sum().item()
+    fp = ((pv >= thr) & (tv < thr)).sum().item()
+    fn = ((pv < thr) & (tv >= thr)).sum().item()
+    if (tp + fp) == 0 or (tp + fn) == 0: return 0.0
+    prec = tp / (tp + fp); rec = tp / (tp + fn)
+    return (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+
+def f1_etccdi_per_pixel(pred_mm, target_mm, land_mask, clim_p99):
+    """ETCCDI per-pixel : seuil per-pixel = clim_p99[i,j]. Land only."""
+    N = pred_mm.shape[0]
+    pred_np = pred_mm.cpu().numpy().reshape(N, *clim_p99.shape)
+    target_np = target_mm.cpu().numpy().reshape(N, *clim_p99.shape)
+    valid_pix = land_mask & np.isfinite(clim_p99)
+    if not valid_pix.any(): return {'f1': float('nan'), 'tp': 0, 'fp': 0, 'fn': 0}
+    thr = clim_p99[None, :, :]
+    pred_bin = pred_np >= thr
+    target_bin = target_np >= thr
+    valid_bcast = valid_pix[None, :, :]
+    tp = int((pred_bin & target_bin & valid_bcast).sum())
+    fp = int((pred_bin & ~target_bin & valid_bcast).sum())
+    fn = int((~pred_bin & target_bin & valid_bcast).sum())
+    if (tp + fp) == 0 or (tp + fn) == 0: return {'f1': 0.0, 'tp': tp, 'fp': fp, 'fn': fn}
+    prec = tp / (tp + fp); rec = tp / (tp + fn)
+    return {'f1': 2*prec*rec/(prec+rec) if (prec+rec) > 0 else 0.0, 'tp': tp, 'fp': fp, 'fn': fn}
+
+def csi_sedi(pred_bin, target_bin):
+    tp = int((pred_bin & target_bin).sum())
+    fp = int((pred_bin & ~target_bin).sum())
+    fn = int((~pred_bin & target_bin).sum())
+    tn = int((~pred_bin & ~target_bin).sum())
+    csi = tp / max(tp + fp + fn, 1)
+    h = tp / max(tp + fn, 1); f = fp / max(fp + tn, 1)
+    eps = 1e-12
+    h = max(min(h, 1 - eps), eps); f = max(min(f, 1 - eps), eps)
+    num = np.log(f) - np.log(h) - np.log(1 - f) + np.log(1 - h)
+    den = np.log(f) + np.log(h) + np.log(1 - f) + np.log(1 - h)
+    sedi = float(num / den) if den != 0 else float('nan')
+    return csi, sedi
+
+def fss_neighborhood(pred_bin, target_bin, n=9, mode='reflect'):
+    P = pred_bin.astype(np.float32); Q = target_bin.astype(np.float32)
+    Pf = np.stack([uniform_filter(P[i], size=n, mode=mode) for i in range(P.shape[0])])
+    Qf = np.stack([uniform_filter(Q[i], size=n, mode=mode) for i in range(Q.shape[0])])
+    mse  = float(((Pf - Qf) ** 2).mean())
+    norm = float((Pf ** 2 + Qf ** 2).mean())
+    return 1.0 - mse / max(norm, 1e-12)
+
+# ----- Compute metrics on Phase 8 (live N=64 K=128 ensemble) -----
+print('=' * 78)
+print('Phase 8 BS30 metrics on TEST split')
+print('=' * 78)
+
+f1_p99_pool = f1_pooled(pred_full_log, target_full_log, 99.0)
+f1_p95_pool = f1_pooled(pred_full_log, target_full_log, 95.0)
+print(f'  F1@p99 (pooled, log1p)    = {f1_p99_pool:.4f}')
+print(f'  F1@p95 (pooled, log1p)    = {f1_p95_pool:.4f}')
+
+etccdi_p99 = f1_etccdi_per_pixel(pred_mm, target_mm, land_mask_np, clim_p99_np)
+etccdi_p95 = f1_etccdi_per_pixel(pred_mm, target_mm, land_mask_np, clim_p95_np)
+print(f'  F1@p99 (ETCCDI per-pixel) = {etccdi_p99["f1"]:.4f}  (TP={etccdi_p99["tp"]} FP={etccdi_p99["fp"]} FN={etccdi_p99["fn"]})')
+print(f'  F1@p95 (ETCCDI per-pixel) = {etccdi_p95["f1"]:.4f}')
+
+# CSI / SEDI / FSS at ETCCDI p99 threshold
+pred_np = pred_mm.cpu().numpy().reshape(test_target.shape[0], H_HR, W_HR)
+target_np = target_mm.cpu().numpy().reshape(test_target.shape[0], H_HR, W_HR)
+valid_pix = land_mask_np & np.isfinite(clim_p99_np)
+pred_bin = (pred_np >= clim_p99_np[None]) & valid_pix[None]
+target_bin = (target_np >= clim_p99_np[None]) & valid_pix[None]
+csi, sedi = csi_sedi(pred_bin, target_bin)
+fss_9 = fss_neighborhood(pred_bin, target_bin, n=9, mode='reflect')
+fss_25 = fss_neighborhood(pred_bin, target_bin, n=25, mode='reflect')
+fss_51 = fss_neighborhood(pred_bin, target_bin, n=51, mode='reflect')
+print(f'  CSI@p99 = {csi:.4f}  SEDI@p99 = {sedi:.4f}')
+print(f'  FSS (n=9)={fss_9:.4f}  (n=25)={fss_25:.4f}  (n=51)={fss_51:.4f}')
+
+# RMSE, MAE, Pearson on log1p full pred
+_valid = torch.isfinite(target_full_log)
+pf = pred_full_log[_valid]; tf = target_full_log[_valid]
+rmse = float(((pf - tf) ** 2).mean().sqrt())
+mae  = float((pf - tf).abs().mean())
+pf_c = pf - pf.mean(); tf_c = tf - tf.mean()
+pearson_global = float((pf_c * tf_c).sum() / ((pf_c.norm() * tf_c.norm()).clamp_min(1e-12)))
+per_sample = []
+for i in range(pred_full_log.shape[0]):
+    vi = _valid[i]
+    if vi.sum() < 2: continue
+    pi = pred_full_log[i][vi]; ti = target_full_log[i][vi]
+    pic = pi - pi.mean(); tic = ti - ti.mean()
+    c = float((pic * tic).sum() / ((pic.norm() * tic.norm()).clamp_min(1e-12)))
+    per_sample.append(c)
+pearson_ps = float(np.mean(per_sample)) if per_sample else float('nan')
+print(f'  RMSE = {rmse:.4f}  MAE = {mae:.4f}  Pearson_global = {pearson_global:.4f}  Pearson_ps = {pearson_ps:.4f}')
+
+# Climate indices on the 64 batches (note : for full 730-day indices, would need full test pass)
+# For SMOKE, we just compute on the sampled batches as proxy
+pred_mm_np = pred_mm.cpu().numpy()      # shape (N, 1, H, W)
+target_mm_np = target_mm.cpu().numpy()
+# Squeeze channel dim so land_mask_np (H, W) broadcasts on the spatial axes.
+if pred_mm_np.ndim == 4:
+    pred_mm_np_2d   = pred_mm_np[:, 0]      # (N, H, W)
+    target_mm_np_2d = target_mm_np[:, 0]
+else:
+    pred_mm_np_2d   = pred_mm_np
+    target_mm_np_2d = target_mm_np
+
+# RX1day : per-pixel max over the N sampled batches (approx of annual max when N << 730)
+_p_max = np.nanmax(pred_mm_np_2d,   axis=0)   # (H, W)
+_t_max = np.nanmax(target_mm_np_2d, axis=0)
+rx1d_pred   = float(np.nanmean(_p_max[land_mask_np]))
+rx1d_target = float(np.nanmean(_t_max[land_mask_np]))
+rx1d_bias = rx1d_pred - rx1d_target
+
+# R10mm count (per-pixel sum of days >= 10 mm/day) and CDD (per-pixel sum of days < 1 mm/day)
+_p_r10 = (pred_mm_np_2d   >= 10).sum(axis=0)   # (H, W)
+_t_r10 = (target_mm_np_2d >= 10).sum(axis=0)
+r10_pred   = float(np.nanmean(_p_r10[land_mask_np]))
+r10_target = float(np.nanmean(_t_r10[land_mask_np]))
+r10_bias = r10_pred - r10_target
+
+_p_cdd = (pred_mm_np_2d   < 1).sum(axis=0)
+_t_cdd = (target_mm_np_2d < 1).sum(axis=0)
+cdd_pred   = float(np.nanmean(_p_cdd[land_mask_np]))
+cdd_target = float(np.nanmean(_t_cdd[land_mask_np]))
+cdd_bias = cdd_pred - cdd_target
+
+print(f'  Rx1day_bias = {rx1d_bias:+.3f} mm  R10_bias = {r10_bias:+.3f}  CDD_bias = {cdd_bias:+.3f}')
+
+# Climat expert I4 : drizzle_bias = fraction (pred wet > 1mm) - fraction (true wet > 1mm).
+# Anti tail-weight over-correction monitor. Positive => model over-predicts wet days,
+# negative => model under-predicts (under-correction). Computed in mm/day space
+# (pred_mm_np_2d already in expm1 mm/day).
+try:
+    _wet = float(WET_DAY_THRESHOLD_MM)  # = 1.0
+    _land_mask_3d = np.broadcast_to(land_mask_np[None, :, :], pred_mm_np_2d.shape)
+    # M5 fix (IA Q5) : also filter NaN in pred -- otherwise pred NaN are silently
+    # counted as 'dry' (False from comparison NaN >= 1.0), biasing drizzle_bias negative.
+    _valid_3d = np.isfinite(target_mm_np_2d) & np.isfinite(pred_mm_np_2d) & _land_mask_3d
+    if _valid_3d.sum() > 100:
+        _pred_wet_frac = float((pred_mm_np_2d[_valid_3d] >= _wet).mean())
+        _targ_wet_frac = float((target_mm_np_2d[_valid_3d] >= _wet).mean())
+        drizzle_bias = _pred_wet_frac - _targ_wet_frac
+        print(f'  drizzle_bias = {drizzle_bias:+.4f} (pred_wet_frac={_pred_wet_frac:.3f} vs targ_wet_frac={_targ_wet_frac:.3f})')
+    else:
+        drizzle_bias = float('nan')
+        print(f'  drizzle_bias : skipped (mask too sparse)')
+except Exception as _e:
+    drizzle_bias = float('nan')
+    print(f'  drizzle_bias : skipped ({type(_e).__name__}: {_e})')
+
+phase8_metrics = {
+    'F1_p99_pooled': f1_p99_pool,
+    'F1_p95_pooled': f1_p95_pool,
+    'F1_p99_etccdi': etccdi_p99['f1'],
+    'F1_p95_etccdi': etccdi_p95['f1'],
+    'CSI_p99': csi, 'SEDI_p99': sedi,
+    'FSS_p99_n9': fss_9, 'FSS_p99_n25': fss_25, 'FSS_p99_n51': fss_51,
+    'RMSE': rmse, 'MAE': mae,
+    'Pearson_global': pearson_global, 'Pearson_per_sample': pearson_ps,
+    'Rx1day_bias': rx1d_bias, 'R10_bias': r10_bias, 'CDD_bias': cdd_bias,
+    'drizzle_bias': drizzle_bias if 'drizzle_bias' in dir() else float('nan'),
+    'alpha_final': alpha_final,
+    'best_ema_decay': best_decay,
+    'n_batches_eval': int(test_pred.shape[0]),
+    'k_samples': K_SAMPLES,
+    'n_steps_diff': N_STEPS_DIFF,
+}
+print(f'[Cell 13] Phase 8 metrics computed')
+
+

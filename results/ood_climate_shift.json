@@ -1,0 +1,92 @@
+{
+  "protocol": {
+    "n_days": 120,
+    "K": 8,
+    "n_steps": 14,
+    "warm_pool": "2012-01-01..2014-12-31 (test+holdout, hors train/val)",
+    "warm_frac": 0.07,
+    "warm_threshold_z": 0.2768928110599518,
+    "z_t850_means": {
+      "id_2012_2013": 0.15344256493262948,
+      "cold_1960_1965": 0.10231442839237086,
+      "warm_tail_2012_2014": 0.33583262165387473
+    },
+    "normalisation": "stats train 1974-2011, aucun reajustement",
+    "caveat": "proxys directionnels (froid reel / queue chaude), pas de scenario SSP"
+  },
+  "checkpoints": {
+    "Oracle (V5 baseline)": {
+      "path": "/content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal/epoch_last.pth",
+      "size_gb": 0.52
+    },
+    "Noncausal": {
+      "path": "/content/drive/MyDrive/climate_data/ckpt_noncausal/epoch_last.pth",
+      "size_gb": 0.553
+    }
+  },
+  "results": {
+    "Oracle/id_2012_2013": {
+      "crps_model_global_mm": 0.302042023917097,
+      "crps_skill_score": 0.8541376642103935,
+      "spread_skill_ratio": 0.271236802930655,
+      "rmse_global_mm": 1.33284111322454,
+      "K_samples": 8,
+      "n_times": 120
+    },
+    "Noncausal/id_2012_2013": {
+      "crps_model_global_mm": 0.45074413981666583,
+      "crps_skill_score": 0.7823263391481523,
+      "spread_skill_ratio": 0.19912223429347356,
+      "rmse_global_mm": 1.6902489839212589,
+      "K_samples": 8,
+      "n_times": 120
+    },
+    "Oracle/cold_1960_1965": {
+      "crps_model_global_mm": 0.389034359948833,
+      "crps_skill_score": 0.8460019969276097,
+      "spread_skill_ratio": 0.2641855461688835,
+      "rmse_global_mm": 1.4964817405993478,
+      "K_samples": 8,
+      "n_times": 120
+    },
+    "Noncausal/cold_1960_1965": {
+      "crps_model_global_mm": 0.5605036398391227,
+      "crps_skill_score": 0.7781264326848051,
+      "spread_skill_ratio": 0.1984348430038245,
+      "rmse_global_mm": 1.8812310416649736,
+      "K_samples": 8,
+      "n_times": 120
+    },
+    "Oracle/warm_tail_2012_2014": {
+      "crps_model_global_mm": 0.28777133885123485,
+      "crps_skill_score": 0.8756946731071402,
+      "spread_skill_ratio": 0.2579118546594864,
+      "rmse_global_mm": 1.5043728149138285,
+      "K_samples": 8,
+      "n_times": 75
+    },
+    "Noncausal/warm_tail_2012_2014": {
+      "crps_model_global_mm": 0.4438210622299564,
+      "crps_skill_score": 0.8082876410046133,
+      "spread_skill_ratio": 0.19315072568894617,
+      "rmse_global_mm": 1.8787587895506546,
+      "K_samples": 8,
+      "n_times": 75
+    }
+  },
+  "summary": {
+    "id_2012_2013": {
+      "gain_crps_rel": 0.3299036033170646
+    },
+    "cold_1960_1965": {
+      "gain_crps_rel": 0.3059200114017194,
+      "degradation_oracle": 0.28801401508160085,
+      "degradation_noncausal": 0.24350732561292987
+    },
+    "warm_tail_2012_2014": {
+      "gain_crps_rel": 0.3516050423444476,
+      "degradation_oracle": -0.0472473494939204,
+      "degradation_noncausal": -0.015359218179797796
+    }
+  }
+}

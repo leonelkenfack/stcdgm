@@ -1,0 +1,10 @@
+{
+  "spread_skill_ratio": 0.3292364232019745,
+  "crps_gaussian": 0.05409154828590367,
+  "intensity_hist_distance_L1": 0.10352209955453873,
+  "rapsd_distance": 307.7807312011719,
+  "rmse_secondary": 0.14136530458927155,
+  "mae_secondary": 0.06970784813165665,
+  "spread_mean": 0.04654260724782944,
+  "pearson_global_secondary": 0.766583263874054
+}

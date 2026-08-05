@@ -1,0 +1,129 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{Remerciements}{ii}{chapter*.1}%
+\contentsline {chapter}{Résumé / Abstract}{iii}{chapter*.1}%
+\contentsline {chapter}{Liste des abréviations et sigles}{v}{chapter*.2}%
+\contentsline {chapter}{Introduction générale}{1}{chapter*.4}%
+\contentsline {chapter}{\numberline {I}Fondements du downscaling climatique}{5}{chapter.1}%
+\contentsline {section}{\numberline {I.1}Introduction}{5}{section.1.1}%
+\contentsline {section}{\numberline {I.2}Contexte climatique et besoin de désagrégation}{6}{section.1.2}%
+\contentsline {subsection}{\numberline {I.2.1}Changement climatique et impacts régionaux}{6}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {I.2.2}Modèles climatiques globaux et régionaux}{7}{subsection.1.2.2}%
+\contentsline {subsection}{\numberline {I.2.3}Besoins locaux et cas de la précipitation}{7}{subsection.1.2.3}%
+\contentsline {section}{\numberline {I.3}Données climatiques et leurs propriétés}{8}{section.1.3}%
+\contentsline {subsection}{\numberline {I.3.1}Sources de données}{8}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {I.3.2}Variables, formats et conventions}{9}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {I.3.3}Propriétés statistiques de la précipitation}{9}{subsection.1.3.3}%
+\contentsline {section}{\numberline {I.4}Approches classiques de downscaling}{9}{section.1.4}%
+\contentsline {subsection}{\numberline {I.4.1}Désagrégation spatiale}{10}{subsection.1.4.1}%
+\contentsline {subsubsection}{Statistique classique}{10}{subsubsection*.5}%
+\contentsline {subsubsection}{Dynamique (RCM)}{10}{subsubsection*.6}%
+\contentsline {subsubsection}{Apprentissage supervisé déterministe}{10}{subsubsection*.7}%
+\contentsline {subsection}{\numberline {I.4.2}Désagrégation temporelle}{11}{subsection.1.4.2}%
+\contentsline {section}{\numberline {I.5}Approches probabilistes et génératives}{11}{section.1.5}%
+\contentsline {subsection}{\numberline {I.5.1}Du déterministe au probabiliste}{11}{subsection.1.5.1}%
+\contentsline {subsection}{\numberline {I.5.2}Modèles génératifs adversariaux}{12}{subsection.1.5.2}%
+\contentsline {subsection}{\numberline {I.5.3}Modèles de diffusion}{12}{subsection.1.5.3}%
+\contentsline {subsection}{\numberline {I.5.4}Le paradigme deux étages : CorrDiff}{12}{subsection.1.5.4}%
+\contentsline {paragraph}{Évaluation probabiliste.}{13}{paragraph*.9}%
+\contentsline {section}{\numberline {I.6}Causalité et modèles structurels}{14}{section.1.6}%
+\contentsline {subsection}{\numberline {I.6.1}Pourquoi la causalité en downscaling climatique}{14}{subsection.1.6.1}%
+\contentsline {subsection}{\numberline {I.6.2}Modèles causaux structurels et graphes acycliques dirigés}{14}{subsection.1.6.2}%
+\contentsline {subsection}{\numberline {I.6.3}Intervention, identifiabilité et lien avec le downscaling}{15}{subsection.1.6.3}%
+\contentsline {section}{\numberline {I.7}Verrous scientifiques et trilemme}{15}{section.1.7}%
+\contentsline {subsection}{\numberline {I.7.1}Verrou 1 : stabilité d'entraînement}{16}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {I.7.2}Verrou 2 : réalisme des extrêmes et sub-dispersion}{16}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {I.7.3}Verrou 3 : robustesse hors-distribution}{16}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {I.7.4}Trilemme et positionnement d'\textsc {Oracle}{}}{17}{subsection.1.7.4}%
+\contentsline {section}{\numberline {I.8}Synthèse}{18}{section.1.8}%
+\contentsline {chapter}{\numberline {II}État de l'art du downscaling par apprentissage profond}{20}{chapter.2}%
+\contentsline {section}{\numberline {II.1}Introduction}{20}{section.2.1}%
+\contentsline {section}{\numberline {II.2}Approches déterministes}{21}{section.2.2}%
+\contentsline {subsection}{\numberline {II.2.1}Régression statistique classique}{21}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {II.2.2}Réseaux convolutifs et super-résolution}{22}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {II.2.3}Architectures déterministes avancées}{22}{subsection.2.2.3}%
+\contentsline {section}{\numberline {II.3}Approches probabilistes adversariales}{23}{section.2.3}%
+\contentsline {subsection}{\numberline {II.3.1}Réseaux antagonistes génératifs conditionnels}{23}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {II.3.2}cGAN résiduel pour le downscaling climatique}{23}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {II.3.3}Limites empiriques des cGAN appliqués au downscaling}{24}{subsection.2.3.3}%
+\contentsline {section}{\numberline {II.4}Approches à vraisemblance explicite}{24}{section.2.4}%
+\contentsline {section}{\numberline {II.5}Modèles de diffusion}{25}{section.2.5}%
+\contentsline {subsection}{\numberline {II.5.1}Denoising Diffusion Probabilistic Models}{25}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {II.5.2}Formalisme EDM de Karras et al.}{25}{subsection.2.5.2}%
+\contentsline {subsection}{\numberline {II.5.3}Premières applications au climat : SR3, ResShift, ResDiff}{26}{subsection.2.5.3}%
+\contentsline {section}{\numberline {II.6}Le paradigme à deux étages : CorrDiff}{26}{section.2.6}%
+\contentsline {subsection}{\numberline {II.6.1}Idée fondatrice}{26}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {II.6.2}Architecture détaillée}{27}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {II.6.3}Forces du paradigme à deux étages}{27}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {II.6.4}Limites identifiées de CorrDiff}{28}{subsection.2.6.4}%
+\contentsline {subsection}{\numberline {II.6.5}Pourquoi CorrDiff plutôt que SR3 ?}{28}{subsection.2.6.5}%
+\contentsline {section}{\numberline {II.7}Fonctions de perte et contraintes physiques}{29}{section.2.7}%
+\contentsline {subsection}{\numberline {II.7.1}Pertes adaptées à la précipitation}{29}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {II.7.2}Contraintes physiques et explicabilité}{29}{subsection.2.7.2}%
+\contentsline {section}{\numberline {II.8}Cadres d'évaluation et foundation models}{30}{section.2.8}%
+\contentsline {subsection}{\numberline {II.8.1}Benchmarks standardisés}{30}{subsection.2.8.1}%
+\contentsline {subsection}{\numberline {II.8.2}Foundation models climat}{30}{subsection.2.8.2}%
+\contentsline {section}{\numberline {II.9}Synthèse, tableau comparatif et gap scientifique}{31}{section.2.9}%
+\contentsline {subsection}{\numberline {II.9.1}Tableau comparatif modèle × verrou}{31}{subsection.2.9.1}%
+\contentsline {subsection}{\numberline {II.9.2}Gap scientifique}{32}{subsection.2.9.2}%
+\contentsline {subsection}{\numberline {II.9.3}Positionnement d'Oracle dans le paysage}{32}{subsection.2.9.3}%
+\contentsline {subsection}{\numberline {II.9.4}Transition vers le Chapitre III}{33}{subsection.2.9.4}%
+\contentsline {chapter}{\numberline {III}Proposition : Oracle, architecture causale à deux étages}{34}{chapter.3}%
+\contentsline {section}{\numberline {III.1}Introduction}{34}{section.3.1}%
+\contentsline {subsection}{\numberline {III.1.1}Notations et objectifs}{35}{subsection.3.1.1}%
+\contentsline {section}{\numberline {III.2}Vue d'ensemble et différence avec CorrDiff}{36}{section.3.2}%
+\contentsline {subsection}{\numberline {III.2.1}Architecture en quatre blocs fonctionnels}{36}{subsection.3.2.1}%
+\contentsline {section}{\numberline {III.3}Graphe atmosphérique hétérogène}{37}{section.3.3}%
+\contentsline {subsection}{\numberline {III.3.1}Types de nœuds et hiérarchie verticale}{37}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {III.3.2}Types d'arêtes et physique encodée}{38}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {III.3.3}Drivers statiques et acheminement causal}{38}{subsection.3.3.3}%
+\contentsline {section}{\numberline {III.4}Encodeur intelligible des variables}{39}{section.3.4}%
+\contentsline {subsection}{\numberline {III.4.1}Motivation : préserver l'identité physique des variables}{39}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {III.4.2}Architecture par variable et normalisation}{39}{subsection.3.4.2}%
+\contentsline {section}{\numberline {III.5}Réseau causal récurrent (RCN)}{40}{section.3.5}%
+\contentsline {subsection}{\numberline {III.5.1}Principe : SCM dynamique enchaîné à une mise à jour temporelle}{40}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {III.5.2}Équations SCM et mise à jour GRU}{40}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {III.5.3}Passe avant}{41}{subsection.3.5.3}%
+\contentsline {section}{\numberline {III.6}Apprentissage du DAG par contrainte DAGMA}{42}{section.3.6}%
+\contentsline {subsection}{\numberline {III.6.1}Caractérisation différentiable et formulation DAGMA}{42}{subsection.3.6.1}%
+\contentsline {subsection}{\numberline {III.6.2}Portée et limites de la causalité apprise}{43}{subsection.3.6.2}%
+\contentsline {section}{\numberline {III.7}Décodeur graphe-à-grille et moyenne haute résolution}{43}{section.3.7}%
+\contentsline {subsection}{\numberline {III.7.1}Cross-attention à résolution intermédiaire et raffinement}{43}{subsection.3.7.1}%
+\contentsline {section}{\numberline {III.8}Interface inter-étages et propriété (O3)}{44}{section.3.8}%
+\contentsline {subsection}{\numberline {III.8.1}Pré-calcul, cache et recalibration de $\sigma _{\mathrm {data}}$}{44}{subsection.3.8.1}%
+\contentsline {subsection}{\numberline {III.8.2}Définition formelle de la propriété (O3)}{44}{subsection.3.8.2}%
+\contentsline {subsection}{\numberline {III.8.3}Variante d'ablation \texttt {noncausal}}{45}{subsection.3.8.3}%
+\contentsline {section}{\numberline {III.9}Étage 2 : diffusion EDM résiduelle}{45}{section.3.9}%
+\contentsline {subsection}{\numberline {III.9.1}Paradigme EDM et conditionnement par concaténation}{45}{subsection.3.9.1}%
+\contentsline {subsection}{\numberline {III.9.2}Pourquoi le résidu plutôt que le champ complet}{46}{subsection.3.9.2}%
+\contentsline {section}{\numberline {III.10}Pertes composites et entraînement}{47}{section.3.10}%
+\contentsline {subsection}{\numberline {III.10.1}Pertes des deux étages}{47}{subsection.3.10.1}%
+\contentsline {subsection}{\numberline {III.10.2}Procédure d'entraînement et optimisation}{47}{subsection.3.10.2}%
+\contentsline {section}{\numberline {III.11}Synthèse, traçabilité et choix non retenus}{48}{section.3.11}%
+\contentsline {subsection}{\numberline {III.11.1}Traçabilité des composants}{48}{subsection.3.11.1}%
+\contentsline {subsection}{\numberline {III.11.2}Transition vers le Chapitre IV}{49}{subsection.3.11.2}%
+\contentsline {chapter}{\numberline {IV}Matériels, méthodes, expérimentations et discussion}{50}{chapter.4}%
+\contentsline {section}{\numberline {IV.1}Introduction}{50}{section.4.1}%
+\contentsline {section}{\numberline {IV.2}Environnement et données}{51}{section.4.2}%
+\contentsline {subsection}{\numberline {IV.2.1}Pile logicielle et matériel}{51}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {IV.2.2}Données et prétraitements}{51}{subsection.4.2.2}%
+\contentsline {section}{\numberline {IV.3}Topologie effective d'\textsc {Oracle}{}}{52}{section.4.3}%
+\contentsline {subsection}{\numberline {IV.3.1}Premier étage : encodeur, RCN, décodeur}{53}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {IV.3.2}Second étage : UNet EDM}{54}{subsection.4.3.2}%
+\contentsline {section}{\numberline {IV.4}Trajectoire et procédure d'entraînement}{55}{section.4.4}%
+\contentsline {subsection}{\numberline {IV.4.1}Trajectoire des versions et résultats accumulés}{55}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {IV.4.2}Procédure two-stage et sampler à l'inférence}{57}{subsection.4.4.2}%
+\contentsline {section}{\numberline {IV.5}Protocole d'évaluation}{58}{section.4.5}%
+\contentsline {section}{\numberline {IV.6}Résultats observés}{59}{section.4.6}%
+\contentsline {subsection}{\numberline {IV.6.1}Performance en distribution}{59}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {IV.6.2}Calibration probabiliste}{60}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {IV.6.3}Indices climatiques et extrêmes}{61}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {IV.6.4}Robustesse inter-GCM en régime historique}{61}{subsection.4.6.4}%
+\contentsline {subsection}{\numberline {IV.6.5}Diagnostics causaux}{62}{subsection.4.6.5}%
+\contentsline {paragraph}{Structure de $\ensuremath {A_{\mathrm {dag}}}$.}{63}{paragraph*.30}%
+\contentsline {section}{\numberline {IV.7}Discussion critique}{64}{section.4.7}%
+\contentsline {paragraph}{Contributions empiriques défendables.}{64}{paragraph*.32}%
+\contentsline {paragraph}{Régularisation structurelle inductive vs identification causale.}{65}{paragraph*.33}%
+\contentsline {paragraph}{Menaces à la validité.}{65}{paragraph*.34}%
+\contentsline {section}{\numberline {IV.8}Synthèse}{66}{section.4.8}%
+\contentsline {section}{Annexes du chapitre}{67}{section.4.8}%
+\contentsline {chapter}{Conclusion générale et perspectives}{70}{chapter*.39}%

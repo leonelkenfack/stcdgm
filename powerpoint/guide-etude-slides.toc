@@ -1,0 +1,11 @@
+\babel@toc {french}{}\relax 
+\contentsline {section}{\numberline {1}Partie 1 --- Contexte et motivation}{2}{section.1}%
+\contentsline {section}{\numberline {2}Partie 2 --- Structure d'une image climatique}{4}{section.2}%
+\contentsline {section}{\numberline {3}Partie 3 --- État de l'art}{4}{section.3}%
+\contentsline {section}{\numberline {4}Partie 4 --- Présentation de la causalité}{6}{section.4}%
+\contentsline {section}{\numberline {5}Partie 5 --- Architecture}{9}{section.5}%
+\contentsline {section}{\numberline {6}Partie 6 --- Résultats}{10}{section.6}%
+\contentsline {section}{\numberline {7}Partie 7 --- Limites}{13}{section.7}%
+\contentsline {section}{\numberline {8}Partie 8 --- Perspectives}{14}{section.8}%
+\contentsline {section}{\numberline {9}Partie 9 --- Conclusion}{14}{section.9}%
+\contentsline {section}{Annexe --- Lexique minute}{15}{section*.32}%

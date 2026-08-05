@@ -1,0 +1,1433 @@
+# ALL RESULTS DUMP -- generated 2026-06-22T09:58:21.300073
+# DRIVE_ROOT = /content/drive/MyDrive/climate_data
+# Total files = 27
+
+====================================================================================================
+FILE : ckpt_noncausal/aligned_metrics_ACCESS-CM2_noncausal.json
+SIZE : 881 bytes
+MTIME: 2026-06-09T02:13:24
+====================================================================================================
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "noncausal",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 33.98304534234117,
+    "cdd_truth": 12.837951785521243,
+    "cdd_bias": 21.14509355681993,
+    "rx1day_pred": 53.334060694496486,
+    "rx1day_truth": 55.9497984744962,
+    "rx1day_bias": -2.615737779999712,
+    "r10day_pred": 32.968916460958816,
+    "r10day_truth": 28.917565285176043,
+    "r10day_bias": 4.051351175782774,
+    "DJF_rainfall_pred": 3.6932686946716884,
+    "DJF_rainfall_truth": 3.6332576756760697,
+    "DJF_rainfall_bias": 0.06001101899561867,
+    "JJA_rainfall_pred": 3.567908143230323,
+    "JJA_rainfall_truth": 3.5249021729174306,
+    "JJA_rainfall_bias": 0.04300597031289222
+  },
+  "psd_distance": 0.44209116001970516
+}
+
+====================================================================================================
+FILE : ckpt_noncausal/aligned_metrics_EC-Earth3_noncausal.json
+SIZE : 882 bytes
+MTIME: 2026-06-09T03:46:33
+====================================================================================================
+{
+  "gcm": "EC-Earth3",
+  "run_variant": "noncausal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 38.207970637910876,
+    "cdd_truth": 17.06071853266549,
+    "cdd_bias": 21.147252105245386,
+    "rx1day_pred": 51.190331510389726,
+    "rx1day_truth": 54.24444080088994,
+    "rx1day_bias": -3.0541092905002145,
+    "r10day_pred": 27.573957385994543,
+    "r10day_truth": 24.057717292451606,
+    "r10day_bias": 3.5162400935429368,
+    "DJF_rainfall_pred": 2.7881041451516633,
+    "DJF_rainfall_truth": 2.733547478052978,
+    "DJF_rainfall_bias": 0.05455666709868545,
+    "JJA_rainfall_pred": 3.060016202649945,
+    "JJA_rainfall_truth": 2.9986615091017796,
+    "JJA_rainfall_bias": 0.06135469354816525
+  },
+  "psd_distance": 0.495337771243077
+}
+
+====================================================================================================
+FILE : ckpt_noncausal/aligned_metrics_NorESM2-MM_noncausal.json
+SIZE : 883 bytes
+MTIME: 2026-06-09T05:19:40
+====================================================================================================
+{
+  "gcm": "NorESM2-MM",
+  "run_variant": "noncausal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 34.19764193841757,
+    "cdd_truth": 12.95492054340384,
+    "cdd_bias": 21.242721395013728,
+    "rx1day_pred": 59.71658203632891,
+    "rx1day_truth": 62.20302576336756,
+    "rx1day_bias": -2.4864437270386546,
+    "r10day_pred": 31.200077952449007,
+    "r10day_truth": 27.367838118747564,
+    "r10day_bias": 3.8322398337014434,
+    "DJF_rainfall_pred": 2.8423712806872525,
+    "DJF_rainfall_truth": 2.7796869173225534,
+    "DJF_rainfall_bias": 0.06268436336469918,
+    "JJA_rainfall_pred": 3.638662686078124,
+    "JJA_rainfall_truth": 3.5779791699747174,
+    "JJA_rainfall_bias": 0.06068351610340672
+  },
+  "psd_distance": 0.4934210687740756
+}
+
+====================================================================================================
+FILE : ckpt_noncausal/domain_metrics.json
+SIZE : 347 bytes
+MTIME: 2026-05-31T13:26:07
+====================================================================================================
+{
+  "spread_skill_ratio": 0.4185875850731169,
+  "crps_gaussian": 0.04764957488531963,
+  "intensity_hist_distance_L1": 0.08265416324138641,
+  "rapsd_distance": 270.1448669433594,
+  "rmse_secondary": 0.12961626052856445,
+  "mae_secondary": 0.0638909861445427,
+  "spread_mean": 0.054255757480859756,
+  "pearson_global_secondary": 0.8189486861228943
+}
+
+====================================================================================================
+FILE : ckpt_noncausal/final_validation_metrics.json
+SIZE : 1807 bytes
+MTIME: 2026-05-31T13:26:07
+====================================================================================================
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/ckpt_noncausal/epoch_last.pth",
+  "epoch": 200,
+  "epochs_total": 10,
+  "best_val_loss": null,
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "metrics_scope": "full_prediction (μ_HR + δ̂)",
+  "eval_time_s": 5940.956190109253,
+  "rmse": 0.12961626052856445,
+  "mae": 0.0638909861445427,
+  "spread_mean": 0.054255757480859756,
+  "f1_extremes": {
+    "p95": 0.655696310879055,
+    "p99": 0.5504487942035254
+  },
+  "pearson_corr": {
+    "global": 0.8189486861228943,
+    "per_sample_avg": 0.8291983082890511,
+    "per_sample_n": 16,
+    "per_sample_list": [
+      0.8570178747177124,
+      0.7608423829078674,
+      0.8180588483810425,
+      0.7747058272361755,
+      0.8949735164642334,
+      0.8695898056030273,
+      0.7518190741539001,
+      0.7786860466003418,
+      0.898102879524231,
+      0.848213255405426,
+      0.9069716334342957,
+      0.9002357125282288,
+      0.8714797496795654,
+      0.6810441613197327,
+      0.8989353775978088,
+      0.756496787071228
+    ]
+  },
+  "rapsd_distance": 270.1448669433594,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 0.8389097913491722,
+    "per_batch": [
+      1.0014940363094813,
+      0.751288226763868,
+      0.7714343116717708,
+      0.8314225906515689
+    ],
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "norm_output": 0.10287593305110931,
+    "norm_mu_HR": 0.04673648253083229,
+    "norm_target": 0.11612854152917862,
+    "norm_output_minus_mu_HR": 0.12152816355228424,
+    "norm_target_minus_mu_HR": 0.11199351400136948,
+    "shortcut_ratio": 1.1813080080829828,
+    "verdict": "REFINEMENT_OK"
+  },
+  "config_eval_num_steps": 32,
+  "config_cfg_scale": 1.5,
+  "config_block_out_channels": [
+    128,
+    256,
+    256,
+    256
+  ]
+}
+
+====================================================================================================
+FILE : ckpt_phase6_dualpath/domain_metrics.json
+SIZE : 347 bytes
+MTIME: 2026-06-22T08:44:37
+====================================================================================================
+{
+  "spread_skill_ratio": 0.24494023236441917,
+  "crps_gaussian": 0.06616406445103476,
+  "intensity_hist_distance_L1": 0.8506669998168945,
+  "rapsd_distance": 889.9986572265625,
+  "rmse_secondary": 0.13012167811393738,
+  "mae_secondary": 0.07992573082447052,
+  "spread_mean": 0.03187203407287598,
+  "pearson_global_secondary": 0.7192857265472412
+}
+
+====================================================================================================
+FILE : ckpt_phase6_dualpath/final_validation_metrics.json
+SIZE : 1823 bytes
+MTIME: 2026-06-22T08:44:35
+====================================================================================================
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/oracle_9node/seed_42/epoch_best_dualpath.pth",
+  "mode": "phase6_dualpath",
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "metrics_scope": "full_prediction (mu_HR + delta_hat)",
+  "eval_time_s": 932.0532577037811,
+  "rmse": 0.13012167811393738,
+  "mae": 0.07992573082447052,
+  "spread_mean": 0.03187203407287598,
+  "f1_extremes": {
+    "p95": 0.22301928335523277,
+    "p99": 0.1753806640983306
+  },
+  "pearson_corr": {
+    "global": 0.7192857265472412,
+    "per_sample_avg": 0.6993121840059757,
+    "per_sample_n": 16,
+    "per_sample_list": [
+      0.7486045956611633,
+      0.7483395934104919,
+      0.7482702732086182,
+      0.7469519972801208,
+      0.74750155210495,
+      0.7487776875495911,
+      0.7473669052124023,
+      0.7473602890968323,
+      0.6505165100097656,
+      0.6514921188354492,
+      0.6485421061515808,
+      0.6515561938285828,
+      0.6490938067436218,
+      0.6518238186836243,
+      0.6519460082054138,
+      0.6508514881134033
+    ]
+  },
+  "rapsd_distance": 889.9986572265625,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 1.125205595793585,
+    "per_batch": [
+      1.1290445965264002,
+      1.1301418754344297,
+      1.137696145835201,
+      1.1039397653783092
+    ],
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "norm_output": 0.04899567738175392,
+    "norm_mu_HR": 0.09578251093626022,
+    "norm_target": 0.09340031445026398,
+    "norm_output_minus_mu_HR": 0.1291847974061966,
+    "norm_target_minus_mu_HR": 0.11950736492872238,
+    "shortcut_ratio": 2.6366570340408284,
+    "verdict": "REFINEMENT_OK"
+  },
+  "eval_protocol": {
+    "n_test_batches": 16,
+    "k_samples": 64,
+    "n_steps_diff": 18,
+    "scheduler": "edm_karras",
+    "cfg_scale": 0.0
+  },
+  "sigma_data": 0.193
+}
+
+====================================================================================================
+FILE : ckpt_v2_corrdiff_normal/aligned_metrics_ACCESS-CM2_v5.json
+SIZE : 878 bytes
+MTIME: 2026-06-11T12:39:54
+====================================================================================================
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "v5",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 30.792354163959985,
+    "cdd_truth": 12.837951785521243,
+    "cdd_bias": 17.954402378438743,
+    "rx1day_pred": 53.22271788523916,
+    "rx1day_truth": 55.9497984744962,
+    "rx1day_bias": -2.727080589257035,
+    "r10day_pred": 29.802293101208264,
+    "r10day_truth": 28.917565285176043,
+    "r10day_bias": 0.8847278160322212,
+    "DJF_rainfall_pred": 3.382647311216863,
+    "DJF_rainfall_truth": 3.6332576756760697,
+    "DJF_rainfall_bias": -0.2506103644592068,
+    "JJA_rainfall_pred": 3.300076936790988,
+    "JJA_rainfall_truth": 3.5249021729174306,
+    "JJA_rainfall_bias": -0.22482523612644245
+  },
+  "psd_distance": 0.0010445725319180926
+}
+
+====================================================================================================
+FILE : ckpt_v2_corrdiff_normal/aligned_metrics_EC-Earth3_v5.json
+SIZE : 880 bytes
+MTIME: 2026-06-11T14:11:38
+====================================================================================================
+{
+  "gcm": "EC-Earth3",
+  "run_variant": "v5",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 34.117805638560476,
+    "cdd_truth": 17.06071853266549,
+    "cdd_bias": 17.057087105894986,
+    "rx1day_pred": 51.24439306150399,
+    "rx1day_truth": 54.24444080088994,
+    "rx1day_bias": -3.0000477393859484,
+    "r10day_pred": 24.78608548785241,
+    "r10day_truth": 24.057717292451606,
+    "r10day_bias": 0.7283681954008046,
+    "DJF_rainfall_pred": 2.5367466746159875,
+    "DJF_rainfall_truth": 2.733547478052978,
+    "DJF_rainfall_bias": -0.19680080343699036,
+    "JJA_rainfall_pred": 2.8107401926923896,
+    "JJA_rainfall_truth": 2.9986615091017796,
+    "JJA_rainfall_bias": -0.18792131640939003
+  },
+  "psd_distance": 0.0005961811370110221
+}
+
+====================================================================================================
+FILE : ckpt_v2_corrdiff_normal/aligned_metrics_NorESM2-MM_v5.json
+SIZE : 877 bytes
+MTIME: 2026-06-11T15:43:25
+====================================================================================================
+{
+  "gcm": "NorESM2-MM",
+  "run_variant": "v5",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 30.56239443939197,
+    "cdd_truth": 12.95492054340384,
+    "cdd_bias": 17.60747389598813,
+    "rx1day_pred": 58.5595198306479,
+    "rx1day_truth": 62.20302576336756,
+    "rx1day_bias": -3.6435059327196626,
+    "r10day_pred": 28.24535533324672,
+    "r10day_truth": 27.367838118747564,
+    "r10day_bias": 0.8775172144991572,
+    "DJF_rainfall_pred": 2.5897833998976116,
+    "DJF_rainfall_truth": 2.7796869173225534,
+    "DJF_rainfall_bias": -0.18990351742494171,
+    "JJA_rainfall_pred": 3.332325612598403,
+    "JJA_rainfall_truth": 3.5779791699747174,
+    "JJA_rainfall_bias": -0.24565355737631434
+  },
+  "psd_distance": 0.002043517658759546
+}
+
+====================================================================================================
+FILE : ckpt_v2_corrdiff_normal/domain_metrics.json
+SIZE : 348 bytes
+MTIME: 2026-06-03T22:52:53
+====================================================================================================
+{
+  "spread_skill_ratio": 0.4115665213730665,
+  "crps_gaussian": 0.04498931674997248,
+  "intensity_hist_distance_L1": 0.10395035892724991,
+  "rapsd_distance": 241.8123016357422,
+  "rmse_secondary": 0.12434932589530945,
+  "mae_secondary": 0.060230232775211334,
+  "spread_mean": 0.05117801949381828,
+  "pearson_global_secondary": 0.8252803087234497
+}
+
+====================================================================================================
+FILE : ckpt_v2_corrdiff_normal/final_validation_metrics.json
+SIZE : 1819 bytes
+MTIME: 2026-06-03T22:52:53
+====================================================================================================
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal/epoch_last.pth",
+  "epoch": 200,
+  "epochs_total": 10,
+  "best_val_loss": null,
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "metrics_scope": "full_prediction (μ_HR + δ̂)",
+  "eval_time_s": 1747.563857793808,
+  "rmse": 0.12434932589530945,
+  "mae": 0.060230232775211334,
+  "spread_mean": 0.05117801949381828,
+  "f1_extremes": {
+    "p95": 0.6502120206489675,
+    "p99": 0.512285168682368
+  },
+  "pearson_corr": {
+    "global": 0.8252803087234497,
+    "per_sample_avg": 0.8343598060309887,
+    "per_sample_n": 16,
+    "per_sample_list": [
+      0.8727136254310608,
+      0.7712224721908569,
+      0.8045859932899475,
+      0.7820397019386292,
+      0.8860962986946106,
+      0.8713173270225525,
+      0.7872657775878906,
+      0.8004492521286011,
+      0.8712584972381592,
+      0.8556051850318909,
+      0.9064536094665527,
+      0.9090508818626404,
+      0.895533561706543,
+      0.6950918436050415,
+      0.9003530144691467,
+      0.7407198548316956
+    ]
+  },
+  "rapsd_distance": 241.8123016357422,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 0.8724975471789798,
+    "per_batch": [
+      1.0677647371109262,
+      0.779649006932098,
+      0.7602944531346342,
+      0.8822819915382605
+    ],
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "norm_output": 0.09757953882217407,
+    "norm_mu_HR": 0.057128846645355225,
+    "norm_target": 0.11612854152917862,
+    "norm_output_minus_mu_HR": 0.12785929441452026,
+    "norm_target_minus_mu_HR": 0.11487957090139389,
+    "shortcut_ratio": 1.310308451524116,
+    "verdict": "REFINEMENT_OK"
+  },
+  "config_eval_num_steps": 32,
+  "config_cfg_scale": 1.5,
+  "config_block_out_channels": [
+    128,
+    256,
+    256,
+    256
+  ]
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/domain_metrics.json
+SIZE : 2205 bytes
+MTIME: 2026-06-19T08:15:14
+====================================================================================================
+{
+  "spread_skill_ratio": 0.3597143389348056,
+  "crps_gaussian": 0.05317859235425648,
+  "intensity_hist_distance_L1": 0.10902892053127289,
+  "rapsd_distance": 319.41387939453125,
+  "rmse_secondary": 0.14135445654392242,
+  "mae_secondary": 0.06948994845151901,
+  "spread_mean": 0.05084722489118576,
+  "pearson_global_secondary": 0.7667191624641418,
+  "schema_version": "path-c-plus-option-c-v1",
+  "path_c_plus_batch": "option-c",
+  "option_c_run_type": "seed_42",
+  "valid_for_analysis": true,
+  "seeds_lineage": [
+    42
+  ],
+  "k9_temporal_split": {
+    "train": [
+      "1980-01-01",
+      "2009-12-31"
+    ],
+    "val": [
+      "2010-01-01",
+      "2011-12-31"
+    ],
+    "test": [
+      "2012-01-01",
+      "2013-12-31"
+    ],
+    "holdout": [
+      "2014-01-01",
+      "2014-12-31"
+    ]
+  },
+  "pathcplus_hyperparams": {
+    "lambda_dag_prior": 0.4,
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
+    "g_phys_alpha": 0.25,
+    "dag_gate_warmup_start_epoch": null,
+    "dag_gate_warmup_end_epoch": null
+  },
+  "pre_registration_commit": "bc6032b",
+  "path_c_plus_full_fix_lineage": {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": [
+      "J29",
+      "K2",
+      "K3",
+      "K9",
+      "K5"
+    ],
+    "batch_E": [
+      "J29 default",
+      "K2 plumbing",
+      "K5 raise",
+      "K9 assert",
+      "tombstone schema"
+    ],
+    "batch_F": [
+      "DEFAULT_HYPERPARAMS gate",
+      "Q_phys variants",
+      "projection hook",
+      "sigma_data calib",
+      "PC5-PC8"
+    ],
+    "batch_F_bis": [
+      "3-point projection hook",
+      "PC5/PC8 amendments",
+      "smoke JSON HARKing-resistant tag"
+    ],
+    "batch_F_blindspots": [
+      "#1 path_b doc",
+      "#2-3 phys_mag_gained criterion",
+      "#6 collapse explicit",
+      "#7 rename",
+      "#8 fetch depth 200",
+      "#9 adaptive skeleton F1"
+    ],
+    "option_c": [
+      "full Stage 1+2 from-scratch",
+      "CorrDiff Normal V2 config",
+      "Path C+ hyperparam override",
+      "K9 temporal split",
+      "3 seeds",
+      "noncausal baseline paired comparison"
+    ]
+  }
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/final_validation_metrics.json
+SIZE : 3662 bytes
+MTIME: 2026-06-19T08:15:14
+====================================================================================================
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/oracle_9node/seed_42/epoch_last.pth",
+  "epoch": 215,
+  "epochs_total": 215,
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "metrics_scope": "full_prediction (mu_HR + delta)",
+  "eval_time_s": 2334.196055650711,
+  "rmse": 0.14135445654392242,
+  "mae": 0.06948994845151901,
+  "spread_mean": 0.05084722489118576,
+  "f1_extremes": {
+    "p95": 0.5828834369803412,
+    "p99": 0.45309689025957334
+  },
+  "pearson_corr": {
+    "global": 0.7667191624641418,
+    "per_sample_avg": 0.7656855471432209,
+    "per_sample_n": 16,
+    "per_sample_list": [
+      0.795880138874054,
+      0.5960835218429565,
+      0.7003418803215027,
+      0.8023368120193481,
+      0.7861564755439758,
+      0.6596606969833374,
+      0.8567084670066833,
+      0.834581732749939,
+      0.8042519688606262,
+      0.8949346542358398,
+      0.7350695133209229,
+      0.7903160452842712,
+      0.8321627974510193,
+      0.6587496995925903,
+      0.6930021643638611,
+      0.8107321858406067
+    ]
+  },
+  "rapsd_distance": 319.41387939453125,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 1.0343748866291784,
+    "per_batch": [
+      1.0312058942723499,
+      1.117397236274506,
+      0.9493438704065569,
+      1.039552545563301
+    ],
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "norm_output": 0.09732817113399506,
+    "norm_mu_HR": 0.0407266803085804,
+    "norm_target": 0.11602627485990524,
+    "norm_output_minus_mu_HR": 0.11339172720909119,
+    "norm_target_minus_mu_HR": 0.11379534006118774,
+    "shortcut_ratio": 1.1650452884086446,
+    "verdict": "REFINEMENT_OK"
+  },
+  "config_eval_num_steps": 32,
+  "config_cfg_scale": 1.5,
+  "eval_cfg_scale": 1.0,
+  "config_block_out_channels": [
+    128,
+    256,
+    256,
+    256
+  ],
+  "schema_version": "path-c-plus-option-c-v1",
+  "path_c_plus_batch": "option-c",
+  "option_c_run_type": "seed_42",
+  "valid_for_analysis": true,
+  "seeds_lineage": [
+    42
+  ],
+  "k9_temporal_split": {
+    "train": [
+      "1980-01-01",
+      "2009-12-31"
+    ],
+    "val": [
+      "2010-01-01",
+      "2011-12-31"
+    ],
+    "test": [
+      "2012-01-01",
+      "2013-12-31"
+    ],
+    "holdout": [
+      "2014-01-01",
+      "2014-12-31"
+    ]
+  },
+  "pathcplus_hyperparams": {
+    "lambda_dag_prior": 0.4,
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
+    "g_phys_alpha": 0.25,
+    "dag_gate_warmup_start_epoch": null,
+    "dag_gate_warmup_end_epoch": null
+  },
+  "pre_registration_commit": "bc6032b",
+  "path_c_plus_full_fix_lineage": {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": [
+      "J29",
+      "K2",
+      "K3",
+      "K9",
+      "K5"
+    ],
+    "batch_E": [
+      "J29 default",
+      "K2 plumbing",
+      "K5 raise",
+      "K9 assert",
+      "tombstone schema"
+    ],
+    "batch_F": [
+      "DEFAULT_HYPERPARAMS gate",
+      "Q_phys variants",
+      "projection hook",
+      "sigma_data calib",
+      "PC5-PC8"
+    ],
+    "batch_F_bis": [
+      "3-point projection hook",
+      "PC5/PC8 amendments",
+      "smoke JSON HARKing-resistant tag"
+    ],
+    "batch_F_blindspots": [
+      "#1 path_b doc",
+      "#2-3 phys_mag_gained criterion",
+      "#6 collapse explicit",
+      "#7 rename",
+      "#8 fetch depth 200",
+      "#9 adaptive skeleton F1"
+    ],
+    "option_c": [
+      "full Stage 1+2 from-scratch",
+      "CorrDiff Normal V2 config",
+      "Path C+ hyperparam override",
+      "K9 temporal split",
+      "3 seeds",
+      "noncausal baseline paired comparison"
+    ]
+  }
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/phase6_evaluation/phase6_aligned_metrics.json
+SIZE : 756 bytes
+MTIME: 2026-06-21T16:28:45
+====================================================================================================
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "phase6_dualpath",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 38.80326750682084,
+    "cdd_truth": 38.06028516057586,
+    "cdd_bias": 0.7429823462449789,
+    "rx1day_pred": 15.468194409863843,
+    "rx1day_truth": 15.155368832944268,
+    "rx1day_bias": 0.31282557691957535,
+    "r10day_pred": 5.043978173314279,
+    "r10day_truth": 4.9043133688450045,
+    "r10day_bias": 0.1396648044692741,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.007105862686667528
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/phase7_smoke_compare/smoke_comparison.json
+SIZE : 3505 bytes
+MTIME: 2026-06-22T07:42:24
+====================================================================================================
+{
+  "results": {
+    "A_scratch_exact": {
+      "config": {
+        "name": "A_scratch_exact",
+        "description": "From-scratch + non-causal exact hyperparams",
+        "warm_start": false,
+        "lr": 0.0002,
+        "optimizer": "AdamW",
+        "weight_decay": 0.0001,
+        "warmup_steps": 0,
+        "amp_mode": "cuda_bf16",
+        "batch_size": 64,
+        "gradient_checkpointing": true
+      },
+      "pearson_trajectory": [
+        0.9597163200378418,
+        0.9609775543212891,
+        0.9658989906311035
+      ],
+      "rmse_trajectory": [
+        0.267777681350708,
+        0.2603372633457184,
+        0.24030016362667084
+      ],
+      "loss_trajectory": [
+        1.4869767133291665,
+        0.9768965360406158,
+        0.826080856385169
+      ],
+      "epoch_times": [
+        102.75284099578857,
+        99.40225958824158,
+        99.58549523353577
+      ],
+      "final_pearson": 0.9658989906311035,
+      "final_rmse": 0.24030016362667084,
+      "projected_pearson": 1.5748920440673828,
+      "verdict": "STRONG  -> projected 200ep pearson=1.575 > 0.815"
+    },
+    "B_warmstart_prudent": {
+      "config": {
+        "name": "B_warmstart_prudent",
+        "description": "Warm-start Stage 2 + low LR (fine-tune for distribution shift)",
+        "warm_start": true,
+        "lr": 5e-05,
+        "optimizer": "AdamW",
+        "weight_decay": 0.0001,
+        "warmup_steps": 0,
+        "amp_mode": "cuda_bf16",
+        "batch_size": 64,
+        "gradient_checkpointing": true
+      },
+      "pearson_trajectory": [
+        0.9934386610984802,
+        0.9936956763267517,
+        0.9938266277313232
+      ],
+      "rmse_trajectory": [
+        0.1056201383471489,
+        0.10353902727365494,
+        0.10251426696777344
+      ],
+      "loss_trajectory": [
+        0.2274211145840682,
+        0.2167331984677872,
+        0.2107621853227739
+      ],
+      "epoch_times": [
+        99.39881467819214,
+        99.42330551147461,
+        99.7389726638794
+      ],
+      "final_pearson": 0.9938266277313232,
+      "final_rmse": 0.10251426696777344,
+      "projected_pearson": 1.0029438436031342,
+      "verdict": "STRONG  -> beat non-causal with 30-50 ep"
+    },
+    "C_scratch_aggressive": {
+      "config": {
+        "name": "C_scratch_aggressive",
+        "description": "From-scratch + higher LR + warmup",
+        "warm_start": false,
+        "lr": 0.0003,
+        "optimizer": "AdamW",
+        "weight_decay": 0.0001,
+        "warmup_steps": 500,
+        "amp_mode": "cuda_bf16",
+        "batch_size": 64,
+        "gradient_checkpointing": true
+      },
+      "pearson_trajectory": [
+        0.9529550075531006,
+        0.9538640975952148,
+        0.953963577747345
+      ],
+      "rmse_trajectory": [
+        0.2893391251564026,
+        0.2858045697212219,
+        0.28513193130493164
+      ],
+      "loss_trajectory": [
+        1.7635749810701842,
+        1.417556855585668,
+        1.3309610633106974
+      ],
+      "epoch_times": [
+        99.48562788963318,
+        99.54857659339905,
+        99.63854098320007
+      ],
+      "final_pearson": 0.953963577747345,
+      "final_rmse": 0.28513193130493164,
+      "projected_pearson": 1.0533077418804169,
+      "verdict": "STRONG  -> projected 200ep pearson=1.053 > 0.815"
+    }
+  },
+  "noncausal_target_pearson": 0.815,
+  "smoke_epochs_per_config": 3,
+  "light_eval": {
+    "n_batches": 2,
+    "k_samples": 4,
+    "n_steps": 8
+  },
+  "recommended_config": "A_scratch_exact",
+  "recommended_projected_pearson": 1.5748920440673828
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/phase7_smoke_compare/smoke_partial.json
+SIZE : 2683 bytes
+MTIME: 2026-06-22T07:42:31
+====================================================================================================
+{
+  "A_scratch_exact": {
+    "config": {
+      "name": "A_scratch_exact",
+      "description": "From-scratch + non-causal exact hyperparams",
+      "warm_start": false,
+      "lr": 0.0002,
+      "optimizer": "AdamW",
+      "weight_decay": 0.0001,
+      "warmup_steps": 0,
+      "amp_mode": "cuda_bf16",
+      "batch_size": 64,
+      "gradient_checkpointing": true
+    },
+    "pearson_trajectory": [
+      0.9597163200378418,
+      0.9609775543212891,
+      0.9658989906311035
+    ],
+    "rmse_trajectory": [
+      0.267777681350708,
+      0.2603372633457184,
+      0.24030016362667084
+    ],
+    "loss_trajectory": [
+      1.4869767133291665,
+      0.9768965360406158,
+      0.826080856385169
+    ],
+    "epoch_times": [
+      102.75284099578857,
+      99.40225958824158,
+      99.58549523353577
+    ],
+    "final_pearson": 0.9658989906311035,
+    "final_rmse": 0.24030016362667084
+  },
+  "B_warmstart_prudent": {
+    "config": {
+      "name": "B_warmstart_prudent",
+      "description": "Warm-start Stage 2 + low LR (fine-tune for distribution shift)",
+      "warm_start": true,
+      "lr": 5e-05,
+      "optimizer": "AdamW",
+      "weight_decay": 0.0001,
+      "warmup_steps": 0,
+      "amp_mode": "cuda_bf16",
+      "batch_size": 64,
+      "gradient_checkpointing": true
+    },
+    "pearson_trajectory": [
+      0.9934386610984802,
+      0.9936956763267517,
+      0.9938266277313232
+    ],
+    "rmse_trajectory": [
+      0.1056201383471489,
+      0.10353902727365494,
+      0.10251426696777344
+    ],
+    "loss_trajectory": [
+      0.2274211145840682,
+      0.2167331984677872,
+      0.2107621853227739
+    ],
+    "epoch_times": [
+      99.39881467819214,
+      99.42330551147461,
+      99.7389726638794
+    ],
+    "final_pearson": 0.9938266277313232,
+    "final_rmse": 0.10251426696777344
+  },
+  "C_scratch_aggressive": {
+    "config": {
+      "name": "C_scratch_aggressive",
+      "description": "From-scratch + higher LR + warmup",
+      "warm_start": false,
+      "lr": 0.0003,
+      "optimizer": "AdamW",
+      "weight_decay": 0.0001,
+      "warmup_steps": 500,
+      "amp_mode": "cuda_bf16",
+      "batch_size": 64,
+      "gradient_checkpointing": true
+    },
+    "pearson_trajectory": [
+      0.9529550075531006,
+      0.9538640975952148,
+      0.953963577747345
+    ],
+    "rmse_trajectory": [
+      0.2893391251564026,
+      0.2858045697212219,
+      0.28513193130493164
+    ],
+    "loss_trajectory": [
+      1.7635749810701842,
+      1.417556855585668,
+      1.3309610633106974
+    ],
+    "epoch_times": [
+      99.48562788963318,
+      99.54857659339905,
+      99.63854098320007
+    ],
+    "final_pearson": 0.953963577747345,
+    "final_rmse": 0.28513193130493164
+  }
+}
+
+====================================================================================================
+FILE : oracle_9node/seed_42/q_phys_metrics.json
+SIZE : 2185 bytes
+MTIME: 2026-06-19T16:28:18
+====================================================================================================
+{
+  "seed": 42,
+  "q_phys_binary": 1.0,
+  "q_phys_adaptive": 1.0,
+  "q_phys_continuous": 0.9997145490835596,
+  "q_phys_collapsed": false,
+  "phys_mag_gained": 6.367338722571731,
+  "skeleton_f1": 1.0,
+  "n_extra_edges": 0,
+  "A_dag_final_norm_frobenius": 2.1804946716118176,
+  "A_dag_initial_norm_frobenius": 3.0013374732361693,
+  "schema_version": "path-c-plus-option-c-v1",
+  "path_c_plus_batch": "option-c",
+  "option_c_run_type": "seed_42",
+  "valid_for_analysis": true,
+  "seeds_lineage": [
+    42
+  ],
+  "k9_temporal_split": {
+    "train": [
+      "1980-01-01",
+      "2009-12-31"
+    ],
+    "val": [
+      "2010-01-01",
+      "2011-12-31"
+    ],
+    "test": [
+      "2012-01-01",
+      "2013-12-31"
+    ],
+    "holdout": [
+      "2014-01-01",
+      "2014-12-31"
+    ]
+  },
+  "pathcplus_hyperparams": {
+    "lambda_dag_prior": 0.4,
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
+    "g_phys_alpha": 0.25,
+    "dag_gate_warmup_start_epoch": null,
+    "dag_gate_warmup_end_epoch": null
+  },
+  "pre_registration_commit": "e139c94",
+  "path_c_plus_full_fix_lineage": {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": [
+      "J29",
+      "K2",
+      "K3",
+      "K9",
+      "K5"
+    ],
+    "batch_E": [
+      "J29 default",
+      "K2 plumbing",
+      "K5 raise",
+      "K9 assert",
+      "tombstone schema"
+    ],
+    "batch_F": [
+      "DEFAULT_HYPERPARAMS gate",
+      "Q_phys variants",
+      "projection hook",
+      "sigma_data calib",
+      "PC5-PC8"
+    ],
+    "batch_F_bis": [
+      "3-point projection hook",
+      "PC5/PC8 amendments",
+      "smoke JSON HARKing-resistant tag"
+    ],
+    "batch_F_blindspots": [
+      "#1 path_b doc",
+      "#2-3 phys_mag_gained criterion",
+      "#6 collapse explicit",
+      "#7 rename",
+      "#8 fetch depth 200",
+      "#9 adaptive skeleton F1"
+    ],
+    "option_c": [
+      "full Stage 1+2 from-scratch",
+      "CorrDiff Normal V2 config",
+      "Path C+ hyperparam override",
+      "K9 temporal split",
+      "3 seeds",
+      "noncausal baseline paired comparison"
+    ]
+  }
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42_v2/final_validation_metrics.json
+SIZE : 674 bytes
+MTIME: 2026-06-16T19:32:21
+====================================================================================================
+{
+  "model": "stage2_v2",
+  "ema_decay": "0.999",
+  "sampler_config": {
+    "scheduler": "edm_karras",
+    "cfg_scale": 1.0,
+    "S_churn": 10.0,
+    "K_samples": 128
+  },
+  "eval_time_s": 4550.128042221069,
+  "rmse": 0.14670908451080322,
+  "mae": 0.07620739191770554,
+  "spread_mean": 0.04964557662606239,
+  "pearson_corr": {
+    "global": 0.7472623586654663,
+    "per_sample_avg": 0.7404563538730145,
+    "per_sample_n": 16
+  },
+  "f1_extremes": {
+    "p95": 0.5627367696016531,
+    "p99": 0.4213740458015267
+  },
+  "rapsd_distance": 359.8975524902344,
+  "spread_skill_ratio": 0.3383946999028996,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 0.645447035770621
+  }
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42old/aligned_metrics_ACCESS-CM2_causal.json
+SIZE : 885 bytes
+MTIME: 2026-06-16T06:52:48
+====================================================================================================
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "causal",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 12.501753930102637,
+    "cdd_truth": 10.849183277962348,
+    "cdd_bias": 1.6525706521402892,
+    "rx1day_pred": 39.677702913377374,
+    "rx1day_truth": 39.38655937282105,
+    "rx1day_bias": 0.29114354055632674,
+    "r10day_pred": 8.974178251266727,
+    "r10day_truth": 8.171787709497206,
+    "r10day_bias": 0.8023905417695207,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.05470822739906213,
+  "crps_gaussian_log1p": 0.09438327024604261,
+  "n_batches_evaluated": 90,
+  "k_samples_per_batch": 4,
+  "eval_time_s": 831.9541985988617
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42old/aligned_metrics_EC-Earth3_causal.json
+SIZE : 878 bytes
+MTIME: 2026-06-16T07:07:24
+====================================================================================================
+{
+  "gcm": "EC-Earth3",
+  "run_variant": "causal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 18.29813563726127,
+    "cdd_truth": 16.47996262458472,
+    "cdd_bias": 1.818173012676553,
+    "rx1day_pred": 35.49819985391655,
+    "rx1day_truth": 35.13763707031827,
+    "rx1day_bias": 0.360562783598283,
+    "r10day_pred": 5.344907106664935,
+    "r10day_truth": 4.83919059373782,
+    "r10day_bias": 0.5057165129271146,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.046637073853062656,
+  "crps_gaussian_log1p": 0.0801793346160937,
+  "n_batches_evaluated": 90,
+  "k_samples_per_batch": 4,
+  "eval_time_s": 835.8712191581726
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42old/aligned_metrics_NorESM2-MM_causal.json
+SIZE : 884 bytes
+MTIME: 2026-06-16T07:21:58
+====================================================================================================
+{
+  "gcm": "NorESM2-MM",
+  "run_variant": "causal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 16.00172144991555,
+    "cdd_truth": 14.299730066445182,
+    "cdd_bias": 1.701991383470368,
+    "rx1day_pred": 40.49020271791989,
+    "rx1day_truth": 40.263279968171986,
+    "rx1day_bias": 0.2269227497479065,
+    "r10day_pred": 5.1517474340652205,
+    "r10day_truth": 4.761627906976744,
+    "r10day_bias": 0.3901195270884763,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.05878845033452584,
+  "crps_gaussian_log1p": 0.08217266335322931,
+  "n_batches_evaluated": 90,
+  "k_samples_per_batch": 4,
+  "eval_time_s": 837.4418244361877
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42old/domain_metrics.json
+SIZE : 346 bytes
+MTIME: 2026-06-15T20:53:45
+====================================================================================================
+{
+  "spread_skill_ratio": 0.3292364232019745,
+  "crps_gaussian": 0.05409154828590367,
+  "intensity_hist_distance_L1": 0.10352209955453873,
+  "rapsd_distance": 307.7807312011719,
+  "rmse_secondary": 0.14136530458927155,
+  "mae_secondary": 0.06970784813165665,
+  "spread_mean": 0.04654260724782944,
+  "pearson_global_secondary": 0.766583263874054
+}
+
+====================================================================================================
+FILE : oracle_full/seed_42old/final_validation_metrics.json
+SIZE : 759 bytes
+MTIME: 2026-06-15T20:53:45
+====================================================================================================
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/oracle_full/seed_42/epoch_last.pth",
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "eval_time_s": 2330.6781239509583,
+  "rmse": 0.14136530458927155,
+  "mae": 0.06970784813165665,
+  "spread_mean": 0.04654260724782944,
+  "f1_extremes": {
+    "p95": 0.5810567568183371,
+    "p99": 0.4470465781941192
+  },
+  "pearson_corr": {
+    "global": 0.766583263874054,
+    "per_sample_avg": 0.7618106976151466,
+    "per_sample_n": 16
+  },
+  "rapsd_distance": 307.7807312011719,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 1.0221298597214603,
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "shortcut_ratio": 1.1821884941757494,
+    "verdict": "REFINEMENT_OK"
+  }
+}
+
+====================================================================================================
+FILE : results/oracle_evaluation1/corrdiff_phase7/aligned_metrics_ACCESS-CM2_noncausal.json
+SIZE : 880 bytes
+MTIME: 2026-06-11T18:12:59
+====================================================================================================
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "noncausal",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 34.35296219306223,
+    "cdd_truth": 12.837951785521243,
+    "cdd_bias": 21.51501040754099,
+    "rx1day_pred": 51.86095552444193,
+    "rx1day_truth": 55.9497984744962,
+    "rx1day_bias": -4.088842950054271,
+    "r10day_pred": 31.57090424840847,
+    "r10day_truth": 28.917565285176043,
+    "r10day_bias": 2.6533389632324287,
+    "DJF_rainfall_pred": 3.5413578303494946,
+    "DJF_rainfall_truth": 3.6332576756760697,
+    "DJF_rainfall_bias": -0.09189984532657514,
+    "JJA_rainfall_pred": 3.425986351459392,
+    "JJA_rainfall_truth": 3.5249021729174306,
+    "JJA_rainfall_bias": -0.09891582145803879
+  },
+  "psd_distance": 0.446777971655718
+}
+
+====================================================================================================
+FILE : results/oracle_evaluation1/corrdiff_phase7/aligned_metrics_EC-Earth3_noncausal.json
+SIZE : 881 bytes
+MTIME: 2026-06-11T19:22:57
+====================================================================================================
+{
+  "gcm": "EC-Earth3",
+  "run_variant": "noncausal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 38.82824477068988,
+    "cdd_truth": 17.06071853266549,
+    "cdd_bias": 21.767526238024388,
+    "rx1day_pred": 49.555794047160525,
+    "rx1day_truth": 54.24444080088994,
+    "rx1day_bias": -4.688646753729415,
+    "r10day_pred": 26.12433415616474,
+    "r10day_truth": 24.057717292451606,
+    "r10day_bias": 2.066616863713133,
+    "DJF_rainfall_pred": 2.650802585045647,
+    "DJF_rainfall_truth": 2.733547478052978,
+    "DJF_rainfall_bias": -0.08274489300733068,
+    "JJA_rainfall_pred": 2.9196925088589656,
+    "JJA_rainfall_truth": 2.9986615091017796,
+    "JJA_rainfall_bias": -0.07896900024281406
+  },
+  "psd_distance": 0.4931545477030965
+}
+
+====================================================================================================
+FILE : results/oracle_evaluation1/corrdiff_phase7/aligned_metrics_NorESM2-MM_noncausal.json
+SIZE : 881 bytes
+MTIME: 2026-06-11T20:32:52
+====================================================================================================
+{
+  "gcm": "NorESM2-MM",
+  "run_variant": "noncausal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 34.59123684552423,
+    "cdd_truth": 12.95492054340384,
+    "cdd_bias": 21.636316302120388,
+    "rx1day_pred": 57.73681020221524,
+    "rx1day_truth": 62.20302576336756,
+    "rx1day_bias": -4.466215561152325,
+    "r10day_pred": 29.75795764583604,
+    "r10day_truth": 27.367838118747564,
+    "r10day_bias": 2.3901195270884763,
+    "DJF_rainfall_pred": 2.692771527642022,
+    "DJF_rainfall_truth": 2.7796869173225534,
+    "DJF_rainfall_bias": -0.08691538968053125,
+    "JJA_rainfall_pred": 3.483183137112246,
+    "JJA_rainfall_truth": 3.5779791699747174,
+    "JJA_rainfall_bias": -0.09479603286247151
+  },
+  "psd_distance": 0.496266085157287
+}
+

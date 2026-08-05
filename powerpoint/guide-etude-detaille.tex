@@ -1,0 +1,647 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{mdframed}
+\usepackage{pifont}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt plus 2pt}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\definecolor{bleu}{RGB}{30,40,90}
+\definecolor{accent}{RGB}{180,60,40}
+\definecolor{vert}{RGB}{40,110,60}
+\definecolor{grisclair}{RGB}{244,244,248}
+
+% --- notations calquées sur la présentation ---
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\muHR}{\ensuremath{\mu_{\mathrm{HR}}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+\newcommand{\HR}{\ensuremath{\text{HR}}}
+\newcommand{\LR}{\ensuremath{\text{LR}}}
+
+% --- structure ---
+\newcommand{\slide}[2]{\subsection*{\textcolor{bleu}{\rule[-1pt]{0pt}{12pt}Page #1 \;:\; #2}}\addcontentsline{toc}{subsection}{Page #1 : #2}}
+\newcommand{\bloc}[1]{\par\medskip\noindent\textcolor{accent}{\textbf{#1}}\par\nopagebreak\smallskip}
+
+% encadré formule (fond gris, centré)
+\newmdenv[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.6pt,
+          innertopmargin=6pt,innerbottommargin=6pt,skipabove=6pt,skipbelow=6pt,
+          roundcorner=3pt]{formulebox}
+
+% encadré jury
+\newcommand{\jury}[1]{\par\medskip\noindent\fbox{\parbox{0.965\linewidth}{\textbf{Si le jury demande :} #1}}\par}
+
+\title{\textcolor{bleu}{\textbf{Guide d'étude détaillé --- Soutenance \textsc{Oracle}}}\\[2mm]
+\large Chaque slide expliquée pour un novice : le rôle, chaque formule décryptée terme à terme, chaque métrique et chaque résultat expliqués}
+\author{KENFACK Leonel}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.6pt,roundcorner=3pt]
+\textbf{Comment lire ce guide.} Les numéros sont ceux des \emph{pages du PDF} de la présentation (42 pages). Les pages non listées (couverture, sommaire, pages de titre de section) sont des transitions sans contenu à expliquer. Chaque slide de contenu est décrite en trois temps : \textbf{ce que montre la slide}, \textbf{l'explication simple} (le concept comme si on l'expliquait à un ami), \textbf{à retenir} (chiffres et phrases-clés). Pour les slides à \textbf{formule}, un bloc \emph{Décryptage} explique chaque symbole et un bloc \emph{Pourquoi cette formule est là} justifie sa présence. Pour les slides à \textbf{résultats}, un bloc \emph{Comment lire les chiffres} explique la métrique avant le nombre. Les encadrés \emph{Si le jury demande} préparent les questions sensibles.
+\end{mdframed}
+
+\tableofcontents
+\newpage
+
+% ==================================================================
+\section{Contexte et motivation (pages 4--9)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+\textbf{Note d'organisation.} Cette partie fusionne l'ancienne section « Comprendre une image climatique » : après le problème du pixel trop gros (page 6), on explique d'abord \emph{de quoi une image climatique est faite} (pages 7--8), \emph{puis} on présente la solution (page 9). L'ordre suit la logique : problème $\to$ matière première $\to$ solution.
+\end{mdframed}
+
+\slide{4}{Le climat local n'est pas un détail}
+
+\bloc{Ce que montre la slide}
+Quatre chiffres sur le Cameroun et l'Afrique : \textbf{22\,\%} (part du PIB tirée de l'agriculture pluviale), \textbf{74\,\%} (part de l'électricité du Nord fournie par le barrage de Lagdo), \textbf{356\,000} (personnes touchées par les inondations d'octobre 2024) et \textbf{$-34\,\%$} (chute de la productivité agricole africaine depuis 1961).
+
+\bloc{Explication simple}
+Le but est de montrer que le climat n'est pas un sujet abstrait : au Cameroun, l'économie dépend directement de la pluie. L'agriculture \emph{pluviale}, c'est l'agriculture sans irrigation : elle boit l'eau qui tombe, donc une sécheresse ou une inondation devient immédiatement une crise humaine et économique. Le barrage de Lagdo produit l'électricité avec l'eau du fleuve : pas de pluie en amont, pas de courant. Les inondations de 2024 montrent l'autre extrême : trop d'eau, d'un coup, sans anticipation possible. Le fil : tous ces drames auraient pu être mieux anticipés si l'on avait su, à l'avance et localement, ce qui allait arriver. C'est la porte d'entrée du mémoire.
+
+\bloc{À retenir}
+\begin{itemize}[nosep]
+  \item 22\,\% du PIB : Banque mondiale, rapport climat-développement Cameroun, 2022.
+  \item 74\,\% de l'électricité du Nord : Nonki et al., \emph{Proceedings of IAHS}, 2021.
+  \item 356\,000 personnes, 84\,500 hectares : OCHA, octobre 2024.
+  \item $-34\,\%$ depuis 1961 : GIEC, 6\up{e} rapport (AR6), 2022.
+\end{itemize}
+
+\slide{5}{Prévoir le temps de demain ne suffit pas}
+
+\bloc{Ce que montre la slide}
+Trois puces qui distinguent la météo du climat et introduisent les modèles climatiques globaux (GCM).
+
+\bloc{Explication simple}
+C'est \emph{la} distinction que le public confond. Une \textbf{appli météo} fait de la \emph{prévision} : elle part de l'état réel de l'atmosphère aujourd'hui (satellites, stations, ballons) et calcule les prochains jours. Au-delà d'une à deux semaines, le chaos atmosphérique rend la prévision impossible : une petite erreur initiale explose (« effet papillon »). Un \textbf{modèle climatique (GCM)} fait de la \emph{simulation} : il ne prédit pas le temps d'un jour précis, mais reproduit les \emph{statistiques} du climat sur des décennies (nombre de jours de pluie, températures moyennes, extrêmes). Analogie : la météo prédit le prochain lancer de dé ; le climat prédit que sur mille lancers, chaque face sortira environ 167 fois. Anticiper à 10 ou 30 ans exige donc de simuler le climat. Mais à quelle résolution ? (transition).
+
+\bloc{À retenir}
+Météo = \emph{prévoir} quelques jours depuis l'état observé. Climat = \emph{simuler} des décennies de statistiques. Le downscaling travaille sur le second. GCM = \emph{Global Climate Model}.
+
+\slide{6}{Un pixel du modèle global peut contenir une ville et un volcan}
+
+\bloc{Ce que montre la slide}
+La carte du Cameroun quadrillée par la grille d'un GCM (canal température), avec un zoom sur la case du sud-ouest qui contient à la fois Douala et le Mont Cameroun. Légende : « un seul chiffre pour toute cette zone ».
+
+\bloc{Explication simple}
+Un GCM découpe la planète en cases d'environ 200~km de côté, car simuler la physique de toute l'atmosphère à plus fin coûterait trop cher. Résultat : tout ce qui est dans une case reçoit \emph{une seule valeur}. Or la case montrée contient Douala (ville côtière, chaude et humide) \emph{et} le Mont Cameroun (volcan de 4\,000~m, froid au sommet, qui déclenche des pluies torrentielles sur ses flancs). Une seule valeur pour deux mondes : physiquement absurde à l'échelle locale, donc inutilisable pour décider (construire, planter, évacuer).
+
+\bloc{À retenir}
+Grille GCM $\approx$ 200~km : les GCM voient \emph{loin dans le temps} (jusqu'à 2100) mais \emph{flou dans l'espace}. Le pixel de l'exemple vaut $T_{850}=292$~K ($\approx 19\,^{\circ}$C) : une moyenne qui ne représente ni la ville ni la montagne. \textbf{Ce même exemple (température, en rouge) revient page~23.}
+
+\slide{7}{Structure d'une image classique}
+
+\bloc{Ce que montre la slide}
+À gauche un dessin (maison rouge, ciel bleu, herbe verte) ; à droite la même image décomposée en trois canaux : rouge, vert, bleu.
+
+\bloc{Explication simple}
+Pour un ordinateur, une image n'est pas une « photo » : c'est un tableau de nombres. Chaque pixel contient trois valeurs entre 0 et 255 (intensité de rouge, de vert, de bleu). Le toit est « rouge » parce que son canal R est élevé et ses canaux G et B faibles. En empilant les trois couches, l'\oe il reconstruit les couleurs. Message : \textbf{une image = plusieurs couches de nombres superposées}. C'est la clé de la slide suivante.
+
+\bloc{À retenir}
+1 pixel = 3 nombres (R, G, B). Une image couleur = empilement de 3 « cartes » de nombres.
+
+\slide{8}{Structure d'une image climatique}
+
+\bloc{Ce que montre la slide}
+Cinq cartes du Cameroun empilées, chacune dans une couleur : vent zonal ($u$), humidité spécifique ($q$), vitesse verticale ($w$), vent méridien ($v$), température ($t$).
+
+\bloc{Explication simple}
+Une image climatique fonctionne comme une photo, mais ses « couleurs » sont des grandeurs physiques. Au lieu de 3 canaux R/G/B, notre entrée en a \textbf{15} : 5 variables (deux composantes du vent, vitesse verticale, humidité, température) mesurées à \textbf{3 altitudes} (850, 500, 250~hPa, soit basse, moyenne, haute atmosphère). $5 \times 3 = 15$ canaux. Chaque pixel d'entrée contient donc 15 nombres décrivant l'état complet de l'atmosphère au-dessus de ce point. Le modèle lit ces 15 cartes grossières et produit \emph{une seule} carte fine : la précipitation.
+
+\bloc{À retenir}
+15 canaux $= 5$ variables $\times$ 3 niveaux de pression. Mêmes variables que la référence (Rampal et al.), pour rester comparable. hPa (hectopascals) = niveaux de pression $\approx$ altitudes : 850~hPa $\approx$ 1,5~km, 500~hPa $\approx$ 5,5~km, 250~hPa $\approx$ 10~km.
+
+\slide{9}{La solution : retrouver le détail que le modèle global ne voit pas}
+
+\bloc{Ce que montre la slide}
+À gauche une grille grossière ; à droite la même région en grille fine où apparaissent rivière et relief ; entre les deux, la flèche « \textsc{downscaling}, facteur $\approx$ 50 ».
+
+\bloc{Explication simple}
+Le \emph{downscaling} (mise à l'échelle) transforme l'image grossière du GCM en une image fine, à $\sim$5~km, où les détails locaux réapparaissent. Le facteur $\approx$ 50 vient du rapport des tailles ($\sim$250~km $/$ $\sim$5~km). Point important : on n'\emph{invente} pas le détail à partir de rien, on l'\emph{apprend}. Le modèle est entraîné sur des années où l'on possède à la fois la version grossière \emph{et} la version fine ; il apprend la correspondance, puis l'applique à de nouvelles images grossières. Même principe que la super-résolution de photos, mais sous contraintes physiques.
+
+\bloc{À retenir}
+Downscaling = grossier $\to$ fin, facteur $\approx$ 50. Dans notre cas : entrée $23{\times}26$ pixels $\to$ sortie $172{\times}179$ pixels, sur la Nouvelle-Zélande.
+
+\jury{« Pourquoi la Nouvelle-Zélande et pas le Cameroun ? » --- Parce qu'il faut, pour entraîner et évaluer, une vérité terrain haute résolution de qualité ($\sim$5~km) \emph{et} une baseline de référence publiée (Rampal et al. 2024, \CorrDiff{}). Ça n'existe pas encore pour l'Afrique centrale : c'est précisément la perspective de long terme.}
+
+% ==================================================================
+\section{État de l'art (pages 11--12)}
+% ==================================================================
+
+\slide{11}{La solution physique est hors de portée pour l'Afrique}
+
+\bloc{Ce que montre la slide}
+Trois puces sur les modèles régionaux (RCM) et leur coût.
+
+\bloc{Explication simple}
+La façon « propre » de faire du downscaling, c'est le modèle climatique régional (RCM) : on rejoue les équations de la physique sur une petite région à maille fine (10--50~km). Rigoureux, c'est de la vraie physique, mais extrêmement coûteux : l'exemple de Taïwan mobilise 928 c\oe urs de calcul en parallèle, et ce coût est à payer \emph{pour chaque scénario}. Or les applications de risque demandent des \emph{milliers} de scénarios. Pour l'Afrique ($<$1\,\% des capacités mondiales de calcul haute performance), cette voie est inaccessible : le continent ne peut pas produire lui-même ses projections fines ainsi.
+
+\bloc{À retenir}
+RCM = physique rigoureuse à 10--50~km, mais 928 c\oe urs pour \emph{un seul} scénario (CWA-WRF, Taïwan) ; Afrique $<$ 1\,\% du HPC mondial. Détail si on te pousse : ces 928 c\oe urs produisent $\sim$13~h de prévision en $\sim$20~minutes, rapide pour \emph{une} prévision, mais une projection climatique = décennies $\times$ milliers de scénarios : le coût explose.
+
+\slide{12}{Trois familles de solutions, trois limites}
+
+\bloc{Ce que montre la slide}
+Un tableau : trois familles d'apprentissage automatique (déterministe, générative GAN, générative diffusion) jugées sur trois critères (stabilité, extrêmes, OOD), plus la ligne \Oracle{}.
+
+\bloc{Explication simple}
+Face au coût des RCM, on se tourne vers l'apprentissage automatique. Trois familles :
+\begin{itemize}[nosep]
+  \item \textbf{Déterministe} (U-Net, DeepSD) : \emph{une seule} réponse. Entraînement stable, mais comme il minimise l'erreur moyenne, il « lisse » tout et rate les extrêmes (or les extrêmes, inondations et sécheresses, sont ce qui nous intéresse).
+  \item \textbf{Générative GAN} : deux réseaux qui s'affrontent (un générateur, un juge). Cartes réalistes avec extrêmes, mais entraînement instable (« effondrement »).
+  \item \textbf{Générative diffusion} (\CorrDiff{}) : part d'un bruit aléatoire qu'elle « débruite » pas à pas vers une carte réaliste. Stable \emph{et} bonne sur les extrêmes : c'est l'état de l'art, et notre point de départ.
+\end{itemize}
+Mais la colonne \textbf{OOD} (\emph{out-of-distribution}, hors distribution) est à $\times$ pour les trois : aucune ne garantit de bien se comporter quand le climat change (conditions hors de l'entraînement). C'est le trou que vise \Oracle{}.
+
+\bloc{À retenir}
+Déterministe = stable mais lisse. GAN = réaliste mais instable. Diffusion = les deux, mais fragile hors distribution. OOD = conditions jamais vues à l'entraînement (ex. un climat plus chaud).
+
+\jury{« En quoi \CorrDiff{} est-il fragile ? » --- \CorrDiff{} (NVIDIA, Mardani et al. 2023) est un \emph{two-stage} (régression de la moyenne $+$ diffusion du résidu), $\sim$60$\times$ plus rapide qu'un RCM. Faille reconnue par les auteurs eux-mêmes : la méthode suppose que la relation grossier$\to$fin reste \emph{stationnaire} entre entraînement et usage ; or le changement climatique fait précisément \emph{dériver} cette relation. On garde le two-stage, on répare la fragilité.
+
+« Pourquoi se méfier du deep learning classique ? » --- Il n'a aucune notion de physique : des réseaux entraînés séparément pour $T_{\min}$ et $T_{\max}$ prédisent $T_{\min}>T_{\max}$ dans 15--17\,\% des cas sous fort réchauffement (González-Abad et al.) ; et 31 réentraînements \emph{identiques} d'un même U-Net donnent des climatologies variant d'un facteur 46 (Doury et al.). Bon en moyenne, incohérent dès qu'on pousse.}
+
+% ==================================================================
+\section{Présentation de la causalité (pages 14--18)}
+% ==================================================================
+
+\slide{14}{Corrélation : le piège hors distribution}
+
+\bloc{Ce que montre la slide}
+Deux graphes température/précipitation. À gauche (\emph{en distribution}) : la courbe du modèle (rouge) colle à la réalité (noire). À droite (\emph{hors distribution}, fond grisé) : la réalité \emph{descend}, le modèle rouge \emph{monte} ; une double flèche montre l'erreur qui grandit.
+
+\bloc{Explication simple}
+Un modèle corrélatif apprend les \emph{associations} présentes dans ses données. Exemple réel de Nouvelle-Zélande : les jours chauds y sont majoritairement secs, parce que la chaleur vient souvent d'un anticyclone (beau temps stable). Le modèle en déduit « plus chaud $\Rightarrow$ moins de pluie ». Sur le climat d'entraînement cette règle marche très bien (graphe gauche). Mais ce n'est pas une loi de la nature : c'est une coïncidence de régime météo. Quand le climat se réchauffe (graphe droit), la vraie physique donne \emph{plus} d'eau dans l'air, donc des pluies plus intenses, et le modèle, qui applique sa règle apprise, prédit l'\emph{inverse}. L'erreur explose exactement là où on avait besoin du modèle.
+
+\bloc{À retenir}
+Corrélation $\ne$ cause. L'association « chaud = sec » vient d'un facteur caché (l'anticyclone) qui cause \emph{les deux}. Ce facteur caché s'appelle un \emph{confondant}.
+
+\slide{15}{Causalité : la robustesse par la physique}
+
+\bloc{Ce que montre la slide}
+Les deux mêmes graphes, mais avec un modèle causal (courbe verte) : il colle à la réalité \emph{aussi bien hors distribution} (à droite, il descend avec la réalité).
+
+\bloc{Explication simple}
+Un modèle causal ne demande pas « qu'est-ce qui va ensemble ? » mais « qu'est-ce qui cause quoi ? ». Ici le mécanisme est la loi de \textbf{Clausius-Clapeyron} : l'air chaud peut contenir environ 7\,\% de vapeur d'eau en plus \emph{par degré}. C'est de la thermodynamique, vrai en Nouvelle-Zélande, au Cameroun, aujourd'hui et en 2100. Un modèle bâti sur ce mécanisme suit la réalité même dans un climat jamais observé, parce que le mécanisme, lui, ne change pas. C'est la promesse \emph{théorique} de la causalité : la robustesse vient de l'invariance des lois physiques, pas de la ressemblance avec le passé.
+
+\bloc{À retenir}
+Clausius-Clapeyron : $\sim +7\,\%$ d'humidité par degré. Phrase-clé : « une corrélation est vraie \emph{quelque part} ; un mécanisme est vrai \emph{partout} ». Nuance honnête : c'est une promesse \emph{théorique} ; le mémoire mesure ensuite ce qu'elle donne en pratique.
+
+% ------------------------------------------------------------------
+\slide{16}{Formaliser : chaque variable est une fonction de ses causes}
+
+\bloc{Ce que montre la slide}
+La formule du modèle causal structurel (SCM) de Judea Pearl :
+\begin{formulebox}
+\centering $V_i \;=\; f_i\!\left(\mathrm{Pa}(V_i),\; U_i\right)$
+\end{formulebox}
+
+\bloc{Décryptage de la formule (terme à terme)}
+\begin{itemize}[nosep]
+  \item $V_i$ : une variable observable (par exemple la précipitation, ou la température). L'indice $i$ numérote les variables ($i=1,\dots,15$ chez nous).
+  \item $\mathrm{Pa}(V_i)$ : les \textbf{parents} de $V_i$ (\emph{Pa} pour \emph{parents}), c'est-à-dire ses \emph{causes directes}. Pour la pluie : humidité, vent, température, relief.
+  \item $U_i$ : un \textbf{bruit propre} à $V_i$, tout ce qu'on ne modélise pas (turbulence, hasard local). C'est ce qui fait que deux journées « identiques » sur le papier ne donnent pas exactement la même pluie.
+  \item $f_i$ : le \textbf{mécanisme}, la « recette » qui transforme les causes en effet. Se lit : « $V_i$ égale $f$ de ses parents et de son bruit ».
+\end{itemize}
+
+\bloc{Pourquoi cette formule est là}
+Toute la thèse repose sur l'idée « causer, pas seulement corréler ». Pour la mettre dans un réseau de neurones, il faut d'abord l'écrire en maths. Cette équation dit une chose forte et simple : \textbf{un effet est entièrement déterminé par ses causes directes, plus un peu de hasard}. Rien d'autre n'entre. L'ensemble des relations parent$\to$enfant, mises bout à bout, forme un \emph{graphe orienté sans cycle} (un DAG) : les flèches disent qui cause qui, sans boucle (une variable ne peut pas être sa propre cause).
+
+\bloc{À retenir}
+$V_i=$ la variable ; $\mathrm{Pa}(V_i)=$ ses causes directes ; $U_i=$ le hasard propre ; $f_i=$ le mécanisme. Exemple à citer : pluie $= f($humidité, vent, température, orographie$)+$ hasard.
+
+% ------------------------------------------------------------------
+\slide{17}{La fonction $f_i$, concrètement : un petit réseau par variable}
+
+\bloc{Ce que montre la slide}
+Un schéma en trois blocs : \emph{états des parents} (pondérés par la matrice \Adag{}) $\to$ \emph{petit réseau à 2 couches} $\to$ \emph{nouvel état} de la variable.
+
+\bloc{Explication simple}
+Dans un manuel de physique, $f$ serait une formule écrite à la main. En climat, personne ne sait écrire la formule exacte de la pluie. Notre solution : chaque $f_i$ est un \textbf{petit réseau de neurones à 2 couches} (un MLP), un par variable. Il reçoit les états de ses causes, chacun pondéré par un poids appris. Ces poids forment la matrice \Adag{}, qui \emph{est} littéralement le graphe causal du modèle : la case $(j,i)$ dit avec quelle force la variable $j$ influence la variable $i$. Nous fixons l'\emph{architecture} (la forme de la recette) ; l'\emph{entraînement} trouve les \emph{poids} (les doses).
+
+\bloc{À retenir}
+$f_i=$ MLP à 2 couches, un par variable ; \Adag{}$=$ matrice des influences $=$ graphe causal appris. La contrainte « pas de boucle » (acyclicité) est imposée à l'entraînement par la méthode \textbf{DAGMA}, qui la rend \emph{différentiable} (compatible avec la descente de gradient).
+
+% ------------------------------------------------------------------
+\slide{18}{La vraie question causale : et si on intervenait ?}
+
+\bloc{Ce que montre la slide}
+La comparaison de deux probabilités :
+\begin{formulebox}
+\centering $p\big(Y \mid X = x\big) \qquad\text{vs}\qquad p\big(Y \mid \mathrm{do}(X = x)\big)$
+\end{formulebox}
+
+\bloc{Décryptage de la formule (terme à terme)}
+\begin{itemize}[nosep]
+  \item $Y$ : ce qu'on veut prédire (la pluie). $X$ : la variable qu'on regarde ou qu'on manipule (la température).
+  \item $p(Y \mid X=x)$ : « la loi de $Y$ \emph{sachant qu'on a observé} $X=x$ ». C'est de l'\textbf{observation} passive : parmi les jours où $X$ \emph{se trouve} valoir $x$, que vaut $Y$ ?
+  \item $\mathrm{do}(X=x)$ : l'\textbf{opérateur do} de Pearl. Il signifie « je \emph{force} $X$ à la valeur $x$, en le coupant de ses causes habituelles ». $p(Y \mid \mathrm{do}(X=x))$ est donc la loi de $Y$ quand on \emph{intervient} au lieu d'observer.
+\end{itemize}
+
+\bloc{Pourquoi cette formule est là}
+C'est la distinction la plus subtile, et le c\oe ur de la thèse. \textbf{Observer} : « parmi les jours où la température \emph{est} élevée, combien pleut-il ? » Ces jours-là sont surtout des jours d'anticyclone, donc secs : la statistique est \emph{contaminée} par le confondant. \textbf{Intervenir} : « si je \emph{force} la température à monter, toutes choses égales par ailleurs, que devient la pluie ? » Là, l'anticyclone n'a plus son mot à dire : on isole l'effet propre de la température, et la physique répond « plus de pluie ». Un modèle vraiment causal doit donner la bonne réponse à la \emph{seconde} question. C'est exactement ce que teste notre diagnostic $Q_{\mathrm{int}}$ (résultat page~33).
+
+\bloc{À retenir}
+Observer $\ne$ intervenir. Analogie du baromètre : observer une aiguille basse annonce la tempête, mais \emph{forcer} l'aiguille à la main ne déclenche rien ; le baromètre est corrélé, pas causal. L'opérateur $\mathrm{do}$ formalise le geste « forcer, en coupant les causes ».
+
+% ==================================================================
+\section{Architecture (pages 20--25)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+\textbf{Fil conducteur de la section (à comprendre avant les slides).} L'architecture a \emph{deux étages}. Le \textbf{Stage 1} part des 15 canaux grossiers et, en les faisant passer par le graphe causal, produit \muHR{} : une \emph{moyenne} haute résolution, déterministe. Le \textbf{Stage 2} est une diffusion qui ajoute le \emph{résidu} $\widehat{\delta}$ : les détails fins et la part de hasard. La sortie finale est une somme de trois termes : $\widehat{x}_{\HR} = \text{baseline} + \muHR + \widehat{\delta}$.
+
+\textbf{Le pari de conception.} La causalité est mise dans l'\emph{architecture}, pas dans la fonction de perte. Une simple pénalité (« sois puni si tu n'es pas causal ») serait contournée par un réseau expressif ; ici, l'information est \emph{physiquement obligée} de passer par le graphe : il n'y a rien à contourner. Phrase-clé : « la causalité n'est pas une option du modèle, c'est sa tuyauterie ». Ce pari est ensuite \emph{prouvé} par le test O3 (voir page~27) et par l'ablation (page~34).
+
+\textbf{Pourquoi la baseline apparaît \emph{après} le Stage 1 (page 22) et non au début.} La \emph{baseline} est une simple interpolation de la pluie grossière sur la grille fine. Elle ne fait \textbf{pas} partie du calcul causal du Stage 1 : celui-ci part des 15 canaux bruts et construit \muHR{} tout seul, par le graphe. La baseline, elle, ne sert qu'au \textbf{Stage 2}, à deux endroits (vérifiés dans le code) : \emph{(i)} c'est l'un des trois canaux \emph{concaténés} à l'entrée du réseau de diffusion, et \emph{(ii)} c'est le champ de référence auquel on \emph{rajoute} \muHR{} et $\widehat{\delta}$ pour reconstruire la sortie. La placer au tout début (comme si elle amorçait le Stage 1) serait trompeur : elle prend son sens juste avant le Stage 2. D'où l'ordre : Stage 1 (page 21) $\to$ baseline (page 22) $\to$ zoom pixel (page 23) $\to$ concaténation du Stage 2 (page 24) $\to$ formule de synthèse (page 25).
+\end{mdframed}
+
+\slide{20}{Vue d'ensemble : l'architecture complète en deux étages}
+
+\bloc{Ce que montre la slide}
+Le pipeline complet : \textbf{Entrée LR} $\to$ \textbf{Encodeur} (15 MLP) $\to$ \textbf{Graphe} hétérogène $\to$ \textbf{RCN} (SCM $+$ GRU $+$ DAGMA) $\to$ \textbf{Décodeur} ($\to$ \muHR{}), puis \textbf{UNet EDM} ($\to \widehat{\delta}$) $\to$ \textbf{Sortie HR}. Deux cadres pointillés délimitent Stage 1 (causal, déterministe) et Stage 2 (diffusion résiduelle).
+
+\bloc{Explication simple}
+On suit le trajet d'une image. \textbf{Stage 1 (causal, déterministe)} : l'\emph{encodeur} traduit chacune des 15 variables en une représentation interne (un petit réseau par variable, pour rester lisible) ; le \emph{graphe} organise ces variables en n\oe uds reliés par le DAG appris ; le \emph{RCN} (réseau causal récurrent) fait circuler l'information le long des flèches du graphe, pas à pas dans le temps ; le \emph{décodeur} reprojette sur la grille fine et produit \muHR{}, la meilleure estimation \emph{moyenne}. \textbf{Stage 2 (stochastique)} : un réseau de diffusion (UNet EDM) génère le \emph{résidu} $\widehat{\delta}$, les détails fins et le hasard que la moyenne ne peut pas capturer.
+
+\bloc{À retenir}
+Stage 1 $=$ moyenne, causal, déterministe. Stage 2 $=$ résidu, diffusion, stochastique. La causalité est concentrée dans le Stage 1 ; le réalisme des extrêmes vient du Stage 2. RCN $=$ \emph{Recurrent Causal Network} ; EDM $=$ la variante de diffusion utilisée (Karras et al. 2022).
+
+% ------------------------------------------------------------------
+\slide{21}{Stage 1 : de $y_{\LR}$ à \muHR{}, par le chemin causal}
+
+\bloc{Ce que montre la slide}
+Le détail du Stage 1 : $y_{\LR}$ (15 variables, grille $23{\times}26$) $\to$ Encodeur (15 MLP) $\to$ un \emph{graphe causal} de n\oe uds (GP\textsubscript{250}, GP\textsubscript{500}, GP\textsubscript{850}, et SP\_HR statique : orographie/masque) $\to$ RCN (propagation par \Adag{}, 8 pas de temps) $\to$ Décodeur $\to$ \muHR{} ($172{\times}179$). Une \textbf{flèche de boucle} au-dessus de la boîte RCN matérialise la récurrence temporelle ($H_{t-1}\!\to\!H_t$, $\times 8$). En bas, deux formules.
+
+\bloc{Décryptage de la formule \raisebox{0pt}{\small\ding{192}} --- la propagation causale}
+\begin{formulebox}
+\centering $\widehat{H}_t^{(i)} \;=\; f_i\!\Big(\;\Adag^{(i,:)} \odot H_{t-1},\;\; x_t,\;\; \varepsilon_t^{(i)}\;\Big)$
+\end{formulebox}
+C'est la formule du SCM (page 16) rendue \emph{concrète et temporelle}. Terme à terme :
+\begin{itemize}[nosep]
+  \item $\widehat{H}_t^{(i)}$ : le \textbf{nouvel état} du n\oe ud $i$, calculé au pas de temps $t$. C'est le « $V_i$ » de la page 16, mais suivi dans le temps.
+  \item $H_{t-1}$ : l'état de \emph{tous} les n\oe uds au pas de temps précédent (le vecteur mémoire du réseau récurrent).
+  \item $\Adag^{(i,:)}$ : la \textbf{$i$-ème ligne} de la matrice du graphe, les poids des arêtes qui \emph{pointent vers} le n\oe ud $i$. Un poids nul $=$ « ce n\oe ud n'est pas un parent de $i$ ».
+  \item $\odot$ : le produit \textbf{terme à terme} (Hadamard). $\Adag^{(i,:)} \odot H_{t-1}$ garde donc uniquement les états des \emph{parents} de $i$, chacun dosé par la force de son arête. C'est exactement le « $\mathrm{Pa}(V_i)$ » de la page 16, mais \emph{filtré par le graphe appris}.
+  \item $x_t$ : l'entrée du moment (les drivers grossiers injectés à ce pas de temps).
+  \item $\varepsilon_t^{(i)}$ : le bruit propre du n\oe ud, le « $U_i$ » de la page 16.
+  \item $f_i$ : le petit MLP par variable (page 17).
+\end{itemize}
+\textbf{Pourquoi elle est là} : c'est \emph{la} ligne qui matérialise le pari « causalité dans l'architecture ». L'information ne peut atteindre le n\oe ud $i$ qu'\emph{à travers} $\Adag^{(i,:)}$ : si une arête vaut 0, ce parent est physiquement déconnecté, sans contournement possible. On répète l'opération sur \textbf{8 pas de temps} (c'est la boucle dessinée sur le schéma) pour laisser l'influence se propager de proche en proche dans le graphe, comme une cascade : le haut de l'atmosphère influence le milieu, qui influence la surface.
+
+\bloc{Sur la boucle récurrente (nouveauté du schéma)}
+La flèche qui reboucle sur la boîte RCN représente \textbf{une seule} récurrence : la boucle \emph{temporelle}. À chaque pas, l'état $H_t$ ressort et rentre comme entrée du pas suivant, 8 fois. \textbf{Attention} : il n'y a \emph{pas} de deuxième boucle « sur les échantillons » (le batch). Le batch est traité \emph{en parallèle} (vectorisé), il ne se reboucle jamais. Seul le temps est récurrent.
+
+\bloc{Décryptage de la formule \raisebox{0pt}{\small\ding{193}} --- l'entraînement du Stage 1}
+\begin{formulebox}
+\centering $\mathcal{L}_{\mathrm{total}}^{(1)} \;=\; \mathcal{L}_{\mathrm{mse}} \;+\; \alpha\,\mathcal{L}_{\mathrm{rec}} \;+\; \mathcal{L}_{\mathrm{dag}}$
+\end{formulebox}
+Une \emph{fonction de perte} est le « score d'erreur » que l'entraînement cherche à rendre le plus petit possible. Ici elle est la somme de trois exigences :
+\begin{itemize}[nosep]
+  \item $\mathcal{L}_{\mathrm{mse}}$ : l'\textbf{exactitude}. Écart quadratique moyen entre \muHR{} prédit et la vraie précipitation. « Sois juste. »
+  \item $\mathcal{L}_{\mathrm{rec}}$ : la \textbf{lisibilité} (reconstruction). Elle oblige la représentation interne de l'encodeur à rester fidèle aux vraies variables physiques, au lieu de devenir un code opaque. « Reste interprétable. » $\alpha$ dose son importance.
+  \item $\mathcal{L}_{\mathrm{dag}}$ : la \textbf{validité causale}. C'est la pénalité DAGMA : elle vaut 0 si \Adag{} est un vrai DAG (sans boucle) et grandit dès qu'un cycle apparaît. « Reste un graphe causal valide. »
+\end{itemize}
+\textbf{Pourquoi elle est là} : un modèle seulement précis ($\mathcal{L}_{\mathrm{mse}}$) redeviendrait une boîte noire. Les deux autres termes sont ce qui garde \Oracle{} \emph{à la fois} juste, lisible et causal, les trois en même temps.
+
+\bloc{À retenir}
+Formule \ding{192} $=$ « chaque n\oe ud n'écoute que ses parents (via \Adag{}), sur 8 pas de temps ». Formule \ding{193} $=$ « sois juste ($\mathcal{L}_{\mathrm{mse}}$) $+$ reste lisible ($\mathcal{L}_{\mathrm{rec}}$) $+$ reste sans boucle ($\mathcal{L}_{\mathrm{dag}}$) ». SP\_HR $=$ n\oe uds statiques (orographie, masque terre/mer), un par pixel HR : c'est \emph{là}, et seulement là, qu'entre le relief.
+
+% ------------------------------------------------------------------
+\slide{22}{Point de départ : la baseline par interpolation}
+
+\bloc{Ce que montre la slide}
+L'image d'une carte grossière « agrandie » par interpolation sur la grille fine : plus de pixels, mais aucun détail nouveau. Légende : « Plus de pixels, aucune information nouvelle ».
+
+\bloc{Explication simple}
+La \emph{baseline} est le champ de pluie grossier, simplement redimensionné (interpolation bilinéaire) à la taille fine. Elle sert de \textbf{point de départ neutre} : le champ « bête » qu'on aurait sans aucune intelligence. Elle ne contient rien de plus que le GCM, elle est juste plus grande. \textbf{Pourquoi cette slide arrive ici, et pas au début ?} Parce que la baseline n'appartient pas au Stage 1 (qui, lui, part des 15 canaux bruts et fabrique \muHR{} par le graphe). La baseline ne sert qu'au \textbf{Stage 2} : c'est l'un des canaux qu'on lui donne en entrée (page 24) \emph{et} le champ de référence auquel on ajoutera \muHR{} et $\widehat{\delta}$ (formule de la page 25). On l'introduit donc \emph{juste avant} le Stage 2, là où elle prend son sens.
+
+\bloc{À retenir}
+Baseline $=$ interpolation bilinéaire de la pluie grossière $=$ point de départ sans information ajoutée. Rôle réel : entrée \emph{et} référence du \textbf{Stage 2}, jamais du Stage 1. C'est \emph{au modèle} de créer le détail manquant par-dessus cette baseline.
+
+\slide{23}{Zoom sur un pixel : l'interpolation ne crée rien}
+
+\bloc{Ce que montre la slide}
+À gauche, 1 gros pixel \textbf{rouge} marqué « 19~\textdegree{}C ». À droite, le même carré redécoupé en 36 petits pixels\ldots tous à 19~\textdegree{}C (même couleur). Légende : « aucun gain d'information ». On utilise ici la \emph{température} (en rouge), pour rester cohérent avec le pixel du slide~6.
+
+\bloc{Explication simple}
+C'est la démonstration visuelle de la slide précédente, illustrée sur une température. Interpoler, c'est répartir la même valeur sur plus de cases : on passe de 1 à 36 pixels, mais ils portent tous la \emph{même} valeur (19~\textdegree{}C). On a plus de pixels, zéro information supplémentaire. La conclusion motive tout le reste : le détail fin ne peut pas venir de l'agrandissement ; il doit être \emph{créé} par le modèle (\muHR{} du Stage 1 pour la structure, $\widehat{\delta}$ du Stage 2 pour la texture).
+
+\bloc{À retenir}
+Interpolation $=$ « même couleur, même valeur ». Le vrai travail commence après la baseline. Phrase-clé : « agrandir n'est pas deviner ».
+
+\jury{« Pourquoi 19~\textdegree{}C et pas 200~km ? » --- Piège classique : un pixel porte \emph{deux} informations distinctes. Sa \textbf{valeur} (ce qu'il contient : ici 19~\textdegree{}C de température) et sa \textbf{taille} (son étendue au sol : $\sim$200~km pour le GCM, $\sim$5~km pour la cible). Le « 19~\textdegree{}C » est la \emph{valeur}, pas la taille. La slide montre la valeur parce que le message est « l'interpolation recopie la même valeur » ; l'axe \emph{taille} ($\sim$200~km $\to$ $\sim$5~km) est représenté, lui, par la subdivision 1~pixel $\to$ 36~pixels. Passer de 200~km à 5~km = subdiviser ; garder 19~\textdegree{}C partout = ne rien inventer.}
+
+% ------------------------------------------------------------------
+\slide{24}{Stage 2 : le conditionnement par concaténation de canaux}
+
+\bloc{Ce que montre la slide}
+L'image de trois cartes empilées (comme les canaux R, G, B) : c'est ce qu'on donne en entrée au réseau de diffusion. La slide ne porte qu'une image (la légende explicative a été retirée pour l'épurer, mais le concept ci-dessous reste à connaître).
+
+\bloc{Explication simple}
+Comment le Stage 2 « sait-il » quoi générer ? Par \textbf{concaténation de canaux}, exactement comme une image couleur empile R, G, B. On empile trois cartes en entrée du réseau de diffusion : \emph{(1)} le résidu bruité en cours de débruitage, \emph{(2)} \muHR{} (la moyenne causale du Stage 1) et \emph{(3)} la baseline. Le réseau lit ces trois couches superposées et génère le résidu $\widehat{\delta}$ cohérent avec elles. Point capital pour le récit causal : parmi ces canaux, \textbf{le seul qui porte de l'information \emph{causale}, c'est \muHR{}} (la baseline est neutre, page 22, le canal bruité est du bruit). Donc si le Stage 2 fait mieux que \CorrDiff{}, c'est bien la causalité du Stage 1 qui a transité par ce canal.
+
+\bloc{Décryptage (ce qui est réellement passé au réseau, vérifié dans le code)}
+Entrée du UNet $=\;[\,\widehat{\delta}_{\text{bruité}},\; \muHR,\; \text{baseline}\,]$ empilés sur l'axe des canaux. \textbf{Concaténer $\ne$ additionner} : on \emph{juxtapose} trois cartes pour \emph{conditionner} (informer) la génération ; on ne les additionne qu'à la toute fin, pour \emph{reconstruire} le champ (formule page 25). Aucune variable statique (relief) n'entre ici : le relief est déjà passé au Stage 1 (n\oe uds SP\_HR).
+
+\bloc{À retenir}
+Stage 2 conditionné par \textbf{concaténation} de 3 canaux $[\text{bruit},\, \muHR,\, \text{baseline}]$. \muHR{} $=$ l'unique canal porteur de causalité. Concaténer (informer) au début $\ne$ additionner (reconstruire) à la fin.
+
+% ------------------------------------------------------------------
+\slide{25}{Vue d'ensemble : la formule qui assemble tout}
+
+\bloc{Ce que montre la slide}
+Le pipeline complet (rappel), puis la formule de synthèse avec ses trois sous-accolades.
+
+\bloc{Décryptage de la formule --- la reconstruction finale}
+\begin{formulebox}
+\centering $\widehat{x}_{\HR} \;=\; \underbrace{\text{baseline}}_{\text{interpolation}} \;+\; \underbrace{\muHR}_{\text{Stage 1 (causal)}} \;+\; \underbrace{\widehat{\delta}}_{\text{Stage 2 (diffusion)}}$
+\end{formulebox}
+\begin{itemize}[nosep]
+  \item $\widehat{x}_{\HR}$ : la carte de pluie fine \emph{finale} produite par \Oracle{} (le « chapeau » signifie « estimé »).
+  \item \textbf{baseline} : le point de départ neutre (interpolation, page 22). Il donne l'ordre de grandeur général.
+  \item \muHR{} : la \textbf{correction causale} du Stage 1, la structure grande échelle que le graphe a su déduire (là où il pleut plus/moins, pilotage par l'humidité/le vent/le relief).
+  \item $\widehat{\delta}$ : le \textbf{résidu stochastique} du Stage 2, la texture fine et la part de hasard (les cellules orageuses, les pointes locales).
+\end{itemize}
+
+\bloc{Pourquoi cette formule est là (et pourquoi elle justifie l'ordre des slides)}
+C'est l'équation-mère de toute l'architecture : elle montre que la sortie est une \textbf{somme de trois contributions empilées}, chacune avec un rôle distinct. Elle rend aussi limpide le placement de la baseline : celle-ci est un \emph{terme de la somme finale}, aux côtés de \muHR{} (Stage 1) et $\widehat{\delta}$ (Stage 2). Elle ne « lance » pas le Stage 1, elle \emph{referme} le calcul. D'où sa présentation juste avant le Stage 2. Répartition des rôles : la baseline situe, \muHR{} structure (causal), $\widehat{\delta}$ texture (réalisme des extrêmes).
+
+\bloc{À retenir}
+$\widehat{x}_{\HR} = \text{baseline} + \muHR + \widehat{\delta}$. Trois briques : \emph{situer} (baseline), \emph{structurer} (\muHR{}, causal), \emph{texturer} ($\widehat{\delta}$, diffusion). Le gain de skill vient des deux dernières ; la causalité, uniquement de \muHR{}.
+
+% ==================================================================
+\section{Résultats (pages 27--34)}
+% ==================================================================
+
+\slide{27}{Protocole expérimental}
+
+\bloc{Ce que montre la slide}
+Deux encadrés. \textbf{Données (Nouvelle-Zélande)} : entraînement 1980--2009, validation 2010--2012, test 2013--2014 (ACCESS-CM2) ; généralisation sur EC-Earth3 et NorESM2-MM (GCM jamais vus). \textbf{Évaluation} : baseline \emph{Noncausal} $=$ \CorrDiff{} réentraîné à l'identique. Bandeau : « comparaison strictement appariée : seule la causalisation du Stage 1 change ». \emph{(Le slide a été allégé : les dimensions [15 canaux $23{\times}26 \to 172{\times}179$] et la liste des métriques ne sont plus écrites dessus, mais restent à savoir. Les métriques sont détaillées dans les slides de résultats ; les 2 diagnostics causaux, ci-dessous.)}
+
+\bloc{Explication simple}
+Cette slide établit la \emph{rigueur} de la comparaison. Le point décisif est la \textbf{comparaison appariée} : la baseline « Noncausal » est \emph{exactement} \CorrDiff{}, réentraîné avec les mêmes données, le même protocole, la même famille d'architecture ; \emph{la seule} différence est la causalisation du Stage 1. Donc tout écart de performance mesuré est attribuable à notre contribution, pas à un détail d'implémentation ou à un jeu de données plus favorable. Les 4 familles de métriques couvrent des aspects complémentaires (erreur, calibration probabiliste, texture, extrêmes) ; les 2 diagnostics causaux testent la \emph{mécanique} interne (le graphe sert-il ? le modèle raisonne-t-il juste sous intervention ?).
+
+\bloc{Les deux diagnostics causaux, en clair}
+\begin{itemize}[nosep]
+  \item \textbf{O3} (le « test du graphe à zéro ») : on met le graphe à zéro ($\Adag \leftarrow \mathbf{0}$) et on mesure combien on perd. Formellement $\Delta_{O3} = \mathrm{MSE}(\muHR(\mathbf{0})) - \mathrm{MSE}(\muHR(\Adag))$, et le ratio $\Delta_{O3}/\mathrm{MSE}(\Adag) = \mathbf{0{,}87}$ (proche de 1) : couper le graphe casse presque tout, donc l'information \emph{passe réellement} par le graphe (il n'est pas décoratif).
+  \item $Q_{\mathrm{int}}$ (le test d'intervention) : on \emph{force} une hausse de température et on vérifie que la pluie prédite bouge dans le bon sens (résultat page 33).
+\end{itemize}
+
+\bloc{À retenir}
+Train 1980--2009 / Val 2010--2012 / Test 2013--2014 sur ACCESS-CM2 ; généralisation sur 2 GCM jamais vus. Noncausal $=$ \CorrDiff{} à l'identique. « Strictement apparié » $=$ la seule variable qui change est la causalité $\Rightarrow$ le gain lui est imputable. O3 $=$ le graphe est indispensable (ratio 0,87) ; $Q_{\mathrm{int}}$ $=$ réponse correcte sous intervention.
+
+% ------------------------------------------------------------------
+\slide{28}{Entraînement : Google Colab, $\sim$45 heures}
+
+\bloc{Ce que montre la slide}
+Un encadré \textbf{Ressources} (entraînement sur Google Colab avec GPU, $\sim$45~heures au total) et un petit tableau \textbf{Deux étages, deux budgets} : Stage 1 (causal, déterministe) = \textbf{15 époques}, Stage 2 (diffusion résiduelle) = \textbf{200 époques}.
+
+\bloc{Explication simple}
+Cette slide chiffre le \emph{coût} de l'entraînement, et renforce le message applicatif du début (pages 11--12) : là où un RCM demande 928 c\oe urs d'un supercalculateur, \Oracle{} s'entraîne en $\sim$45~heures sur \textbf{Google Colab}, une ressource gratuite et grand public. Une \emph{époque} est un passage complet sur toutes les données d'entraînement. Les deux étages ont des budgets très différents parce que leurs tâches diffèrent : le Stage 1 (régression de la moyenne causale) converge vite, \textbf{15 époques} suffisent ; le Stage 2 (diffusion) doit apprendre à générer de la texture fine à partir de bruit, tâche plus difficile qui demande \textbf{200 époques}.
+
+\bloc{À retenir}
+$\sim$45~h sur Google Colab (GPU). Stage 1 = 15 époques (la moyenne converge vite), Stage 2 = 200 époques (la diffusion en demande plus). Message : un entraînement à la portée d'un laboratoire modeste, sans supercalculateur. Chiffres tirés de la configuration réelle du projet.
+
+% ------------------------------------------------------------------
+\slide{29}{Le résultat central : un gain de CRPS dans tous les régimes}
+
+\bloc{Ce que montre la slide}
+Un tableau de CRPS (mm/j) sur trois régimes, comparant \Oracle{}, Noncausal, et le gain relatif :
+\begin{center}\small
+\begin{tabular}{lccc}
+\hline
+\textbf{Régime} & \Oracle{} & \textbf{Noncausal} & \textbf{Gain}\\
+\hline
+En distribution & \textbf{0,249} & 0,415 & $-40\,\%$\\
+Inter-GCM (EC-Earth3 / NorESM2) & 0,319 / 0,342 & 0,457 / 0,478 & $-30$ / $-28\,\%$\\
+Hors distribution (froid / chaud) & 0,389 / 0,288 & 0,561 / 0,444 & $-31$ / $-35\,\%$\\
+\hline
+\end{tabular}
+\end{center}
+
+\bloc{Comment lire les chiffres --- d'abord, qu'est-ce que le CRPS ?}
+Le \textbf{CRPS} (\emph{Continuous Ranked Probability Score}) est \emph{la} métrique des prévisions probabilistes. \Oracle{} ne produit pas une carte mais un \emph{ensemble} de cartes (plusieurs tirages). Le CRPS compare la \emph{distribution} prédite (l'ensemble) à la valeur réellement observée, en récompensant deux choses à la fois : la \emph{justesse} (être centré au bon endroit) \emph{et} l'\emph{honnêteté de l'incertitude} (ni trop sûr, ni trop vague). Il est en mm/jour, et \textbf{plus il est bas, mieux c'est}. Un gain « $-40\,\%$ » signifie donc « 40\,\% d'erreur probabiliste en moins ».
+
+\bloc{Comment lire les chiffres --- les trois régimes, du plus facile au plus dur}
+\begin{itemize}[nosep]
+  \item \textbf{En distribution} (données du même type que l'entraînement, le régime facile) : 0,249 contre 0,415, soit \textbf{$-40\,\%$}. C'est le résultat-phare.
+  \item \textbf{Inter-GCM} : on teste sur deux \emph{autres} modèles climatiques jamais vus. Le gain se maintient : \textbf{$-30\,\%$} (EC-Earth3), \textbf{$-28\,\%$} (NorESM2). Preuve que le modèle n'a pas appris par c\oe ur les « tics » de son GCM d'entraînement.
+  \item \textbf{Hors distribution (froid / chaud)} : climats artificiellement décalés vers le froid ou le chaud. Le gain tient encore : \textbf{$-31\,\%$} / \textbf{$-35\,\%$}.
+\end{itemize}
+Le message : \emph{le gain ne s'effondre pas} quand on s'éloigne des conditions d'entraînement, il reste du même ordre partout.
+
+\bloc{À retenir}
+CRPS bas $=$ distribution prédite proche du réel. Gain qui \emph{tient} de la distribution ($-40\,\%$) aux climats jamais vus ($-28$ à $-35\,\%$). Nuance à préparer (voir page 37) : c'est le \emph{niveau} d'erreur qui reste meilleur ; la \emph{pente} de dégradation, elle, est comparable à la baseline.
+
+% ------------------------------------------------------------------
+\slide{30}{Le vrai test : généraliser à des modèles climatiques jamais vus}
+
+\bloc{Ce que montre la slide}
+Les courbes de \emph{période de retour} (loi de Gumbel) sur les GCM jamais vus : \Oracle{} suit la vérité, la baseline sature en dessous. Légende : robustesse inter-GCM $-30\,\%$ (EC-Earth3), $-28\,\%$ (NorESM2-MM).
+
+\bloc{Comment lire les chiffres --- qu'est-ce qu'une période de retour ?}
+Une \textbf{période de retour} de « 100 ans » désigne un événement si intense qu'il n'arrive en moyenne qu'une fois par siècle (probabilité 1\,\% par an). L'axe horizontal va des événements fréquents (à gauche) aux événements rares (à droite) ; l'axe vertical donne l'intensité de pluie correspondante. Un bon modèle doit suivre la courbe de la \emph{vérité} jusqu'aux événements rares. \textbf{« Saturer en dessous »} veut dire que la baseline plafonne : elle est incapable de produire les pluies extrêmes, elle les rabote. \Oracle{}, lui, suit la vérité plus loin.
+
+\bloc{Comment lire les chiffres --- pourquoi tester sur d'autres GCM ?}
+On ne peut pas attendre 2050 pour vérifier la robustesse. Astuce standard : entraîner sur \emph{un} GCM (ACCESS-CM2) et évaluer sur \emph{d'autres} jamais vus (EC-Earth3, NorESM2-MM). Chaque GCM a sa « personnalité » (biais, dynamique propres) : changer de GCM est un vrai \emph{déplacement de distribution}, une répétition générale du changement de climat. Que le gain tienne ($-30\,\% / -28\,\%$) prouve que le modèle a appris quelque chose de \emph{transférable}, pas les tics d'un GCM.
+
+\bloc{À retenir}
+Inter-GCM : $-30\,\%$ (EC-Earth3), $-28\,\%$ (NorESM2-MM). \Oracle{} suit la courbe des extrêmes là où la baseline sature. C'est le test de robustesse le plus proche du vrai changement climatique disponible sans attendre le futur.
+
+% ------------------------------------------------------------------
+\slide{31}{Une incertitude enfin fiable}
+
+\bloc{Ce que montre la slide}
+Un diagramme de fiabilité (courbe d'\Oracle{} proche de la diagonale idéale, baseline en dessous) et le \emph{ratio spread-skill} : $0{,}20 \to 0{,}69$ ($\times 3{,}5$).
+
+\bloc{Comment lire les chiffres --- calibration et spread-skill}
+Un modèle probabiliste doit être \textbf{calibré} : quand il annonce « 90\,\% de chances de pluie », il doit pleuvoir dans 90\,\% de ces cas. Le \emph{diagramme de fiabilité} trace la probabilité annoncée contre la fréquence réelle ; un modèle parfait suit la \emph{diagonale}. Le \textbf{ratio spread-skill} compare deux quantités qui devraient être égales : le \emph{spread} (à quel point les membres de l'ensemble s'écartent les uns des autres, c'est-à-dire l'incertitude que le modèle \emph{s'attribue}) et le \emph{skill} (l'erreur \emph{réelle} de sa moyenne). Idéalement, ce ratio vaut \textbf{1} : le modèle est aussi incertain qu'il a raison de l'être.
+\begin{itemize}[nosep]
+  \item Baseline à \textbf{0,20} : son ensemble est $\sim$5 fois \emph{trop resserré}. Elle affiche une confiance qu'elle ne mérite pas, dangereux pour décider (on croit savoir, on se trompe).
+  \item \Oracle{} à \textbf{0,69} : pas parfait, mais \textbf{3,5 fois plus honnête}. Ses intervalles de confiance commencent enfin à vouloir dire quelque chose.
+\end{itemize}
+
+\bloc{À retenir}
+Spread-skill : $0{,}20 \to 0{,}69$ ($\times 3{,}5$). En dessous de 1 $=$ trop confiant ; à 1 $=$ calibré. Phrase-clé : « quand \Oracle{} dit `je suis sûr', on peut enfin le croire ».
+
+% ------------------------------------------------------------------
+\slide{32}{Les extrêmes, pas juste la moyenne}
+
+\bloc{Ce que montre la slide}
+Deux grands chiffres : distance spectrale \textbf{RAPSD divisée par 450} vs \CorrDiff{} ; biais \textbf{RX1day ramené de $-4{,}1$ à $-2{,}7$~mm}.
+
+\bloc{Comment lire les chiffres --- deux mesures complémentaires}
+\begin{itemize}[nosep]
+  \item \textbf{RAPSD} (\emph{Radially Averaged Power Spectral Density}, distance spectrale) vérifie que l'image a la bonne \emph{texture}. Une vraie carte de pluie est \emph{granuleuse}, avec des cellules orageuses fines ; un modèle qui lisse produit une image « floue » dont le spectre spatial est faux. « Divisée par 450 » signifie que notre distance au spectre réel est \textbf{450 fois plus petite} que celle de la baseline : nos cartes ont la texture du réel, pas la sienne.
+  \item \textbf{RX1day} est un indice climatique standard : le \emph{maximum annuel de pluie en un jour}, l'indicateur direct des inondations. Un \emph{biais} négatif signifie qu'on \emph{sous-estime} cet extrême. La baseline le sous-estime de 4,1~mm en moyenne ; \Oracle{}, de 2,7~mm : biais réduit d'un tiers. Or sous-estimer les extrêmes, c'est \emph{sous-dimensionner les digues}.
+\end{itemize}
+
+\bloc{À retenir}
+RAPSD $\div 450$ (texture réaliste) ; biais RX1day $-4{,}1 \to -2{,}7$~mm (extrêmes moins sous-estimés). Les extrêmes sont l'enjeu applicatif n\up{o}~1 : c'est ce qui déborde, pas la moyenne.
+
+% ------------------------------------------------------------------
+\slide{33}{Le modèle raisonne juste sous intervention}
+
+\bloc{Ce que montre la slide}
+Des cartes de réponse à une perturbation contrôlée, et un tableau : sous une hausse de température au niveau 850~hPa, \Oracle{} répond $+0{,}84\times10^{-3}$ (\emph{cohérent CC}), la baseline répond $-0{,}84\times10^{-3}$ (\emph{contraire CC}).
+
+\bloc{Comment lire les chiffres --- le test d'intervention $Q_{\mathrm{int}}$}
+C'est l'application concrète de l'opérateur $\mathrm{do}$ de la page 18. \textbf{Protocole} : on prend une entrée réelle, on \emph{force} artificiellement une hausse de température ($+\Delta t_{850}$, le geste $\mathrm{do}$), et on mesure comment la pluie prédite bouge. La physique (Clausius-Clapeyron) impose le \textbf{signe} de la réponse : plus chaud $\Rightarrow$ plus d'eau disponible $\Rightarrow$ réponse \emph{positive}. Le tableau donne la variation de pluie ($\times 10^{-3}$, unités normalisées) :
+\begin{itemize}[nosep]
+  \item \Oracle{} : \textbf{$+0{,}84\times10^{-3}$}, signe \emph{positif}, cohérent avec la physique.
+  \item Noncausal : \textbf{$-0{,}84\times10^{-3}$}, signe \emph{négatif}, à l'\emph{envers}. La baseline rejoue l'association « chaud $=$ sec » de la Nouvelle-Zélande : c'est le piège corrélatif de la page 14, \emph{pris en flagrant délit}.
+\end{itemize}
+Ce qui compte ici, c'est le \textbf{signe}, pas l'amplitude : le test vérifie que le modèle \emph{raisonne} dans le bon sens, pas qu'il donne l'amplitude exacte.
+
+\bloc{À retenir}
+$Q_{\mathrm{int}}$ : \Oracle{} donne le \emph{bon signe} ($+$), la baseline le \emph{mauvais} ($-$). C'est la démonstration \emph{expérimentale} de la différence corrélation/causalité. Honnêteté à garder : le \emph{signe} est correct, l'\emph{amplitude} reste inférieure à la théorie ; c'est un contrôle de cohérence directionnelle, pas un outil de projection.
+
+% ------------------------------------------------------------------
+\slide{34}{D'où vient le gain ? L'ablation le prouve}
+
+\bloc{Ce que montre la slide}
+Un tableau d'\emph{ablation} (CRPS), quatre variantes du plus complet au plus pauvre :
+\begin{center}\small
+\begin{tabular}{lcc}
+\hline
+\textbf{Variante} & \textbf{CRPS} & \textbf{Lecture}\\
+\hline
+\Oracle{} complet (\Adag{} appris) & \textbf{0,508} & référence\\
+\Adag{} $=\mathbf{0}$ (graphe coupé) & 0,522 & $+2{,}7\,\%$\\
+\Adag{} aléatoire (même norme) & 0,529 & $+4{,}2\,\%$\\
+Noncausal (baseline) & 0,592 & $+16{,}6\,\%$\\
+\hline
+\end{tabular}
+\end{center}
+
+\bloc{Comment lire les chiffres --- qu'est-ce qu'une ablation ?}
+Une \textbf{ablation}, c'est \emph{retirer un organe} pour voir ce qu'il faisait. On compare quatre variantes à protocole identique (donc les écarts sont imputables au seul composant retiré). Comme c'est du CRPS, \emph{plus bas $=$ mieux} ; les pourcentages sont la dégradation par rapport à \Oracle{} complet (0,508). Lecture, ligne par ligne :
+\begin{itemize}[nosep]
+  \item \textbf{Couper le graphe} ($\Adag=\mathbf{0}$) dégrade de $+2{,}7\,\%$ $\Rightarrow$ le graphe \emph{sert} (cohérent avec le test O3, page 27).
+  \item \textbf{Le remplacer par un graphe aléatoire} (même « taille », mais arêtes fausses) dégrade \emph{davantage} ($+4{,}2\,\%$) que de le couper $\Rightarrow$ résultat contre-intuitif et fort : \textbf{une structure fausse est pire que pas de structure}. Ce sont donc bien les \emph{bonnes} connexions qui comptent, pas la simple présence d'une structure.
+  \item \textbf{La baseline} est à $+16{,}6\,\%$ : l'écart \emph{total} entre \Oracle{} et le Noncausal.
+\end{itemize}
+
+\bloc{Comment lire les chiffres --- la décomposition 84 / 16}
+On peut découper l'écart total (16,6\,\%) en deux morceaux : ce qu'apporte l'\emph{architecture two-stage causale elle-même} ($\sim$\textbf{84\,\%} du gain) et ce qu'ajoute la \emph{structure fine du DAG} ($\sim$\textbf{16\,\%}). Autrement dit : l'essentiel du gain vient d'avoir \emph{obligé} l'information à passer par un chemin causal (le two-stage), et un supplément vient de la \emph{qualité} précise des arêtes apprises.
+
+\bloc{À retenir}
+$0{,}508 < 0{,}522 < 0{,}529 < 0{,}592$. Phrase-clé : « un graphe faux fait \emph{pire} qu'aucun graphe : la structure apprise porte une information réelle ». Décomposition : $\sim$84\,\% two-stage, $\sim$16\,\% structure fine du DAG. Le gain est \emph{attribuable pièce par pièce}, pas un effet de hasard.
+
+% ==================================================================
+\section{Limites (pages 36--37)}
+% ==================================================================
+
+\slide{36}{Ce que ce travail démontre et ce qu'il ne démontre pas}
+
+\bloc{Ce que montre la slide}
+Deux encadrés : \emph{démontré} / \emph{non démontré}.
+
+\bloc{Explication simple}
+Annoncer soi-même ses limites est la meilleure défense en soutenance. \textbf{Démontré} : gain de skill mesurable (en distribution et inter-GCM), indispensabilité du chemin causal (O3), réponse correcte sous intervention. \textbf{Non démontré} : \emph{(1)} le graphe appris n'est pas \emph{identifié} au sens strict de Pearl : ses flèches ne coïncident que partiellement avec la physique attendue ($Q_{\mathrm{phys}}=0{,}40$ à 6 n\oe uds) ; c'est une limite \emph{théorique connue} de l'apprentissage sur données d'observation, pas un bug. \emph{(2)} Aucune donnée africaine testée. \emph{(3)} Un seul entraînement (une seule graine), par contrainte de calcul.
+
+\bloc{Comment lire le chiffre $Q_{\mathrm{phys}}$}
+$Q_{\mathrm{phys}}$ mesure la \emph{fidélité du graphe appris à la physique attendue} : quelle proportion des arêtes attendues sont retrouvées et bien orientées. $Q_{\mathrm{phys}}=0{,}40$ à 6 n\oe uds $=$ le graphe capte une partie de la physique, mais pas tout. Distinction de vocabulaire essentielle : notre modèle est \textbf{structurellement causal} (l'information passe \emph{obligatoirement} par le graphe, vérifiable et vérifié par O3) sans que le graphe soit \textbf{causalement identifié} (ses flèches $=$ la vraie physique, non garanti). Les deux sont différents, et on ne revendique que le premier.
+
+\bloc{À retenir}
+\emph{Structurellement causal} (prouvé, O3 $=0{,}87$) $\ne$ \emph{causalement identifié} ($Q_{\mathrm{phys}}=0{,}40$, partiel). Détail rassurant si on te pousse : une variante à \textbf{9 n\oe uds} retrouve quasi parfaitement la structure attendue ($Q_{\mathrm{phys}}\approx 1{,}0$) ; la platitude à 6 n\oe uds est le prix de la \emph{lisibilité}, pas un plafond de l'architecture (voir page 39).
+
+\slide{37}{Limite clé : le gain porte sur le niveau, pas sur la pente}
+
+\bloc{Ce que montre la slide}
+Un graphe : deux droites parallèles, \Oracle{} (bleu) sous Noncausal (rouge), qui montent toutes deux avec « l'éloignement du climat » ; une double flèche « écart constant » entre les deux.
+
+\bloc{Explication simple}
+C'est la limite la plus importante à comprendre, et le point où il faut être précis pour ne pas se contredire avec les résultats. Sur l'axe horizontal, on s'éloigne du climat d'entraînement ; sur l'axe vertical, l'erreur (CRPS) monte pour \emph{les deux} modèles. \Oracle{} reste \emph{en dessous} (\emph{meilleur niveau}, $\sim$1,4$\times$ meilleur), mais sa droite a \emph{la même pente} que la baseline : quand on s'éloigne, il se dégrade \emph{au même rythme}. Autrement dit, la causalité, telle qu'implémentée ici, améliore le \textbf{point de départ} (le niveau d'erreur) mais pas encore la \textbf{robustesse différentielle} (la vitesse de dégradation).
+
+\bloc{Pourquoi ce n'est pas une contradiction avec les pages 29--30}
+Le gain « qui se maintient » (pages 29--30) et « la même pente » (ici) sont \emph{compatibles} : l'écart \emph{constant} entre les deux droites, c'est exactement le gain qui se maintient. Ce qui n'est \emph{pas} encore acquis, c'est que l'écart \emph{grandisse} en s'éloignant ; ce serait la vraie promesse théorique de la causalité (page 15), et c'est ce que le test SSP futur (page 39) doit trancher.
+
+\bloc{À retenir}
+Gain sur le \emph{niveau} (écart constant, $\sim$1,4$\times$ meilleur), pas encore sur la \emph{pente} (même vitesse de dégradation). Formulation honnête : « la causalité améliore le point de départ, pas (encore) la robustesse différentielle ». C'est une limite \emph{assumée}, pas un échec caché.
+
+% ==================================================================
+\section{Perspectives (pages 39--40)}
+% ==================================================================
+
+\slide{39}{Court et moyen terme : enrichir le graphe, ancrer la physique}
+
+\bloc{Ce que montre la slide}
+La matrice (\emph{heatmap}) du graphe appris par la variante à 9 n\oe uds, et trois pistes.
+
+\bloc{Explication simple}
+Trois chantiers réalistes. \emph{(1)} \textbf{Enrichir le graphe} : ajouter des n\oe uds physiquement parlants, comme IVT (les « rivières atmosphériques » qui portent l'essentiel des extrêmes côtiers), MSLP (pression au niveau de la mer), CAPE/CIN (l'énergie de la convection). La heatmap le montre : avec 9 n\oe uds au lieu de 6, le graphe appris retrouve les arêtes physiques attendues ($Q_{\mathrm{phys}}\approx 1{,}0$) ; la machinerie causale répond dès qu'on lui donne les bonnes variables. \emph{(2)} \textbf{Ancrer la physique} : guider doucement le graphe vers la structure attendue par une pénalité de \emph{prior} ($\lambda_{\mathrm{prior}}$). \emph{(3)} Surtout, \textbf{le test SSP5-8.5} : évaluer sur un scénario futur de réchauffement, le \emph{vrai} test hors distribution, celui qui manque encore et qui trancherait la question de la « pente » (page 37).
+
+\bloc{À retenir}
+9 n\oe uds $\Rightarrow$ structure physique retrouvée ($Q_{\mathrm{phys}}\approx 1{,}0$). Le test SSP est \emph{la} suite logique du travail : c'est lui qui dira si la causalité aplatit la pente de dégradation.
+
+\slide{40}{Vers une causalité par groupes : les Cluster-DAG}
+
+\bloc{Ce que montre la slide}
+Deux graphes côte à côte. À gauche, « aujourd'hui : n\oe ud $\to$ n\oe ud » (des variables individuelles $V_1,\dots,V_4$ reliées). À droite, « demain : groupe $\to$ groupe » (trois blocs physiques, \emph{Dynamique}, \emph{Thermo.}, \emph{Surface}, reliés).
+
+\bloc{Explication simple}
+Réponse directe à la limite $Q_{\mathrm{phys}}$ (page 36). Aujourd'hui, on essaie d'apprendre les arêtes \emph{fines}, variable par variable ; or, sur données d'observation, orienter chaque arête individuelle est fragile (d'où $Q_{\mathrm{phys}}=0{,}40$). L'idée du \textbf{Cluster-DAG} : regrouper d'abord les variables en \emph{familles physiques} (la dynamique : vents ; la thermodynamique : température, humidité ; la surface : relief, masque), puis apprendre la causalité \emph{entre familles}. La causalité au niveau des groupes est \textbf{plus robustement identifiable} que les arêtes fines : même si on ne sait pas dire exactement quelle variable de la dynamique cause quoi, on peut affirmer avec confiance que « la dynamique cause la surface ». On échange un peu de finesse contre beaucoup de robustesse.
+
+\bloc{À retenir}
+Cluster-DAG $=$ causalité \emph{entre familles physiques} (dynamique / thermo / surface), plus identifiable que les arêtes fines. Réponse directe à la limite $Q_{\mathrm{phys}}$. Référence : \emph{Cluster-DAG}, Anand et al., AAAI 2023.
+
+% ==================================================================
+\section{Conclusion (page 42)}
+% ==================================================================
+
+\slide{42}{Ce que ce mémoire retient}
+
+\bloc{Ce que montre la slide}
+Quatre puces de synthèse, puis « Merci de votre attention ».
+
+\bloc{Explication simple}
+Le message final tient en une idée : la causalité \textbf{placée dans l'architecture} (et non décorative) produit trois choses \emph{mesurables} : un \emph{gain de performance} ($-40\,\%$ de CRPS en distribution, $-30/-28\,\%$ sur des GCM jamais vus), une \emph{incertitude honnête} ($\times 3{,}5$ de calibration), et un \emph{raisonnement physiquement cohérent} sous intervention (bon signe là où la baseline inverse). Chaque mot de la conclusion est adossé à un résultat chiffré des slides précédentes ; c'est ce qui la rend solide.
+
+\bloc{À retenir}
+Les trois piliers à réciter : \textbf{gain} ($-40\,\%$), \textbf{robustesse} (inter-GCM $-30\,\%$), \textbf{cohérence} ($Q_{\mathrm{int}}$, bon signe). Et l'horizon : un downscaling fiable pour les régions qui en ont le plus besoin.
+
+% ==================================================================
+\section*{Annexe --- Lexique minute (à relire la veille)}
+\addcontentsline{toc}{section}{Annexe --- Lexique minute}
+% ==================================================================
+
+\begin{description}[style=nextline,nosep]
+  \item[GCM] Modèle climatique global : simule toute la planète, cases $\sim$100--250~km, horizons jusqu'à 2100.
+  \item[RCM] Modèle climatique régional : même physique sur une région, 10--50~km, très coûteux (928 c\oe urs / scénario).
+  \item[Downscaling] Passer d'une carte grossière à une carte fine (ici facteur $\sim$50), en apprenant la correspondance sur le passé.
+  \item[OOD (hors distribution)] Conditions jamais vues à l'entraînement, ex. un climat plus chaud. Le c\oe ur du problème.
+  \item[Confondant] Cause commune cachée qui crée une fausse association (l'anticyclone rend les jours chauds \emph{et} secs).
+  \item[SCM / DAG] Modèle causal structurel : $V_i=f_i(\mathrm{Pa}(V_i),U_i)$ ; le DAG est le graphe orienté sans boucle des relations cause$\to$effet.
+  \item[\Adag{}] La matrice du graphe appris : la case $(j,i)$ $=$ force de l'influence de $j$ sur $i$. Sa ligne $i$ sélectionne les parents de $i$.
+  \item[$\mathrm{do}(X=x)$] Intervention : forcer $X$ à la valeur $x$ en le coupant de ses causes ; répond à « que se passe-t-il si on \emph{agit} ? ».
+  \item[DAGMA] Méthode qui rend la contrainte « pas de boucle » différentiable, donc apprenable par descente de gradient ($\mathcal{L}_{\mathrm{dag}}$).
+  \item[RCN] Réseau causal récurrent : propage l'information le long des arêtes de \Adag{} sur 8 pas de temps. \emph{Une seule} boucle, la temporelle ; le batch est vectorisé, pas bouclé.
+  \item[Diffusion (EDM)] Modèle génératif : part d'un bruit pur et le débruite pas à pas vers une image réaliste ; le hasard du bruit donne des scénarios différents.
+  \item[Two-stage] Découpage régression (moyenne \muHR{}) $+$ diffusion (résidu $\widehat{\delta}$) ; stabilise l'entraînement et, chez nous, \emph{force} le passage causal.
+  \item[Baseline] Interpolation bilinéaire de la pluie grossière ; point de départ neutre. Sert au \emph{Stage 2} (canal concaténé $+$ terme de la reconstruction), pas au Stage 1.
+  \item[$\widehat{x}_{\HR}=\text{baseline}+\muHR+\widehat{\delta}$] La sortie finale : situer $+$ structurer (causal) $+$ texturer (diffusion).
+  \item[Époque] Un passage complet sur les données d'entraînement. Stage 1 : 15 ; Stage 2 : 200 ; $\sim$45~h sur Google Colab.
+  \item[CRPS] Score d'erreur des prévisions probabilistes (distribution contre observation) ; plus bas $=$ mieux. En distribution : 0,249 vs 0,415 ($-40\,\%$).
+  \item[Spread-skill] Dispersion de l'ensemble $/$ erreur réelle ; 1 $=$ incertitude honnête, $\ll 1$ $=$ trop confiant. $0{,}20\to0{,}69$.
+  \item[RAPSD] Spectre spatial de l'image : vérifie que la « texture » (granularité) est réaliste. Distance $\div 450$ vs \CorrDiff{}.
+  \item[RX1day] Maximum annuel de pluie en un jour, l'indice des inondations. Biais $-4{,}1\to-2{,}7$~mm.
+  \item[Période de retour] Rareté d'un événement (« 100 ans » $=$ 1\,\% par an). La baseline \emph{sature} sur les extrêmes rares.
+  \item[Inter-GCM] Entraîner sur un GCM, tester sur d'autres : répétition générale du déplacement de distribution.
+  \item[Ablation] Retirer/remplacer un composant pour mesurer sa contribution réelle. Décomposition : 84\,\% two-stage, 16\,\% DAG fin.
+  \item[O3 (ratio 0{,}87)] Preuve que l'information passe \emph{obligatoirement} par le graphe : $\Delta_{O3}/\mathrm{MSE}(\Adag)$. Proche de 1 $=$ graphe indispensable.
+  \item[$Q_{\mathrm{int}}$] Test d'intervention : le \emph{signe} de la réponse à $+\Delta t$ est physiquement correct ($+$ pour \Oracle{}, $-$ pour la baseline).
+  \item[$Q_{\mathrm{phys}}$] Fidélité du graphe appris à la physique attendue (0,40 à 6 n\oe uds ; $\approx$1,0 à 9 n\oe uds). \emph{Structurellement causal} $\ne$ \emph{identifié}.
+\end{description}
+
+\end{document}

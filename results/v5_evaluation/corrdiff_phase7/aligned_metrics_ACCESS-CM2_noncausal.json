@@ -1,0 +1,35 @@
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "noncausal",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 34.35296219306223,
+    "cdd_truth": 12.837951785521243,
+    "cdd_bias": 21.51501040754099,
+    "rx1day_pred": 51.86095552444193,
+    "rx1day_truth": 55.9497984744962,
+    "rx1day_bias": -4.088842950054271,
+    "r10day_pred": 31.57090424840847,
+    "r10day_truth": 28.917565285176043,
+    "r10day_bias": 2.6533389632324287,
+    "DJF_rainfall_pred": 3.5413578303494946,
+    "DJF_rainfall_truth": 3.6332576756760697,
+    "DJF_rainfall_bias": -0.09189984532657514,
+    "JJA_rainfall_pred": 3.425986351459392,
+    "JJA_rainfall_truth": 3.5249021729174306,
+    "JJA_rainfall_bias": -0.09891582145803879
+  },
+  "psd_distance": 0.446777971655718,
+  "schema_version": "legacy-pre-K1",
+  "valid_for_analysis": false,
+  "tombstone_reason": "K1 audit: causal_concat=True applied to both Oracle and CorrDiff sampling. K30 audit: V5-mini ran only 10/200 epochs. J29 audit: cfg_scale silently ignored. See path_c_plus/HYPERPLAN.md section 'ALERTE METHODOLOGIQUE MAJEURE'.",
+  "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py"
+}

@@ -1,0 +1,192 @@
+{
+  "Q_phys": 0.4,
+  "n_physical_edges": 5,
+  "n_correct_sign": 2,
+  "n_extra_learned_above_0.05": 7,
+  "G_phys": [
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  ],
+  "A_learned": [
+    [
+      0.0,
+      0.1789206862449646,
+      -3.563564314390533e-05,
+      6.472357199527323e-05,
+      2.4867276806617156e-05,
+      -2.0200714061502367e-05
+    ],
+    [
+      0.17942029237747192,
+      0.0,
+      0.17914772033691406,
+      -2.720661177590955e-05,
+      4.01351189793786e-06,
+      -2.0203662643325515e-05
+    ],
+    [
+      -5.6699216656852514e-05,
+      0.17815406620502472,
+      0.0,
+      0.1777765303850174,
+      2.8708320314763114e-05,
+      -4.4075659388909116e-05
+    ],
+    [
+      2.1269543140078895e-05,
+      -2.999694970640121e-06,
+      0.1785557121038437,
+      0.0,
+      0.17807680368423462,
+      6.888878488098271e-06
+    ],
+    [
+      3.7712313769588945e-06,
+      4.025934322271496e-05,
+      -4.4859600166091695e-05,
+      0.17853592336177826,
+      0.0,
+      -3.2507181458640844e-05
+    ],
+    [
+      0.18930427730083466,
+      -6.925812158442568e-06,
+      1.1343300911903498e-06,
+      1.0719092642830219e-05,
+      3.861028380924836e-05,
+      0.0
+    ]
+  ],
+  "var_labels": [
+    "GP850_spat",
+    "GP850->GP500",
+    "GP500_spat",
+    "GP500->GP250",
+    "GP250_spat",
+    "SP_HR"
+  ],
+  "path_specific_effects": [
+    {
+      "src": "SP_HR",
+      "tgt": "GP850_spat",
+      "edge_strength": 0.18930427730083466,
+      "pse_magnitude": 0.040714848786592484,
+      "pse_mean": -0.0017971786437556148,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP850->GP500",
+      "tgt": "GP850_spat",
+      "edge_strength": 0.17942029237747192,
+      "pse_magnitude": 0.04233739152550697,
+      "pse_mean": -0.0014348033582791686,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP850->GP500",
+      "tgt": "GP500_spat",
+      "edge_strength": 0.17914772033691406,
+      "pse_magnitude": 0.04131876677274704,
+      "pse_mean": -0.0013067007530480623,
+      "is_physical_edge": true
+    },
+    {
+      "src": "GP850_spat",
+      "tgt": "GP850->GP500",
+      "edge_strength": 0.1789206862449646,
+      "pse_magnitude": 0.04031490534543991,
+      "pse_mean": -0.001644784351810813,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP500->GP250",
+      "tgt": "GP500_spat",
+      "edge_strength": 0.1785557121038437,
+      "pse_magnitude": 0.0423879511654377,
+      "pse_mean": 4.473431908991188e-05,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP250_spat",
+      "tgt": "GP500->GP250",
+      "edge_strength": 0.17853592336177826,
+      "pse_magnitude": 0.04017225652933121,
+      "pse_mean": 0.0006975430878810585,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP500_spat",
+      "tgt": "GP850->GP500",
+      "edge_strength": 0.17815406620502472,
+      "pse_magnitude": 0.04290033131837845,
+      "pse_mean": -0.001468484872020781,
+      "is_physical_edge": false
+    },
+    {
+      "src": "GP500->GP250",
+      "tgt": "GP250_spat",
+      "edge_strength": 0.17807680368423462,
+      "pse_magnitude": 0.04038195684552193,
+      "pse_mean": -0.0010433326242491603,
+      "is_physical_edge": true
+    },
+    {
+      "src": "GP500_spat",
+      "tgt": "GP500->GP250",
+      "edge_strength": 0.1777765303850174,
+      "pse_magnitude": 0.040923330932855606,
+      "pse_mean": -0.001491743721999228,
+      "is_physical_edge": false
+    }
+  ],
+  "schema_version": "legacy-pre-K1",
+  "valid_for_analysis": false,
+  "tombstone_reason": "K1 audit: causal_concat=True applied to both Oracle and CorrDiff sampling. K30 audit: V5-mini ran only 10/200 epochs. J29 audit: cfg_scale silently ignored. See path_c_plus/HYPERPLAN.md section 'ALERTE METHODOLOGIQUE MAJEURE'.",
+  "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py"
+}

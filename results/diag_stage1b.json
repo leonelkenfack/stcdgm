@@ -1,0 +1,141 @@
+{
+  "measured": {
+    "oracle_f1p99": 0.5123,
+    "corrdiff_f1p99": 0.5504
+  },
+  "grid": [
+    {
+      "sigma_px": 0,
+      "scale_km": 0,
+      "alpha": 1.0,
+      "f1": 1.0
+    },
+    {
+      "sigma_px": 0,
+      "scale_km": 0,
+      "alpha": 0.88,
+      "f1": 0.956041596342356
+    },
+    {
+      "sigma_px": 0,
+      "scale_km": 0,
+      "alpha": 0.6,
+      "f1": 0.8515804881625456
+    },
+    {
+      "sigma_px": 1,
+      "scale_km": 12,
+      "alpha": 1.0,
+      "f1": 0.8902439748434074
+    },
+    {
+      "sigma_px": 1,
+      "scale_km": 12,
+      "alpha": 0.88,
+      "f1": 0.8655156182694846
+    },
+    {
+      "sigma_px": 1,
+      "scale_km": 12,
+      "alpha": 0.6,
+      "f1": 0.7929657187721659
+    },
+    {
+      "sigma_px": 2,
+      "scale_km": 24,
+      "alpha": 1.0,
+      "f1": 0.769894877982407
+    },
+    {
+      "sigma_px": 2,
+      "scale_km": 24,
+      "alpha": 0.88,
+      "f1": 0.7543780674321455
+    },
+    {
+      "sigma_px": 2,
+      "scale_km": 24,
+      "alpha": 0.6,
+      "f1": 0.713861557748936
+    },
+    {
+      "sigma_px": 3,
+      "scale_km": 36,
+      "alpha": 1.0,
+      "f1": 0.6831282794804785
+    },
+    {
+      "sigma_px": 3,
+      "scale_km": 36,
+      "alpha": 0.88,
+      "f1": 0.67563890045337
+    },
+    {
+      "sigma_px": 3,
+      "scale_km": 36,
+      "alpha": 0.6,
+      "f1": 0.657224920492507
+    },
+    {
+      "sigma_px": 4,
+      "scale_km": 48,
+      "alpha": 1.0,
+      "f1": 0.6156470656268258
+    },
+    {
+      "sigma_px": 4,
+      "scale_km": 48,
+      "alpha": 0.88,
+      "f1": 0.6157714001120588
+    },
+    {
+      "sigma_px": 4,
+      "scale_km": 48,
+      "alpha": 0.6,
+      "f1": 0.615682800307093
+    },
+    {
+      "sigma_px": 6,
+      "scale_km": 72,
+      "alpha": 1.0,
+      "f1": 0.5104860980542819
+    },
+    {
+      "sigma_px": 6,
+      "scale_km": 72,
+      "alpha": 0.88,
+      "f1": 0.5242614915704721
+    },
+    {
+      "sigma_px": 6,
+      "scale_km": 72,
+      "alpha": 0.6,
+      "f1": 0.5558094492871891
+    },
+    {
+      "sigma_px": 8,
+      "scale_km": 96,
+      "alpha": 1.0,
+      "f1": 0.42488192294411314
+    },
+    {
+      "sigma_px": 8,
+      "scale_km": 96,
+      "alpha": 0.88,
+      "f1": 0.4506221381472522
+    },
+    {
+      "sigma_px": 8,
+      "scale_km": 96,
+      "alpha": 0.6,
+      "f1": 0.508860977193526
+    }
+  ],
+  "var_frac_below_96km": 0.04797518346513728,
+  "var_frac_below_48km": 0.010059303145287067,
+  "var_frac_below_24km": 0.00010995383852005588,
+  "var_frac_below_12km": 0.0,
+  "cdd_pixels_cond_mean_below_1mm": 0.0,
+  "cdd_p_wet_p10": 0.29975,
+  "cdd_cond_mean_p10": 2.058786185050011
+}

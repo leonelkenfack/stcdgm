@@ -1,0 +1,7 @@
+\babel@toc {french}{}\relax 
+\beamer@sectionintoc {1}{Contexte et problématique}{3}{0}{1}
+\beamer@sectionintoc {2}{État de l'art}{10}{0}{2}
+\beamer@sectionintoc {3}{Proposition : \textsc {Oracle}{}}{15}{0}{3}
+\beamer@sectionintoc {4}{Matériels et méthodes}{25}{0}{4}
+\beamer@sectionintoc {5}{Résultats}{30}{0}{5}
+\beamer@sectionintoc {6}{Discussion et conclusion}{38}{0}{6}

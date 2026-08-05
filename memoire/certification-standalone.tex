@@ -1,0 +1,30 @@
+% =============================================================
+% PAGE DE CERTIFICATION — BUILD AUTONOME (hors mémoire)
+% Style : template officiel UDs, MÊME préambule que le mémoire
+% (defs-and-imports.tex -> Template-Style/main-style).
+% La page elle-même n'est PAS dupliquée ici : elle est incluse depuis
+% My-Thesis/other-pages/certification.tex, donc les deux restent
+% synchronisées si le texte est modifié.
+% Compiler DEPUIS memoire/ : pdflatex certification-standalone.tex
+% =============================================================
+
+% Préambule du mémoire (classe memoir + styles du template)
+\input{defs-and-imports.tex}
+
+\begin{document}
+
+\timesContentFontSize
+\normalfont
+\pagestyle{empty}
+% memoir impose son propre style aux pages de chapitre : on l'aligne sur empty
+% pour qu'aucun numéro de page n'apparaisse sur ce document d'une seule page.
+\aliaspagestyle{chapter}{empty}
+
+% \cleardoublepage et \addcontentsline de la page incluse sont neutralisés :
+% pas de table des matières ni de page paire à combler en build autonome.
+\renewcommand{\cleardoublepage}{}
+\renewcommand{\addcontentsline}[3]{}
+
+\input{My-Thesis/other-pages/certification.tex}
+
+\end{document}

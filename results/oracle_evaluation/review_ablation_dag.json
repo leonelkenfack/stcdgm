@@ -1,0 +1,52 @@
+{
+  "protocol": {
+    "n_times": 40,
+    "K": 8,
+    "n_steps": 14,
+    "space": "mm/day (expm1 of log1p)",
+    "gcm": "ACCESS-CM2 (ID)"
+  },
+  "variants": {
+    "oracle_normal": {
+      "crps_mm": 0.5080105751177718,
+      "crps_ss": 0.8341218076901875,
+      "spread_skill_ratio": 0.25520651695993685,
+      "rmse_mm": 1.8213435682619878,
+      "rank_chi2": 875380.3389177602,
+      "n_times": 40,
+      "K": 8
+    },
+    "oracle_random": {
+      "crps_mm": 0.5291905809644751,
+      "crps_ss": 0.8272060046438673,
+      "spread_skill_ratio": 0.2502089012324908,
+      "rmse_mm": 1.8673943524147747,
+      "rank_chi2": 1033087.0213979472,
+      "n_times": 40,
+      "K": 8
+    },
+    "oracle_zero": {
+      "crps_mm": 0.5216387034084312,
+      "crps_ss": 0.8296718820466186,
+      "spread_skill_ratio": 0.25030581241131766,
+      "rmse_mm": 1.8597112891258165,
+      "rank_chi2": 950246.4490190983,
+      "n_times": 40,
+      "K": 8
+    },
+    "noncausal": {
+      "crps_mm": 0.5922895079118229,
+      "crps_ss": 0.8066026226448046,
+      "spread_skill_ratio": 0.232013127878442,
+      "rmse_mm": 2.1093352603374362,
+      "rank_chi2": 1400595.6153582563,
+      "n_times": 40,
+      "K": 8
+    }
+  },
+  "deltas": {
+    "two_stage_causal_dCRPS_mm": 0.07065080450339167,
+    "learned_topology_dCRPS_mm": 0.02118000584670332,
+    "O3_dCRPS_mm": 0.013628128290659403
+  }
+}

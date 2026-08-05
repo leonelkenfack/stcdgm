@@ -1,0 +1,43 @@
+% =============================================================
+% My-Thesis-mini.tex --- Version courte : garde + intro + chapitres + conclusion
+% (sans Certification, Remerciements, TOC/LoF/LoT, Résumé/Abstract, Annexes, Bibliographie)
+% =============================================================
+
+\input{defs-and-imports.tex}
+
+\begin{document}
+
+% --- Page de garde uniquement ---
+\pagenumbering{roman}
+\input{My-Thesis/other-pages/titlepage.tex}
+
+\cleardoublepage
+
+% --- Corps en chiffres arabes ---
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% --- Introduction générale ---
+\input{My-Thesis/Introduction/Introduction.tex}
+\cleardoublepage
+
+% --- Chapitres ---
+\input{My-Thesis/Chap1/Chap1.tex}
+\cleardoublepage
+\input{My-Thesis/Chap2/Chap2.tex}
+\cleardoublepage
+\input{My-Thesis/Chap3/Chap3.tex}
+\cleardoublepage
+\input{My-Thesis/Chap4/Chap4.tex}
+\cleardoublepage
+
+% --- Conclusion + Perspectives ---
+\input{My-Thesis/Conclusion/Conclusion.tex}
+
+% --- Bibliographie chargée dans un vbox jeté ---
+% Permet de résoudre les \cite (écriture dans .aux) sans imprimer la biblio.
+\setbox0=\vbox{%
+  \input{My-Thesis/Appendices/bibliography_block.tex}%
+}
+
+\end{document}

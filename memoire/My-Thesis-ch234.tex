@@ -1,0 +1,35 @@
+% =============================================================
+% My-Thesis-ch234.tex --- Chapitres 2, 3 et 4 uniquement
+% =============================================================
+
+\input{defs-and-imports.tex}
+
+% --- Labels manquants (renvoient vers Chap1 et Annexes, non inclus) ---
+\makeatletter
+\expandafter\gdef\csname r@sec:classiques\endcsname{{I.4}{?}{}{}{}}
+\expandafter\gdef\csname r@fig:exp-extreme-bias-oracle\endcsname{{14}{?}{}{}{}}
+\makeatother
+
+\begin{document}
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\setcounter{chapter}{1}  % Chap 2 = II
+
+% --- Chapitre 2 ---
+\input{My-Thesis/Chap2/Chap2.tex}
+\cleardoublepage
+
+% --- Chapitre 3 ---
+\input{My-Thesis/Chap3/Chap3.tex}
+\cleardoublepage
+
+% --- Chapitre 4 ---
+\input{My-Thesis/Chap4/Chap4.tex}
+
+% --- Bibliographie chargée dans un vbox jeté ---
+\setbox0=\vbox{%
+  \input{My-Thesis/Appendices/bibliography_block.tex}%
+}
+
+\end{document}

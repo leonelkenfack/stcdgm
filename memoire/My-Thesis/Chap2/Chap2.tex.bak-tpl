@@ -1,0 +1,410 @@
+\chapter{État de l'art du downscaling par apprentissage profond}
+% Marque courte pour l'en-tete : le titre complet touchait le numero de page
+\chaptermark{État de l'art du downscaling profond}
+\label{chap:etatdelart}
+
+\begin{sommairebox}
+\small
+\noindent II.1 \ Introduction \dotfill \pageref{sec:soa-intro}\\
+\noindent II.2 \ Approches déterministes \dotfill \pageref{sec:soa-det}\\
+\noindent II.3 \ Approches probabilistes adversariales \dotfill \pageref{sec:soa-adv}\\
+\noindent II.4 \ Approches à vraisemblance explicite \dotfill \pageref{sec:soa-vrai}\\
+\noindent II.5 \ Modèles de diffusion \dotfill \pageref{sec:soa-diff}\\
+\noindent II.6 \ Le paradigme à deux étages : CorrDiff \dotfill \pageref{sec:soa-corrdiff}\\
+\noindent II.7 \ Fonctions de perte et contraintes physiques \dotfill \pageref{sec:soa-pertes}\\
+\noindent II.8 \ Cadres d'évaluation et foundation models \dotfill \pageref{sec:soa-benchmarks}\\
+\noindent II.9 \ Synthèse, tableau comparatif et gap scientifique \dotfill \pageref{sec:soa-synthese}
+\end{sommairebox}
+
+\vspace{1.5em}
+
+% =============================================================
+\section{Introduction}
+\label{sec:soa-intro}
+% =============================================================
+
+Le chapitre précédent a identifié un trilemme pour le downscaling climatique génératif (section~I.7) : stabilité d'entraînement, réalisme des extrêmes et robustesse sous changement de distribution apparaissent inconciliables dans les approches existantes. Le présent chapitre confronte cette analyse au paysage effectif de la littérature, des CNN déterministes aux modèles de diffusion à deux étages. Nous abordons successivement les approches déterministes (section~\ref{sec:soa-det}), adversariales (section~\ref{sec:soa-adv}), à vraisemblance explicite (section~\ref{sec:soa-vrai}) et de diffusion (section~\ref{sec:soa-diff}), avant de détailler le paradigme \CorrDiff{} (section~\ref{sec:soa-corrdiff}) dont notre proposition est la causalisation. Pertes (section~\ref{sec:soa-pertes}) et cadres d'évaluation (section~\ref{sec:soa-benchmarks}) complètent la revue ; la synthèse (section~\ref{sec:soa-synthese}) identifie le gap qui motive notre contribution.
+
+\begin{figure}[ht]
+  \centering
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    yscale=1.0, xscale=1.0,
+    timearrow/.style={-{Stealth[length=3mm]}, very thick, uridarkblue},
+    tick/.style={uridarkblue, thick},
+    year/.style={font=\scriptsize\bfseries, text=uridarkblue, anchor=north},
+    detlabel/.style={font=\scriptsize, anchor=south, text=urigray, align=center,
+                     rectangle, draw=urigray!50, fill=urigray!8, rounded corners=2pt,
+                     inner sep=3pt, minimum height=8mm, minimum width=18mm},
+    genlabel/.style={font=\scriptsize, anchor=south, text=uriaccent!85!black, align=center,
+                     rectangle, draw=uriaccent!60, fill=uriaccent!10, rounded corners=2pt,
+                     inner sep=3pt, minimum height=8mm, minimum width=18mm},
+    oraclebox/.style={font=\small\bfseries, anchor=center, text=white, align=center,
+                      rectangle, draw=uriaccent, fill=uriaccent, rounded corners=2pt,
+                      inner sep=4pt, minimum height=10mm, minimum width=22mm, very thick},
+    paradigm/.style={font=\scriptsize\itshape, align=center},
+    connector/.style={urigray!60, thin, dotted},
+  ]
+    % [Timeline arrow]
+    \draw[timearrow] (-0.5, 0) -- (16.5, 0);
+
+    % [Year ticks]
+    \foreach \x/\y in {0/2014, 2/2017, 4/2020, 6/2022, 8/2023, 10/2024, 12/2025, 14.5/2026} {
+      \draw[tick] (\x, 0.15) -- (\x, -0.15);
+      \node[year] at (\x, -0.25) {\y};
+    }
+
+    % [Upper row : génératif principal]
+    \node[detlabel] (srcnn)    at (0,  1.2) {\textbf{SRCNN}\\ Dong'14};
+    \node[detlabel] (deepsd)   at (2,  1.2) {\textbf{DeepSD}\\ Vandal'17};
+    \node[genlabel] (ddpm)     at (4,  1.2) {\textbf{DDPM}\\ Ho'20};
+    \node[genlabel] (edm)      at (6,  1.2) {\textbf{EDM}\\ Karras'22};
+    \node[genlabel] (corrdiff) at (8,  1.2) {\textbf{CorrDiff}\\ Mardani'23};
+    \node[genlabel] (gencast)  at (10, 1.2) {\textbf{GenCast}\\ Price'24};
+
+    % [Lower row : en parallèle, en-dessous]
+    \node[genlabel] (sr3)    at (6,  -1.8) {\textbf{SR3}\\ Saharia'22};
+    \node[genlabel] (climax) at (8,  -1.8) {\textbf{ClimaX}\\ Nguyen'23};
+    \node[genlabel] (rampal) at (10, -1.8) {\textbf{cGAN-NZ}\\ Rampal'24};
+
+    % [Oracle : en-dessous à droite, accent fort]
+    \node[oraclebox] (oracle) at (14.5, -1.8) {\Oracle{}\\ \scriptsize ce mémoire};
+
+    % [Connectors année <-> labels]
+    \foreach \x in {0, 2, 4, 6, 8, 10} {
+      \draw[connector] (\x, 0.15) -- (\x, 0.75);
+    }
+    \foreach \x in {6, 8, 10, 14.5} {
+      \draw[connector] (\x, -0.15) -- (\x, -1.35);
+    }
+
+    % [Paradigms : bandes sous l'axe]
+    \draw[urigray!60, line width=4pt] (-0.5, -3.2) -- (3, -3.2);
+    \node[paradigm, text=urigray, below=2pt] at (1.25, -3.2) {\textbf{Déterministe}};
+
+    \draw[uriaccent!60, line width=4pt] (3, -3.2) -- (12, -3.2);
+    \node[paradigm, text=uriaccent, below=2pt] at (7.5, -3.2) {\textbf{Génératif (single-stage puis two-stage)}};
+
+    \draw[uridarkblue, line width=4pt] (12, -3.2) -- (16.5, -3.2);
+    \node[paradigm, text=uridarkblue, below=2pt] at (14.25, -3.2) {\textbf{Two-stage causal}};
+  \end{tikzpicture}%
+  }
+  \caption[Frise chronologique du downscaling]{Frise chronologique des principales contributions du downscaling climatique profond. Le glissement progressif du paradigme déterministe (gris) vers le paradigme génératif (rouge) puis vers le two-stage causal (bleu) est visible à partir de 2020. \Oracle{} se positionne comme aboutissement causal du paradigme à deux étages.}
+  \label{fig:frise}
+\end{figure}
+
+La figure~\ref{fig:frise} situe chronologiquement les contributions examinées : glissement déterministe $\to$ génératif à partir de 2020, accélération après 2022 sous l'effet conjoint des modèles de diffusion et de la maturation des GCM haute résolution.
+
+% =============================================================
+\section{Approches déterministes}
+\label{sec:soa-det}
+% =============================================================
+
+\subsection{Régression statistique classique}
+\label{ssec:soa-reg-classique}
+
+Les approches statistiques de première génération (régression linéaire, BC, QM) présentées au chapitre~I (section~\ref{sec:classiques}) souffrent de trois limites structurelles : hypothèse de stationnarité difficile à défendre sous changement climatique, absence de cohérence spatiale (traitement pixel par pixel), absence de calibration probabiliste. C'est ce qui motive le passage aux méthodes d'apprentissage non-linéaires et structurées spatialement.
+
+\subsection{Réseaux convolutifs et super-résolution}
+\label{ssec:soa-cnn}
+
+L'application des CNN au downscaling s'inspire des architectures de super-résolution d'image. \textbf{DeepSD}~\cite{vandal_deepsd_2017} est l'une des premières architectures CNN dédiées au downscaling de la précipitation, par empilement de convolutions à champ réceptif croissant. Le \textbf{U-Net}~\cite{ronneberger_unet_2015} a connu une adoption massive, particulièrement sous sa forme conditionnée par des champs de surface (élévation). Ces approches partagent une limite décisive : produisant une unique sortie HR par entrée, elles approximent la moyenne conditionnelle de la distribution cible. Pour la précipitation à queue lourde, cette moyenne est biaisée à la baisse aux valeurs élevées, d'où le lissage des extrêmes documenté dans la littérature.
+
+La période 2021--2023 a vu émerger des architectures plus sophistiquées qui partagent la même limite probabiliste : opérateurs neuronaux de Fourier (FNO) prometteurs en prévision globale mais expérimentaux en downscaling régional, et Transformers de vision (SwinIR, PrecipFormer) exploitant l'attention. Toutes conservent la limite fondamentale du déterminisme : pas de distribution conditionnelle calibrée, donc le verrou « réalisme des extrêmes » reste non adressé.
+
+% =============================================================
+\section{Approches probabilistes adversariales}
+\label{sec:soa-adv}
+% =============================================================
+
+\subsection{Réseaux antagonistes génératifs conditionnels}
+\label{ssec:soa-cgan}
+
+Le glissement vers le probabiliste a d'abord été opéré par les \textbf{réseaux antagonistes génératifs} (GAN)~\cite{goodfellow_gan_2014} et leur variante conditionnelle (cGAN)~\cite{mirza_cgan_2014}. Un générateur $G$ transforme un bruit $z \sim \mathcal{N}(0,I)$ et un conditionnement $\yLR$ en échantillon plausible $\hat{x}_{\HR} = G(\yLR, z)$ ; un discriminateur $D$ apprend à distinguer vrais et faux. L'entraînement min-max alterne ces objectifs opposés. Appliqué au downscaling, le cGAN promet un ensemble d'échantillons HR plausibles permettant en principe d'estimer la variabilité prédictive et la distribution des extrêmes.
+
+\subsection{cGAN résiduel pour le downscaling climatique}
+\label{ssec:soa-rampal}
+
+Une architecture représentative est le \textbf{Residual cGAN} de Rampal et~al.~\cite{rampal_cgan_2024}, qui combine un U-Net déterministe pré-entraîné et un cGAN sur le résidu : le générateur reçoit la prédiction U-Net, l'élévation HR, le champ GCM et un bruit, et produit une carte résiduelle additionnée à la prédiction déterministe. L'application à la Nouvelle-Zélande (CMIP6 ACCESS-CM2) combine trois termes de coût : MSE, perte adversariale pondérée par $\lambda_{\mathrm{adv}}$, et contrainte d'intensité pénalisant la surestimation des extrêmes.
+
+D'autres travaux apparentés incluent Harris et~al.~\cite{harris_2022} (désagrégation de précipitations sur domaine européen) et Price et Rasp (prévision d'extrêmes à court terme via GAN).
+
+\subsection{Limites empiriques des cGAN appliqués au downscaling}
+\label{ssec:soa-cgan-limites}
+
+Quatre limites empiriques reviennent dans la littérature adversariale. D'abord, la \textbf{forte sensibilité à $\lambda_{\mathrm{adv}}$} : la performance sur les extrêmes décrit une courbe en cloche (un coefficient trop faible et la MSE lisse, un coefficient trop élevé et les extrêmes explosent), avec un optimum étroit qui ne transfère pas d'une région à l'autre. Vient ensuite la \textbf{sub-dispersion}. Rampal et~al.~\cite{rampal_cgan_2024} et Mardani et~al.~\cite{mardani_corrdiff_2023} rapportent $\sigma_{\mathrm{pred}}/\mathrm{RMSE} < 0{,}5$, signe d'ensembles systématiquement trop confiants. Le \textbf{mode collapse}, intrinsèque au cadre min-max, reste latent même quand il n'apparaît pas explicitement. Reste la \textbf{validité restreinte du cadre d'évaluation} : la plupart des tests utilisent des couples synthétiques RCM-LR/RCM-HR (cadre « parfait »), et la transférabilité aux conditions opérationnelles GCM brut n'est pas garantie.
+
+% =============================================================
+\section{Approches à vraisemblance explicite}
+\label{sec:soa-vrai}
+% =============================================================
+
+Les \textbf{auto-encodeurs variationnels} (VAE)~\cite{kingma_vae_2014} apprennent une représentation latente probabiliste en maximisant la borne inférieure de la log-vraisemblance (ELBO). Appliqués au downscaling, ils produisent des sorties probabilistes mais souffrent d'un excès de lissage lié à l'ELBO. Les \textbf{flots de normalisation} appliquent une séquence de transformations inversibles différentiables à un bruit gaussien et autorisent l'évaluation exacte de la vraisemblance ; leur expressivité reste cependant bornée par la contrainte d'inversibilité. Ces deux familles n'atteignent pas le niveau des GAN ou de la diffusion en downscaling climatique : leur intérêt méthodologique ne compense pas une expressivité insuffisante face aux extrêmes à queue lourde.\label{ssec:soa-vae}\label{ssec:soa-flow}\label{ssec:soa-vrai-bilan}
+
+% =============================================================
+\section{Modèles de diffusion}
+\label{sec:soa-diff}
+% =============================================================
+
+\subsection{Denoising Diffusion Probabilistic Models}
+\label{ssec:soa-ddpm}
+
+Les \textbf{Denoising Diffusion Probabilistic Models} (DDPM)~\cite{ho_ddpm_2020} définissent un processus direct qui bruite progressivement le signal selon une chaîne de Markov gaussienne $q(x_t \mid x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t}\, x_{t-1}, \beta_t I)$, puis apprennent à inverser ce processus. L'objectif simplifié se réduit à la prédiction du bruit, $\mathcal{L}_{\mathrm{simple}} = \mathbb{E}[\Vert \epsilon - \epsilon_\theta(x_t, t)\Vert^2]$, où $\epsilon_\theta$ est typiquement un U-Net. Face aux GAN, DDPM offre trois avantages pour le downscaling : entraînement stable sans déséquilibre adversarial, expressivité multimodale sans collapse, et calibration probabiliste intrinsèque.
+
+\subsection{Formalisme EDM de Karras et al.}
+\label{ssec:soa-edm}
+
+Le formalisme EDM~\cite{karras_edm_2022} reformule la diffusion dans un cadre théorique général. Sa contribution principale est un \textbf{préconditionnement systématique} de l'entrée et de la sortie via quatre fonctions $c_{\mathrm{in}}, c_{\mathrm{out}}, c_{\mathrm{noise}}, c_{\mathrm{skip}}$ dépendant de $\sigma$, qui unifie DDPM/score matching/VP/VE et stabilise l'entraînement. Le sampler de Heun à pas variable atteint une qualité comparable à DDPM avec moitié moins d'étapes. La calibration de $\sigma_{\mathrm{data}}$ (écart-type des données normalisées) est cruciale.
+
+\subsection{Premières applications au climat : SR3, ResShift, ResDiff}
+\label{ssec:soa-sr3-resdiff}
+
+\textbf{SR3} fut la première application notable de la diffusion conditionnelle à la super-résolution d'image, avant son essaimage vers le climat. \textbf{ResShift} accélère la diffusion par déplacement résiduel, avec une proximité manifeste vers le paradigme à deux étages détaillé en section~\ref{sec:soa-corrdiff}. Plusieurs évolutions récentes pourraient à terme remplacer l'étage de diffusion : \textbf{flow matching}~\cite{lipman_flow_2023}, consistency models, diffusion latente. La diffusion EDM~\cite{karras_edm_2022} demeure notre choix de référence pour trois raisons : maturité empirique en climat (retenue par CorrDiff~\cite{mardani_corrdiff_2023} et GenCast~\cite{price_gencast_2024}), stabilité d'entraînement (préconditionnement systématique $c_{\mathrm{in}}, c_{\mathrm{out}}, c_{\mathrm{skip}}, c_{\mathrm{noise}}$), et efficacité d'échantillonnage (solveur de Heun à 20--50 pas contre $\sim$1000 pour DDPM).\label{ssec:soa-flow-matching}
+
+% =============================================================
+\section{Le paradigme à deux étages : \texorpdfstring{\mbox{CorrDiff}}{CorrDiff}}
+\label{sec:soa-corrdiff}
+% =============================================================
+
+\subsection{Idée fondatrice}
+\label{ssec:soa-corrdiff-idee}
+
+Le modèle \CorrDiff{} (\emph{Corrective Diffusion}) de Mardani et~al.~\cite{mardani_corrdiff_2023} (NVIDIA Research) propose un paradigme à deux étages dont la décomposition formelle est :
+\begin{equation}
+  \xHR \;=\; \mathrm{baseline}_{\LR \uparrow} \;+\; \muHR\!\left(\yLR, s_{\HR}\right) \;+\; \delta\!\left(\,\cdot\,\right),
+  \label{eq:corrdiff}
+\end{equation}
+où $\mathrm{baseline}_{\LR \uparrow}$ désigne un sur-échantillonnage bilinéaire, $\muHR$ la moyenne HR apprise par régression déterministe, et $\delta$ un résiduel stochastique échantillonné par diffusion conditionnée sur $\muHR$ et $\yLR$. L'application visée est le downscaling kilométrique de sorties GCM avec un facteur de réduction de 25 à 50, le terrain initial étant Taïwan.
+
+\subsection{Architecture détaillée}
+\label{ssec:soa-corrdiff-archi}
+
+Le premier étage est un U-Net classique entraîné par MSE entre $\muHR$ et la cible HR. Le second est un U-Net de diffusion EDM entraîné à prédire $\delta = \xHR - (\mathrm{baseline}_{\LR \uparrow} + \muHR)$ conditionnellement à $\muHR$ et $\yLR$, avec échantillonnage de Heun à 20--50 pas.
+
+\begin{figure}[ht]
+  \centering
+  \hspace*{-0.14\linewidth}%
+  \includegraphics[width=1.28\linewidth]{../results/literature_figures/mardani_corrdiff_fig2.png}
+  \caption[Architecture UNet hiérarchique de CorrDiff]{Architecture UNet hiérarchique de \CorrDiff{} (Mardani et~al.~\cite{mardani_corrdiff_2023}, Fig.~S1), partagée par les deux étages. Encodeur--décodeur à quatre niveaux ($448^2 \to 28^2$), blocs résiduels, attention auto-référentielle dans les niveaux profonds, embedding temporel $t$ pour le second étage. Le premier étage de régression réutilise la même topologie sans embedding temporel.}
+  \label{fig:corrdiff-archi}
+\end{figure}
+
+\subsection{Forces du paradigme à deux étages}
+\label{ssec:soa-corrdiff-forces}
+
+Ce paradigme accumule trois forces structurelles. La \textbf{stabilité d'entraînement} d'abord : la régression déterministe converge sans difficulté et la diffusion du second étage opère sur des résidus dont la distribution se rapproche d'une gaussienne. La \textbf{calibration probabiliste explicite} ensuite : la variance est contrôlée par le second étage, sans dépendre d'un équilibre adversarial. L'\textbf{efficacité computationnelle} enfin : l'échantillonnage par diffusion ne porte que sur le résiduel, dont l'amplitude est faible.
+
+\subsection{Limites identifiées de CorrDiff}
+\label{ssec:soa-corrdiff-limites}
+
+L'examen critique fait apparaître deux limites principales. La \textbf{persistance de la sub-dispersion} : malgré la calibration explicite du second étage, CorrDiff reste sub-dispersif ($\sigma_{\mathrm{pred}}/\mathrm{RMSE}$ entre 0,3 et 0,5 selon les configurations) : la persistance est moins prononcée que chez les cGAN mais reste significative. L'\textbf{absence de structure causale explicite} : le premier étage est un U-Net générique apprenant $\muHR(\yLR, s_{\HR})$ sans contrainte sur la nature des dépendances ; rien ne distingue les associations causales (humidité de basse couche $\to$ précipitation convective) des corrélations contingentes au régime d'entraînement. CorrDiff est donc vulnérable au changement de distribution, sans garantie d'intervention.
+
+\subsection{Le piège du conditionnement par cross-attention}
+\label{ssec:soa-corrdiff-bypass}
+
+Une tentation immédiate, face à ce diagnostic, est d'ajouter un module causal en amont du U-Net et de l'injecter à l'aide d'un mécanisme de cross-attention. Notre propre cheminement a confirmé que cette voie ne tient pas. Nos premières versions, fondées sur cross-attention causale (état caché $\HT(\Adag)$ projeté dans \texttt{encoder\_hidden\_states} d'un \texttt{UNet2DConditionModel}), passaient pourtant tous les contrôles \emph{ex ante} : la matrice $\Adag$ apparaissait dans le graphe de calcul, l'entraînement convergeait, et la sortie semblait dépendre de la voie causale. L'ablation \emph{ex post} ($\Adag \leftarrow \mathbf{0}$) révélait pourtant une dépendance nulle : la prédiction ne se dégradait pas. Le U-Net, riche en skip-connections multi-niveaux, apprenait à reconstruire la cible en court-circuitant le conditionnement causal via les canaux du LR brut. La causalité était \emph{décorative} : elle apparaissait dans la loss mais pas dans la fonction apprise.
+
+Cette pathologie est structurelle, non hyperparamétrique. Tant qu'il existe un chemin de calcul entre l'entrée \LR{} et la sortie qui ne dépende pas de $\Adag$, un réseau suffisamment expressif l'empruntera, parce que la voie de bypass minimise la perte plus rapidement que la voie causale en cours d'apprentissage. Aucune régularisation \emph{a posteriori} ne corrige ce déséquilibre. La seule réponse opérante est topologique : verrouiller l'architecture pour qu'aucun chemin de bypass ne soit possible. C'est ce que réalise la décomposition deux-étages avec gel du Stage~1 et conditionnement par concaténation, retenue pour \Oracle{} (chapitre~III). Le diagnostic correspond à une distinction qui structurera tout le manuscrit : une causalité par régularisation peut toujours être contournée par un réseau expressif ; une causalité par topologie est par construction indéfaisable. Ce constat justifie le passage d'un cadre \emph{loss-as-cause} à un cadre \emph{architecture-as-cause}.
+
+\subsection{Pourquoi CorrDiff plutôt que SR3 ?}
+\label{ssec:soa-corrdiff-choix}
+
+Le baseline non-causal d'\Oracle{} aurait pu provenir d'autres travaux de diffusion résiduelle. ResDiff et CorrDiff désignent la même filiation chez Mardani et~al. ; la vraie alternative restait SR3. Trois raisons font pencher la balance vers CorrDiff. La \textbf{décomposition moyenne + résiduel} (équation~\ref{eq:corrdiff}) épouse la structure même de la statistique climatique : $\muHR$ encode le forçage-réponse, $\delta$ la variabilité fine. SR3 ne propose pas cette séparation, et c'est elle qui ouvre la voie à la causalisation. Vient ensuite le \textbf{ciblage explicite du downscaling kilométrique} : CorrDiff intègre intermittence, queue lourde et hétérogénéité de la précipitation, là où SR3 reste une méthode générique de super-résolution d'image. Reste enfin la \textbf{modularité architecturale}. L'étage~1 se substitue sans toucher à l'étage~2, ce qui nous permet précisément de remplacer le U-Net du premier étage par un module à graphe causal sans perturber la diffusion EDM.
+
+\subsection{Reformulation du paradigme deux étages dans le langage probabiliste}
+\label{ssec:soa-corrdiff-reform}
+
+Une lecture probabiliste éclaire pourquoi la décomposition $\xHR = \mathrm{baseline} + \muHR + \delta$ est plus qu'une commodité d'implémentation. En notant $\mu^{\star}(\yLR) = \mathbb{E}[\xHR \mid \yLR, s_{\HR}]$ la moyenne conditionnelle théorique et $\delta^{\star} = \xHR - \mu^{\star}(\yLR)$ son résiduel, on a par construction $\mathbb{E}[\delta^{\star} \mid \yLR, s_{\HR}] = 0$. La distribution de $\delta^{\star}$ est typiquement plus proche d'une gaussienne que celle de $\xHR$, ce qui rend l'apprentissage de diffusion mieux conditionné ; et la variance résiduelle sert d'estimateur naturel de $\sigma_{\mathrm{data}}$, hyperparamètre central d'EDM dont la calibration se fait empiriquement en fin de Stage~1.
+
+% =============================================================
+\section{Fonctions de perte et contraintes physiques}
+\label{sec:soa-pertes}
+% =============================================================
+
+\subsection{Pertes adaptées à la précipitation}
+\label{ssec:soa-pertes-precip}
+
+Au-delà de la MSE, la littérature a développé plusieurs pertes adaptées à la précipitation. Les \textbf{pertes spectrales} (FACL, \emph{Fourier Amplitude Coherence Loss}) pénalisent l'écart entre spectres de Fourier prédit et cible, préservant le contenu fréquentiel fin et corrigeant partiellement le lissage MSE. La \textbf{régularisation Wasserstein} (héritée des WGAN) remplace la divergence Jensen-Shannon implicite par une distance Wasserstein-1, plus stable et mieux comportée aux extrêmes. Les \textbf{pondérations spécifiques aux extrêmes} (\emph{focal loss}, MSE pondérée par percentiles, top-$k$) accroissent le poids des pixels à forte intensité, concentrant l'apprentissage sur les cas extrêmes.
+
+Reste un point méthodologique : combiner ces pertes n'est pas une opération additive sans conséquence. Un mélange linéaire à coefficients fixes ne fonctionne en pratique qu'au prix d'une recherche d'hyperparamètres elle-même fragile au changement de domaine. Plusieurs travaux récents proposent une pondération adaptative au cours de l'entraînement, soit par \emph{loss weighting} indexé sur la phase d'optimisation, soit par \emph{curriculum learning} progressif des seuils d'extrêmes. \Oracle{} retient une approche conservatrice : la perte du Stage~1 combine MSE et reconstruction, sans pondération spectrale ni Wasserstein. Ces deux dernières ont été évaluées en exploration ; elles n'ont pas montré de gain reproductible en présence des autres briques (contrainte DAGMA, pénalité $L_1$). Cette simplicité est défendue au chapitre suivant comme un choix de robustesse face à la fragilité empirique des pondérations multi-pertes.
+
+\subsection{Contraintes physiques et explicabilité}
+\label{ssec:soa-physics-xai}
+
+Des \textbf{contraintes physiques dures} (conservation de masse, monotonie $T_{\min} \leq T \leq T_{\max}$, positivité de la précipitation) sont imposées par construction architecturale ou projection en sortie ; elles améliorent la cohérence multivariée mais ne résolvent pas les verrous probabilistes. L'\textbf{explicabilité} (XAI) appliquée au downscaling (Grad-CAM, Integrated Gradients) révèle a posteriori les zones d'entrée influentes. Notre proposition emprunte une voie complémentaire : organiser l'architecture autour d'une structure causale apprise, apportant par construction cohérence et interprétabilité.
+
+\begin{table}[ht]
+  \centering
+  \footnotesize
+  \caption[Fonctions de perte]{Principales fonctions de perte et contraintes utilisées en downscaling climatique profond.}
+  \label{tab:pertes}
+  \begin{tabular}{p{3cm} p{3.5cm} p{5.5cm}}
+    \toprule
+    \textbf{Famille} & \textbf{Exemples} & \textbf{Cas d'usage principal} \\
+    \midrule
+    Pertes spectrales & FACL & Contenu fréquentiel fin\\
+    Adversariales régularisées & Wasserstein, WGAN-GP & Stabilisation entraînement adversarial\\
+    Pondération extrêmes & Focal, top-$k$, MSE pondérée & Pixels à forte intensité\\
+    Contraintes dures & Conservation, monotonie, positivité & Cohérence physique multivariée\\
+    Explicabilité a posteriori & Grad-CAM, Integrated Gradients & Diagnostic des dépendances\\
+    Structure causale & DAG appris, intervention & Robustesse OOD et auditabilité (notre voie)\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Le tableau~\ref{tab:pertes} récapitule ces familles.
+
+% =============================================================
+\section{Cadres d'évaluation et foundation models}
+\label{sec:soa-benchmarks}
+% =============================================================
+
+\subsection{Benchmarks standardisés}
+\label{ssec:soa-benchmarks-std}
+
+Trois benchmarks récents tentent de réduire la fragmentation des protocoles d'évaluation. \textbf{WeatherBench~2} étend le benchmark initial à la prévision météorologique pilotée par les données (RMSE, biais, ACC sur ERA5). \textbf{ClimateBench} se concentre sur la réponse à des scénarios d'émissions et l'émulation climatique. \textbf{ChaosBench} cible la prévision à grande échelle et la stabilité à long horizon. Un constat demeure : \textbf{aucun benchmark public ne couvre le downscaling probabiliste à haute résolution}, et sa construction reste un chantier ouvert.
+
+L'absence de benchmark public dédié explique en partie l'hétérogénéité des protocoles rencontrés dans la littérature : choix de domaines (Taïwan pour CorrDiff, Nouvelle-Zélande pour Rampal, États-Unis ou Europe pour les cGAN antérieurs), formulation des métriques d'extrêmes (F1 pooled vs ETCCDI per-pixel), périodes de test plus ou moins longues, et taille d'ensemble allant de $K=8$ à $K=192$. Notre choix expérimental (Nouvelle-Zélande, ACCESS-CM2 historique, ensemble $K=12$ inter-GCM) reprend largement le protocole Rampal et~al.~\cite{rampal_cgan_2024} afin d'être directement comparable à cette référence, tout en évaluant les indices ETCCDI préconisés par~\cite{zhang_etccdi_2011} pour garantir l'interopérabilité avec les diagnostics climatologiques standard.
+
+\subsection{Foundation models climat}
+\label{ssec:soa-foundation}
+
+La période 2023-2024 a vu émerger des \emph{foundation models} climat. \textbf{ClimaX}~\cite{nguyen_climax_2023} (Microsoft) est un Transformer pré-entraîné sur CMIP6, capable de prévision, projection et downscaling après fine-tuning. \textbf{GraphCast}~\cite{lam_graphcast_2023} et \textbf{GenCast}~\cite{price_gencast_2024} (Google DeepMind) sont des graph neural networks entraînés sur ERA5 qui ont dépassé plusieurs modèles physiques opérationnels. Le positionnement de notre travail est complémentaire : \Oracle{} cible le downscaling régional probabiliste, non le multi-tâche global ; la structure causale proposée pourrait à terme s'intégrer à une architecture de plus grande échelle.
+
+% =============================================================
+\section{Synthèse, tableau comparatif et gap scientifique}
+\label{sec:soa-synthese}
+% =============================================================
+
+\subsection{Tableau comparatif modèle × verrou}
+\label{ssec:soa-tableau}
+
+Le tableau~\ref{tab:modele-verrou} récapitule les approches revues selon les trois axes du trilemme (stabilité, extrêmes, robustesse OOD), complétés par deux axes propres à notre contribution (structure causale explicite, caractère génératif probabiliste).
+
+\begin{table}[ht]
+  \centering
+  \small
+  \caption[Approches du downscaling vs verrous]{Confrontation des principales approches du downscaling profond aux verrous du trilemme. Légende : \checkmark{} = bien traité, $\triangle$ = partiellement traité, $\times$ = non traité. La colonne \textbf{Causal} renvoie à l'indispensabilité structurelle (propriété~(O3)) qui sera formalisée au chapitre suivant.}
+  \label{tab:modele-verrou}
+  \begin{tabular}{l c c c c c c}
+    \toprule
+    \textbf{Approche} & \textbf{Année} & \textbf{Stabilité} & \textbf{Extrêmes} & \textbf{OOD} & \textbf{Causal} & \textbf{Génératif} \\
+    \midrule
+    DeepSD / U-Net & 2017 & \checkmark & $\times$ & $\times$ & $\times$ & $\times$ \\
+    EDSR / SRCNN & 2017 & \checkmark & $\times$ & $\times$ & $\times$ & $\times$ \\
+    FNO / SFNO & 2021-23 & \checkmark & $\triangle$ & $\triangle$ & $\times$ & $\times$ \\
+    SwinIR / PrecipFormer & 2021-23 & \checkmark & $\triangle$ & $\times$ & $\times$ & $\times$ \\
+    cGAN (Harris et al.) & 2022 & $\triangle$ & $\triangle$ & $\times$ & $\times$ & \checkmark \\
+    Residual cGAN (Rampal) & 2024 & $\triangle$ & $\triangle$ & $\times$ & $\times$ & \checkmark \\
+    VAE downscaling & 2022 & \checkmark & $\times$ & $\times$ & $\times$ & \checkmark \\
+    Normalizing Flow & 2020 & \checkmark & $\triangle$ & $\times$ & $\times$ & \checkmark \\
+    DDPM / EDM brut & 2020-22 & \checkmark & \checkmark & $\triangle$ & $\times$ & \checkmark \\
+    SR3 / ResShift & 2022-23 & \checkmark & $\triangle$ & $\triangle$ & $\times$ & \checkmark \\
+    \textbf{CorrDiff (Mardani)} & 2023 & \checkmark & $\triangle$ & $\triangle$ & $\times$ & \checkmark \\
+    ClimaX (foundation) & 2023 & \checkmark & $\triangle$ & $\triangle$ & $\times$ & $\triangle$ \\
+    \midrule
+    \textbf{\Oracle{} (proposé)} & 2026 & \checkmark & $\triangle$ & $\triangle$ & \checkmark & \checkmark \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\emph{Note sur \Oracle{}.} La colonne « Causal » est attribuée à \Oracle{} au titre de la propriété (O3) : architecturalement, la sortie ne peut pas contourner la matrice $\Adag$ apprise. Les triangles partiels en « Extrêmes » et « OOD » reflètent honnêtement les limites mesurées : RX1day mieux placé que la baseline mais F1@p99 régresse ; gain CRPS en inter-GCM historique mais pas de test sur scénario futur. Le détail est discuté au Chapitre~IV.
+
+\subsection{Gap scientifique}
+\label{ssec:soa-gap}
+
+Le tableau~\ref{tab:modele-verrou} fait apparaître un constat structurant : \textbf{aucune des approches revues ne résout simultanément les trois axes du trilemme}. Les plus stables (U-Net, DDPM, EDM brut) ne garantissent pas la robustesse hors-distribution. Les plus probabilistes (CorrDiff, cGAN résiduel) restent sub-dispersives sur les extrêmes. Les plus expressives (cGAN) butent sur l'instabilité d'entraînement. Et aucune n'intègre par construction de structure causale explicite : c'est précisément cette lacune qui motive notre contribution.
+
+Le gap scientifique se formule donc comme \textbf{la non-résolution du trilemme par les approches existantes}. Le paradigme deux-étages de \CorrDiff{} couvre le mieux le triplet stabilité + extrêmes + probabiliste, mais sa robustesse hors-distribution n'est pas adressée par construction. Combler ce gap suppose de \textbf{causaliser le premier étage} : remplacer le U-Net générique qui estime $\muHR$ par un module structurellement causal qui contraint cette estimation à passer par un graphe de dépendances appris.
+
+\subsection{Positionnement d'Oracle dans le paysage}
+\label{ssec:soa-oracle-position}
+
+\begin{figure}[ht]
+  \centering
+  \hspace*{-0.14\linewidth}%
+  \resizebox{1.28\linewidth}{!}{%
+  \begin{tikzpicture}[
+    inblock/.style={rectangle, draw=urigray, fill=urigray!8, rounded corners=2pt,
+                    minimum height=1.0cm, minimum width=1.9cm, align=center, font=\footnotesize, inner sep=3pt},
+    cblock/.style={rectangle, draw=uriaccent, fill=uriaccent!12, rounded corners=2pt,
+                   minimum height=1.0cm, minimum width=1.9cm, align=center, font=\footnotesize, inner sep=3pt, very thick},
+    sblock/.style={rectangle, draw=uridarkblue, fill=uridarkblue!10, rounded corners=2pt,
+                   minimum height=1.0cm, minimum width=1.9cm, align=center, font=\footnotesize, inner sep=3pt},
+    outblock/.style={rectangle, draw=urigray, fill=urigray!12, rounded corners=2pt,
+                     minimum height=1.0cm, minimum width=2.0cm, align=center, font=\footnotesize\bfseries},
+    refnode/.style={font=\scriptsize\itshape, text=urigray, align=center, inner sep=1pt},
+    sumcircle/.style={circle, draw=urigray, fill=white, minimum size=0.65cm, inner sep=0pt, font=\small\bfseries},
+    arr/.style={-{Stealth[length=2.2mm]}, thick, urigray!85},
+    carr/.style={-{Stealth[length=2.2mm]}, thick, uriaccent!90},
+    sarr/.style={-{Stealth[length=2.2mm]}, thick, uridarkblue!85},
+    stagebox/.style={rectangle, draw=#1, dashed, rounded corners=4pt, inner sep=10pt, very thick},
+    stagelabel/.style={font=\scriptsize\bfseries\itshape, text=#1, fill=white, inner sep=2pt},
+    diffrond/.style={font=\scriptsize\itshape, text=uridarkblue!80},
+  ]
+    % [Contraste annotation : en haut, libre]
+    \node[font=\scriptsize\itshape, text=uriaccent, align=center] (contrast)
+       at (4.5, 3.7) {Contraste avec \CorrDiff{}~[Mardani~2023] :\\ Stage~1 générique $\to$ Stage~1 \textbf{causal}};
+
+    % [Stage 1 row : causalisé]
+    \node[inblock]                       (lr)   at (0, 1.5)        {$\yLR$\\ \scriptsize ACCESS-CM2};
+    \node[cblock, right=1.0cm of lr]     (enc)                     {Encodeur\\ \scriptsize intelligible};
+    \node[cblock, right=1.0cm of enc]    (dag)                     {Graphe causal\\ $\Adag$};
+    \node[cblock, right=1.0cm of dag]    (mu)                      {$\muHR$};
+
+    \draw[arr]  (lr)  -- (enc);
+    \draw[carr] (enc) -- (dag);
+    \draw[carr] (dag) -- (mu);
+
+    % [Stage 1 frame : placé avant les refnodes pour qu'ils restent visibles dessus]
+    \node[stagebox=uriaccent, fit=(enc)(dag)(mu)] (s1box) {};
+    \node[stagelabel=uriaccent, anchor=south west] at (s1box.south west) {Stage~1 : causal};
+
+    % [Ref labels above the boxes : well clear of stagebox border]
+    \node[refnode, above=8pt of s1box, fill=white, inner sep=2pt] (refs1)
+      {\emph{causalisation} via DAGMA [Bello~2022], formalisme SCM [Pearl~2009]};
+
+    % [Stage 2 : diffusion EDM, en bas]
+    \node[inblock]                       (noise) at (3.5, -2.4)    {bruit\\ $\sigma\epsilon$};
+    \node[sblock, right=1.0cm of noise]  (edm)                     {Diffusion EDM};
+    \node[sblock, right=1.0cm of edm]    (delta)                   {$\delta$};
+
+    \draw[arr]  (noise) -- (edm);
+    \draw[sarr] (edm)   -- (delta);
+
+    % [Stage 2 frame]
+    \node[stagebox=uridarkblue, fit=(noise)(edm)(delta)] (s2box) {};
+    \node[stagelabel=uridarkblue, anchor=south west] at (s2box.south west) {Stage~2 : EDM};
+
+    % [Ref label below : well clear of border]
+    \node[refnode, below=8pt of s2box, fill=white, inner sep=2pt] (refs2)
+      {paradigme EDM [Karras~2022]};
+
+    % [mu_HR conditions Stage 2]
+    \draw[carr, dashed] (mu.south) to[bend left=20] node[diffrond, right=2pt, midway] {cond.} (edm.north);
+
+    % [Baseline branch + recombinaison]
+    \node[inblock]                       (base) at (0, -2.4)       {baseline\\ $\LR\!\uparrow$};
+    \node[sumcircle]                     (sum)  at (11.5, -2.4)    {$+$};
+    \node[outblock, right=0.7cm of sum]  (out)                     {$\xHR$};
+
+    \draw[arr]  (lr.south)    -- (base.north);
+    \draw[arr]  (base.south)  -- ++(0,-1.8) -| (sum.south);
+    \draw[sarr] (delta.east)  -- (sum.west);
+    \draw[carr] (mu.east)     to[bend left=10] (sum.north);
+    \draw[arr]  (sum) -- (out);
+
+    % [Equation HR]
+    \node[font=\scriptsize, text=urigray, below=2pt of out, align=center]
+       {\(\xHR = \mathrm{baseline} + \muHR + \delta\)};
+  \end{tikzpicture}%
+  }
+  \caption[Cartouche revisité d'Oracle]{Cartouche conceptuel revisité du modèle \Oracle{} avec ancrage bibliographique. Le premier étage causalise \CorrDiff{}~\cite{mardani_corrdiff_2023} en y intégrant un graphe causal appris par contrainte DAGMA~\cite{bello_dagma_2022} et le formalisme SCM de Pearl~\cite{pearl_causality_2009} ; le second étage conserve la diffusion EDM~\cite{karras_edm_2022}.}
+  \label{fig:oracle-revisite}
+\end{figure}
+
+La figure~\ref{fig:oracle-revisite} résume la position de \Oracle{}. Le premier étage causalise \CorrDiff{}~\cite{mardani_corrdiff_2023}, en s'appuyant sur la caractérisation différentiable de l'acyclicité de Bello et~al.~\cite{bello_dagma_2022} et sur le formalisme SCM de Pearl~\cite{pearl_causality_2009} ; le second étage conserve la diffusion EDM~\cite{karras_edm_2022}. L'architecture détaillée fait l'objet du chapitre suivant.
+
+% =============================================================
+% Bibliographie
+% =============================================================

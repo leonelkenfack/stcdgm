@@ -1,0 +1,87 @@
+﻿\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+\begin{sommairebox}
+\small
+\noindent Contexte du travail \dotfill \pageref{intro:contexte}\\
+\noindent Problématique étudiée \dotfill \pageref{intro:probl}\\
+\noindent Objectifs \dotfill \pageref{intro:obj}\\
+\noindent Contribution \dotfill \pageref{intro:contrib}\\
+\noindent Organisation du manuscrit \dotfill \pageref{intro:orga}
+\end{sommairebox}
+
+\vspace{1em}
+
+% =============================================================
+\section*{Contexte du travail}
+\addcontentsline{toc}{section}{Contexte du travail}
+\label{intro:contexte}
+% =============================================================
+
+Le changement climatique impose aux décideurs locaux des choix de plus en plus fins en matière d'agriculture, de gestion de l'eau et d'urbanisme. Au Cameroun, l'agriculture représente environ 22\,\% du PIB et fait vivre près de 44\,\% de la population active~\cite{wb_ccdr_cameroon_2022} : un secteur très majoritairement pluvial dont la planification dépend directement de la qualité des projections climatiques locales. La centrale hydroélectrique de Lagdo fournit environ 74\,\% de l'électricité du Nord-Cameroun~\cite{nonki_lagdo_2021}. Les inondations de l'Extrême-Nord d'octobre 2024 ont affecté 356\,000~personnes et noyé 82\,500~hectares de cultures, sans qu'aucune anticipation communale n'ait été possible~\cite{ocha_cameroon_2024}. À l'échelle continentale, la productivité agricole africaine a diminué d'environ 34\,\% depuis 1961 sous l'effet du changement climatique, soit la régression la plus forte toutes régions confondues~\cite{ipcc_ar6_africa_2022} ; en l'absence d'adaptation, la Banque Mondiale estime que le Cameroun pourrait perdre entre 4 et 10\,\% de son PIB d'ici 2050~\cite{wb_ccdr_cameroon_2022}.
+
+Or les modèles climatiques globaux (GCM) utilisés par le GIEC simulent l'atmosphère à 100--250~km par maille~\cite{eyring_cmip6_2016}. À cette échelle, Douala et Yaoundé occupent la même cellule, le mont Cameroun n'a aucun effet, la transition savane--forêt disparaît. Pour utiliser ces simulations dans des décisions d'aménagement, d'agriculture ou d'énergie, il faut produire une représentation à une échelle plus fine (1 à 12~km) : c'est la descente d'échelle climatique (\emph{downscaling}). Deux familles coexistent. La descente d'échelle dynamique emboîte un modèle régional (RCM) dans le GCM et résout les équations à une maille plus fine~\cite{maraun_widmann_2018} ; elle est physiquement rigoureuse, mais très coûteuse. La descente d'échelle statistique, fondée aujourd'hui sur l'apprentissage profond, apprend une fonction qui relie les champs à grande échelle aux champs locaux ; elle est moins coûteuse, mais limitée en interprétabilité, en généralisation hors-distribution et en cohérence physique. C'est dans cette seconde voie que s'inscrit le présent mémoire.
+
+% =============================================================
+\section*{Problématique étudiée}
+\addcontentsline{toc}{section}{Problématique étudiée}
+\label{intro:probl}
+% =============================================================
+
+Trois familles méthodologiques dominent l'état de l'art en descente d'échelle, et chacune présente un verrou bloquant dans un contexte africain.
+
+Le coût computationnel rédhibitoire de la descente d'échelle dynamique. La configuration CWA-WRF utilisée à Taïwan tourne sur 928~cœurs SPARC64 en parallèle~\cite{mardani_corrdiff_2023} : à budget fixe, on ne peut donc descendre qu'un seul scénario d'un GCM à la fois, ce qui maintient les résolutions opérationnelles à 12--50~km dans les exercices CORDEX. Les applications de risque (assurance paramétrique, planification d'urgence) nécessitent en revanche plusieurs milliers de membres d'ensemble~\cite{hobeichi_ml_downscaling_2023}. Pour un continent qui héberge moins de 1\,\% des capacités HPC mondiales~\cite{bachmann_hpc_africa_2025}, ce paradigme exclut de facto la production locale de projections fines.
+
+L'opacité et les violations physiques des modèles d'apprentissage profond. González-Abad et al.~\cite{gonzalezabad_physical_2023} montrent que des CNN univariés appliqués à la température produisent des sorties physiquement impossibles ($T_{\min} > T_{\max}$), avec un taux de violation passant de 4\,\% à l'entraînement à 15--17\,\% en projection 2100 sous RCP8.5. Doury et al.~\cite{doury_rcm_emulator_2023} qualifient explicitement leur émulateur de \og~\emph{black-box regression model}~\fg{} (modèle de régression boîte noire) et montrent que 31~réentraînements identiques d'un même U-Net produisent des erreurs sur la climatologie future variant de 0,003 à 0,139\,\textdegree C, soit un facteur 46 dû exclusivement à la stochasticité interne.
+
+L'hypothèse de stationnarité des modèles génératifs résiduels. La référence actuelle, CorrDiff~\cite{mardani_corrdiff_2023}, décompose la tâche en deux étapes (régression déterministe puis diffusion EDM~\cite{karras_edm_2022} du résidu) et atteint environ 60$\times$ la vitesse d'une simulation WRF à l'inférence. Toutefois, les auteurs identifient eux-mêmes la difficulté centrale : un \emph{significant distribution shift} (décalage substantiel de distribution) entre les données d'entrée et la cible. L'efficacité-échantillon repose sur la faible variance du résidu, propriété qui n'est garantie que sous l'hypothèse de stationnarité de la distribution-cible, hypothèse que le changement climatique invalide directement.
+
+Le problème central s'énonce donc ainsi : \emph{comment causaliser le premier étage du paradigme à deux étages pour doter le downscaling probabiliste d'une robustesse de principe au changement de distribution, sans dégrader la stabilité ni le réalisme acquis} ? Par « causaliser », nous entendons remplacer l'estimateur générique de ce premier étage par un module dont la sortie transite obligatoirement par un graphe causal appris ; le terme est repris dans ce sens tout au long du mémoire.
+
+% =============================================================
+\section*{Objectifs}
+\addcontentsline{toc}{section}{Objectifs}
+\label{intro:obj}
+% =============================================================
+
+Au regard de notre problématique, nous nous fixons comme objectif principal de proposer une architecture de descente d'échelle probabiliste qui intègre une structure causale apprise, afin de garantir par construction une dépendance fonctionnelle entre les variables atmosphériques d'entrée et la précipitation prédite. Plus spécifiquement, nous voulons :
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item Concevoir un module causal récurrent (RCN) intégrant SCM dynamique, GRU~\cite{cho_gru_2014} et pénalité d'acyclicité DAGMA~\cite{bello_dagma_2022} dans une seule cellule ;
+    \item Inscrire ce module dans le paradigme à deux étages de CorrDiff~\cite{mardani_corrdiff_2023}, en remplaçant le premier étage de régression générique par un chemin obligatoirement médié par un graphe causal appris, sans modifier l'étage de diffusion EDM~\cite{karras_edm_2022} ;
+    \item Définir un protocole expérimental centré sur la calibration probabiliste, le réalisme des extrêmes et la robustesse inter-GCM, incluant un test d'intervention contrôlée original dans le contexte du downscaling profond.
+\end{itemize}
+
+% =============================================================
+\section*{Contribution}
+\addcontentsline{toc}{section}{Contribution}
+\label{intro:contrib}
+% =============================================================
+
+La contribution principale de ce mémoire réside dans la conception, l'implémentation et l'évaluation d'\Oracle{}, architecture causale générative à deux étages combinant les avantages des modèles résiduels (stabilité, calibration probabiliste, efficacité) et une garantie structurelle de causalité architecturale. Quatre aspects clés la structurent :
+\begin{itemize}[leftmargin=1.2em, itemsep=3pt]
+    \item Une architecture \emph{two-stage} où la causalité est placée dans la topologie du graphe de calcul plutôt que dans une régularisation de la perte : une régularisation peut être contournée par un réseau expressif, alors qu'une dépendance architecturale est par construction indéfaisable.
+    \item Le réseau causal récurrent (RCN) intégrant SCM dynamique, GRU et pénalité DAGMA dans une seule cellule.
+    \item L'interface inter-étages par concaténation de canaux entre la moyenne causale, la baseline et le résiduel bruité, garantissant qu'aucune information ne contourne le chemin causal (propriété O3 vérifiée empiriquement, ratio mesuré $0{,}87$).
+    \item Un protocole expérimental à six familles de métriques incluant deux diagnostics causaux originaux : le ratio O3 (indispensabilité) et le test d'intervention $Q_{\mathrm{int}}$ (cohérence physique de la réponse à perturbation contrôlée).
+\end{itemize}
+
+Faute d'un jeu HR de référence sur le continent africain visé, nous éprouvons la méthode sur la Nouvelle-Zélande, traitée comme \emph{bac à sable exigeant}. Rampal et al.~\cite{rampal_cgan_2024} l'ont retenue pour sa diversité climatique compacte (subtropical, marin tempéré, semi-aride sous le vent, alpin sur moins de $270\,000$~km$^2$) et son gradient orographique parmi les plus extrêmes au monde. Ce terrain sollicite simultanément les trois axes du trilemme. Sur ce cadre, \Oracle{} réduit le CRPS de 40\,\% en distribution et de 30\,\% en inter-GCM historique vis-à-vis d'une baseline non-causale strictement comparable, multiplie par 3,5 le ratio \emph{spread-skill}, et conserve le signe physiquement correct sur deux perturbations contrôlées (cohérence directionnelle, non identification causale complète), là où la baseline échoue sur l'intervention thermique. La résistance architecturale à l'ablation causale dans ce cadre constitue une preuve forte d'\emph{universalité architecturale} indépendante du climat d'entraînement. L'extension au contexte africain qui motive ce travail reste hypothétique au stade actuel, conditionnée à la disponibilité d'un jeu HR de référence sur la zone visée, et portée comme axe de perspectives.
+
+% =============================================================
+\section*{Organisation du manuscrit}
+\addcontentsline{toc}{section}{Organisation du manuscrit}
+\label{intro:orga}
+% =============================================================
+
+Le manuscrit est structuré en quatre chapitres et une conclusion :
+
+Chapitre I, Fondements du downscaling climatique. Pose les bases : besoin de désagrégation, propriétés statistiques de la précipitation, approches classiques, passage au probabiliste et au génératif, formalisme causal de Pearl~\cite{pearl_causality_2009}, et formule le trilemme stabilité~/~extrêmes~/~robustesse hors-distribution.
+
+Chapitre II, État de l'art du downscaling par apprentissage profond. Parcourt systématiquement les approches déterministes (CNN, U-Net), adversariales~\cite{rampal_cgan_2024}, à vraisemblance, et de diffusion (DDPM~\cite{ho_ddpm_2020}, EDM, CorrDiff~\cite{mardani_corrdiff_2023}). Un tableau comparatif identifie le \emph{gap} qui motive notre contribution.
+
+Chapitre III, Proposition d'\Oracle{}. Formalise l'architecture : graphe hétérogène à six nœuds typés, encodeur intelligible, RCN sous contrainte DAGMA, décodeur graphe-à-grille, interface inter-étages et diffusion EDM résiduelle.
+
+Chapitre IV, Matériels, méthodes, expérimentations et discussion. Couvre l'environnement, les données, la topologie effective, le protocole d'évaluation à six familles de métriques, les résultats et la discussion critique des limites.
+
+Conclusion générale et perspectives. Synthétise les contributions, analyse les résultats et trace cinq axes de perspectives, dont le transfert vers le contexte africain qui constitue la motivation finale.

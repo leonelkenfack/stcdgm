@@ -5748,55 +5748,6 @@
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\eval_three_variants.py:260"
     },
     {
-      "id": "file::intervention_test",
-      "label": "intervention_test.py",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:1"
-    },
-    {
-      "id": "intervention_test::resolve_variable_indices",
-      "label": "resolve_variable_indices",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:116"
-    },
-    {
-      "id": "intervention_test::apply_intervention",
-      "label": "apply_intervention",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:134"
-    },
-    {
-      "id": "intervention_test::evaluate_intervention",
-      "label": "evaluate_intervention",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:198"
-    },
-    {
-      "id": "intervention_test::compute_q_int",
-      "label": "compute_q_int",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:252"
-    },
-    {
-      "id": "intervention_test::save_intervention_results",
-      "label": "save_intervention_results",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:260"
-    },
-    {
-      "id": "intervention_test::main",
-      "label": "main",
-      "fileType": "code",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:316"
-    },
-    {
       "id": "file::skip_direct",
       "label": "skip_direct.py",
       "fileType": "code",
@@ -5928,6 +5879,1182 @@
       "fileType": "code",
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_setup_cell.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_setup_cell.py:1"
+    },
+    {
+      "id": "file::intervention_test",
+      "label": "intervention_test.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:1"
+    },
+    {
+      "id": "intervention_test::resolve_variable_indices",
+      "label": "resolve_variable_indices",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:116"
+    },
+    {
+      "id": "intervention_test::apply_intervention",
+      "label": "apply_intervention",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:134"
+    },
+    {
+      "id": "intervention_test::evaluate_intervention",
+      "label": "evaluate_intervention",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:203"
+    },
+    {
+      "id": "intervention_test::compute_q_int",
+      "label": "compute_q_int",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:257"
+    },
+    {
+      "id": "intervention_test::save_intervention_results",
+      "label": "save_intervention_results",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:265"
+    },
+    {
+      "id": "intervention_test::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:321"
+    },
+    {
+      "id": "file::_patch_v5_phase9_to_12",
+      "label": "_patch_v5_phase9_to_12.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py:1"
+    },
+    {
+      "id": "_patch_v5_phase9_to_12::_make_cell",
+      "label": "_make_cell",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py:586"
+    },
+    {
+      "id": "file::_patch_v5_probabilistic_metrics",
+      "label": "_patch_v5_probabilistic_metrics.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_probabilistic_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_probabilistic_metrics.py:1"
+    },
+    {
+      "id": "file::_patch_v5_phase7_resume",
+      "label": "_patch_v5_phase7_resume.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase7_resume.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase7_resume.py:1"
+    },
+    {
+      "id": "file::recompute_phase6_metrics",
+      "label": "recompute_phase6_metrics.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py:1"
+    },
+    {
+      "id": "recompute_phase6_metrics::_pearson",
+      "label": "_pearson",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py:51"
+    },
+    {
+      "id": "recompute_phase6_metrics::recompute_phase6_metrics",
+      "label": "recompute_phase6_metrics",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py:60"
+    },
+    {
+      "id": "file::_audit_noncausal",
+      "label": "_audit_noncausal.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_audit_noncausal.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_audit_noncausal.py:1"
+    },
+    {
+      "id": "file::_dump_noncausal_cells",
+      "label": "_dump_noncausal_cells.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_dump_noncausal_cells.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_dump_noncausal_cells.py:1"
+    },
+    {
+      "id": "file::noncausal_cell_014",
+      "label": "noncausal_cell_014.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_014.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_014.py:1"
+    },
+    {
+      "id": "file::noncausal_cell_061",
+      "label": "noncausal_cell_061.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:1"
+    },
+    {
+      "id": "noncausal_cell_061::_build_inputs",
+      "label": "_build_inputs",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:84"
+    },
+    {
+      "id": "noncausal_cell_061::_sample_once",
+      "label": "_sample_once",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:97"
+    },
+    {
+      "id": "noncausal_cell_061::_pearson",
+      "label": "_pearson",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:245"
+    },
+    {
+      "id": "file::noncausal_cell_062",
+      "label": "noncausal_cell_062.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_062.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_062.py:1"
+    },
+    {
+      "id": "file::noncausal_cell_063",
+      "label": "noncausal_cell_063.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py:1"
+    },
+    {
+      "id": "noncausal_cell_063::_np_sub",
+      "label": "_np_sub",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py:13"
+    },
+    {
+      "id": "file::noncausal_cell_064",
+      "label": "noncausal_cell_064.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_064.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_064.py:1"
+    },
+    {
+      "id": "file::noncausal_cell_065",
+      "label": "noncausal_cell_065.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_065.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_065.py:1"
+    },
+    {
+      "id": "file::noncausal_cell_067",
+      "label": "noncausal_cell_067.py",
+      "fileType": "code",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_067.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_067.py:1"
+    },
+    {
+      "id": "file::_apply_audit_fixes",
+      "label": "_apply_audit_fixes.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_audit_fixes.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_audit_fixes.py:1"
+    },
+    {
+      "id": "file::_apply_expert_extras",
+      "label": "_apply_expert_extras.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py:1"
+    },
+    {
+      "id": "_apply_expert_extras::_splitlines_preserve",
+      "label": "_splitlines_preserve",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py:16"
+    },
+    {
+      "id": "_apply_expert_extras::find_cell",
+      "label": "find_cell",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py:21"
+    },
+    {
+      "id": "file::_fix_cell9_indent",
+      "label": "_fix_cell9_indent.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_fix_cell9_indent.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_fix_cell9_indent.py:1"
+    },
+    {
+      "id": "file::_fix_indent_line50",
+      "label": "_fix_indent_line50.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_fix_indent_line50.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_fix_indent_line50.py:1"
+    },
+    {
+      "id": "file::test1_energy_score",
+      "label": "test1_energy_score.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:1"
+    },
+    {
+      "id": "test1_energy_score::true_sample",
+      "label": "true_sample",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:15"
+    },
+    {
+      "id": "test1_energy_score::gen",
+      "label": "Gen",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:20"
+    },
+    {
+      "id": "test1_energy_score::gen::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:21"
+    },
+    {
+      "id": "test1_energy_score::gen::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:29"
+    },
+    {
+      "id": "test1_energy_score::energy_score",
+      "label": "energy_score",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:36"
+    },
+    {
+      "id": "test1_energy_score::w1_emp",
+      "label": "w1_emp",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:46"
+    },
+    {
+      "id": "test1_energy_score::train_and_eval",
+      "label": "train_and_eval",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:53"
+    },
+    {
+      "id": "file::test2_jl_sketch",
+      "label": "test2_jl_sketch.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:1"
+    },
+    {
+      "id": "test2_jl_sketch::gen_batch",
+      "label": "gen_batch",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:19"
+    },
+    {
+      "id": "test2_jl_sketch::full_cov_logdet",
+      "label": "full_cov_logdet",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:26"
+    },
+    {
+      "id": "test2_jl_sketch::jl_logdet",
+      "label": "jl_logdet",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:33"
+    },
+    {
+      "id": "file::test3_pearl_vs_partialid",
+      "label": "test3_pearl_vs_partialid.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py:1"
+    },
+    {
+      "id": "test3_pearl_vs_partialid::sim_u",
+      "label": "sim_U",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py:19"
+    },
+    {
+      "id": "test3_pearl_vs_partialid::softplus",
+      "label": "softplus",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py:26"
+    },
+    {
+      "id": "file::test4_qvector",
+      "label": "test4_qvector.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:1"
+    },
+    {
+      "id": "test4_qvector::ddy",
+      "label": "ddy",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:38"
+    },
+    {
+      "id": "test4_qvector::ddx",
+      "label": "ddx",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:40"
+    },
+    {
+      "id": "test4_qvector::laplacian_matrix",
+      "label": "laplacian_matrix",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:82"
+    },
+    {
+      "id": "test4_qvector::gidx",
+      "label": "gidx",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:120"
+    },
+    {
+      "id": "test4_qvector::ddy2",
+      "label": "ddy2",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:153"
+    },
+    {
+      "id": "test4_qvector::ddx2",
+      "label": "ddx2",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:154"
+    },
+    {
+      "id": "test4_qvector::gidx2",
+      "label": "gidx2",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:177"
+    },
+    {
+      "id": "test4_qvector::r2_fn",
+      "label": "R2_fn",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:194"
+    },
+    {
+      "id": "test4_qvector::stats",
+      "label": "stats",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:197"
+    },
+    {
+      "id": "file::test4_qvector_v2",
+      "label": "test4_qvector_v2.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py:1"
+    },
+    {
+      "id": "test4_qvector_v2::build_omega",
+      "label": "build_omega",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py:11"
+    },
+    {
+      "id": "file::test5_log1p",
+      "label": "test5_log1p.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:1"
+    },
+    {
+      "id": "test5_log1p::true_x",
+      "label": "true_X",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:10"
+    },
+    {
+      "id": "test5_log1p::g",
+      "label": "G",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:14"
+    },
+    {
+      "id": "test5_log1p::g::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:15"
+    },
+    {
+      "id": "test5_log1p::g::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:19"
+    },
+    {
+      "id": "test5_log1p::es",
+      "label": "es",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:23"
+    },
+    {
+      "id": "test5_log1p::train",
+      "label": "train",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:28"
+    },
+    {
+      "id": "file::test6_lagrangian",
+      "label": "test6_lagrangian.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py:1"
+    },
+    {
+      "id": "test6_lagrangian::run",
+      "label": "run",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py:17"
+    },
+    {
+      "id": "test6_lagrangian::status_of",
+      "label": "status_of",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py:46"
+    },
+    {
+      "id": "file::test7_gate",
+      "label": "test7_gate.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:1"
+    },
+    {
+      "id": "test7_gate::mu_fn",
+      "label": "mu_fn",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:11"
+    },
+    {
+      "id": "test7_gate::m_fn",
+      "label": "m_fn",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:12"
+    },
+    {
+      "id": "test7_gate::model",
+      "label": "Model",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:14"
+    },
+    {
+      "id": "test7_gate::model::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:15"
+    },
+    {
+      "id": "test7_gate::model::gate",
+      "label": ".gate",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:20"
+    },
+    {
+      "id": "test7_gate::model::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:21"
+    },
+    {
+      "id": "test7_gate::es",
+      "label": "es",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:31"
+    },
+    {
+      "id": "test7_gate::train",
+      "label": "train",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:36"
+    },
+    {
+      "id": "test7_gate::badmodel",
+      "label": "BadModel",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:64"
+    },
+    {
+      "id": "test7_gate::badmodel::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:65"
+    },
+    {
+      "id": "test7_gate::train_bad",
+      "label": "train_bad",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:75"
+    },
+    {
+      "id": "file::test8_heavytail",
+      "label": "test8_heavytail.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:1"
+    },
+    {
+      "id": "test8_heavytail::gpd_sample",
+      "label": "gpd_sample",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:10"
+    },
+    {
+      "id": "test8_heavytail::gen",
+      "label": "Gen",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:16"
+    },
+    {
+      "id": "test8_heavytail::gen::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:17"
+    },
+    {
+      "id": "test8_heavytail::gen::forward",
+      "label": ".forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:21"
+    },
+    {
+      "id": "test8_heavytail::es",
+      "label": "es",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:25"
+    },
+    {
+      "id": "test8_heavytail::run",
+      "label": "run",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:30"
+    },
+    {
+      "id": "file::_assemble_memoire",
+      "label": "_assemble_memoire.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:1"
+    },
+    {
+      "id": "_assemble_memoire::extract_body",
+      "label": "extract_body",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:22"
+    },
+    {
+      "id": "_assemble_memoire::extract_master_preamble_and_biblio",
+      "label": "extract_master_preamble_and_biblio",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:59"
+    },
+    {
+      "id": "_assemble_memoire::main",
+      "label": "main",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:75"
+    },
+    {
+      "id": "file::_build_thesis_structure",
+      "label": "_build_thesis_structure.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:1"
+    },
+    {
+      "id": "_build_thesis_structure::extract_body",
+      "label": "extract_body",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:15"
+    },
+    {
+      "id": "_build_thesis_structure::extract_preamble",
+      "label": "extract_preamble",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:30"
+    },
+    {
+      "id": "_build_thesis_structure::extract_biblio",
+      "label": "extract_biblio",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:36"
+    },
+    {
+      "id": "file::_reduce_bibliography",
+      "label": "_reduce_bibliography.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py:1"
+    },
+    {
+      "id": "_reduce_bibliography::strip_cites",
+      "label": "strip_cites",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py:46"
+    },
+    {
+      "id": "file::_remove_v5",
+      "label": "_remove_v5.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py:1"
+    },
+    {
+      "id": "_remove_v5::_r",
+      "label": "_r",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py:9"
+    },
+    {
+      "id": "file::_build_phase3_mu_hr_probe",
+      "label": "_build_phase3_mu_HR_probe.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:1"
+    },
+    {
+      "id": "_build_phase3_mu_hr_probe::code_cell",
+      "label": "code_cell",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:15"
+    },
+    {
+      "id": "_build_phase3_mu_hr_probe::md_cell",
+      "label": "md_cell",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:25"
+    },
+    {
+      "id": "file::_build_stage1_diagnostics_notebook",
+      "label": "_build_stage1_diagnostics_notebook.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:1"
+    },
+    {
+      "id": "_build_stage1_diagnostics_notebook::md",
+      "label": "md",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:32"
+    },
+    {
+      "id": "_build_stage1_diagnostics_notebook::code",
+      "label": "code",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:36"
+    },
+    {
+      "id": "file::cell_00",
+      "label": "cell_00.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_00.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_00.py:1"
+    },
+    {
+      "id": "file::cell_01",
+      "label": "cell_01.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_01.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_01.py:1"
+    },
+    {
+      "id": "file::cell_02",
+      "label": "cell_02.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_02.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_02.py:1"
+    },
+    {
+      "id": "file::cell_03",
+      "label": "cell_03.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_03.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_03.py:1"
+    },
+    {
+      "id": "file::cell_04",
+      "label": "cell_04.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_04.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_04.py:1"
+    },
+    {
+      "id": "file::cell_05",
+      "label": "cell_05.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py:1"
+    },
+    {
+      "id": "cell_05::_theta_e_bolton",
+      "label": "_theta_e_bolton",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py:39"
+    },
+    {
+      "id": "file::cell_06",
+      "label": "cell_06.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:1"
+    },
+    {
+      "id": "cell_06::_compute_ivt_nodes",
+      "label": "_compute_ivt_nodes",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:82"
+    },
+    {
+      "id": "cell_06::_ensure_2d",
+      "label": "_ensure_2d",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:91"
+    },
+    {
+      "id": "cell_06::convert_sample_to_batch",
+      "label": "convert_sample_to_batch",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:93"
+    },
+    {
+      "id": "file::cell_07",
+      "label": "cell_07.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:1"
+    },
+    {
+      "id": "cell_07::_to_mm_day",
+      "label": "_to_mm_day",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:63"
+    },
+    {
+      "id": "cell_07::loss_r10mm",
+      "label": "loss_R10mm",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:67"
+    },
+    {
+      "id": "cell_07::loss_rx1day",
+      "label": "loss_Rx1day",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:83"
+    },
+    {
+      "id": "cell_07::loss_cdd",
+      "label": "loss_CDD",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:95"
+    },
+    {
+      "id": "cell_07::loss_clausius_clapeyron",
+      "label": "loss_Clausius_Clapeyron",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:106"
+    },
+    {
+      "id": "cell_07::loss_alpha_reg",
+      "label": "loss_alpha_reg",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:133"
+    },
+    {
+      "id": "file::cell_08",
+      "label": "cell_08.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py:1"
+    },
+    {
+      "id": "cell_08::_l1_schedule",
+      "label": "_l1_schedule",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py:15"
+    },
+    {
+      "id": "cell_08::_stage1_forward",
+      "label": "_stage1_forward",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py:21"
+    },
+    {
+      "id": "file::cell_09",
+      "label": "cell_09.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:1"
+    },
+    {
+      "id": "cell_09::_cacheddataset",
+      "label": "_CachedDataset",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:50"
+    },
+    {
+      "id": "cell_09::_cacheddataset::__init__",
+      "label": ".__init__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:51"
+    },
+    {
+      "id": "cell_09::_cacheddataset::__len__",
+      "label": ".__len__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:57"
+    },
+    {
+      "id": "cell_09::_cacheddataset::__getitem__",
+      "label": ".__getitem__",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:58"
+    },
+    {
+      "id": "file::cell_10",
+      "label": "cell_10.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:1"
+    },
+    {
+      "id": "cell_10::_build_stage2_decoder",
+      "label": "_build_stage2_decoder",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:19"
+    },
+    {
+      "id": "cell_10::_dispersive_hook",
+      "label": "_dispersive_hook",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:55"
+    },
+    {
+      "id": "cell_10::loss_dispersive",
+      "label": "loss_dispersive",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:72"
+    },
+    {
+      "id": "cell_10::_min_snr_weight",
+      "label": "_min_snr_weight",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:93"
+    },
+    {
+      "id": "cell_10::_tail_weight",
+      "label": "_tail_weight",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:100"
+    },
+    {
+      "id": "file::cell_11",
+      "label": "cell_11.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py:1"
+    },
+    {
+      "id": "cell_11::_ema_update_all",
+      "label": "_ema_update_all",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py:36"
+    },
+    {
+      "id": "file::cell_12",
+      "label": "cell_12.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py:1"
+    },
+    {
+      "id": "cell_12::_ema_select_via_val",
+      "label": "_ema_select_via_val",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py:6"
+    },
+    {
+      "id": "file::cell_13",
+      "label": "cell_13.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:1"
+    },
+    {
+      "id": "cell_13::f1_pooled",
+      "label": "f1_pooled",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:11"
+    },
+    {
+      "id": "cell_13::f1_etccdi_per_pixel",
+      "label": "f1_etccdi_per_pixel",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:25"
+    },
+    {
+      "id": "cell_13::csi_sedi",
+      "label": "csi_sedi",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:43"
+    },
+    {
+      "id": "cell_13::fss_neighborhood",
+      "label": "fss_neighborhood",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:57"
+    },
+    {
+      "id": "file::cell_14",
+      "label": "cell_14.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:1"
+    },
+    {
+      "id": "cell_14::paired_permutation_test",
+      "label": "paired_permutation_test",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:3"
+    },
+    {
+      "id": "cell_14::bootstrap_bca_ci",
+      "label": "bootstrap_bca_ci",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:16"
+    },
+    {
+      "id": "cell_14::holm_bonferroni",
+      "label": "holm_bonferroni",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:43"
+    },
+    {
+      "id": "file::cell_15",
+      "label": "cell_15.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py:1"
+    },
+    {
+      "id": "cell_15::_get",
+      "label": "_get",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py:13"
+    },
+    {
+      "id": "cell_15::_fmt",
+      "label": "_fmt",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py:37"
+    },
+    {
+      "id": "file::_crop",
+      "label": "_crop.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\results\\literature_figures\\_crop.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\results\\literature_figures\\_crop.py:1"
+    },
+    {
+      "id": "file::_build_phase6_rerun_notebook",
+      "label": "_build_phase6_rerun_notebook.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py:1"
+    },
+    {
+      "id": "_build_phase6_rerun_notebook::code_cell",
+      "label": "code_cell",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py:23"
+    },
+    {
+      "id": "_build_phase6_rerun_notebook::md_cell",
+      "label": "md_cell",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py:33"
+    },
+    {
+      "id": "file::_patch_cell8_skip_sampling",
+      "label": "_patch_cell8_skip_sampling.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell8_skip_sampling.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_cell8_skip_sampling.py:1"
+    },
+    {
+      "id": "file::_patch_v5_always_finetuned",
+      "label": "_patch_v5_always_finetuned.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_always_finetuned.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_always_finetuned.py:1"
+    },
+    {
+      "id": "file::diag_stage1",
+      "label": "diag_stage1.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:1"
+    },
+    {
+      "id": "diag_stage1::jensen_on",
+      "label": "jensen_on",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:74"
+    },
+    {
+      "id": "diag_stage1::f1_of",
+      "label": "f1_of",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:130"
+    },
+    {
+      "id": "diag_stage1::blur",
+      "label": "blur",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:136"
+    },
+    {
+      "id": "file::diag_stage1b",
+      "label": "diag_stage1b.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:1"
+    },
+    {
+      "id": "diag_stage1b::f1",
+      "label": "f1",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:24"
+    },
+    {
+      "id": "diag_stage1b::blur",
+      "label": "blur",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:29"
     }
   ],
   "edges": [
@@ -12367,60 +13494,6 @@
       "weight": 1
     },
     {
-      "source": "file::intervention_test",
-      "target": "intervention_test::resolve_variable_indices",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:116",
-      "weight": 1
-    },
-    {
-      "source": "file::intervention_test",
-      "target": "intervention_test::apply_intervention",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:134",
-      "weight": 1
-    },
-    {
-      "source": "file::intervention_test",
-      "target": "intervention_test::evaluate_intervention",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:198",
-      "weight": 1
-    },
-    {
-      "source": "file::intervention_test",
-      "target": "intervention_test::compute_q_int",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:252",
-      "weight": 1
-    },
-    {
-      "source": "file::intervention_test",
-      "target": "intervention_test::save_intervention_results",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:260",
-      "weight": 1
-    },
-    {
-      "source": "file::intervention_test",
-      "target": "intervention_test::main",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
-      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:316",
-      "weight": 1
-    },
-    {
       "source": "file::skip_direct",
       "target": "skip_direct::conditionalskipblock",
       "relation": "contains",
@@ -12500,12 +13573,1038 @@
       "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_full_update.py",
       "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_full_update.py:33",
       "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::resolve_variable_indices",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:116",
+      "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::apply_intervention",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:134",
+      "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::evaluate_intervention",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:203",
+      "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::compute_q_int",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:257",
+      "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::save_intervention_results",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:265",
+      "weight": 1
+    },
+    {
+      "source": "file::intervention_test",
+      "target": "intervention_test::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\intervention_test.py:321",
+      "weight": 1
+    },
+    {
+      "source": "file::_patch_v5_phase9_to_12",
+      "target": "_patch_v5_phase9_to_12::_make_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_patch_v5_phase9_to_12.py:586",
+      "weight": 1
+    },
+    {
+      "source": "file::recompute_phase6_metrics",
+      "target": "recompute_phase6_metrics::_pearson",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py:51",
+      "weight": 1
+    },
+    {
+      "source": "file::recompute_phase6_metrics",
+      "target": "recompute_phase6_metrics::recompute_phase6_metrics",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\recompute_phase6_metrics.py:60",
+      "weight": 1
+    },
+    {
+      "source": "file::noncausal_cell_061",
+      "target": "noncausal_cell_061::_build_inputs",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:84",
+      "weight": 1
+    },
+    {
+      "source": "file::noncausal_cell_061",
+      "target": "noncausal_cell_061::_sample_once",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:97",
+      "weight": 1
+    },
+    {
+      "source": "file::noncausal_cell_061",
+      "target": "noncausal_cell_061::_pearson",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_061.py:245",
+      "weight": 1
+    },
+    {
+      "source": "file::noncausal_cell_063",
+      "target": "noncausal_cell_063::_np_sub",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\audit\\noncausal_cell_063.py:13",
+      "weight": 1
+    },
+    {
+      "source": "file::_apply_expert_extras",
+      "target": "_apply_expert_extras::_splitlines_preserve",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py:16",
+      "weight": 1
+    },
+    {
+      "source": "file::_apply_expert_extras",
+      "target": "_apply_expert_extras::find_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_apply_expert_extras.py:21",
+      "weight": 1
+    },
+    {
+      "source": "file::test1_energy_score",
+      "target": "test1_energy_score::true_sample",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:15",
+      "weight": 1
+    },
+    {
+      "source": "file::test1_energy_score",
+      "target": "test1_energy_score::gen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:20",
+      "weight": 1
+    },
+    {
+      "source": "test1_energy_score::gen",
+      "target": "test1_energy_score::gen::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:21",
+      "weight": 1
+    },
+    {
+      "source": "test1_energy_score::gen",
+      "target": "test1_energy_score::gen::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:29",
+      "weight": 1
+    },
+    {
+      "source": "file::test1_energy_score",
+      "target": "test1_energy_score::energy_score",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::test1_energy_score",
+      "target": "test1_energy_score::w1_emp",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:46",
+      "weight": 1
+    },
+    {
+      "source": "file::test1_energy_score",
+      "target": "test1_energy_score::train_and_eval",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test1_energy_score.py:53",
+      "weight": 1
+    },
+    {
+      "source": "file::test2_jl_sketch",
+      "target": "test2_jl_sketch::gen_batch",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:19",
+      "weight": 1
+    },
+    {
+      "source": "file::test2_jl_sketch",
+      "target": "test2_jl_sketch::full_cov_logdet",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:26",
+      "weight": 1
+    },
+    {
+      "source": "file::test2_jl_sketch",
+      "target": "test2_jl_sketch::jl_logdet",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test2_jl_sketch.py:33",
+      "weight": 1
+    },
+    {
+      "source": "file::test3_pearl_vs_partialid",
+      "target": "test3_pearl_vs_partialid::sim_u",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py:19",
+      "weight": 1
+    },
+    {
+      "source": "file::test3_pearl_vs_partialid",
+      "target": "test3_pearl_vs_partialid::softplus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test3_pearl_vs_partialid.py:26",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::ddy",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:38",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::ddx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:40",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::laplacian_matrix",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:82",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::gidx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:120",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::ddy2",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:153",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::ddx2",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:154",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::gidx2",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:177",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::r2_fn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:194",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector",
+      "target": "test4_qvector::stats",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector.py:197",
+      "weight": 1
+    },
+    {
+      "source": "file::test4_qvector_v2",
+      "target": "test4_qvector_v2::build_omega",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test4_qvector_v2.py:11",
+      "weight": 1
+    },
+    {
+      "source": "file::test5_log1p",
+      "target": "test5_log1p::true_x",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:10",
+      "weight": 1
+    },
+    {
+      "source": "file::test5_log1p",
+      "target": "test5_log1p::g",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:14",
+      "weight": 1
+    },
+    {
+      "source": "test5_log1p::g",
+      "target": "test5_log1p::g::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:15",
+      "weight": 1
+    },
+    {
+      "source": "test5_log1p::g",
+      "target": "test5_log1p::g::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:19",
+      "weight": 1
+    },
+    {
+      "source": "file::test5_log1p",
+      "target": "test5_log1p::es",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:23",
+      "weight": 1
+    },
+    {
+      "source": "file::test5_log1p",
+      "target": "test5_log1p::train",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test5_log1p.py:28",
+      "weight": 1
+    },
+    {
+      "source": "file::test6_lagrangian",
+      "target": "test6_lagrangian::run",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py:17",
+      "weight": 1
+    },
+    {
+      "source": "file::test6_lagrangian",
+      "target": "test6_lagrangian::status_of",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test6_lagrangian.py:46",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::mu_fn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:11",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::m_fn",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:12",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::model",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:14",
+      "weight": 1
+    },
+    {
+      "source": "test7_gate::model",
+      "target": "test7_gate::model::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:15",
+      "weight": 1
+    },
+    {
+      "source": "test7_gate::model",
+      "target": "test7_gate::model::gate",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:20",
+      "weight": 1
+    },
+    {
+      "source": "test7_gate::model",
+      "target": "test7_gate::model::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:21",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::es",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:31",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::train",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::badmodel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:64",
+      "weight": 1
+    },
+    {
+      "source": "test7_gate::badmodel",
+      "target": "test7_gate::model",
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:64",
+      "weight": 1
+    },
+    {
+      "source": "test7_gate::badmodel",
+      "target": "test7_gate::badmodel::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:65",
+      "weight": 1
+    },
+    {
+      "source": "file::test7_gate",
+      "target": "test7_gate::train_bad",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test7_gate.py:75",
+      "weight": 1
+    },
+    {
+      "source": "file::test8_heavytail",
+      "target": "test8_heavytail::gpd_sample",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:10",
+      "weight": 1
+    },
+    {
+      "source": "file::test8_heavytail",
+      "target": "test8_heavytail::gen",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:16",
+      "weight": 1
+    },
+    {
+      "source": "test8_heavytail::gen",
+      "target": "test8_heavytail::gen::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:17",
+      "weight": 1
+    },
+    {
+      "source": "test8_heavytail::gen",
+      "target": "test8_heavytail::gen::forward",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:21",
+      "weight": 1
+    },
+    {
+      "source": "file::test8_heavytail",
+      "target": "test8_heavytail::es",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:25",
+      "weight": 1
+    },
+    {
+      "source": "file::test8_heavytail",
+      "target": "test8_heavytail::run",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\_verif_oracle_raes\\test8_heavytail.py:30",
+      "weight": 1
+    },
+    {
+      "source": "file::_assemble_memoire",
+      "target": "_assemble_memoire::extract_body",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:22",
+      "weight": 1
+    },
+    {
+      "source": "file::_assemble_memoire",
+      "target": "_assemble_memoire::extract_master_preamble_and_biblio",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:59",
+      "weight": 1
+    },
+    {
+      "source": "file::_assemble_memoire",
+      "target": "_assemble_memoire::main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_assemble_memoire.py:75",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_thesis_structure",
+      "target": "_build_thesis_structure::extract_body",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:15",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_thesis_structure",
+      "target": "_build_thesis_structure::extract_preamble",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:30",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_thesis_structure",
+      "target": "_build_thesis_structure::extract_biblio",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_build_thesis_structure.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::_reduce_bibliography",
+      "target": "_reduce_bibliography::strip_cites",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_reduce_bibliography.py:46",
+      "weight": 1
+    },
+    {
+      "source": "file::_remove_v5",
+      "target": "_remove_v5::_r",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\memoire\\_remove_v5.py:9",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_phase3_mu_hr_probe",
+      "target": "_build_phase3_mu_hr_probe::code_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:15",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_phase3_mu_hr_probe",
+      "target": "_build_phase3_mu_hr_probe::md_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:25",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_05",
+      "target": "cell_05::_theta_e_bolton",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_05.py:39",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_06",
+      "target": "cell_06::_compute_ivt_nodes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:82",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_06",
+      "target": "cell_06::_ensure_2d",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:91",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_06",
+      "target": "cell_06::convert_sample_to_batch",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_06.py:93",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::_to_mm_day",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:63",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::loss_r10mm",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:67",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::loss_rx1day",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:83",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::loss_cdd",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:95",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::loss_clausius_clapeyron",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:106",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_07",
+      "target": "cell_07::loss_alpha_reg",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_07.py:133",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_08",
+      "target": "cell_08::_l1_schedule",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py:15",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_08",
+      "target": "cell_08::_stage1_forward",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_08.py:21",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_09",
+      "target": "cell_09::_cacheddataset",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:50",
+      "weight": 1
+    },
+    {
+      "source": "cell_09::_cacheddataset",
+      "target": "cell_09::_cacheddataset::__init__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:51",
+      "weight": 1
+    },
+    {
+      "source": "cell_09::_cacheddataset",
+      "target": "cell_09::_cacheddataset::__len__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:57",
+      "weight": 1
+    },
+    {
+      "source": "cell_09::_cacheddataset",
+      "target": "cell_09::_cacheddataset::__getitem__",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_09.py:58",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_10",
+      "target": "cell_10::_build_stage2_decoder",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:19",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_10",
+      "target": "cell_10::_dispersive_hook",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:55",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_10",
+      "target": "cell_10::loss_dispersive",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:72",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_10",
+      "target": "cell_10::_min_snr_weight",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:93",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_10",
+      "target": "cell_10::_tail_weight",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_10.py:100",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_11",
+      "target": "cell_11::_ema_update_all",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_11.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_12",
+      "target": "cell_12::_ema_select_via_val",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_12.py:6",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_13",
+      "target": "cell_13::f1_pooled",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:11",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_13",
+      "target": "cell_13::f1_etccdi_per_pixel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:25",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_13",
+      "target": "cell_13::csi_sedi",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:43",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_13",
+      "target": "cell_13::fss_neighborhood",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_13.py:57",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_14",
+      "target": "cell_14::paired_permutation_test",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:3",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_14",
+      "target": "cell_14::bootstrap_bca_ci",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:16",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_14",
+      "target": "cell_14::holm_bonferroni",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_14.py:43",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_15",
+      "target": "cell_15::_get",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py:13",
+      "weight": 1
+    },
+    {
+      "source": "file::cell_15",
+      "target": "cell_15::_fmt",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_phase8_cells_dump\\cell_15.py:37",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_phase6_rerun_notebook",
+      "target": "_build_phase6_rerun_notebook::code_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py:23",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_phase6_rerun_notebook",
+      "target": "_build_phase6_rerun_notebook::md_cell",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py",
+      "sourceLocation": "C:\\Users\\reall\\Desktop\\climate_data\\scripts\\_build_phase6_rerun_notebook.py:33",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_stage1_diagnostics_notebook",
+      "target": "_build_stage1_diagnostics_notebook::md",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:32",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_stage1_diagnostics_notebook",
+      "target": "_build_stage1_diagnostics_notebook::code",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:36",
+      "weight": 1
+    },
+    {
+      "source": "file::diag_stage1",
+      "target": "diag_stage1::jensen_on",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:74",
+      "weight": 1
+    },
+    {
+      "source": "file::diag_stage1",
+      "target": "diag_stage1::f1_of",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:130",
+      "weight": 1
+    },
+    {
+      "source": "file::diag_stage1",
+      "target": "diag_stage1::blur",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1.py:136",
+      "weight": 1
+    },
+    {
+      "source": "file::diag_stage1b",
+      "target": "diag_stage1b::f1",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:24",
+      "weight": 1
+    },
+    {
+      "source": "file::diag_stage1b",
+      "target": "diag_stage1b::blur",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:29",
+      "weight": 1
     }
   ],
   "metadata": {
-    "files": 118,
-    "nodes": 847,
-    "edges": 730,
-    "builtAt": "2026-06-05T12:16:56.087Z"
+    "files": 172,
+    "nodes": 1008,
+    "edges": 838,
+    "builtAt": "2026-08-03T11:11:01.969Z"
   }
 }

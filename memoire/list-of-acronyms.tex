@@ -1,0 +1,49 @@
+% Contenu de la liste des acronymes (le titre de chapitre est produit par
+% \myListOfAcronyms du template ; ce fichier ne contient que la table).
+\begingroup\small
+\begin{longtable}{p{3.8cm} p{10.7cm}}
+ACCESS-CM2 & GCM australien utilisé en distribution (CMIP6) \\[0.3em]
+BMA & \emph{Bayesian Model Averaging}, recalibration d'ensemble \\[0.3em]
+CASTLE & \emph{Causal Structure Learning via Auxiliary Causal Graph Discovery} \\[0.3em]
+CC & Clausius-Clapeyron, relation vapeur saturante / température \\[0.3em]
+CDD & \emph{Consecutive Dry Days}, jours secs consécutifs (ETCCDI) \\[0.3em]
+cGAN & \emph{Conditional Generative Adversarial Network} \\[0.3em]
+CHIRPS & \emph{Climate Hazards group InfraRed Precipitation with Station data} \\[0.3em]
+CMIP6 & \emph{Coupled Model Intercomparison Project Phase 6} \\[0.3em]
+\CorrDiff{} & Architecture two-stage de diffusion résiduelle (Mardani~2024) \\[0.3em]
+CRPS / CRPS-SS & \emph{Continuous Ranked Probability Score} et son skill score \\[0.3em]
+DAG & \emph{Directed Acyclic Graph}, graphe acyclique dirigé \\[0.3em]
+DAGMA & \emph{DAG via M-matrices and log-determinant Acyclicity} \\[0.3em]
+DDPM / EDM & \emph{Denoising Diffusion Probabilistic Models} / EDM (Karras~2022) \\[0.3em]
+EC-Earth3, NorESM2-MM & GCM extérieurs du test inter-GCM (régime historique) \\[0.3em]
+EMOS & \emph{Ensemble Model Output Statistics}, recalibration post-hoc (Gneiting~2005) \\[0.3em]
+ERA5 & Réanalyse atmosphérique de référence (Hersbach~2020) \\[0.3em]
+ETCCDI & \emph{Expert Team on Climate Change Detection and Indices} \\[0.3em]
+F1@p95/p99 & Score F1 sur les pixels excédant le quantile p95 ou p99 \\[0.3em]
+FSS & \emph{Fractions Skill Score} \\[0.3em]
+GAN & \emph{Generative Adversarial Network} \\[0.3em]
+GCM / RCM & Modèle de circulation générale / modèle climatique régional \\[0.3em]
+GIEC / IPCC & Groupe d'experts intergouvernemental sur l'évolution du climat \\[0.3em]
+GP & Géopotentiel, à différents niveaux de pression (GP850, GP500, GP250) \\[0.3em]
+GRU & \emph{Gated Recurrent Unit} (Cho~2014) \\[0.3em]
+HG-SCM & \emph{Heterogeneous Graph Structural Causal Model} (Lin et~al.~2023) \\[0.3em]
+HR / LR & Haute / basse résolution \\[0.3em]
+ID / OOD & En distribution / hors-distribution \\[0.3em]
+IG & \emph{Integrated Gradients} \\[0.3em]
+ITCZ & Zone de convergence intertropicale (\emph{InterTropical Convergence Zone}) \\[0.3em]
+IVT & \emph{Integrated Vapour Transport}, transport intégré de vapeur d'eau \\[0.3em]
+MAE / MSE / RMSE & Erreurs ponctuelles standards \\[0.3em]
+\Oracle{} & \emph{Out-of-distribution Robust Atmospheric Causal Learning Engine for Climate Downscaling} (modèle proposé dans ce mémoire) \\[0.3em]
+$Q_{\mathrm{int}}$, $Q_{\mathrm{phys}}$ & Score interventionnel / orientation physique du DAG \\[0.3em]
+RAPSD / PSD & \emph{Power Spectral Density} radialement moyennée \\[0.3em]
+RCN & \emph{Recurrent Causal Network}, réseau causal récurrent \\[0.3em]
+R10mm / RX1day & Indices ETCCDI sur la précipitation \\[0.3em]
+SCM & \emph{Structural Causal Model} (Pearl) \\[0.3em]
+SSP & \emph{Shared Socioeconomic Pathway}, scénario CMIP6 \\[0.3em]
+UNet & Architecture U pour segmentation et diffusion (Ronneberger~2015) \\[0.3em]
+URIFIA & Unité de Recherche d'Informatique Fondamentale et Appliquée \\
+\end{longtable}
+% longtable incrémente le compteur de tableaux même sans caption : sans cette
+% correction, le premier tableau numéroté du mémoire devient « Tableau II »
+\addtocounter{table}{-1}
+\endgroup

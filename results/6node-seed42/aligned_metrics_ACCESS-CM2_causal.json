@@ -1,0 +1,30 @@
+{
+  "gcm": "ACCESS-CM2",
+  "run_variant": "causal",
+  "in_distribution": true,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 12.501753930102637,
+    "cdd_truth": 10.849183277962348,
+    "cdd_bias": 1.6525706521402892,
+    "rx1day_pred": 39.677702913377374,
+    "rx1day_truth": 39.38655937282105,
+    "rx1day_bias": 0.29114354055632674,
+    "r10day_pred": 8.974178251266727,
+    "r10day_truth": 8.171787709497206,
+    "r10day_bias": 0.8023905417695207,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.05470822739906213,
+  "crps_gaussian_log1p": 0.09438327024604261,
+  "n_batches_evaluated": 90,
+  "k_samples_per_batch": 4,
+  "eval_time_s": 831.9541985988617
+}

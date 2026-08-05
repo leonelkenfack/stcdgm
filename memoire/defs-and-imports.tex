@@ -1,28 +1,81 @@
 % =============================================================
 % Mémoire de Master — Modèle Oracle pour le downscaling climatique causalisé
-% Fichier unifié combinant les chapitres I, II et III
-% Style cible : gabarit Donald FEUZING NTEMMA (URIFIA 2024)
+% TRANSITION TOTALE vers le template officiel UDs (Master-PhD-Latex-Template-UDs)
+% Le style (classe memoir, chapitres fieldset, sections, en-têtes ruled, ToC,
+% couleurs) vient intégralement de Template-Style/ ; ce fichier n'ajoute que
+% les paquets et macros exigés par le CONTENU du mémoire.
 % =============================================================
 
-\documentclass[14pt,a4paper,openany]{extreport}
+% ---------- Style officiel du template (classe memoir + tous les styles) ----------
+\input{Template-Style/main-style}
 
-% ---------- Encodage et langue ----------
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
-\usepackage[french]{babel}
-\addto\captionsfrench{%
-  \renewcommand{\tablename}{Tableau}%
-  \renewcommand{\figurename}{Figure}%
-}
-
-\usepackage{lmodern}
-\usepackage{setspace}
-\onehalfspacing
+% ---------- Métrique de la version de base (calculée, sans gonfler l'interligne) ----------
+% Cible : la densité de la version validée (102 pages ; cover, remerciements,
+% résumé et abstract sur UNE page chacun). La version de base composait en
+% 14pt/17pt (Latin Modern) x interligne 1,5, soit ~20,6pt par ligne. La Times
+% du template est ~7% plus étroite par point : un corps 15pt restitue le même
+% nombre de caractères par ligne que la base en 14pt. Pour retrouver la même
+% hauteur de ligne : 15pt sur 18pt x 1,14 = 20,5pt. Police plus grande,
+% interligne réduit : mêmes densités horizontale et verticale que la base.
+% Le corps du document est fixé par \timesContentFontSize (mécanisme du
+% template, appelé en tête de My-Thesis.tex). Le template le règle à 13pt/18pt :
+% on le monte à 15pt/18pt (police plus grande), et l'interligne descend à 1,20
+% (hauteur de ligne 18 x 1,20 = 21,6pt, contre 25pt avec l'ancien réglage).
+\renewcommand{\timesContentFontSize}{\fontsize{15pt}{18pt}}
+\makeatletter
+\renewcommand{\normalsize}{\@setfontsize\normalsize{15}{18}}
+\makeatother
+\normalsize
+% \small et \footnotesize restent aux tailles de classe (14pt) : la page de
+% garde et la certification sont composées dans ces tailles et tiennent sur
+% une page, comme dans la version de base.
+\setSpacing{1.20}
+% Marges : exactement celles de la version de base (geometry, mêmes options).
+% geometry permet aussi \newgeometry/\restoregeometry pour la page de garde.
 \usepackage[a4paper,inner=3cm,outer=2.3cm,top=2.5cm,bottom=2.7cm,headheight=15pt,bindingoffset=0.3cm]{geometry}
 
-\usepackage{amsmath,amssymb,amsthm}
-\usepackage{graphicx}
+% ---------- Réglages du template (mêmes commandes que these/My-Thesis.tex) ----------
+\usepackage{float}          % option [H] des flottants
+% Équivalent de \switchLanguage{français} du template, déplié ici : babel doit
+% être chargé avant hyperref, et la comparaison de chaînes accentuées de
+% \switchLanguage est fragile en UTF-8.
+\usepackage[french]{babel}
+\renewcommand{\currentlanguage}{français}
+\renewcommand{\myChapterLabel}{Chapitre}
+\renewcommand{\myAppendixLabel}{Annexe}
+\renewcommand{\myPartLabel}{Partie}
+\renewcommand{\myBibliographyTitle}{Bibliographie}
+\renewcommand{\computerScience}{Informatique}
+\renewcommand{\mathematics}{Mathématiques}
+\renewcommand{\doctypethesis}{Thèse de Doctorat en}
+\renewcommand{\doctypemaster}{Mémoire de Master en}
+\renewcommand{\losname}{Liste des Symboles}
+\renewcommand{\loaname}{Liste des Acronymes}
+\usepackage[numbers,square,sort&compress]{natbib}
+\level{\master}
+\speciality{\computerScience}
+\lab{URIFIA}
+\myChapterStyle{fieldset}
+\myMiniTocStyle{fieldset}
+\documentType{numerical}    % liens hypertexte colorés (copie numérique) — charge hyperref
+
+% Le template fixe le nom des tableaux via le paquet caption (name=Table, en dur,
+% dans bib-table-styles) : on passe par le même mécanisme pour le libellé
+% français « Tableau » utilisé dans tous les renvois du mémoire.
+\captionsetup[table]{name=Tableau}
+% Le libellé de pied de page du template contient une espace avant la virgule
+% (« Informatique , Université ») : même contenu, ponctuation corrigée.
+\renewcommand{\phdthesislabel}{\doctype~\studentspeciality, Université de Dschang}
+
+% ---------- Numérotation du contenu ----------
+% Le template applique déjà, à \mainmatter, la convention du mémoire :
+% chapitres en chiffres romains, tableaux en romain, figures en arabe,
+% numérotation continue sur tout le document (cf. bib-table-styles).
+% Rien à redéfinir ici.
+
+% ---------- Paquets requis par le contenu ----------
 \usepackage{xcolor}
+% Couleurs utilisées par les FIGURES TikZ et encadrés du mémoire (contenu)
 \definecolor{uridarkblue}{RGB}{30,40,90}
 \definecolor{urigray}{RGB}{70,70,70}
 \definecolor{uriaccent}{RGB}{180,60,40}
@@ -32,79 +85,23 @@
 \usepackage{multirow}
 \usepackage{tabularx}
 \usepackage{longtable}
-
+\usepackage{enumitem}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
-
 \usepackage[most]{tcolorbox}
 \usepackage{tikz}
 \usetikzlibrary{positioning, fit, shapes, arrows.meta, calc}
 
-\renewcommand{\thechapter}{\Roman{chapter}}
-\renewcommand{\thesection}{\thechapter.\arabic{section}}
-\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
-\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+% ---------- Environnements de type théorème (convention these/defs-and-imports) ----------
+\newtheorem{theorem}{Théorème}
+\newtheorem{definition}[theorem]{Définition}
+\newtheorem{propriete}[theorem]{Propriété}
+\newtheorem{remarque}[theorem]{Remarque}
 
-\makeatletter
-\renewcommand{\@makechapterhead}[1]{%
-  \vspace*{20\p@}%
-  {\parindent \z@ \centering \normalfont
-    \textsc{\large Chapitre}\par
-    \vspace{0.3em}
-    {\color{uridarkblue}\fontsize{60}{72}\selectfont\bfseries\thechapter\par}
-    \vspace{1em}
-    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
-    \vspace{1em}
-    \rule{0.4\linewidth}{0.6pt}\par
-    \vspace{2em}
-  }}
-\renewcommand{\@makeschapterhead}[1]{%
-  \vspace*{20\p@}%
-  {\parindent \z@ \centering \normalfont
-    {\color{uridarkblue}\Large\bfseries\MakeUppercase{#1}\par}
-    \vspace{1em}
-    \rule{0.4\linewidth}{0.6pt}\par
-    \vspace{2em}
-  }}
-\makeatother
-
-\usepackage{titlesec}
-\titleformat{\section}
-  {\normalfont\Large\bfseries\color{uridarkblue}}
-  {\thesection.}{0.8em}{}
-\titleformat{\subsection}
-  {\normalfont\large\bfseries}
-  {\thesubsection.}{0.7em}{}
-\titleformat{\subsubsection}
-  {\normalfont\normalsize\bfseries\itshape}
-  {\thesubsubsection.}{0.6em}{}
-
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\fancyhf{}
-\fancyhead[L]{\textsc{\nouppercase{\leftmark}}}
-\fancyhead[R]{\thepage}
-\fancyfoot[L]{\footnotesize Mémoire de Master en Informatique, Université de Dschang}
-\fancyfoot[R]{\footnotesize URIFIA}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand{\footrulewidth}{0.2pt}
-\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
-\renewcommand{\sectionmark}[1]{\markright{\thesection\ #1}{}}
-
-\usepackage[font=small,labelfont={sc,bf},textfont=it]{caption}
-\renewcommand{\thefigure}{\arabic{figure}}
-\renewcommand{\thetable}{\arabic{table}}
-
-\usepackage[numbers,square,sort&compress]{natbib}
-\usepackage[hidelinks]{hyperref}
-
-\theoremstyle{definition}
-\newtheorem{definition}{Définition}[chapter]
-\newtheorem{propriete}[definition]{Propriété}
-\newtheorem{remarque}[definition]{Remarque}
-
-\newcommand{\Oracle}{\textsc{Oracle}}
-\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+% ---------- Macros du mémoire ----------
+% \mbox : empêche la césure en fin de ligne (« Corr-Diff » relevé par le rapport)
+\newcommand{\Oracle}{\mbox{\textsc{Oracle}}}
+\newcommand{\CorrDiff}{\mbox{\textsc{CorrDiff}}}
 \newcommand{\LR}{\ensuremath{\text{LR}}}
 \newcommand{\HR}{\ensuremath{\text{HR}}}
 \newcommand{\xHR}{\ensuremath{x_{\HR}}}
@@ -120,14 +117,16 @@
 \newcommand{\LEDM}{\ensuremath{\mathcal{L}_{\mathrm{EDM}}}}
 \newcommand{\Ltotal}{\ensuremath{\mathcal{L}_{\mathrm{total}}}}
 
+% ---------- Encadrés du mémoire (contenu : sommaire de chapitre, portée) ----------
 \newtcolorbox{sommairebox}{
-  enhanced,colback=white,colframe=urigray,boxrule=0.5pt,arc=0pt,
-  left=1.5em,right=1.5em,top=0.8em,bottom=0.8em,
+  enhanced,colback=white,colframe=uridarkblue,boxrule=0.5pt,arc=0pt,
+  left=1.5em,right=1.5em,top=1.2em,bottom=0.8em,
   title={\textsc{Sommaire}},
-  attach boxed title to top center={yshift=-2mm,xshift=0mm},
-  boxed title style={colback=white,colframe=white,coltitle=urigray,boxrule=0pt,
-    left=0.8em,right=0.8em,top=0pt,bottom=0pt},
-  fonttitle=\bfseries\small,
+  attach boxed title to top center={yshift=-\tcboxedtitleheight/2},
+  boxed title style={colback=white,colframe=white,boxrule=0pt,
+    left=0.8em,right=0.8em,top=2pt,bottom=2pt},
+  coltitle=uridarkblue,
+  fonttitle=\bfseries\large,
 }
 
 \newtcolorbox{disclaimerbox}{
@@ -148,3 +147,45 @@
 
 \providecommand{\chaplabel}[1]{}
 
+% memoir ne fournit pas l'environnement « titlepage » : requis par la page de garde
+\newenvironment{titlepage}
+  {\newpage\thispagestyle{empty}\setcounter{page}{1}}
+  {\newpage}
+
+% ---------- Listes liminaires au niveau CHAPITRE dans la ToC ----------
+% Les commandes du template inscrivent les listes en entrées de niveau section
+% (rattachées visuellement aux Remerciements). La version de base les place au
+% niveau chapitre, comme Certification et Remerciements : wrappers équivalents.
+\newcommand{\myListOfAcronymsChap}[1]{%
+  \renewcommand{\loaname}{#1}%
+  \myChapterStar{\loaname}{}{true}%
+  \input{list-of-acronyms}%
+  \myCleanStarChapterEnd
+  \renewcommand{\tocsetted}{true}%
+}
+\newcommand{\myListOfTablesChap}[1]{%
+  \ifthenelse{\equal{\tocsetted}{false}}{\clearpage}{}%
+  \mySaveMarks
+  \renewcommand{\listtablename}{#1}%
+  \addcontentsline{toc}{chapter}{\myChapterNumberLine{\listtablename}}%
+  \renewcommand{\leftmark}{\listtablename}%
+  \renewcommand{\rightmark}{\listtablename}%
+  \renewcommand{\lof}{true}%
+  \listoftables*%
+  \renewcommand{\lof}{false}%
+  \myCleanStarChapterEnd
+  \renewcommand{\tocsetted}{true}%
+}
+\newcommand{\myListOfFiguresChap}[1]{%
+  \ifthenelse{\equal{\tocsetted}{false}}{\clearpage}{}%
+  \mySaveMarks
+  \renewcommand{\listfigurename}{#1}%
+  \addcontentsline{toc}{chapter}{\myChapterNumberLine{\listfigurename}}%
+  \renewcommand{\leftmark}{\listfigurename}%
+  \renewcommand{\rightmark}{\listfigurename}%
+  \renewcommand{\lof}{true}%
+  \listoffigures*%
+  \renewcommand{\lof}{false}%
+  \myCleanStarChapterEnd
+  \renewcommand{\tocsetted}{true}%
+}

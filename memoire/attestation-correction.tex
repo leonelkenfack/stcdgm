@@ -1,0 +1,128 @@
+% =============================================================
+% ATTESTATION DE CORRECTION DU MÉMOIRE DE MASTER — KENFACK Leonel
+% Style : template officiel UDs, MÊME préambule que le mémoire
+% (defs-and-imports.tex -> Template-Style/main-style), même patron
+% de bandeau bilingue que la page de garde (titlepage.tex).
+% Compiler DEPUIS memoire/ : pdflatex attestation-correction.tex
+% Le template attend ce PDF via \includepdf (ligne « Correction.pdf »).
+% =============================================================
+
+% Préambule du mémoire (classe memoir + styles du template)
+\input{defs-and-imports.tex}
+
+\begin{document}
+
+\newgeometry{margin=1.5cm, top=1.2cm}
+\thispagestyle{empty}
+
+\centering
+
+% --- Bandeau bilingue : REPRIS À L'IDENTIQUE de la page de garde (titlepage.tex) ---
+\noindent
+\begin{minipage}[c]{0.40\linewidth}
+  \begin{tcolorbox}[colback=white, colframe=white, boxrule=0pt, arc=0pt,
+                    left=0.4em, right=0.4em, top=0.4em, bottom=0.4em]
+    \centering\footnotesize
+    \textbf{RÉPUBLIQUE DU CAMEROUN}\\[0.1em]
+    \textit{PAIX -- TRAVAIL -- PATRIE}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{UNIVERSITÉ DE DSCHANG}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{ÉCOLE DES SCIENCES ET\\TECHNOLOGIES DE DSCHANG}
+  \end{tcolorbox}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.16\linewidth}
+  \centering
+  \includegraphics[width=2.0cm]{My-Thesis/images/logouniv.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.40\linewidth}
+  \begin{tcolorbox}[colback=white, colframe=white, boxrule=0pt, arc=0pt,
+                    left=0.4em, right=0.4em, top=0.4em, bottom=0.4em]
+    \centering\footnotesize
+    \textbf{REPUBLIC OF CAMEROON}\\[0.1em]
+    \textit{PEACE -- WORK -- FATHERLAND}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{UNIVERSITY OF DSCHANG}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{SCHOOL OF SCIENCES AND\\TECHNOLOGIES OF DSCHANG}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace{0.5em}
+\noindent\rule{\linewidth}{0.6pt}
+
+\vspace{2em}
+
+% --- Titre ---
+{\bfseries\fontsize{14pt}{18pt}\selectfont ATTESTATION DE CORRECTION DU MÉMOIRE DE MASTER \par}
+
+\vspace{1.5em}
+
+% --- Corps (convention certification.tex : SingleSpace, texte justifié) ---
+\begin{SingleSpace}
+\begin{flushleft}
+\setlength{\parindent}{0.6cm}
+
+\hspace{0.6cm}Nous attestons que le mémoire de Master de Monsieur \textbf{KENFACK Leonel}, intitulé \textbf{«~Développement d'une méthode d'apprentissage automatique pour la mise à l'échelle spatiale des données climatiques~»} a effectivement été corrigé, conformément aux remarques et aux recommandations du Jury devant lequel ledit mémoire a été soutenu le 22 juillet 2026, au département de Mathématiques et Informatique de la Faculté des Sciences de l'Université de Dschang.
+
+\vspace{0.8em}
+
+\hspace{0.6cm}En foi de quoi, la présente attestation lui est délivrée pour servir et valoir ce que de droit.
+
+\end{flushleft}
+\end{SingleSpace}
+
+\vspace{1.5em}
+
+% --- Signatures (2 x 2, patron de l'exemple du département) ---
+\noindent
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \underline{\textbf{Président :}}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \underline{\textbf{Membre :}}
+\end{minipage}
+
+\vspace{5.5em}
+
+\noindent
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \textbf{Pr SOH Mathurin}\\[0.15em]
+{\itshape\small Maître de conférences, Université de Dschang}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \textbf{Dr KENFACK NANGHO Maurice}\\[0.15em]
+{\itshape\small Chargé de cours, Université de Dschang}
+\end{minipage}
+
+\vspace{2em}
+
+\noindent
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \underline{\textbf{Rapporteur :}}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \underline{\textbf{Chef de Département :}}
+\end{minipage}
+
+\vspace{5.5em}
+
+\noindent
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \textbf{Pr BOMGNI Alain Bertrand}\\[0.15em]
+{\itshape\small Maître de conférences, Université de Dschang}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.47\linewidth}
+\raggedright \textbf{Pr NKENLIFACK Marcellin Julius}\\[0.15em]
+{\itshape\small Professeur, Université de Dschang}
+\end{minipage}
+
+\vspace{1.5em}
+
+\end{document}

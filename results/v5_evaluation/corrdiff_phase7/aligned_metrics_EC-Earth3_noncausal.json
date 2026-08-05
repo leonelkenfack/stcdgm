@@ -1,0 +1,35 @@
+{
+  "gcm": "EC-Earth3",
+  "run_variant": "noncausal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 365,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 12,
+  "indices": {
+    "cdd_pred": 38.82824477068988,
+    "cdd_truth": 17.06071853266549,
+    "cdd_bias": 21.767526238024388,
+    "rx1day_pred": 49.555794047160525,
+    "rx1day_truth": 54.24444080088994,
+    "rx1day_bias": -4.688646753729415,
+    "r10day_pred": 26.12433415616474,
+    "r10day_truth": 24.057717292451606,
+    "r10day_bias": 2.066616863713133,
+    "DJF_rainfall_pred": 2.650802585045647,
+    "DJF_rainfall_truth": 2.733547478052978,
+    "DJF_rainfall_bias": -0.08274489300733068,
+    "JJA_rainfall_pred": 2.9196925088589656,
+    "JJA_rainfall_truth": 2.9986615091017796,
+    "JJA_rainfall_bias": -0.07896900024281406
+  },
+  "psd_distance": 0.4931545477030965,
+  "schema_version": "legacy-pre-K1",
+  "valid_for_analysis": false,
+  "tombstone_reason": "K1 audit: causal_concat=True applied to both Oracle and CorrDiff sampling. K30 audit: V5-mini ran only 10/200 epochs. J29 audit: cfg_scale silently ignored. See path_c_plus/HYPERPLAN.md section 'ALERTE METHODOLOGIQUE MAJEURE'.",
+  "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py"
+}

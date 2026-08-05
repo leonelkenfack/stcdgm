@@ -1,0 +1,150 @@
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/oracle_9node/seed_42/epoch_last.pth",
+  "epoch": 215,
+  "epochs_total": 215,
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "metrics_scope": "full_prediction (mu_HR + delta)",
+  "eval_time_s": 2334.196055650711,
+  "rmse": 0.14135445654392242,
+  "mae": 0.06948994845151901,
+  "spread_mean": 0.05084722489118576,
+  "f1_extremes": {
+    "p95": 0.5828834369803412,
+    "p99": 0.45309689025957334
+  },
+  "pearson_corr": {
+    "global": 0.7667191624641418,
+    "per_sample_avg": 0.7656855471432209,
+    "per_sample_n": 16,
+    "per_sample_list": [
+      0.795880138874054,
+      0.5960835218429565,
+      0.7003418803215027,
+      0.8023368120193481,
+      0.7861564755439758,
+      0.6596606969833374,
+      0.8567084670066833,
+      0.834581732749939,
+      0.8042519688606262,
+      0.8949346542358398,
+      0.7350695133209229,
+      0.7903160452842712,
+      0.8321627974510193,
+      0.6587496995925903,
+      0.6930021643638611,
+      0.8107321858406067
+    ]
+  },
+  "rapsd_distance": 319.41387939453125,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 1.0343748866291784,
+    "per_batch": [
+      1.0312058942723499,
+      1.117397236274506,
+      0.9493438704065569,
+      1.039552545563301
+    ],
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "norm_output": 0.09732817113399506,
+    "norm_mu_HR": 0.0407266803085804,
+    "norm_target": 0.11602627485990524,
+    "norm_output_minus_mu_HR": 0.11339172720909119,
+    "norm_target_minus_mu_HR": 0.11379534006118774,
+    "shortcut_ratio": 1.1650452884086446,
+    "verdict": "REFINEMENT_OK"
+  },
+  "config_eval_num_steps": 32,
+  "config_cfg_scale": 1.5,
+  "eval_cfg_scale": 1.0,
+  "config_block_out_channels": [
+    128,
+    256,
+    256,
+    256
+  ],
+  "schema_version": "path-c-plus-option-c-v1",
+  "path_c_plus_batch": "option-c",
+  "option_c_run_type": "seed_42",
+  "valid_for_analysis": true,
+  "seeds_lineage": [
+    42
+  ],
+  "k9_temporal_split": {
+    "train": [
+      "1980-01-01",
+      "2009-12-31"
+    ],
+    "val": [
+      "2010-01-01",
+      "2011-12-31"
+    ],
+    "test": [
+      "2012-01-01",
+      "2013-12-31"
+    ],
+    "holdout": [
+      "2014-01-01",
+      "2014-12-31"
+    ]
+  },
+  "pathcplus_hyperparams": {
+    "lambda_dag_prior": 0.4,
+    "lambda_l1_start": 0.04,
+    "lambda_l1_end": 0.005,
+    "g_phys_alpha": 0.25,
+    "dag_gate_warmup_start_epoch": null,
+    "dag_gate_warmup_end_epoch": null
+  },
+  "pre_registration_commit": "bc6032b",
+  "path_c_plus_full_fix_lineage": {
+    "batch_A": "consensus 10 fixes (section 1.6, J3, I11, J8, ...)",
+    "batch_B": "math prof 16 fixes (I1-I16)",
+    "batch_C": "AI eng 42 fixes (J1-J42, subset of P0 picked)",
+    "batch_D": [
+      "J29",
+      "K2",
+      "K3",
+      "K9",
+      "K5"
+    ],
+    "batch_E": [
+      "J29 default",
+      "K2 plumbing",
+      "K5 raise",
+      "K9 assert",
+      "tombstone schema"
+    ],
+    "batch_F": [
+      "DEFAULT_HYPERPARAMS gate",
+      "Q_phys variants",
+      "projection hook",
+      "sigma_data calib",
+      "PC5-PC8"
+    ],
+    "batch_F_bis": [
+      "3-point projection hook",
+      "PC5/PC8 amendments",
+      "smoke JSON HARKing-resistant tag"
+    ],
+    "batch_F_blindspots": [
+      "#1 path_b doc",
+      "#2-3 phys_mag_gained criterion",
+      "#6 collapse explicit",
+      "#7 rename",
+      "#8 fetch depth 200",
+      "#9 adaptive skeleton F1"
+    ],
+    "option_c": [
+      "full Stage 1+2 from-scratch",
+      "CorrDiff Normal V2 config",
+      "Path C+ hyperparam override",
+      "K9 temporal split",
+      "3 seeds",
+      "noncausal baseline paired comparison"
+    ]
+  }
+}

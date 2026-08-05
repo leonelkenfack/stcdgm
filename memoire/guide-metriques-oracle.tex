@@ -1,0 +1,468 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{mdframed}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt plus 2pt}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\definecolor{bleu}{RGB}{30,40,90}
+\definecolor{accent}{RGB}{180,60,40}
+\definecolor{vert}{RGB}{40,110,60}
+\definecolor{grisclair}{RGB}{244,244,248}
+
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\LR}{\ensuremath{\mathrm{LR}}}
+\newcommand{\HR}{\ensuremath{\mathrm{HR}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+
+\newcommand{\metrique}[2]{\subsection*{\textcolor{bleu}{\rule[-1pt]{0pt}{12pt}#1 \;:\; #2}}\addcontentsline{toc}{subsection}{#1 : #2}}
+\newcommand{\bloc}[1]{\par\smallskip\noindent\textcolor{accent}{\textbf{#1}}\quad}
+\newcommand{\sens}[1]{\par\smallskip\noindent{\footnotesize\textcolor{vert}{\textbf{Sens :}} #1}\par}
+
+\newmdenv[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.7pt,
+          innertopmargin=8pt,innerbottommargin=8pt,skipabove=6pt,skipbelow=6pt,
+          roundcorner=3pt]{resultbox}
+
+\title{\textcolor{bleu}{\textbf{Guide des métriques --- Mémoire \textsc{Oracle}}}\\[2mm]
+\large Comprendre les résultats le plus simplement possible :\\ ce que chaque métrique mesure, une image simple, comment la lire, et le score obtenu (y compris les tests hors distribution)}
+\author{KENFACK Leonel}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.6pt,roundcorner=3pt]
+\textbf{L'idée en une phrase.} Évaluer un modèle de downscaling, c'est répondre à \textbf{trois questions} : \emph{(1) Est-il juste ?} (il tombe près de la vérité), \emph{(2) Connaît-il ses limites ?} (quand il dit « je suis sûr », il a raison de l'être), \emph{(3) Raisonne-t-il comme la physique ?} (il réagit dans le bon sens quand on change une cause). Chaque famille de métriques répond à l'une de ces questions. Pour chacune : \textcolor{accent}{\textbf{Ce qu'elle mesure}}, une \textcolor{accent}{\textbf{image simple}}, le \textcolor{vert}{\textbf{Sens}} (dans quel côté « c'est mieux »), et le \textcolor{accent}{\textbf{Résultat}} d'\Oracle{} contre la baseline.
+
+\textbf{Vocabulaire de base.} La \emph{baseline « Noncausal »} = \CorrDiff{}, l'état de l'art, réentraîné exactement dans les mêmes conditions ; la seule différence est la causalité, donc tout écart mesuré vient de là. \Oracle{} ne produit pas une carte mais un \emph{ensemble} de $K$ cartes (plusieurs tirages) : cela permet de mesurer aussi l'\emph{incertitude}. Certaines métriques sont calculées en espace $\log(1+\mathrm{pluie})$ (pour qu'une pluie géante n'écrase pas tout le calcul), d'autres directement en mm/jour ; c'est précisé à chaque fois.
+\end{mdframed}
+
+\tableofcontents
+\newpage
+
+% ==================================================================
+\section{Tableau de bord (à garder sous les yeux)}
+% ==================================================================
+
+Vue d'ensemble de toutes les métriques. « Sens » indique de quel côté c'est meilleur.
+
+{\footnotesize
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{@{}l X c c c@{}}
+\toprule
+\textbf{Métrique} & \textbf{Répond à : « le modèle\ldots »} & \textbf{Sens} & \textbf{\Oracle{}} & \textbf{Noncausal} \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{\textcolor{bleu}{Est-il juste ? (erreur ponctuelle)}}}\\
+RMSE (log) & \ldots tombe-t-il près de la vérité, pixel par pixel & bas & \textbf{0,124} & 0,130 \\
+MAE (log) & \ldots idem, sans surpunir les gros ratés & bas & \textbf{0,060} & 0,064 \\
+Pearson & \ldots suit-il les hausses et baisses du réel & haut & 0,825 & 0,819 \\
+RMSE global (mm/j) & \ldots erreur en vraie pluie & bas & \textbf{1,118} & 1,537 \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{\textcolor{bleu}{Connaît-il ses limites ? (calibration probabiliste)}}}\\
+CRPS (mm/j) & \ldots son « éventail » de possibles colle-t-il au réel & bas & \textbf{0,249} & 0,415 \\
+CRPS-SS & \ldots fait-il mieux que deviner la moyenne & haut ($\to 1$) & \textbf{+0,895} & +0,826 \\
+Spread-skill & \ldots son incertitude annoncée est-elle honnête & $\to 1$ & \textbf{0,69} & 0,20 \\
+$\chi^2$ rang & \ldots la vérité tombe-t-elle bien dans son éventail & bas & \textbf{5,4e6} & 3,25e7 \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{\textcolor{bleu}{L'image a-t-elle la bonne texture ? (structure spatiale)}}}\\
+RAPSD / PSD & \ldots produit-il une carte granuleuse, pas floue & bas & \textbf{0,001} & 0,447 \\
+FSS & \ldots à quelle finesse devient-il fiable & fin & \textbf{30 km} & 80 km \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{\textcolor{bleu}{Les extrêmes (ce qui inonde) ?}}}\\
+F1@p95 & \ldots place-t-il les fortes pluies au bon endroit & haut & 0,650 & 0,656 \\
+F1@p99 & \ldots idem, pluies très rares & haut & 0,512 & \textbf{0,550} \\
+RX1day (biais, mm) & \ldots vise-t-il juste le jour le plus pluvieux & $\to 0$ & \textbf{$-2{,}73$} & $-4{,}09$ \\
+R10mm (biais, j) & \ldots compte-t-il bien les jours de pluie & $\to 0$ & \textbf{$+0{,}88$} & $+2{,}65$ \\
+\midrule
+\multicolumn{5}{@{}l}{\textit{\textcolor{bleu}{Raisonne-t-il causalement ? (diagnostics)}}}\\
+Ratio O3 & \ldots utilise-t-il vraiment son graphe causal & $\to 1$ & \multicolumn{2}{c}{\textbf{0,87}} \\
+$Q_{\mathrm{int}}$ & \ldots réagit-il dans le bon sens physique & $\to$ 2/2 & \textbf{2/2} & 1/2 \\
+$Q_{\mathrm{phys}}$ & \ldots son graphe est-il la vraie physique & $\to 1$ & 0,40\,\footnotesize(1,0 à 9 n\oe uds) & --- \\
+\bottomrule
+\end{tabularx}
+}
+
+\smallskip
+{\footnotesize En \textbf{gras} : le meilleur des deux. \Oracle{} gagne nettement sur la \emph{calibration} (CRPS, spread-skill) et la \emph{texture} (RAPSD), fait jeu égal sur l'erreur ponctuelle, et perd un peu sur F1@p99. Les diagnostics causaux ($Q_{\mathrm{int}}$, O3) n'ont pas d'équivalent chez la baseline : c'est là que la causalité se voit.}
+
+% ==================================================================
+\section{D'abord : où teste-t-on ? Les régimes (du plus facile au plus dur)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Avant de lire un chiffre, il faut savoir \emph{dans quelles conditions} il a été mesuré. Un même modèle est facile à noter sur des données proches de son entraînement, difficile sur des données éloignées. C'est tout l'enjeu des tests \textbf{hors distribution (OOD)} : voir si le modèle tient quand le monde change.
+\end{mdframed}
+
+\metrique{Régime 1}{En distribution (ID) --- le terrain d'entraînement}
+
+\bloc{Ce que c'est}
+On teste sur le \emph{même} modèle climatique qu'à l'entraînement (ACCESS-CM2), mais sur des \emph{années mises de côté} (2013--2014, jamais vues). Entraînement 1980--2009, validation 2010--2012, test 2013--2014.
+
+\bloc{Image simple}
+Comme un élève interrogé sur le chapitre qu'il a révisé, mais avec des exercices nouveaux. C'est le régime \emph{facile} : les règles du jeu n'ont pas changé.
+
+\bloc{À quoi ça sert}
+C'est la référence. Tous les gros chiffres du mémoire (CRPS $-40\,\%$, spread-skill $\times 3{,}5$, RAPSD $\div 450$) sont mesurés ici.
+
+\metrique{Régime 2}{Inter-GCM historique --- d'autres modèles climatiques jamais vus}
+
+\bloc{Ce que c'est}
+On entraîne sur \emph{un} modèle climatique (ACCESS-CM2) et on teste sur \emph{deux autres} jamais vus : EC-Earth3 et NorESM2-MM (même période historique).
+
+\bloc{Image simple}
+Comme un élève entraîné avec la voix d'un professeur, puis interrogé par \emph{deux professeurs différents} avec chacun son accent. S'il comprend encore, c'est qu'il a appris la \emph{matière}, pas l'accent.
+
+\bloc{À quoi ça sert}
+Chaque modèle climatique a sa « personnalité » (ses petits biais). En changer, c'est un \emph{vrai déplacement de distribution}, la meilleure répétition générale du changement de climat qu'on puisse faire sans attendre 2050.
+
+\bloc{Résultat}
+Le gain \emph{tient} : CRPS $-30\,\%$ sur EC-Earth3 (0,319 contre 0,457) et $-28\,\%$ sur NorESM2-MM (0,342 contre 0,478). \Oracle{} n'a donc pas appris par c\oe ur les tics de son GCM d'entraînement.
+
+\metrique{Régime 3}{OOD temporel --- climats décalés (froid ancien / queue chaude)}
+
+\bloc{Ce que c'est}
+Deux tranches de temps décalées de la même chaîne ACCESS-CM2 : une tranche \textbf{ancienne} 1960--1965 (14 ans avant le début de l'entraînement, jamais vue) et la \textbf{queue chaude} (les $7\,\%$ de jours les plus chauds de 2012--2014). Protocole allégé (120 jours par tranche, ensembles $K=8$).
+
+\bloc{Image simple}
+On pousse l'élève vers des situations qu'il n'a pas révisées : un contexte plus ancien, et les journées les plus chaudes. On regarde si son avance sur la baseline survit.
+
+\bloc{Résultat}
+Le gain relatif de CRPS reste \emph{stable} : $-30{,}6\,\%$ sur la tranche ancienne (0,389 contre 0,561) et $-35{,}2\,\%$ sur la queue chaude (0,288 contre 0,444).
+
+\bloc{Nuances honnêtes (à connaître absolument)}
+\begin{itemize}[nosep]
+  \item Les décalages testés sont \textbf{faibles} (au plus $0{,}34\sigma$ en température). La tranche 1960--1965 est une \emph{extrapolation temporelle}, pas un climat nettement plus froid.
+  \item La queue chaude \emph{recoupe} les années de référence : c'est un \emph{sous-échantillonnage} des jours chauds, pas une vraie sortie de distribution.
+  \item La \emph{pente} de dégradation n'avantage pas \Oracle{} (voir encadré ci-dessous).
+\end{itemize}
+Ce test montre donc que \textbf{l'avantage persiste hors de la fenêtre d'entraînement}, mais il ne prouve \emph{pas} une robustesse à un vrai scénario climatique futur (SSP5-8.5, non testé).
+
+\begin{resultbox}
+\textbf{Niveau vs pente : la distinction à maîtriser.} Quand on s'éloigne du climat d'entraînement, l'erreur des \emph{deux} modèles monte. \Oracle{} reste \textbf{en dessous} (meilleur \emph{niveau}, $\sim$1,4$\times$ meilleur, l'écart se maintient) \emph{mais} il se dégrade à la \emph{même vitesse} que la baseline (même \emph{pente}). Traduction : la causalité, ici, améliore le \textbf{point de départ}, pas encore la \textbf{résistance au changement}. Ce n'est pas une contradiction avec « le gain se maintient » : l'écart constant, c'est exactement le gain qui se maintient.
+\end{resultbox}
+
+% ==================================================================
+\section{Famille 1 --- Est-il juste ? (erreur ponctuelle)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Ces métriques comparent, \emph{pixel par pixel}, la pluie prédite à la vraie pluie. Elles répondent à « tombe-t-il près de la cible ? ». \Oracle{} y fait un peu mieux, sans révolution : sa force est ailleurs (calibration, texture).
+\end{mdframed}
+
+\metrique{RMSE}{Erreur quadratique moyenne --- « de combien je me trompe, en punissant les gros ratés »}
+
+\bloc{Ce qu'elle mesure}
+La distance moyenne entre prédiction et vérité, mais en \emph{élevant au carré} chaque écart avant de moyenner : les grosses erreurs pèsent beaucoup plus lourd.
+
+\bloc{Image simple}
+Au tir à l'arc, on mesure la distance de chaque flèche au centre, on la met au carré (un raté à 2~m compte 4 fois plus qu'un à 1~m), puis on fait la moyenne. Rate une fois gros et ta note explose.
+
+\sens{Plus bas = mieux (0 = parfait).}
+
+\bloc{Résultat}
+$0{,}124$ contre $0{,}130$ ($-4{,}1\,\%$) en espace log. Léger gain. \emph{Note} : « en espace log » veut dire qu'on mesure sur $\log(1+\mathrm{pluie})$, pour qu'un orage géant ne domine pas tout le calcul.
+
+\metrique{MAE}{Erreur absolue moyenne --- « de combien je me trompe, en moyenne toute simple »}
+
+\bloc{Ce qu'elle mesure}
+La distance moyenne entre prédiction et vérité, \emph{sans} mise au carré : chaque erreur compte à proportion de sa taille.
+
+\bloc{Image simple}
+Même tir à l'arc, mais on additionne simplement les distances au centre et on divise par le nombre de flèches. Plus « démocratique » que le RMSE.
+
+\sens{Plus bas = mieux.}
+
+\bloc{Résultat}
+$0{,}060$ contre $0{,}064$ ($-5{,}7\,\%$). Gain net, du même ordre que le RMSE.
+
+\metrique{Pearson}{Corrélation --- « mes hausses et baisses suivent-elles le réel ? »}
+
+\bloc{Ce qu'elle mesure}
+Non pas si les valeurs sont \emph{exactes}, mais si elles \emph{montent et descendent ensemble} : quand il pleut plus en vrai, le modèle prédit-il plus ?
+
+\bloc{Image simple}
+Deux chanteurs sur le même rythme : peu importe le volume, sont-ils synchrones ? Corrélation 1 = parfaitement en rythme, 0 = aucun rapport.
+
+\sens{Plus haut = mieux (max 1).}
+
+\bloc{Résultat}
+$0{,}825$ contre $0{,}819$ : \emph{comparable} (les intervalles de confiance se chevauchent). La causalité ne change pas le « rythme » d'ensemble, elle agit sur d'autres aspects.
+
+\metrique{RMSE global (mm/j)}{la même erreur, mais en vraie pluie}
+
+\bloc{Ce qu'elle mesure}
+Comme le RMSE, mais calculé directement en millimètres par jour (pas en espace log), sur le champ complet reconstruit.
+
+\sens{Plus bas = mieux.}
+
+\bloc{Résultat}
+$1{,}118$ contre $1{,}537$~mm/j ($-27\,\%$). En vraie pluie, l'écart est plus visible.
+
+% ==================================================================
+\section{Famille 2 --- Connaît-il ses limites ? (calibration probabiliste)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+C'est \textbf{la famille où \Oracle{} brille}. Comme il produit un \emph{ensemble} de cartes (pas une seule), on peut noter non seulement sa justesse mais aussi l'\emph{honnêteté de son incertitude}. Un modèle qui se dit sûr et se trompe est dangereux ; un modèle bien calibré prévient quand il ne sait pas.
+\end{mdframed}
+
+\metrique{CRPS (mm/j)}{le score-roi des prévisions à incertitude --- « MAE probabiliste »}
+
+\bloc{Ce qu'elle mesure}
+Au lieu de comparer \emph{une} prédiction à la vérité, le CRPS compare tout l'\emph{éventail} de possibles (l'ensemble) à la valeur observée. Il récompense deux choses à la fois : viser juste \emph{et} annoncer la bonne dose d'incertitude.
+
+\bloc{Image simple}
+Une appli météo dit « 60\,\% de chances de pluie ». Le CRPS note la \emph{qualité de ce pari} sur beaucoup de jours : dire « 100\,\% » et qu'il ne pleuve pas est puni, dire « 50/50 » tout le temps aussi. Si l'on n'avait qu'une seule valeur au lieu d'un éventail, le CRPS se réduirait au MAE : d'où « MAE probabiliste ».
+
+\sens{Plus bas = mieux (0 = parfait).}
+
+\bloc{Résultat}
+\textbf{0,249 contre 0,415, soit $-40\,\%$}. C'est le résultat-phare du mémoire : l'éventail d'\Oracle{} est bien plus proche de la réalité. Gain confirmé statistiquement (tests de Diebold-Mariano et Wilcoxon).
+
+\metrique{CRPS-SS}{le CRPS transformé en note sur 1, contre « deviner la moyenne »}
+
+\bloc{Ce qu'elle mesure}
+Le CRPS \emph{Skill Score} : de combien on bat un modèle bête qui prédirait toujours la moyenne historique du lieu (la « climatologie »). $1$ = parfait, $0$ = pas mieux que la moyenne, négatif = pire.
+
+\bloc{Image simple}
+La note « combien de mieux que le pronostic paresseux `il fait le temps habituel de saison' ».
+
+\sens{Plus haut = mieux (max 1).}
+
+\bloc{Résultat}
+$+0{,}895$ contre $+0{,}826$ : \Oracle{} est à 89,5\,\% du chemin vers la perfection, la baseline à 82,6\,\%.
+
+\metrique{Ratio spread-skill}{le test d'honnêteté de l'incertitude}
+
+\bloc{Ce qu'elle mesure}
+Compare deux choses qui \emph{devraient} être égales : la \emph{dispersion} de l'ensemble (à quel point les cartes tirées s'écartent = l'incertitude que le modèle \emph{s'attribue}) et son \emph{erreur réelle}. Le rapport idéal est \textbf{1}.
+
+\bloc{Image simple}
+Un élève qui dit « je suis sûr à 90\,\% » et a raison 9 fois sur 10 est \emph{honnête} (ratio 1). Un élève qui dit « sûr à 100\,\% » et se trompe une fois sur deux est \emph{trop confiant} (ratio bas). En dessous de 1, le modèle promet une précision qu'il ne tient pas.
+
+\sens{Le plus proche de 1 = mieux. En dessous de 1 = trop confiant.}
+
+\bloc{Résultat}
+\textbf{0,69 contre 0,20, soit $\times 3{,}5$}. La baseline est 5 fois trop sûre d'elle (dangereux pour décider) ; \Oracle{} n'est pas parfait (toujours $<1$) mais 3,5 fois plus honnête : ses intervalles de confiance commencent à vouloir dire quelque chose.
+
+\metrique{$\chi^2$ histogramme de rang}{la vérité tombe-t-elle bien à l'intérieur de l'éventail ?}
+
+\bloc{Ce qu'elle mesure}
+On regarde, sur beaucoup de cas, \emph{où} se place la vraie valeur parmi les membres de l'ensemble (tout en bas ? au milieu ? tout en haut ?). Si l'ensemble est bien calibré, la vérité tombe \emph{uniformément} partout (histogramme plat). Le $\chi^2$ mesure l'écart à ce plat idéal.
+
+\bloc{Image simple}
+Si votre « fourchette de prix » est honnête, le vrai prix tombe aussi souvent en bas qu'en haut de la fourchette. S'il tombe toujours au-dessus, votre fourchette est trop basse (biais).
+
+\sens{Plus bas = mieux (0 = histogramme parfaitement plat).}
+
+\bloc{Résultat}
+$5{,}4\times10^6$ contre $3{,}25\times10^7$ ($-83\,\%$) : l'éventail d'\Oracle{} est bien plus « centré » sur la vérité. (Voir aussi les \emph{diagrammes de fiabilité} du mémoire : \Oracle{} suit la diagonale, la baseline reste sous-confiante.)
+
+% ==================================================================
+\section{Famille 3 --- L'image a-t-elle la bonne texture ? (structure spatiale)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Une prédiction peut être « juste en moyenne » tout en étant \emph{floue}. Ces métriques vérifient que la carte a la bonne \textbf{granularité} : de vraies cellules de pluie fines, pas une bouillie lissée. C'est crucial pour l'hydrologie et le risque d'inondation, qui dépendent des détails locaux.
+\end{mdframed}
+
+\metrique{RAPSD / PSD}{distance spectrale --- « ma carte est-elle granuleuse ou floue ? »}
+
+\bloc{Ce qu'elle mesure}
+Elle compare le \emph{spectre spatial} de l'image produite à celui du réel, c'est-à-dire la répartition des détails selon leur taille (grosses structures vs petites cellules). Un modèle qui lisse perd les petites échelles : son spectre est faux.
+
+\bloc{Image simple}
+Comparer le \emph{grain} de deux photos. Une vraie carte de pluie est granuleuse (orages ponctuels) ; une prédiction floue a « lissé » ce grain. La distance mesure l'écart de grain.
+
+\sens{Plus bas = mieux (0 = même texture que le réel).}
+
+\bloc{Résultat}
+\textbf{Distance PSD $0{,}001$ contre $0{,}447$, soit $\div 450$}. \Oracle{} restitue la texture du réel ; la baseline lissait les échelles 30--80~km. C'est un des trois résultats les plus robustes du mémoire.
+
+\metrique{FSS}{Fractions Skill Score --- « à partir de quelle finesse suis-je fiable ? »}
+
+\bloc{Ce qu'elle mesure}
+À quelle \emph{échelle} (taille de zone) le modèle devient utile pour dire « il pleut ici plutôt que là ». On zoome progressivement ; le FSS dit à partir de quelle finesse la prédiction est « skillful » (fiable).
+
+\bloc{Image simple}
+Une carte au trésor : à quelle précision peut-on s'y fier ? « La bonne région » (grossier, facile) ou « le bon quartier » (fin, difficile) ?
+
+\sens{Plus fin = mieux (fiable à plus petite échelle).}
+
+\bloc{Résultat}
+\Oracle{} devient fiable dès $\sim$\textbf{30~km}, contre $\sim$80~km pour la baseline : $\sim$2--3$\times$ plus fin.
+
+% ==================================================================
+\section{Famille 4 --- Les extrêmes (ce qui inonde ou assèche)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+La moyenne n'inonde personne : ce sont les \emph{extrêmes} qui comptent (fortes pluies, sécheresses). Ces métriques ciblent les événements rares. \Oracle{} y est globalement meilleur, avec une exception assumée (F1@p99).
+\end{mdframed}
+
+\metrique{F1@p95 et F1@p99}{place-t-il les fortes pluies au bon endroit ?}
+
+\bloc{Ce qu'elle mesure}
+Pour les pixels au-dessus du 95\up{e} (resp. 99\up{e}) centile de pluie (les 5\,\%, resp. 1\,\%, plus arrosés), le modèle les met-il aux \emph{bons endroits} ? Le F1 équilibre « a bien trouvé les vrais extrêmes » et « n'a pas crié au loup ».
+
+\bloc{Image simple}
+Un détecteur d'incendie : le F1 récompense « a sonné pour les vrais feux » \emph{et} « n'a pas sonné pour rien ». Un score qui punit à la fois les oublis et les fausses alertes.
+
+\sens{Plus haut = mieux (max 1).}
+
+\bloc{Résultat}
+F1@p95 : $0{,}650$ contre $0{,}656$ (\emph{comparable}). F1@p99 : $0{,}512$ contre $0{,}550$ : \Oracle{} \textbf{régresse} un peu sur les pluies les plus rares. C'est une \emph{limite assumée et affichée}, liée surtout à l'absence du relief fin en entrée (voir la note orographie).
+
+\metrique{RX1day (biais, mm)}{le jour le plus pluvieux de l'année --- l'indicateur d'inondation}
+
+\bloc{Ce qu'elle mesure}
+L'indice climatique standard (ETCCDI) : le maximum annuel de pluie en \emph{un} jour. On mesure le \emph{biais} = de combien on se trompe. Un biais négatif = on \emph{sous-estime} le pic (dangereux : on sous-dimensionne les digues).
+
+\bloc{Image simple}
+Prévoir la crue maximale d'une rivière. Sous-estimer de 4~mm = digue trop basse ; sous-estimer de 2,7~mm = déjà mieux.
+
+\sens{Le plus proche de 0 = mieux.}
+
+\bloc{Résultat}
+$-2{,}73$ contre $-4{,}09$~mm : \Oracle{} sous-estime le pic d'inondation \textbf{33\,\% de moins} que la baseline.
+
+\metrique{R10mm et CDD (biais, jours)}{jours de pluie et jours de sécheresse}
+
+\bloc{Ce qu'elles mesurent}
+\textbf{R10mm} = nombre de jours « bien pluvieux » ($>10$~mm) dans l'année. \textbf{CDD} = plus longue série de jours \emph{secs} consécutifs (indicateur de sécheresse). On mesure le biais (écart au vrai compte).
+
+\bloc{Image simple}
+R10mm = « combien de bonnes averses cette année ? ». CDD = « combien de jours sans une goutte, d'affilée ? ».
+
+\sens{Le plus proche de 0 = mieux.}
+
+\bloc{Résultat}
+R10mm : $+0{,}88$ contre $+2{,}65$~jours ($-67\,\%$, gain net). CDD : $+17{,}95$ contre $+21{,}51$~jours : encore surestimé de $\sim$18~jours ; le mémoire ne revendique \emph{aucune} valeur opérationnelle pour la sécheresse (limite affichée).
+
+\metrique{Courbe de période de retour}{les événements « une fois par siècle »}
+
+\bloc{Ce qu'elle mesure}
+Une période de retour « 100 ans » = un événement si intense qu'il n'arrive en moyenne qu'une fois par siècle. La courbe (loi de Gumbel) montre l'intensité en fonction de la rareté. Un bon modèle doit suivre la courbe du réel \emph{jusqu'aux événements rares}.
+
+\bloc{Image simple}
+Jusqu'où le modèle « ose-t-il » prédire des pluies extrêmes ? La baseline \emph{plafonne} (elle rabote les extrêmes, tronque au-delà de $\sim$30~mm/j) ; \Oracle{} suit la vérité plus loin.
+
+\sens{Suivre la courbe du réel = mieux ; « saturer en dessous » = mauvais.}
+
+\bloc{Résultat}
+\Oracle{} suit la vérité jusqu'aux périodes de retour longues sur les trois GCM ; la baseline sature systématiquement sous les extrêmes observés.
+
+% ==================================================================
+\section{Famille 5 --- Raisonne-t-il causalement ? (diagnostics)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Ces trois diagnostics n'ont pas d'équivalent chez la baseline : ils testent la \emph{mécanique interne}. Le graphe causal sert-il vraiment (O3) ? Le modèle réagit-il comme la physique (\,$Q_{\mathrm{int}}$) ? Le graphe appris est-il la bonne physique ($Q_{\mathrm{phys}}$) ?
+\end{mdframed}
+
+\metrique{Ratio O3}{le graphe causal est-il vraiment utilisé, ou décoratif ?}
+
+\bloc{Ce qu'elle mesure}
+On \emph{débranche} le graphe (on met la matrice $\Adag$ à zéro) et on regarde de combien la sortie change. Si elle ne bouge pas, le graphe était décoratif ; si elle bouge beaucoup, il est au c\oe ur du calcul.
+
+\bloc{Image simple}
+Débrancher un câble dans une machine : si rien ne change, le câble ne servait à rien. Ici, débrancher le graphe change la sortie de 87\,\% de son ampleur.
+
+\sens{Le plus proche de 1 = mieux (graphe indispensable). Sous 0,05, l'entraînement aurait été stoppé.}
+
+\bloc{Résultat}
+\textbf{0,87.} Le graphe est bien porteur (propriété O3 satisfaite). \emph{Honnêteté} : cela prouve que la sortie \emph{dépend} du graphe, pas que le graphe soit causalement correct au sens de Pearl. « Structurellement causal » $\ne$ « causalement identifié ».
+
+\metrique{$Q_{\mathrm{int}}$}{réagit-il dans le bon sens quand on force une cause ?}
+
+\bloc{Ce qu'elle mesure}
+On \emph{force} une hausse (humidité $+20\,\%$, puis température $+3$~K) et on vérifie que la pluie prédite bouge dans le sens que la physique impose (Clausius-Clapeyron : plus chaud/humide $\Rightarrow$ plus de pluie disponible). $Q_{\mathrm{int}}$ = fraction de signes corrects.
+
+\bloc{Image simple}
+Tourner un robinet d'eau chaude : la vapeur doit augmenter. Si le modèle dit « je tourne le chaud et il pleut \emph{moins} », il a un raisonnement à l'envers.
+
+\sens{2/2 = les deux réponses dans le bon sens.}
+
+\bloc{Résultat}
+\Oracle{} : \textbf{2/2} (humidité $+1{,}24\times10^{-3}$, température $+0{,}84\times10^{-3}$, les deux positifs, corrects). Baseline : \textbf{1/2} : correcte sur l'humidité mais \emph{inverse le signe} sur la température ($-0{,}84\times10^{-3}$), car elle a appris le piège corrélatif néo-zélandais « chaud = anticyclone sec ». C'est la preuve expérimentale de la différence corrélation/causalité.
+
+\bloc{Nuance à retenir}
+Le \emph{signe} est correct, mais l'\emph{amplitude} de la réponse d'\Oracle{} reste très en dessous de la théorie ($\sim$0,01\,\%/K contre $\sim$7\,\%/K attendus). C'est un \textbf{contrôle de cohérence directionnelle}, pas un outil de projection climatique.
+
+\metrique{$Q_{\mathrm{phys}}$}{le graphe appris est-il la vraie physique ?}
+
+\bloc{Ce qu'elle mesure}
+La proportion des arêtes du graphe qui sont correctement orientées par rapport à la physique attendue. $0{,}5$ = aléatoire (comme pile ou face), $1$ = parfait.
+
+\bloc{Image simple}
+Corriger une carte de « qui influence qui » : combien de flèches pointent dans le bon sens ?
+
+\sens{Le plus proche de 1 = mieux.}
+
+\bloc{Résultat}
+$0{,}40$ sur la configuration principale (6 n\oe uds) : le graphe capte une \emph{partie} de la physique. \textbf{Mais} une variante à \textbf{9 n\oe uds} atteint $\approx 1{,}0$ (structure physique quasi parfaite). Leçon : la platitude à 6 n\oe uds est le \emph{prix de la lisibilité} (on agrège pour rester lisible), pas une faiblesse de l'architecture. La machinerie causale est réelle : elle retrouve la physique dès qu'on lui donne assez de n\oe uds.
+
+% ==================================================================
+\section{L'ablation : d'où vient le gain, pièce par pièce}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Une \emph{ablation}, c'est retirer un organe pour voir ce qu'il faisait. On compare quatre versions, en ne changeant \emph{que} le graphe $\Adag$, à protocole identique (CRPS ; plus bas = mieux).
+\end{mdframed}
+
+{\centering
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{lcl}
+\toprule
+\textbf{Variante} & \textbf{CRPS} & \textbf{Lecture} \\
+\midrule
+\Oracle{} complet ($\Adag$ appris) & \textbf{0,508} & référence \\
+$\Adag = \mathbf{0}$ (graphe coupé) & 0,522 & $+2{,}7\,\%$ \\
+$\Adag$ aléatoire (même norme) & 0,529 & $+4{,}2\,\%$ \\
+Noncausal (baseline) & 0,592 & $+16{,}6\,\%$ \\
+\bottomrule
+\end{tabular}
+\par}
+
+\smallskip
+\bloc{Comment lire ces 4 lignes}
+\begin{itemize}[nosep]
+  \item \textbf{Couper le graphe} dégrade ($+2{,}7\,\%$) : donc le graphe \emph{sert}.
+  \item \textbf{Le remplacer par un faux graphe aléatoire} dégrade \emph{plus} ($+4{,}2\,\%$) que le couper : résultat fort et contre-intuitif, \emph{une structure fausse est pire que pas de structure}. Ce sont donc les \emph{bonnes} connexions qui comptent.
+  \item \textbf{L'écart total} avec la baseline (16,6\,\%) se décompose en $\sim$\textbf{84\,\%} apporté par l'\emph{architecture two-stage causale} et $\sim$\textbf{16\,\%} par la \emph{structure fine du graphe}.
+\end{itemize}
+Le gain est donc \emph{attribuable pièce par pièce}, pas un effet du hasard.
+
+% ==================================================================
+\section*{En résumé : ce qu'il faut retenir des résultats}
+\addcontentsline{toc}{section}{En résumé}
+% ==================================================================
+
+\begin{resultbox}
+\textbf{Trois résultats robustes} (assez massifs pour survivre à l'incertitude d'échantillonnage) :
+\begin{enumerate}[nosep]
+  \item \textbf{CRPS $-40\,\%$} en distribution, et le gain \emph{tient} en inter-GCM ($-30/-28\,\%$) et hors fenêtre temporelle ($-30/-35\,\%$). $\Rightarrow$ meilleure prévision probabiliste, partout.
+  \item \textbf{Spread-skill $\times 3{,}5$} ($0{,}20 \to 0{,}69$). $\Rightarrow$ une incertitude enfin honnête, exploitable pour décider.
+  \item \textbf{Distance spectrale $\div 450$}. $\Rightarrow$ la carte a la texture du réel, pas une bouillie lissée.
+\end{enumerate}
+Plus deux preuves de mécanique causale : \textbf{ratio O3 $=0{,}87$} (le graphe est indispensable) et \textbf{$Q_{\mathrm{int}}=2/2$} (réponse physiquement correcte là où la baseline se trompe).
+
+\medskip
+\textbf{Ce que les résultats ne prouvent pas} (limites affichées) : pas de DAG « identifié » au sens de Pearl à 6 n\oe uds ($Q_{\mathrm{phys}}=0{,}40$) ; pas de robustesse à un vrai scénario futur (SSP non testé, décalages OOD $\leq 0{,}34\sigma$) ; F1@p99 en léger retrait ; sécheresse (CDD) non fiable ; un seul entraînement (variabilité inter-graine non mesurée) ; aucune donnée africaine. Le gain porte sur le \emph{niveau} d'erreur, pas (encore) sur la \emph{pente} de dégradation.
+
+\medskip
+\textbf{La phrase à dire} : « la causalité placée dans l'architecture améliore mesurablement la \emph{calibration}, la \emph{texture} et la \emph{robustesse inter-GCM}, tout en restant à parité sur l'erreur brute, et sans jamais tricher (chaque limite est affichée). »
+\end{resultbox}
+
+\end{document}

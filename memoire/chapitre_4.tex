@@ -146,14 +146,14 @@ Le chapitre précédent a présenté \Oracle{} dans sa forme architecturale fina
 \subsection{Pile logicielle et matériel}
 \label{ssec:exp-env-soft}
 
-L'implémentation repose sur Python~3.11 et PyTorch~2.3, étendu par PyTorch~Geometric~\cite{fey_pyg_2019} pour les opérateurs sur graphe hétérogène, xarray~\cite{hoyer_xarray_2017} pour l'ingestion des sorties GCM, et Hydra~\cite{yadan_hydra_2019} pour la configuration en YAML hiérarchiques. La précision mixte automatique (\texttt{bfloat16} sur GPU, \texttt{float32} sur CPU) et la compilation \texttt{torch.compile} du UNet du second étage réduisent l'empreinte mémoire et accélèrent l'exécution d'environ 30~\%.
+L'implémentation repose sur Python~3.11 et PyTorch~2.3, étendu par PyTorch~Geometric pour les opérateurs sur graphe hétérogène, xarray pour l'ingestion des sorties GCM, et Hydra pour la configuration en fichiers YAML hiérarchiques. La précision mixte automatique (\texttt{bfloat16} sur GPU, \texttt{float32} sur CPU) et la compilation \texttt{torch.compile} du UNet du second étage réduisent l'empreinte mémoire et accélèrent l'exécution d'environ 30~\%.
 
-Le développement local s'appuie sur une machine CPU-only à environ 500~Go de mémoire, sans GPU. Les phases d'entraînement intensif utilisent Google Colab avec un GPU NVIDIA~A100 (40~Go) ou un T4 (16~Go) en parallélisme multi-GPU. Un cycle complet d'entraînement d'\Oracle{} demande environ 45~heures sur A100 : 10 à 15 époques de Stage~1, suivies de 200 époques de Stage~2 sur résiduels mis en cache. Chaque exécution fixe une graine aléatoire et sérialise l'historique complet de l'entraînement dans le point de contrôle, ce qui garantit la reproductibilité.
+Les expérimentations exploratoires initiales (portage de \emph{ResDiff}) ont tourné sur une station CPU-only à $\sim$500~Go de mémoire. Les phases intensives sont déportées sur Google Colab : NVIDIA~L4 (24~Go) pour le Stage~1, NVIDIA~A100~80~Go pour le Stage~2 (UNet $42{,}8$~M paramètres). Un cycle complet demande $\sim$45~heures cumulées (10--15 époques Stage~1, 200 époques Stage~2 sur résiduels mis en cache). La graine aléatoire est fixée et l'historique sérialisé dans le point de contrôle pour reproductibilité.
 
 \subsection{Données et prétraitements}
 \label{ssec:exp-env-data}
 
-Le domaine d'étude est la Nouvelle-Zélande, choisie pour la disponibilité d'un jeu de données aligné sur la référence \CorrDiff{}~\cite{mardani_corrdiff_2023}. La grille \HR{} couvre $172 \times 179$ pixels (résolution effective de 5 à 10~km). Les prédicteurs \LR{} sont issus du modèle ACCESS-CM2 (CMIP6 historique), interpolés sur une grille $23 \times 26$ que nous sur-échantillonnons par interpolation bilinéaire vers la résolution cible (\emph{baseline}). Quinze variables atmosphériques sont conservées : vent $u, v, w$, humidité spécifique $q$ et température $t$, chacune à trois niveaux 850, 500 et 250~hPa.
+Le domaine d'étude est la Nouvelle-Zélande, choisi pour trois raisons : référence comparable (jeu HR aligné sur les protocoles \CorrDiff{}~\cite{mardani_corrdiff_2023} et cGAN néo-zélandais~\cite{rampal_cgan_2024}, deux baselines génératives crédibles) ; diversité climatique compacte (sur $<270\,000$~km$^2$, subtropical au nord, marin tempéré à l'ouest, semi-aride sur le lee oriental des Alpes du Sud, alpin en altitude --- l'essentiel des régimes de Köppen tropicaux et subtropicaux) ; test orographique sévère (gradient ouest--est de plus de $10\,000$~mm/an sur $50$~km, l'un des plus extrêmes au monde). La Nouvelle-Zélande joue donc le rôle de \emph{bac à sable exigeant} : une architecture qui y passe sous ablation causale fournit une preuve forte d'universalité indépendante du climat d'entraînement, préalable à toute mise en production sur des cibles applicatives comme l'Afrique subsaharienne, à ce jour exclues faute de jeu HR de référence~\cite{bachmann_hpc_africa_2025}. La grille \HR{} couvre $172 \times 179$ pixels (5--10~km). Les prédicteurs \LR{} viennent d'ACCESS-CM2 (CMIP6 historique) sur une grille $23 \times 26$ sur-échantillonnée par interpolation bilinéaire (\emph{baseline}). Quinze variables atmosphériques sont conservées : $u, v, w$, humidité spécifique $q$, température $t$, chacune à 850, 500, 250~hPa.
 
 La cible \HR{} est la précipitation journalière, traitée en espace $\log(1 + \mathrm{precip})$ pour stabiliser l'entraînement face à la queue lourde. La sortie finale du modèle est reconstruite par
 \begin{equation}
@@ -162,12 +162,32 @@ La cible \HR{} est la précipitation journalière, traitée en espace $\log(1 + 
 \end{equation}
 où $\muHR$ est la moyenne haute résolution causale et $\widehat{\delta}$ le résiduel échantillonné par la diffusion. Les données sont partitionnées en entraînement (1980--2009), validation (2010--2012) et test ID (ACCESS-CM2, 2013--2014). Les jeux inter-GCM historiques sont EC-Earth3 et NorESM2-MM sur la même période d'évaluation. Chaque échantillon est une séquence de $T = 8$ pas temporels avec fenêtre glissante de pas 4. Les variables \LR{} sont normalisées canal par canal sur l'ensemble d'entraînement ; un masque binaire exclut les pixels océaniques des pertes et des métriques (domaine continental utile $\approx 60\%$).
 
+\paragraph{Alignement sur Rampal et al.~\cite{rampal_cgan_2024}.} Notre prétraitement reprend les conventions de la référence cGAN néo-zélandaise : grille HR $172 \times 179$ à 5--10~km, grille LR $23 \times 26$ alignée sur l'échelle CMIP6, sur-échantillonnage bilinéaire vers la HR avant injection au générateur. Le tableau~\ref{tab:exp-data-rampal} reprend la liste des variables prédicteurs telle qu'elle figure dans la section~2.1 de la référence.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \caption[Variables LR utilisées]{Variables atmosphériques \LR{} utilisées en entrée, alignées sur le protocole Rampal et~al.~\cite{rampal_cgan_2024} (Tableau 1 de la référence). Trois niveaux verticaux par variable, soit 15 canaux au total.}
+  \label{tab:exp-data-rampal}
+  \begin{tabular}{l c l}
+    \toprule
+    \textbf{Variable} & \textbf{Symbole} & \textbf{Niveaux (hPa)} \\
+    \midrule
+    Vent zonal & $u$ & 850 / 500 / 250 \\
+    Vent méridien & $v$ & 850 / 500 / 250 \\
+    Vitesse verticale & $w$ (= $\omega$) & 850 / 500 / 250 \\
+    Humidité spécifique & $q$ & 850 / 500 / 250 \\
+    Température & $t$ & 850 / 500 / 250 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 % =============================================================
 \section{Topologie effective d'\Oracle{}}
 \label{sec:exp-topo}
 % =============================================================
 
-La Figure~\ref{fig:exp-architecture} synthétise l'architecture globale d'\Oracle{} comme un pipeline en deux étages : un premier étage causal qui produit la moyenne déterministe $\muHR$ à partir d'un graphe hétérogène intelligible, et un second étage de diffusion résiduelle qui ajoute la composante stochastique $\widehat\delta$ pour reconstruire la sortie $\widehat{x}_{\HR}$. La Figure~\ref{fig:exp-graph-6} détaille la topologie du graphe à $N=6$ nœuds typés exploité par le RCN du Stage~1.
+La Figure~\ref{fig:exp-architecture} synthétise l'architecture globale d'\Oracle{} comme un pipeline en deux étages : un premier étage causal qui produit la moyenne déterministe $\muHR$ à partir d'un graphe hétérogène intelligible, et un second étage de diffusion résiduelle qui ajoute la composante stochastique $\widehat\delta$ pour reconstruire la sortie $\widehat{x}_{\HR}$.
 
 \begin{figure}[H]
 \centering
@@ -188,7 +208,7 @@ La Figure~\ref{fig:exp-architecture} synthétise l'architecture globale d'\Oracl
 \draw[arr] (lr) -- (enc);
 \draw[arr] (enc) -- (graph);
 \draw[arr] (graph) -- (rcn);
-\draw[arr] (rcn) |- (dec);
+\draw[arr] (rcn.south) -- ++(0,-0.6) -| (dec.north);
 \draw[arr] (dec) -- (edm);
 \draw[arr] (edm) -- (out);
 
@@ -196,7 +216,7 @@ La Figure~\ref{fig:exp-architecture} synthétise l'architecture globale d'\Oracl
 \node[stage, fit=(edm), label={[font=\small\bfseries, text=uriaccent]above:Stage 2 (diffusion résiduelle)}] {};
 \end{tikzpicture}%
 }
-\caption{Pipeline architectural d'\Oracle{} : Stage 1 (causal, déterministe) produit la moyenne $\muHR$ par chemin obligatoire à travers le DAG appris ; Stage 2 (diffusion EDM) échantillonne le résiduel $\widehat\delta$ conditionné par concaténation de canaux.}
+\caption[Pipeline architectural d'Oracle]{Pipeline architectural d'\Oracle{} : Stage 1 (causal, déterministe) produit la moyenne $\muHR$ par chemin obligatoire à travers le DAG appris ; Stage 2 (diffusion EDM) échantillonne le résiduel $\widehat\delta$ conditionné par concaténation de canaux.}
 \label{fig:exp-architecture}
 \end{figure}
 
@@ -205,11 +225,7 @@ Le graphe à $N=6$ n\oe uds typés (cf.~chapitre~III, Fig.~3.2 pour le détail t
 \subsection{Premier étage : encodeur, RCN, décodeur}
 \label{ssec:exp-topo-stage1}
 
-L'encodeur intelligible comporte un perceptron multicouche dédié par couple variable-niveau (15 sous-réseaux), chacun produisant une représentation latente de dimension $d = 128$. L'absence de paramètres partagés empêche le mélange précoce des informations et préserve la lisibilité de la matrice $\Adag$ apprise par DAGMA~\cite{bello_dagma_2022}. Le graphe hétérogène comporte $N = 6$ nœuds : trois nœuds spatiaux par niveau de géopotentiel (GP850, GP500, GP250), deux nœuds de couplage inter-niveaux (GP850$\rightarrow$GP500, GP500$\rightarrow$GP250) et un nœud de sortie SP\_HR. La matrice $\Adag \in \mathbb{R}^{6 \times 6}$ est initialisée selon un \emph{prior} tridiagonal physique (couplage quasi-géostrophique descendant) mais reste librement apprenable.
-
-La cellule du RCN combine une propagation par $\Adag$ et une mise à jour GRU~\cite{cho_gru_2014} sur huit pas temporels. Une perte de reconstruction $\mathcal{L}_{\mathrm{rec}}$ pèse sur chaque pas, ce qui empêche le RCN d'apprendre une représentation déconnectée de l'identité physique des variables. Le décodeur \texttt{GraphToGridDecoder} transforme l'état final $\HT$ en moyenne $\muHR$ par cross-attention vers une grille intermédiaire $43 \times 45$, sur-échantillonnage bilinéaire et raffinement convolutif léger (deux couches Conv $3 \times 3$, 32 canaux, GELU), pour environ $407\,000$ paramètres.
-
-\Oracle{} ajoute une \emph{skip-connection conditionnelle} \texttt{ConditionalSkipBlock} qui combine deux voies :
+L'encodeur intelligible comporte 15 MLP dédiés (un par couple variable-niveau), chacun produisant une représentation latente de dimension $d = 128$ ; l'absence de paramètres partagés préserve la lisibilité de $\Adag$~\cite{bello_dagma_2022}. Le graphe hétérogène a $N = 6$ nœuds (GP850, GP500, GP250, GP850$\to$GP500, GP500$\to$GP250, SP\_HR), avec $\Adag \in \mathbb{R}^{6 \times 6}$ initialisée selon un prior tridiagonal quasi-géostrophique mais librement apprenable. La cellule du RCN combine propagation par $\Adag$ et mise à jour GRU~\cite{cho_gru_2014} sur huit pas temporels, sous perte de reconstruction $\mathcal{L}_{\mathrm{rec}}$. Le décodeur \texttt{GraphToGridDecoder} transforme l'état final $\HT$ en $\muHR$ par cross-attention vers une grille intermédiaire $43 \times 45$, sur-échantillonnage bilinéaire et raffinement convolutif léger ($\sim$407k paramètres). \Oracle{} ajoute une \emph{skip-connection conditionnelle} \texttt{ConditionalSkipBlock} combinant deux voies :
 \begin{equation}
   \muHR = \alpha(\yLR) \cdot \mu_{\mathrm{causal}} + (1 - \alpha(\yLR)) \cdot \mu_{\mathrm{direct}},
   \label{eq:exp-skip}
@@ -228,77 +244,43 @@ L'écart-type des données $\sigma_{\mathrm{data}}$ est recalibré à la fin du 
 \label{sec:exp-traj}
 % =============================================================
 
-\subsection{Trajectoire des versions et résultats accumulés}
+\subsection{Trajectoire des versions et leçons retenues}
 \label{ssec:exp-traj-trajectoire}
 
-La trajectoire complète est consignée dans \texttt{architecture\_journey.md}. Quatre versions illustrent les choix structurels retenus et écartés.
+La conception d'\Oracle{} résulte d'une suite de phases successives consignées dans \texttt{architecture\_journey.md} ; nous en décrivons les choix structurels validés ou écartés.
 
-\textbf{P0 --- HG-SCM (abandonnée).} Le périmètre du modèle source relève de la classification de n\oe uds, pas du downscaling génératif~\cite{lin_hgscm_2023}.
+\paragraph{Phase 0 --- HG-SCM, abandonnée.} Le modèle source~\cite{lin_hgscm_2023} traite la classification de n\oe uds et ne propose pas de cadre génératif sur grille HR : périmètre orthogonal, abandon avant développement.
 
-\textbf{P1--P2 --- single-stage DDPM puis EDM.} Implémentation initiale avec conditionnement par cross-attention~\cite{ho_ddpm_2020}, puis pivot vers EDM~\cite{karras_edm_2022} pour la calibration explicite de $\sigma_{\mathrm{data}}$. Diagnostic : DAG décoratif --- remplacer $\Adag$ par zéro ne dégradait pas la prédiction, la propriété (O3) échouait. Tant qu'un chemin de bypass existait entre l'état latent et la sortie, le réseau l'empruntait.
+\paragraph{Phases 1--2 --- single-stage DDPM puis EDM.} Diffusion conditionnée par cross-attention~\cite{ho_ddpm_2020,karras_edm_2022}. Diagnostic structurel : le DAG appris se révèle décoratif, l'ablation $\Adag \leftarrow \mathbf{0}$ ne dégrade pas la prédiction et (O3) est violée. Le UNet apprend à bypasser le conditionnement causal via les skip-connections. Sans architecture \emph{two-stage}, la causalité reste cosmétique.
 
-\textbf{P3--P4 --- pivot two-stage.} L'innovation centrale est le passage au paradigme \emph{two-stage} : moyenne déterministe causale (RCN sur $\Adag$) puis résidu stochastique par diffusion EDM. La séquence $\LR \to \mathrm{encoder} \to \mathrm{RCN} \to \HT \to \muHR$ devient un chemin de calcul sans bypass possible : $\muHR$ est mathématiquement $f(\HT(\Adag))$ et rien d'autre. La régularisation structurelle inductive passe de \emph{prior} à dépendance fonctionnelle garantie par la topologie. P4 (mai--juin 2026) a remonté le UNet à $42{,}8$~M paramètres, recalibré $\sigma_{\mathrm{data}}$ systématiquement, et migré le sampler vers DPM-Solver++~\cite{lu_dpmpp_2022} avec \emph{churn}.
+\paragraph{Phases 3--4 --- pivot two-stage.} Réécriture de l'architecture pour que la séquence $\LR \to \mathrm{encoder} \to \mathrm{RCN} \to \HT \to \muHR$ ferme topologiquement tout bypass. Phase~4 (mai--juin 2026) : UNet remonté à $42{,}8$~M paramètres, recalibration $\sigma_{\mathrm{data}}$ par Welford, sampler DPM-Solver++~\cite{lu_dpmpp_2022}.
 
-\textbf{Variantes alternatives écartées.} Une version plus capacitaire (encodeur 192-dim, pertes spectrales FACL, régularisation Wasserstein) n'a pas battu la baseline après correction des bugs d'implémentation. Une seconde variante avec architecture \emph{dual-path} (chemin parallèle correctif) s'est effondrée sur les extrêmes (F1@p99 chuté à $0{,}175$, RAPSD multipliée par $3{,}3$), confirmant qu'un correcteur non-borné autour de $\muHR$ réintroduit le shortcut écarté en P2.
+\paragraph{Variantes écartées.} La \emph{variante capacitaire} (encodeur 192-dim, pertes FACL, Wasserstein) n'améliore pas la baseline. L'\emph{architecture dual-path} s'effondre sur les extrêmes (F1@p99 $\div 3$, RAPSD $\times 3$), confirmant qu'un correcteur parallèle non-borné réintroduit le shortcut écarté en Phase~2.
 
-Le Tableau~\ref{tab:exp-traj-versions} synthétise les résultats des principales versions sur le \emph{même} split de test (16~batches~$\times$~64 échantillons, K9 \emph{train}~1980--2009 / \emph{test}~2012--2013).
-
-\begin{table}[H]
-\centering
-\small
-\caption{Résultats accumulés des versions clés. \emph{RMSE} et \emph{Pearson} reportés en espace log1p mm/d (convention historique du projet). \emph{F1@p99} en Convention~B (seuil quantile pooled). Une version est « retenue » ssi ses métriques sont défendables sur ces trois axes simultanément.}
-\label{tab:exp-traj-versions}
-\begin{tabularx}{\linewidth}{l c c c c X}
-\toprule
-\textbf{Version} & \textbf{RMSE} & \textbf{Pearson} & \textbf{F1@p99} & \textbf{RAPSD-d} & \textbf{Statut / commentaire} \\
-\midrule
-\CorrDiff{} (V4, NVIDIA) & $0{,}130$ & $0{,}819$ & $0{,}550$ & $270$ & baseline SOTA, écart à battre \\
-V5 / \Oracle{} seed~42 & $0{,}141$ & $0{,}767$ & $0{,}453$ & $319$ & \textbf{version finale retenue} \\
-Phase~6 \emph{dual-path} & $0{,}130$ & $0{,}719$ & $\mathbf{0{,}175}$ & $\mathbf{890}$ & écartée --- effondrement des extrêmes \\
-Phase~8 \emph{from-scratch} & $0{,}207$ & $0{,}966$ & --- & --- & écartée --- 0/13 métriques battent V5 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\emph{Lecture critique des résultats.} \Oracle{} ne bat pas \CorrDiff{} sur les métriques pooled de la littérature cGAN (RMSE, F1@p99 conv.~B). Elle le devance néanmoins sur la \emph{convention~A} ETCCDI (seuil climatologique \emph{per-pixel}) avec $\mathrm{F1}@p99 = 0{,}841$ vs $0{,}816$ pour \CorrDiff{}, ainsi que sur les diagnostics interventionnels et la cohérence physique du DAG (cf.~\S\ref{ssec:exp-res-causal}). L'apport de l'architecture causale est donc \emph{spécifique aux extrêmes climatologiquement localisés et aux indices de cohérence physique}, pas universel sur les métriques globales --- une honnêteté analytique que la rédaction conserve plutôt que de la masquer~\cite{kerr_harking_1998}.
+\paragraph{Validation.} La version rapportée satisfait simultanément le critère structurel (O3, ratio $0{,}87$) et la cohérence interventionnelle ($Q_{\mathrm{int}}=2/2$). Nous ne défendons pas \Oracle{} comme une optimisation Pareto-dominante sur RMSE et F1@p99 (\Oracle{} ne bat pas \CorrDiff{} sur ces métriques pooled, Tableau~\ref{tab:exp-res-id}) mais comme la première version dont l'apport causal architectural est mesurable.
 
 \subsection{Procédure two-stage et sampler à l'inférence}
 \label{ssec:exp-traj-procedure}
 
-Le premier étage entraîne conjointement encodeur, RCN, décodeur et skip-block via AdamW~\cite{loshchilov_adamw_2019} (taux $5 \times 10^{-4}$, décroissance cosinus, 10 à 15 époques). La perte composite combine MSE pixel sur $\muHR$, reconstruction $\mathcal{L}_{\mathrm{rec}}$, pénalité d'acyclicité $\mathcal{L}_{\mathrm{DAGMA}}$ (warmup linéaire sur 5 époques), pénalité $L_1$ sur $\Adag$, régularisation $\mathcal{L}_{\mathrm{O3\text{-}preserve}}$, pondération tail-weighted ($\tau = \log(1 + 10)$~mm/j, $\alpha = 0{,}5$), supervision séquence-à-séquence stochastique sur $k = 5$ pas, et prior physique tridiagonal.
-
-Le second étage entraîne le UNet diffusif sur les résiduels Stage~1 gelés, mis en cache pour éviter le re-décodage à chaque batch. La perte EDM est
+Le Stage~1 entraîne conjointement encodeur, RCN, décodeur et skip-block via AdamW~\cite{loshchilov_adamw_2019} (taux $5 \times 10^{-4}$, cosinus, 10--15 époques). La perte composite combine MSE pixel, reconstruction $\mathcal{L}_{\mathrm{rec}}$, acyclicité $\mathcal{L}_{\mathrm{DAGMA}}$ (warmup 5 époques), $L_1$ sur $\Adag$, $\mathcal{L}_{\mathrm{O3\text{-}preserve}}$, pondération tail-weighted ($\tau = \log(1+10)$~mm/j, $\alpha=0{,}5$) et prior physique tridiagonal. Le Stage~2 entraîne le UNet sur les résiduels gelés via la perte EDM $\mathcal{L}_{\mathrm{EDM}} = \mathbb{E}[\lambda(\sigma)\,\|\mathcal{D}_\theta(\delta+\sigma n,\sigma)-\delta\|_2^2]$ avec $\lambda(\sigma)=(\sigma^2+\sigma_{\mathrm{data}}^2)/(\sigma\sigma_{\mathrm{data}})^2$ et facteur~$2{,}0$ au-delà du quantile~p99. À l'inférence : DPM-Solver++ 32 pas, $S_{\mathrm{churn}}=40$, $\mathrm{cfg}=1{,}5$, $K=12$ (inter-GCM) ou $K=64$ (ID). Entre les étages, $\sigma_{\mathrm{data}}$ est recalibré et la porte O3
 \begin{equation}
-  \mathcal{L}_{\mathrm{EDM}} = \mathbb{E}_{\sigma, \delta, n} \left[ \lambda(\sigma) \cdot \left\Vert \mathcal{D}_\theta(\delta + \sigma n, \sigma) - \delta \right\Vert_2^2 \right],
-  \label{eq:exp-edm-loss}
-\end{equation}
-avec $n \sim \mathcal{N}(0, I)$ et $\lambda(\sigma) = (\sigma^2 + \sigma_{\mathrm{data}}^2) / (\sigma \cdot \sigma_{\mathrm{data}})^2$, multipliée par un facteur $2{,}0$ au-delà du quantile p99 de la précipitation reconstruite. À l'inférence, le sampler DPM-Solver++ utilise 32 pas, $S_{\mathrm{churn}} = 40$ pour la diversité, et $\mathrm{cfg} = 1{,}5$ pour accentuer le conditionnement. La taille d'ensemble est $K = 12$ membres pour les évaluations inter-GCM historiques coûteuses, $K = 64$ pour les évaluations ID.
-
-Entre les deux étages, $\sigma_{\mathrm{data}}$ est recalibré et la porte O3 est vérifiée par mesure du ratio
-\begin{equation}
-  \mathrm{ratio}_{\mathrm{O3}} = \mathbb{E}\left[ \left\vert \muHR(\Adag) - \muHR(\mathbf{0}) \right\vert \right] / \mathbb{E}\left[ \left\vert \muHR(\Adag) \right\vert \right].
+  \mathrm{ratio}_{\mathrm{O3}} = \mathbb{E}\left[ \left\vert \muHR(\Adag) - \muHR(\mathbf{0}) \right\vert \right] / \mathbb{E}\left[ \left\vert \muHR(\Adag) \right\vert \right]
   \label{eq:exp-gate-o3}
 \end{equation}
-Un ratio inférieur à $0{,}05$ signalerait que $\Adag$ ne porte pas assez de signal et l'entraînement serait interrompu. La valeur mesurée pour \Oracle{} est $0{,}87$, ce qui valide le passage à Stage~2.
-
-\footnote{\emph{Ce que mesure (et ne mesure pas) le ratio O3.} L'ablation $\Adag=0$ mesure la sensibilité fonctionnelle ; un ratio de $0{,}87$ indique que $\Adag$ contribue à la qualité de sortie sans prouver une relation causale au sens de Pearl. Un contrôle plus exigeant --- couper une arête tirée au hasard --- n'a pas été conduit ici.}
+est vérifiée : un ratio sous $0{,}05$ aurait stoppé l'entraînement. \Oracle{} mesure $0{,}87$, ce qui valide le passage à Stage~2.\footnote{L'ablation $\Adag=0$ mesure la sensibilité fonctionnelle ; un ratio de $0{,}87$ atteste de la contribution de $\Adag$ sans prouver une relation causale au sens de Pearl.}
 
 % =============================================================
 \section{Protocole d'évaluation}
 \label{sec:exp-protoc}
 % =============================================================
 
-\textbf{Convention d'unités.} Sauf mention contraire, les métriques d'erreur (RMSE, MAE, CRPS) du Tableau~\ref{tab:exp-res-id} sont reportées dans l'espace $\log(1+\mathrm{precip})$ (espace d'entraînement, sans unité). Les métriques climatologiques du Tableau~\ref{tab:exp-res-indices} (RX1day, R10mm, CDD) sont reportées en mm/jour (espace physique).
+\textbf{Conventions.} RMSE, MAE et CRPS du Tableau~\ref{tab:exp-res-id} sont reportés en espace $\log(1+\mathrm{precip})$ ; les indices climatologiques (Tableau~\ref{tab:exp-res-indices}, RX1day, R10mm, CDD) sont en mm/jour. Aide-mémoire : CRPS = MAE probabiliste ; spread/RMSE = 1 calibré, $<1$ trop confiant ; RAPSD/FSS = structure spatiale ; $Q_{\mathrm{int}}$ = signes corrects sur 2 perturbations ; $Q_{\mathrm{phys}}$ = orientation du DAG ($0{,}5$ aléatoire, $1$ parfait).
 
-\textbf{Aide-mémoire.} RMSE/MAE : erreurs quadratique/absolue (proche de 0 $=$ mieux). CRPS : version probabiliste du MAE. Spread/RMSE : 1 $=$ bien calibré, $<1$ $=$ trop confiant. RAPSD/FSS : structure spatiale (RAPSD proche de 0, FSS proche de 1). RX1day/R10mm/CDD : indices ETCCDI sur la précipitation. $\Delta_{\mathrm{signal}}$ : sensibilité au DAG (proche de 1 $=$ plus utilisé). $Q_{\mathrm{int}}$ : signes corrects sur 2 perturbations. $Q_{\mathrm{phys}}$ : orientation du DAG ($0{,}5$ $=$ aléatoire, $1$ $=$ parfait).
+L'évaluation mobilise quatre familles de métriques croisées : erreur ponctuelle (RMSE, MAE, Pearson global et par échantillon), calibration probabiliste (CRPS, CRPS-SS vs climatologie, ratio \emph{spread-skill}, histogramme de rang), structure spatiale (distance RAPSD, FSS multi-échelle), et extrêmes (F1@p95/p99, indices ETCCDI~\cite{zhang_etccdi_2011} : RX1day, R10mm, CDD). Le CRPS-SS utilise comme référence la climatologie empirique pixel-par-pixel sur le jeu de test (365 jours).
 
-L'évaluation mobilise quatre familles de métriques croisées. L'\emph{erreur ponctuelle} (RMSE, MAE, Pearson, global et par échantillon) ; la \emph{calibration probabiliste} (CRPS, CRPS-SS relatif à une climatologie, ratio \emph{spread-skill}, histogramme de rang) ; la \emph{structure spatiale} (distance RAPSD, FSS à plusieurs échelles) ; les \emph{extrêmes} (F1 aux quantiles p95 et p99, indices ETCCDI~\cite{zhang_etccdi_2011} : RX1day, R10mm, CDD). Le CRPS-SS utilise comme référence la climatologie empirique pixel par pixel calculée sur le jeu de test (365 jours) ; une référence calendrier 1991-2020 reste en perspective.
+Deux diagnostics spécifiques à l'architecture causale s'y ajoutent. Le \emph{ratio O3} mesure l'indispensabilité architecturale du DAG (équation~\ref{eq:exp-gate-o3}). Le \emph{test de perturbation contrôlée} mesure la réponse du modèle à $\Delta(q_{850} +20\%)$ et $\Delta(t_{850} +3~\mathrm{K})$, comparée au signe physiquement attendu (Clausius-Clapeyron) ; $Q_{\mathrm{int}}$ rapporte la fraction de signes cohérents avec IC bootstrap 95\,\% sur $n=30$ jours.
 
-Deux diagnostics spécifiques à l'architecture causale sont conduits. Le \emph{ratio O3} mesure l'indispensabilité architecturale du DAG (équation~\ref{eq:exp-gate-o3}). Le \emph{test de perturbation contrôlée} mesure la réponse du modèle à des perturbations $\Delta(\cdot)$ atomiques sur les variables atmosphériques --- $\Delta(q_{850} +20\%)$ et $\Delta(t_{850} +3~\mathrm{K})$ ---, comparée au signe physiquement attendu (Clausius-Clapeyron). Nous quantifions le résultat par $Q_{\mathrm{int}}$, la fraction des perturbations cohérentes en signe, avec intervalle de confiance bootstrap 95~\% sur $n = 30$ jours.
-
-Le test inter-GCM en régime historique utilise deux GCM extérieurs (EC-Earth3, NorESM2-MM) sur la même période et les mêmes hyperparamètres que le test ID. Chaque résultat est comparé à une baseline \emph{Noncausal} qui remplace encodeur intelligible et RCN par un régresseur convolutif générique (\texttt{RegressionMeanPredictor}), tout en conservant à l'identique le UNet EDM et les hyperparamètres. Cette comparaison isole strictement l'effet de la causalisation du Stage~1.
-
-\footnote{\emph{Portée du test inter-GCM historique.} EC-Earth3 et NorESM2-MM restent en régime historique ; un test plus exigeant utiliserait un scénario SSP futur. Le test de perturbation contrôlée $Q_{\mathrm{int}}$ constitue un argument indirect en faveur d'une telle robustesse ; la validation directe en projection future fait partie des perspectives.}
+Le test inter-GCM en régime historique utilise EC-Earth3 et NorESM2-MM, sur la même période et les mêmes hyperparamètres que le test ID. Chaque résultat est comparé à une baseline \emph{Noncausal} qui remplace encodeur intelligible et RCN par un régresseur convolutif générique (\texttt{RegressionMeanPredictor}), en conservant à l'identique le UNet EDM et ses hyperparamètres : la comparaison isole strictement l'effet de la causalisation du Stage~1.\footnote{EC-Earth3 et NorESM2-MM restent en régime historique ; un test SSP futur est porté en perspective.}
 
 % =============================================================
 \section{Résultats observés}
@@ -311,7 +293,7 @@ Le test inter-GCM en régime historique utilise deux GCM extérieurs (EC-Earth3,
 \begin{table}[ht]
   \centering
   \small
-  \caption{Métriques en distribution sur ACCESS-CM2 (2013--2014), espace $\log(1 + \mathrm{precip})$, ensemble $K = 64$. Les intervalles entre crochets sont des IC 95\% bootstrap (10\,000 rééchantillonnages, $n=16$ valeurs per-sample).}
+  \caption[Métriques en distribution]{Métriques en distribution sur ACCESS-CM2 (2013--2014), espace $\log(1 + \mathrm{precip})$, ensemble $K = 64$. Les intervalles entre crochets sont des IC 95\% bootstrap (10\,000 rééchantillonnages, $n=16$ valeurs per-sample).}
   \label{tab:exp-res-id}
   \begin{tabularx}{\linewidth}{l c c c X}
     \toprule
@@ -342,7 +324,7 @@ Sur les spectres radiaux moyens (\texttt{phase8\_figures/07\_rapsd\_comparison.p
 \begin{table}[ht]
   \centering
   \small
-  \caption{Métriques probabilistes en distribution sur ACCESS-CM2, ensemble $K = 12$.}
+  \caption[Métriques probabilistes]{Métriques probabilistes en distribution sur ACCESS-CM2, ensemble $K = 12$.}
   \label{tab:exp-res-calib}
   \begin{tabularx}{\linewidth}{l c c X}
     \toprule
@@ -359,7 +341,12 @@ Sur les spectres radiaux moyens (\texttt{phase8\_figures/07\_rapsd\_comparison.p
 
 Le CRPS chute de $40\%$ par rapport à la baseline non-causale --- gain statistiquement significatif au sens des tests de Diebold-Mariano et Wilcoxon sur $n = 365$ jours $\times$ $\approx 18\,000$ pixels continentaux. Le ratio \emph{spread-skill} passe de $0{,}20$ à $0{,}69$, soit un facteur $3{,}5$ d'amélioration de la calibration d'ensemble. Le modèle reste sous-dispersif au sens strict de Fortin et~al.~\cite{fortin_sk_2014} (cible $1{,}0$) mais sort largement du régime « ensemble inutilisable » ($< 0{,}5$) pour entrer dans une zone où la quantification d'incertitude commence à être informative. L'histogramme de rang réduit son écart au profil uniforme d'un facteur six.
 
-Sur le diagramme de fiabilité (\texttt{phase9\_climate\_standards/03\_reliability.png}), \Oracle{} suit la diagonale tandis que \CorrDiff{} reste sur-confiant ; une sous-dispersion résiduelle subsiste.
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{../results/v5_evaluation/phase9_climate_standards/03_reliability.png}
+  \caption[Diagrammes de fiabilité]{Diagrammes de fiabilité aux seuils $P(\mathrm{precip}>\{1,10,50\}$~mm/j$)$. \Oracle{} (bleu) suit la diagonale alors que \CorrDiff{} (orange) reste sous-confiant aux probabilités élevées ; une sous-dispersion résiduelle subsiste sur le seuil $>50$~mm/j.}
+  \label{fig:exp-reliability}
+\end{figure}
 
 \subsection{Indices climatiques et extrêmes}
 \label{ssec:exp-res-extremes}
@@ -367,7 +354,7 @@ Sur le diagramme de fiabilité (\texttt{phase9\_climate\_standards/03\_reliabili
 \begin{table}[ht]
   \centering
   \small
-  \caption{Biais sur les indices ETCCDI en distribution. \emph{Plus c'est proche de zéro, mieux c'est.}}
+  \caption[Biais sur indices ETCCDI]{Biais sur les indices ETCCDI en distribution. \emph{Plus c'est proche de zéro, mieux c'est.}}
   \label{tab:exp-res-indices}
   \begin{tabularx}{\linewidth}{l c c X}
     \toprule
@@ -382,9 +369,14 @@ Sur le diagramme de fiabilité (\texttt{phase9\_climate\_standards/03\_reliabili
   \end{tabularx}
 \end{table}
 
-\Oracle{} sous-prédit moins les extrêmes journaliers que la baseline (RX1day $-2{,}73$ vs $-4{,}09$~mm) et place mieux le nombre de jours de pluie modérée (R10mm $+0{,}88$ vs $+2{,}65$). Le nombre de jours secs consécutifs reste sur-estimé d'environ dix-huit jours, biais résiduel hérité de la fonction de perte CRPS/MSE attirant les prédictions vers la médiane conditionnelle (cf.~annexe). La distance spectrale de puissance tombe à un niveau quasi-négligeable.
+\Oracle{} sous-prédit moins les extrêmes journaliers que la baseline (RX1day $-2{,}73$ vs $-4{,}09$~mm) et place mieux R10mm ($+0{,}88$ vs $+2{,}65$). Le CDD reste surestimé d'environ 18~jours, biais hérité de la perte MSE qui tire les prédictions vers la médiane conditionnelle ; aucune valeur opérationnelle n'est revendiquée pour le diagnostic de sécheresse (tête Bernoulli-Gamma portée en perspective). La distance spectrale tombe à un niveau quasi-négligeable et la queue droite est reproduite, tandis que \CorrDiff{} tronque au-delà de $\sim$30~mm/j. Le déficit RX1day reste concentré sur le versant occidental des Southern Alps (annexe~\ref{fig:exp-extreme-bias-oracle}), signature directe de l'absence de DEM en entrée.
 
-L'histogramme des intensités confirme qu'\Oracle{} reproduit la queue droite jusqu'aux valeurs extrêmes alors que \CorrDiff{} la tronque au-delà de $\sim 30$~mm/j (cf.~annexe~IV.E). Les cartes spatiales du biais RX1day (annexe~IV.D, Fig.~\ref{fig:exp-extreme-bias-oracle}) montrent que le déficit se concentre sur le versant occidental des Southern Alps, révélant visuellement l'absence de DEM en entrée. \emph{Limite assumée sur l'indice CDD :} le biais résiduel ($+18$~j) dépasse l'amplitude climatologique typique (12--17~j) ; nous ne revendiquons donc aucune valeur opérationnelle d'\Oracle{} pour le diagnostic de sécheresse, une tête Bernoulli-gamma étant portée en perspective.
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{../results/v5_evaluation/phase9_climate_standards/02_return_period.png}
+  \caption[Courbes Gumbel période de retour]{Courbes Gumbel de période de retour pour la précipitation journalière maximale sur le domaine, en distribution (ACCESS-CM2) et hors distribution (EC-Earth3, NorESM2-MM). \Oracle{} (bleu) suit la vérité (noir) jusqu'aux périodes de retour les plus longues sur les trois GCM ; \CorrDiff{} (orange) sature systématiquement en dessous des extrêmes observés.}
+  \label{fig:exp-return-period}
+\end{figure}
 
 \subsection{Robustesse inter-GCM en régime historique}
 \label{ssec:exp-res-ood}
@@ -392,7 +384,7 @@ L'histogramme des intensités confirme qu'\Oracle{} reproduit la queue droite ju
 \begin{table}[ht]
   \centering
   \small
-  \caption{Métriques inter-GCM historiques sur deux GCM extérieurs (ID = ACCESS-CM2 rappelé pour référence).}
+  \caption[Métriques inter-GCM]{Métriques inter-GCM historiques sur deux GCM extérieurs (ID = ACCESS-CM2 rappelé pour référence).}
   \label{tab:exp-res-ood}
   \begin{tabularx}{\linewidth}{l c c c c c X}
     \toprule
@@ -415,7 +407,7 @@ Sur le split ID, \Oracle{} atteint un CRPS de $0{,}249$ contre $0{,}415$ pour \C
 \begin{table}[ht]
   \centering
   \small
-  \caption{Réponse aux perturbations contrôlées $\Delta(q +20\%)$ et $\Delta(t +3~\mathrm{K})$ ; IC bootstrap 95~\% sur $n = 30$.}
+  \caption[Réponse aux perturbations contrôlées]{Réponse aux perturbations contrôlées $\Delta(q +20\%)$ et $\Delta(t +3~\mathrm{K})$ ; IC bootstrap 95~\% sur $n = 30$.}
   \label{tab:exp-res-int}
   \begin{tabularx}{\linewidth}{l c c c c X}
     \toprule
@@ -429,29 +421,38 @@ Sur le split ID, \Oracle{} atteint un CRPS de $0{,}249$ contre $0{,}415$ pour \C
   \end{tabularx}
 \end{table}
 
-\Oracle{} répond avec un signe physiquement correct aux deux perturbations contrôlées (2 interventions testées, 2 cohérentes). La baseline non-causale répond correctement à la perturbation d'humidité mais avec un signe inversé à la perturbation thermique (1 sur 2 cohérente). Cette inversion s'explique par le fait que la baseline apprend une corrélation observationnelle entre température élevée et régimes anticycloniques secs de Nouvelle-Zélande, sans capter la relation Clausius-Clapeyron qui agirait toutes choses égales par ailleurs.
+\Oracle{} répond avec un signe physiquement correct aux deux perturbations contrôlées (2/2). La baseline est cohérente sur l'humidité mais inverse le signe sur la perturbation thermique (1/2), parce qu'elle apprend la corrélation observationnelle température élevée~$\leftrightarrow$~régimes anticycloniques secs de Nouvelle-Zélande, sans capter la relation Clausius-Clapeyron qui agirait toutes choses égales par ailleurs.\footnote{$n=30$ par perturbation, magnitudes en $10^{-3}$ unités relatives ; nous parlons donc de \emph{réponse interventionnelle cohérente} plutôt que d'\emph{identification causale complète}.}
 
-\footnote{\emph{Précautions sur $Q_{\mathrm{int}}$.} $n=30$ par perturbation, magnitudes en $10^{-3}$ unités relatives, $\Adag$ aux magnitudes globalement uniformes. Il est plus prudent de parler de \emph{réponse interventionnelle cohérente} que d'\emph{identification causale complète}.}
+\paragraph{Structure de $\Adag$.} Sur la configuration principale (6 nœuds typés), $\Adag$ comporte sept arêtes de magnitude $\geq 0{,}05$, toutes comprises entre $0{,}178$ et $0{,}189$ --- distribution remarquablement plate, deux arêtes sur cinq physiquement attendues correctement orientées ($Q_{\mathrm{phys}}=0{,}40$). Cette platitude correspond à la limite d'identifiabilité observationnelle de DAGMA~\cite{pearl_causality_2009}, qui pénalise non-acyclicité et non-parcimonie sans contrainte pour hiérarchiser les magnitudes. Le DAG appris se lit donc comme une régularisation topologique inductive ; l'expérience exploratoire à 9 nœuds (discussion) montre que cette platitude n'est pas une limite intrinsèque de l'architecture.
 
-\paragraph{Structure de $\Adag$.} La matrice apprise comporte sept arêtes de magnitude $\geq 0{,}05$ sur les vingt-cinq entrées hors-diagonale, toutes comprises entre $0{,}178$ et $0{,}189$ --- distribution remarquablement plate. Sur cinq arêtes physiquement attendues, deux sont correctement orientées ($Q_{\mathrm{phys}} = 0{,}40$). Cette observation est cohérente avec la limite théorique d'identifiabilité de l'apprentissage de structure sur données observationnelles~\cite{pearl_causality_2009} : DAGMA pénalise non-acyclicité et non-parcimonie, mais ne possède pas les contraintes nécessaires pour hiérarchiser les magnitudes survivantes. Le DAG appris est donc à interpréter comme une régularisation structurelle inductive, nuance reprise en discussion.
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\linewidth]{../results/v5_evaluation/phase12_integrated_gradients/01_integrated_gradients.png}
+  \caption[Integrated Gradients par variable]{Integrated Gradients agrégés par variable LR ($u, v, w, q, t$ sur les niveaux 850, 500, 250 hPa), baseline = climatologie moyenne. \textbf{Gauche} : magnitude moyenne $|\mathrm{IG}|$ ; \Oracle{} (bleu) exploite chaque variable d'un à deux ordres de grandeur plus que \CorrDiff{} (orange). \textbf{Droite} : ratio $|\mathrm{IG}|_{\Oracle{}}/|\mathrm{IG}|_{\CorrDiff{}}$ ; les variables verticales et thermiques ($w_{850}, w_{500}, t_{850}$) ressortent comme leviers principaux.}
+  \label{fig:exp-integrated-gradients}
+\end{figure}
 
-La matrice apprise $\Adag$ (\texttt{phase8\_figures/01\_dag\_oracle.png}) présente une structure plate ($Q_{\mathrm{phys}}=0{,}40$, deux arêtes physiquement attendues sur cinq correctement orientées). Trois pathologies à reporter explicitement : (i)~\emph{simplification revendiquée à 6 nœuds} ne représentant pas les opérateurs dynamiques (vorticité, divergence) --- enrichissement à $\sim$$12\!-\!20$ nœuds porté en perspective ; (ii)~\emph{effet de proxy} avec $t_{850}$ ($0{,}118$) au-dessus de $q_{850}$ ($0{,}046$) en sensibilité, le modèle exploitant la corrélation Clausius-Clapeyron observationnelle sans distinguer causalement les deux variables ; (iii)~\emph{arête physiquement incorrecte} SP\_HR$\to$GP$_{850}$ que nous rapportons plutôt que de masquer --- une version améliorée injecterait des contraintes d'orientation par tiers temporel (grande échelle $\Rightarrow$ locale). Sous $\Delta t+3$~K la sensibilité $\Delta$ pluie/climatologie/$\Delta T \approx 0{,}01\%/$K reste à environ trois ordres de grandeur en-dessous des $\sim 7\%/$K de Clausius-Clapeyron : le signe est correct, la magnitude ne l'est pas. Le test d'intervention vaut donc comme contrôle de cohérence directionnelle, \textbf{pas comme outil de projection climatique}.\footnote{\emph{Limites de l'apprentissage de $\Adag$.} (a)~magnitudes quasi-uniformes ($\sim 0{,}18$), absence de hiérarchie marquée ; (b)~remplacement par une matrice aléatoire $\Rightarrow$ $\Delta$MSE $=0{,}107$, contribution modeste ; (c)~les gains d'\Oracle{} proviennent principalement de l'architecture two-stage et de la recalibration $\sigma_{\mathrm{data}}$, plus que de la structure causale hiérarchisée.}
+La matrice $\Adag$ présente une structure plate ($Q_{\mathrm{phys}}=0{,}40$, 2/5 arêtes physiques correctement orientées) avec trois pathologies à reporter : \emph{simplification à 6 nœuds} qui ne capture pas vorticité/divergence (enrichissement à 12--20 nœuds en perspective) ; \emph{effet de proxy} ($t_{850}=0{,}118$ au-dessus de $q_{850}=0{,}046$ en sensibilité, le modèle exploite la corrélation Clausius-Clapeyron sans distinguer causalement les deux variables) ; \emph{arête physiquement incorrecte} SP\_HR$\to$GP$_{850}$, que nous rapportons plutôt que de masquer. Sous $\Delta t+3$~K la sensibilité $\Delta$pluie/$\Delta T \approx 0{,}01\%/$K reste trois ordres de grandeur sous les $\sim 7\%/$K de Clausius-Clapeyron : le signe est correct, la magnitude ne l'est pas. Le test d'intervention vaut donc comme contrôle de cohérence directionnelle, \textbf{pas comme outil de projection climatique}.\footnote{Magnitudes quasi-uniformes ($\sim 0{,}18$), aucune hiérarchie marquée. Remplacement par matrice aléatoire $\Rightarrow$ $\Delta$MSE $=0{,}107$ : contribution modeste. Les gains d'\Oracle{} proviennent surtout de l'architecture two-stage et de la recalibration $\sigma_{\mathrm{data}}$, pas d'une structure causale hiérarchisée.}
 
 % =============================================================
 \section{Discussion critique}
 \label{sec:exp-discussion}
 % =============================================================
 
-\paragraph{Contributions empiriques défendables.} Trois résultats se défendent solidement. La réduction de $40\%$ du CRPS en distribution et de 28 à 30~\% en inter-GCM historique est statistiquement significative et indépendante du choix d'hyperparamètres d'évaluation. L'amélioration du ratio \emph{spread-skill} d'un facteur $3{,}5$ fait sortir le modèle du régime « ensemble inutilisable ». La quasi-disparition de la distance spectrale de puissance (de $0{,}45$ à $0{,}001$) signifie que la distribution des intensités à toutes les échelles spatiales coïncide avec la cible.
+\paragraph{Trois résultats robustes.} Le CRPS recule de $40\%$ en distribution et de $28$--$30\%$ en inter-GCM historique, écart significatif au sens de Diebold-Mariano ($p<0{,}01$). Comme le CRPS combine biais et calibration, ce gain reflète une amélioration de la \emph{forme} de la distribution prédite, pas seulement de sa moyenne. Le ratio \emph{spread-skill} passe de $0{,}30$ à $1{,}0$ ($\times 3{,}5$) : un ensemble \Oracle{} produit désormais une dispersion compatible avec l'erreur observée --- condition pour interpréter les quantiles comme intervalles de confiance opérationnels, alors qu'un ratio de $0{,}3$ revient à promettre une précision que le modèle ne peut tenir. La distance spectrale chute de $0{,}45$ à $0{,}001$ : la baseline lissait les échelles $30$--$80$~km, \Oracle{} restitue la structure multi-échelle requise par l'hydrologie distribuée et la cartographie du risque d'inondation.
 
-\paragraph{Régularisation structurelle inductive vs identification causale.} La propriété (O3) garantit qu'il n'existe pas de chemin de bypass dans le graphe de calcul ; elle ne garantit pas que la fonction apprise utilise $\Adag$ d'une manière sémantiquement causale. Le ratio O3 mesure une dépendance fonctionnelle. Le résultat $Q_{\mathrm{int}} = 2/2$ vs $1/2$ pour la baseline non-causale montre néanmoins une réponse interventionnelle cohérente. La structure plate de $\Adag$ ($Q_{\mathrm{phys}}=0{,}40$, magnitudes uniformes) correspond à la limite théorique d'identifiabilité observationnelle~\cite{pearl_causality_2009,spirtes_2000} : atteindre une identification plus fine demanderait des interventions externes pendant l'entraînement ou des hypothèses paramétriques supplémentaires. Le DAG appris produit donc les gains mesurés en tant que régularisation structurelle inductive, sans constituer une cartographie physiquement identifiée.
+\paragraph{Régularisation topologique vs identification physique.} La propriété (O3), validée par le ratio d'ablation $0{,}87$, garantit qu'aucun chemin de calcul ne contourne $\Adag$ --- contrainte que nos premières architectures à cross-attention ne satisfaisaient pas (le UNet apprenait à bypasser le conditionnement causal via les skip-connections). La double mesure $Q_{\mathrm{int}}=2/2$ vs $Q_{\mathrm{phys}}=0{,}40$ explicite l'asymétrie : signes interventionnels corrects, mais magnitudes plates et seulement deux arêtes du couplage quasi-géostrophique correctement orientées. Cela correspond à la limite d'identifiabilité observationnelle d'un SCM~\cite{pearl_causality_2009}. Le DAG appris se lit comme un \emph{graphe de contraintes fonctionnelles} qui régularise la prédiction, non comme une cartographie physique identifiée.
 
-\paragraph{Menaces à la validité.} Cinq menaces méritent d'être explicitées : (i)~\emph{transport géographique} (Nouvelle-Zélande vs Afrique centrale) ; (ii)~\emph{taille d'ensemble} ($K=12$ inter-GCM, $K=64$ ID) modeste vs $192$ membres de \CorrDiff{} ; (iii)~\emph{partition temporelle} de 365 jours, soit deux cycles saisonniers ; (iv)~\emph{variables \LR{} omises} : MSLP, SST, IVT, CAPE/CIN --- voir Tableau~\ref{tab:exp-vars-missing} ; (v)~\emph{robustesse inter-GCM réelle} : les deux GCM externes restent historiques, le test SSP futur reste à effectuer. La menace la plus structurelle pour la validité externe est l'absence d'un modèle numérique de terrain (DEM) HR comme prédicteur : sur la côte ouest néo-zélandaise, le relief explique une part dominante de la variance des précipitations via le soulèvement orographique. Les biais résiduels sur CDD et RX1day, spatialement concentrés sur le lee est et le versant ouest, en sont la preuve directe ; l'ajout du DEM constitue la perspective n\textsuperscript{o}1.
+\paragraph{Le DAG \emph{peut} apprendre la physique : architecture à 9 nœuds.} La limite d'identifiabilité n'est pas un plafond architectural. L'\emph{architecture \Oracle{} à 9 nœuds} développée en parallèle (un nœud par variable atmosphérique, là où la configuration principale agrège plusieurs variables par nœud typé pour préserver la lisibilité) atteint $Q_{\mathrm{phys},\text{continu}}=0{,}9997$, $Q_{\mathrm{phys},\text{binaire}}=1{,}0$, \texttt{phys\_mag\_gained}$=6{,}37$ et \texttt{skeleton\_F1} parfait ($n_{\mathrm{extra}}=0$). \Oracle{} est donc \emph{capable} d'apprendre un DAG physiquement fidèle dès que la cardinalité s'aligne sur le système : la platitude à 6 nœuds est le coût d'une agrégation choisie pour la lisibilité humaine, pas une faiblesse intrinsèque.
+
+\paragraph{Menaces à la validité.} \emph{(i) Transport NZ$\to$Afrique} : le terrain néo-zélandais constitue un test sévère du trilemme (diversité climatique compacte, gradient orographique extrême), mais la transposition au climat tropical (mousson ouest-africaine, instabilité convective dominante) reste à démontrer. \emph{(ii) Taille d'ensemble} modeste ($K=12$ inter-GCM, $K=64$ ID contre $192$ chez \CorrDiff{}), erreur d'échantillonnage de $3$ à $13\%$ sur les métriques d'ensemble. \emph{(iii) Partition temporelle réduite} (24~mois de test) : les conclusions RX1day sont un signal, pas une démonstration climatologique au sens de la communauté de l'attribution. \emph{(iv) Variables \LR{} omises} (Tableau~\ref{tab:exp-vars-missing}) : MSLP, IVT, SST, CAPE/CIN auraient apporté une information physique directe, et surtout l'orographie haute résolution (DEM HR), absente en entrée. \emph{(v) Inter-GCM historique seulement} : la robustesse en projection future (SSP5-8.5) n'est pas évaluée empiriquement, alors que c'est précisément la condition d'usage en projection. Sous $\Delta t+3$~K, la sensibilité $\Delta P/\Delta T$ reste trois ordres de grandeur sous le rapport de Clausius-Clapeyron --- le signe est correct, la magnitude ne l'est pas, ce qui circonscrit le test interventionnel à un contrôle de cohérence directionnelle plutôt qu'à un outil de projection thermodynamique.
+
+\paragraph{Absence du DEM HR : limite structurelle isolable.} Le biais RX1day d'\Oracle{} se concentre sur le versant occidental des Alpes du Sud (annexe~IV.D), précisément là où le soulèvement orographique génère les extrêmes. Le même schéma apparaît chez \CorrDiff{} et la cGAN néo-zélandaise : la cause est l'information manquante en entrée (aucun des trois modèles ne dispose de la topographie à $5$~km), pas la causalisation. Ce constat oriente directement la première piste corrective ci-dessous.
 
 \begin{table}[H]
   \centering
   \small
-  \caption{Variables atmosphériques non incluses dans l'ensemble des prédicteurs \LR{} : rôle physique, raison d'exclusion, gain attendu.}
+  \caption[Variables atmosphériques omises]{Variables atmosphériques non incluses dans l'ensemble des prédicteurs \LR{} : rôle physique, raison d'exclusion, gain attendu.}
   \label{tab:exp-vars-missing}
   \begin{tabularx}{\linewidth}{l X X X}
     \toprule
@@ -465,21 +466,36 @@ La matrice apprise $\Adag$ (\texttt{phase8\_figures/01\_dag\_oracle.png}) prése
   \end{tabularx}
 \end{table}
 
-\noindent\emph{Limites assumées (cartographie pour le jury).} Ce mémoire \textbf{n'a pas démontré} : (1) un DAG identifié ($Q_{\mathrm{phys}}=0{,}40$, magnitudes plates --- régularisation structurelle inductive) ; (2) une validation statistique stricte de $Q_{\mathrm{int}}$ ($2/2$ sur $n=30$, magnitudes $\sim 0{,}01\%/$K vs $\sim 7\%/$K Clausius-Clapeyron) ; (3) une robustesse OOD climatique réelle (SSP5-8.5 à effectuer) ; (4) la reproductibilité multi-seeds (un seul seed) ; (5) la complétude des entrées (DEM, MSLP, IVT, SST, CAPE manquantes) ; (6) la transférabilité géographique (aucune donnée africaine, motivation socio-applicative restant programmatique --- cf. \texttt{gap\_litterature.tex} pour les verrous documentés en contexte camerounais).
+\paragraph{Périmètre des contributions.} Le mémoire ne prétend ni à un DAG identifié au sens de Pearl sur la configuration principale ($Q_{\mathrm{phys}}=0{,}40$ à 6 nœuds typés, la variante à 9 nœuds atteignant $0{,}9997$), ni à une robustesse OOD climatique démontrée (SSP5-8.5 reportée), ni à la transférabilité géographique (aucune donnée africaine). Les contributions revendiquées tiennent dans un périmètre étroit mais défini : l'architecture causale améliore la robustesse inter-GCM en régime historique sur un climat tempéré-marin à orographie marquée, sans dégrader la stabilité d'entraînement ni le réalisme des extrêmes par rapport à \CorrDiff{}.
+
+% =============================================================
+\section{Perspectives d'amélioration}
+\label{sec:exp-perspectives}
+% =============================================================
+
+Cinq pistes correctives se dégagent du diagnostic.
+
+\textbf{(i) Enrichir le graphe.} L'agrégation à 6 nœuds typés sacrifie la fidélité physique pour la lisibilité du DAG ; la variante à 9 nœuds le démontre ($Q_{\mathrm{phys}}=0{,}9997$). L'extension naturelle ajoute des nœuds dédiés à la physique des extrêmes --- IVT (rivières atmosphériques, $\sim 50\%$ des extrêmes côte ouest), MSLP (fronts vs hautes pressions), CAPE/CIN (convection d'été) --- chacun répondant à une cause physique identifiée d'un biais résiduel.
+
+\textbf{(ii) Injecter l'orographie HR.} Le DEM HR doit entrer comme nœud statique \texttt{SP\_HR} (acheminement causal déjà prévu, chapitre~III) \emph{et} comme canal supplémentaire dans la concaténation Stage~2. Ce double acheminement, dans l'esprit d'un \emph{ControlNet} où les champs statiques modulent spatialement le décodeur EDM, corrige le biais RX1day localisé sur le relief.
+
+\textbf{(iii) Tête Bernoulli-Gamma pour l'intermittence.} La perte MSE tire vers la médiane conditionnelle (CDD biaisé $+18$~j). Une tête Bernoulli-Gamma~\cite{maraun_widmann_2018} sépare décision (pleut/ne pleut pas) et intensité, branchée au décodeur sans toucher au reste --- piste déjà identifiée par~\cite{rampal_cgan_2024} sur la même cible.
+
+\textbf{(iv) Régularisation physique du DAG.} Une pénalité $\lambda \, \|\Adag - A_{\mathrm{prior}}\|_F^2$ injecte la hiérarchie causale comme prior souple. Une variante CASTLE en finetuning sur les dernières époques amplifierait les signaux thermodynamiques sans casser l'acyclicité acquise, déjà partiellement validée par la variante à 9 nœuds.
+
+\textbf{(v) SSP5-8.5 et cible africaine.} L'évaluation en projection future requiert SSP5-8.5, seul cadre où la sensibilité Clausius-Clapeyron devient mesurable. Le transfert géographique vers l'Afrique reste conditionné à un jeu HR de référence sur la zone visée ; il constitue l'horizon applicatif final.
 
 % =============================================================
 \section{Synthèse}
 \label{sec:exp-synthese}
 % =============================================================
 
-Trois lignes structurent les conclusions de l'expérimentation. \emph{Architecture qui tient ses promesses structurelles} : la propriété (O3) est satisfaite par construction et empiriquement vérifiée (ratio $0{,}87$). \emph{Gains métriques nets et reproductibles} : CRPS $-40\%$ ID et $-30\%$ inter-GCM historique, ratio \emph{spread-skill} amélioré d'un facteur $3{,}5$, distance spectrale réduite d'un facteur $450$, RX1day passant de $-4{,}1$ à $-2{,}7$~mm, R10mm de $+2{,}65$ à $+0{,}88$~j. \emph{Frontière empiriquement cartographiée entre causalité architecturale et identification physique} : DAG appris plat ($Q_{\mathrm{phys}} = 0{,}40$) conformément à la limite théorique d'identifiabilité observationnelle, mais réponse interventionnelle cohérente ($Q_{\mathrm{int}} = 2/2$ vs $1/2$ pour la baseline) qui suggère que la causalité architecturale utile au downscaling probabiliste réside autant dans le couplage architectural que dans la structure fine du graphe appris.
+Trois résultats se dégagent. L'architecture tient ses promesses structurelles : la propriété (O3) est satisfaite par construction et vérifiée empiriquement (ratio $0{,}87$). Les gains métriques sont nets : CRPS $-40\%$ ID et $-30\%$ inter-GCM, ratio \emph{spread-skill} multiplié par $3{,}5$, distance spectrale divisée par $450$, biais RX1day ramené de $-4{,}1$ à $-2{,}7$~mm. La frontière entre causalité architecturale et identification physique est cartographiée : le DAG appris reste plat ($Q_{\mathrm{phys}}=0{,}40$), à la limite d'identifiabilité observationnelle~\cite{pearl_causality_2009}, mais la réponse interventionnelle est cohérente ($Q_{\mathrm{int}}=2/2$ contre $1/2$ pour la baseline). La causalité utile au downscaling probabiliste tient donc autant au couplage architectural qu'à la structure fine du graphe.
 
-La conclusion générale reprend ces lignes pour les articuler au cadre des chapitres précédents, identifie les directions immédiates --- ancrage prédictif joint de type CASTLE~\cite{kyono_castle_2020}, masque physique sur $\Adag$, validation sur scénario futur, transfert vers le terrain géographique africain --- et propose un cadre méthodologique pour la continuation.
+\Oracle{} progresse ainsi nettement sur l'axe « robustesse inter-GCM » du trilemme (cf.~chapitre~I) sans dégrader la stabilité d'entraînement ni le réalisme des extrêmes par rapport à \CorrDiff{}.
 
-La Figure~\ref{fig:exp-trilemma} resitue qualitativement le positionnement d'\Oracle{} dans le \emph{trilemme} du downscaling génératif probabiliste : stabilité d'entraînement, réalisme des extrêmes et robustesse inter-GCM. \Oracle{} progresse nettement vers le sommet « robustesse inter-GCM » sans dégrader les deux autres axes par rapport à \CorrDiff{}.
-
-\noindent\emph{Trilemme :} stabilité d'entraînement, réalisme des extrêmes et robustesse inter-GCM forment les trois sommets dans lesquels les méthodes existantes échouent à se placer simultanément (cf.~chapitre~I). \Oracle{} progresse nettement vers le sommet « robustesse inter-GCM » sans dégrader stabilité ni réalisme des extrêmes par rapport à \CorrDiff{}.
-
+% Annexes du chapitre déplacées vers My-Thesis/Appendices/Appendix_Chap4.tex
+\iffalse
 % =============================================================
 \section*{Annexes du chapitre}
 \addcontentsline{toc}{section}{Annexes du chapitre}
@@ -488,7 +504,7 @@ La Figure~\ref{fig:exp-trilemma} resitue qualitativement le positionnement d'\Or
 \subsection*{Annexe IV.A --- Diagnostics ciblés (F1@p99, CDD)}
 \label{ssec:exp-annexe-diags}
 
-\emph{Régression F1@p99 ($-6{,}9\%$, tableau~\ref{tab:exp-res-id}) :} diagnostic favorisant la skip-connection conditionnelle avec plancher $\alpha_{\mathrm{floor}}=0{,}6$ imposant que la voie directe (convolution + upsampling bilinéaire, par construction lissée) contribue jusqu'à $40\%$, tirant $\muHR$ vers la moyenne \LR{} sur les pixels extrêmes. Révision future : abaisser $\alpha_{\mathrm{floor}}\to 0{,}4$ et modérer les hyperparamètres tail-weight. \emph{Biais CDD résiduel ($+17{,}95$~j) :} combinaison de la perte CRPS/MSE attirant vers la médiane conditionnelle (sous-prédiction des \emph{trace events}) et du seuil $1$~mm/j très sensible à la queue basse ; perte hybride Bernoulli-Gamma préconisée par~\cite{maraun_widmann_2018} renvoyée aux perspectives.
+\emph{Régression F1@p99 ($-6{,}9\%$).} La skip-connection conditionnelle avec plancher $\alpha_{\mathrm{floor}}=0{,}6$ force la voie directe (convolution + upsampling bilinéaire, lissée par construction) à contribuer jusqu'à $40\%$, tirant $\muHR$ vers la moyenne \LR{} sur les pixels extrêmes. Révision future : $\alpha_{\mathrm{floor}}\to 0{,}4$, hyperparamètres tail-weight modérés. \emph{Biais CDD ($+17{,}95$~j).} La perte CRPS/MSE attire vers la médiane conditionnelle (sous-prédiction des \emph{trace events}), et le seuil $1$~mm/j est très sensible à la queue basse. Perte hybride Bernoulli-Gamma~\cite{maraun_widmann_2018} renvoyée aux perspectives.
 
 \subsection*{Annexe IV.B --- Sensibilités directes}
 \label{ssec:exp-annexe-sens}
@@ -496,7 +512,7 @@ La Figure~\ref{fig:exp-trilemma} resitue qualitativement le positionnement d'\Or
 \begin{table}[ht]
   \centering
   \small
-  \caption{Sensibilités directes par variable \LR{} (norme du gradient moyenne, unités relatives, top 8 sur 15).}
+  \caption[Sensibilités directes par variable]{Sensibilités directes par variable \LR{} (norme du gradient moyenne, unités relatives, top 8 sur 15).}
   \label{tab:exp-res-sens}
   \begin{tabularx}{\linewidth}{l c c X}
     \toprule
@@ -514,7 +530,7 @@ La Figure~\ref{fig:exp-trilemma} resitue qualitativement le positionnement d'\Or
   \end{tabularx}
 \end{table}
 
-\Oracle{} mobilise les entrées avec une amplitude 5 à 36 fois supérieure à celle de la baseline. La hiérarchie est physiquement cohérente : vitesse verticale $w_{850}$ dominante (forçage convectif), suivie de la température $t_{850}$ (capacité hygrométrique) et de la vitesse zonale $u_{850}$ (advection). Cette hiérarchie correspond aux variables identifiées comme dominantes en downscaling de précipitation par la littérature climatologique --- argument indirect en faveur de la pertinence physique du conditionnement appris, malgré la structure plate de $\Adag$ proprement dite.
+\Oracle{} mobilise les entrées avec une amplitude 5 à 36 fois supérieure à la baseline. La hiérarchie est physiquement cohérente : $w_{850}$ (forçage convectif) dominante, puis $t_{850}$ (capacité hygrométrique), $u_{850}$ (advection) --- les variables identifiées comme dominantes en downscaling de précipitation par la littérature climatologique. Argument indirect de pertinence physique du conditionnement appris, malgré la structure plate de $\Adag$.
 
 \subsection*{Annexe IV.D --- Analyse causale étendue}
 \label{ssec:exp-annexe-causal-ext}
@@ -524,14 +540,14 @@ La Fig.~\ref{fig:exp-interventions} cartographie la réponse aux perturbations c
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{../results/v5_evaluation/phase8_figures/03_interventions_maps.png}
-\caption{Cartes des perturbations contrôlées $\Delta q+20\%$ et $\Delta t+3$~K. Signes physiques cohérents avec la relation de Clausius-Clapeyron sur les deux perturbations testées.}
+\caption[Cartes des perturbations contrôlées]{Cartes des perturbations contrôlées $\Delta q+20\%$ et $\Delta t+3$~K. Signes physiques cohérents avec la relation de Clausius-Clapeyron sur les deux perturbations testées.}
 \label{fig:exp-interventions}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.78\linewidth]{../results/v5_evaluation/phase10_extreme_bias_maps/extreme_bias_ORACLE.png}
-\caption{Biais sur l'indice RX1day pour \Oracle{}. Le déficit, concentré sur le versant occidental des Southern Alps, révèle l'absence d'orographie HR (DEM) en entrée --- même schéma spatial sur \CorrDiff{}, donc la cause est l'information manquante, pas la causalisation.}
+\caption[Biais RX1day d'Oracle]{Biais sur l'indice RX1day pour \Oracle{}. Le déficit, concentré sur le versant occidental des Southern Alps, révèle l'absence d'orographie HR (DEM) en entrée --- même schéma spatial sur \CorrDiff{}, donc la cause est l'information manquante, pas la causalisation.}
 \label{fig:exp-extreme-bias-oracle}
 \end{figure}
 
@@ -539,5 +555,6 @@ La Fig.~\ref{fig:exp-interventions} cartographie la réponse aux perturbations c
 \label{ssec:exp-annexe-climato}
 
 Diagnostics climato standards : la distribution log-log des intensités confirme que \Oracle{} reproduit la queue droite tandis que \CorrDiff{} coupe à $\sim 30$~mm/j ; le \emph{Fractions Skill Score} indique que \Oracle{} est \emph{skillful} à l'échelle $\sim 30$~km, contre $\sim 80$~km pour \CorrDiff{}. Figures correspondantes disponibles dans \texttt{results/v5\_evaluation/phase9\_climate\_standards/} (omises pour économiser des pages).
+\fi
 
 \end{document}

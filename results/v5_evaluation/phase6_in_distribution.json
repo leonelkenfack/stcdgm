@@ -1,0 +1,218 @@
+{
+  "oracle_dir": "/content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal",
+  "corrdiff_dir": "/content/drive/MyDrive/climate_data/ckpt_noncausal",
+  "comparison": {
+    "Pearson global": {
+      "oracle": 0.8252803087234497,
+      "corrdiff": 0.8189486861228943,
+      "delta_abs": 0.00633162260055542,
+      "delta_rel_pct": 0.7731403331911902,
+      "winner": "egal"
+    },
+    "Pearson per-sample": {
+      "oracle": 0.8343598060309887,
+      "corrdiff": 0.8291983082890511,
+      "delta_abs": 0.005161497741937637,
+      "delta_rel_pct": 0.6224684361196725,
+      "winner": "egal"
+    },
+    "RMSE": {
+      "oracle": 0.12434932589530945,
+      "corrdiff": 0.12961626052856445,
+      "delta_abs": -0.005266934633255005,
+      "delta_rel_pct": -4.063482939391152,
+      "winner": "Oracle"
+    },
+    "MAE": {
+      "oracle": 0.060230232775211334,
+      "corrdiff": 0.0638909861445427,
+      "delta_abs": -0.00366075336933136,
+      "delta_rel_pct": -5.7296867527596405,
+      "winner": "Oracle"
+    },
+    "Spread (ens std)": {
+      "oracle": 0.05117801949381828,
+      "corrdiff": 0.054255757480859756,
+      "delta_abs": -0.0030777379870414734,
+      "delta_rel_pct": -5.672647715087623,
+      "winner": "CorrDiff"
+    },
+    "Spread/RMSE": {
+      "oracle": 0.4115665213730665,
+      "corrdiff": 0.4185875850731169,
+      "delta_abs": -0.007021063700050401,
+      "delta_rel_pct": -1.677322488870279,
+      "winner": "CorrDiff"
+    },
+    "F1-p95": {
+      "oracle": 0.6502120206489675,
+      "corrdiff": 0.655696310879055,
+      "delta_abs": -0.005484290230087452,
+      "delta_rel_pct": -0.8364070590446016,
+      "winner": "egal"
+    },
+    "F1-p99": {
+      "oracle": 0.512285168682368,
+      "corrdiff": 0.5504487942035254,
+      "delta_abs": -0.038163625521157485,
+      "delta_rel_pct": -6.933183599099082,
+      "winner": "CorrDiff"
+    },
+    "RAPSD distance": {
+      "oracle": 241.8123016357422,
+      "corrdiff": 270.1448669433594,
+      "delta_abs": -28.332565307617188,
+      "delta_rel_pct": -10.48791547594262,
+      "winner": "Oracle"
+    },
+    "mu_HR ablation": {
+      "oracle": 0.8724975471789798,
+      "corrdiff": 0.8389097913491722,
+      "delta_abs": 0.03358775582980755,
+      "delta_rel_pct": 4.003738682771866,
+      "winner": "Oracle"
+    }
+  },
+  "raw_oracle_metrics": {
+    "checkpoint": "/content/drive/MyDrive/climate_data/ckpt_v2_corrdiff_normal/epoch_last.pth",
+    "epoch": 200,
+    "epochs_total": 10,
+    "best_val_loss": null,
+    "causal_concat": true,
+    "n_test_batches": 16,
+    "k_samples": 64,
+    "metrics_scope": "full_prediction (μ_HR + δ̂)",
+    "eval_time_s": 1747.563857793808,
+    "rmse": 0.12434932589530945,
+    "mae": 0.060230232775211334,
+    "spread_mean": 0.05117801949381828,
+    "f1_extremes": {
+      "p95": 0.6502120206489675,
+      "p99": 0.512285168682368
+    },
+    "pearson_corr": {
+      "global": 0.8252803087234497,
+      "per_sample_avg": 0.8343598060309887,
+      "per_sample_n": 16,
+      "per_sample_list": [
+        0.8727136254310608,
+        0.7712224721908569,
+        0.8045859932899475,
+        0.7820397019386292,
+        0.8860962986946106,
+        0.8713173270225525,
+        0.7872657775878906,
+        0.8004492521286011,
+        0.8712584972381592,
+        0.8556051850318909,
+        0.9064536094665527,
+        0.9090508818626404,
+        0.895533561706543,
+        0.6950918436050415,
+        0.9003530144691467,
+        0.7407198548316956
+      ]
+    },
+    "rapsd_distance": 241.8123016357422,
+    "mu_HR_ablation": {
+      "delta_signal_ratio_avg": 0.8724975471789798,
+      "per_batch": [
+        1.0677647371109262,
+        0.779649006932098,
+        0.7602944531346342,
+        0.8822819915382605
+      ],
+      "verdict": "MU_HR_CONDITIONS"
+    },
+    "shortcut_diagnostic": {
+      "norm_output": 0.09757953882217407,
+      "norm_mu_HR": 0.057128846645355225,
+      "norm_target": 0.11612854152917862,
+      "norm_output_minus_mu_HR": 0.12785929441452026,
+      "norm_target_minus_mu_HR": 0.11487957090139389,
+      "shortcut_ratio": 1.310308451524116,
+      "verdict": "REFINEMENT_OK"
+    },
+    "config_eval_num_steps": 32,
+    "config_cfg_scale": 1.5,
+    "config_block_out_channels": [
+      128,
+      256,
+      256,
+      256
+    ]
+  },
+  "raw_corrdiff_metrics": {
+    "checkpoint": "/content/drive/MyDrive/climate_data/ckpt_noncausal/epoch_last.pth",
+    "epoch": 200,
+    "epochs_total": 10,
+    "best_val_loss": null,
+    "causal_concat": true,
+    "n_test_batches": 16,
+    "k_samples": 64,
+    "metrics_scope": "full_prediction (μ_HR + δ̂)",
+    "eval_time_s": 5940.956190109253,
+    "rmse": 0.12961626052856445,
+    "mae": 0.0638909861445427,
+    "spread_mean": 0.054255757480859756,
+    "f1_extremes": {
+      "p95": 0.655696310879055,
+      "p99": 0.5504487942035254
+    },
+    "pearson_corr": {
+      "global": 0.8189486861228943,
+      "per_sample_avg": 0.8291983082890511,
+      "per_sample_n": 16,
+      "per_sample_list": [
+        0.8570178747177124,
+        0.7608423829078674,
+        0.8180588483810425,
+        0.7747058272361755,
+        0.8949735164642334,
+        0.8695898056030273,
+        0.7518190741539001,
+        0.7786860466003418,
+        0.898102879524231,
+        0.848213255405426,
+        0.9069716334342957,
+        0.9002357125282288,
+        0.8714797496795654,
+        0.6810441613197327,
+        0.8989353775978088,
+        0.756496787071228
+      ]
+    },
+    "rapsd_distance": 270.1448669433594,
+    "mu_HR_ablation": {
+      "delta_signal_ratio_avg": 0.8389097913491722,
+      "per_batch": [
+        1.0014940363094813,
+        0.751288226763868,
+        0.7714343116717708,
+        0.8314225906515689
+      ],
+      "verdict": "MU_HR_CONDITIONS"
+    },
+    "shortcut_diagnostic": {
+      "norm_output": 0.10287593305110931,
+      "norm_mu_HR": 0.04673648253083229,
+      "norm_target": 0.11612854152917862,
+      "norm_output_minus_mu_HR": 0.12152816355228424,
+      "norm_target_minus_mu_HR": 0.11199351400136948,
+      "shortcut_ratio": 1.1813080080829828,
+      "verdict": "REFINEMENT_OK"
+    },
+    "config_eval_num_steps": 32,
+    "config_cfg_scale": 1.5,
+    "config_block_out_channels": [
+      128,
+      256,
+      256,
+      256
+    ]
+  },
+  "schema_version": "legacy-pre-K1",
+  "valid_for_analysis": false,
+  "tombstone_reason": "K1 audit: causal_concat=True applied to both Oracle and CorrDiff sampling. K30 audit: V5-mini ran only 10/200 epochs. J29 audit: cfg_scale silently ignored. See path_c_plus/HYPERPLAN.md section 'ALERTE METHODOLOGIQUE MAJEURE'.",
+  "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py"
+}

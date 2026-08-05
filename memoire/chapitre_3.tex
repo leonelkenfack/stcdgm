@@ -175,7 +175,15 @@
 
 \begin{sommairebox}
 \small
-\noindent III.1 Introduction \textbullet\ III.2 Vue d'ensemble et différence avec \CorrDiff{} \textbullet\ III.3 Graphe atmosphérique hétérogène \textbullet\ III.4 Encodeur intelligible \textbullet\ III.5 Réseau causal récurrent (RCN) \textbullet\ III.6 Apprentissage du DAG par DAGMA \textbullet\ III.7 Décodeur graphe-à-grille \textbullet\ III.8 Interface inter-étages et propriété (O3) \textbullet\ III.9 Étage 2 : diffusion EDM résiduelle \textbullet\ III.10 Pertes et entraînement \textbullet\ III.11 Synthèse et traçabilité.
+\noindent III.1 \ Introduction \dotfill \pageref{sec:oracle-intro}\\
+\noindent III.2 \ Vue d'ensemble et différence avec \CorrDiff{} \dotfill \pageref{sec:oracle-overview}\\
+\noindent III.3 \ Graphe atmosphérique hétérogène \dotfill \pageref{sec:oracle-graphe}\\
+\noindent III.4 \ Encodeur intelligible et réseau causal récurrent \dotfill \pageref{sec:oracle-encoder}\\
+\noindent III.5 \ Apprentissage du DAG par DAGMA \dotfill \pageref{sec:oracle-dagma}\\
+\noindent III.6 \ Décodeur graphe-à-grille \dotfill \pageref{sec:oracle-decoder}\\
+\noindent III.7 \ Interface inter-étages, propriété (O3) et diffusion EDM \dotfill \pageref{sec:oracle-o3}\\
+\noindent III.8 \ Pertes et entraînement \dotfill \pageref{sec:oracle-pertes}\\
+\noindent III.9 \ Synthèse et traçabilité \dotfill \pageref{sec:oracle-synthese}
 \end{sommairebox}
 
 \vspace{0.5em}
@@ -185,7 +193,7 @@
 \label{sec:oracle-intro}
 % =============================================================
 
-Aucune approche existante ne résout simultanément le trilemme stabilité / extrêmes / robustesse hors-distribution ; le paradigme à deux étages de \CorrDiff{}~\cite{mardani_corrdiff_2023} se distingue comme l'antécédent le plus crédible mais n'adresse pas par construction la robustesse OOD. Ce chapitre formalise notre proposition, le modèle \Oracle{}, comme une \emph{causalisation} de ce paradigme portant exclusivement sur le premier étage : le réseau de régression générique de \CorrDiff{} y est remplacé par un module structurellement causal (graphe atmosphérique hétérogène, encodeur intelligible, réseau causal récurrent gouverné par une matrice d'adjacence apprise sous contrainte d'acyclicité). Le second étage conserve la diffusion EDM~\cite{karras_edm_2022} avec un conditionnement par concaténation de canaux qui assure le passage architectural du chemin causal vers la prédiction stochastique du résiduel.
+Le paradigme à deux étages de \CorrDiff{}~\cite{mardani_corrdiff_2023} est l'antécédent le plus crédible pour le trilemme stabilité~/~extrêmes~/~robustesse, mais sa robustesse hors-distribution n'est pas adressée par construction. \Oracle{} en est une \emph{causalisation} portant exclusivement sur le premier étage : le réseau de régression générique est remplacé par un module structurellement causal (graphe atmosphérique hétérogène, encodeur intelligible, RCN sous contrainte d'acyclicité). Le second étage conserve la diffusion EDM~\cite{karras_edm_2022}, avec un conditionnement par concaténation de canaux qui propage architecturalement le chemin causal vers la prédiction stochastique du résiduel.
 
 \subsection{Notations et objectifs}
 \label{ssec:oracle-notations}
@@ -211,7 +219,16 @@ Sauf mention contraire, $B$ désigne la taille du lot, $T$ la longueur de séque
   \end{tabularx}
 \end{table}
 
-La conception obéit à six objectifs : \textbf{O1} stabilité d'entraînement (sans équilibre adversarial fragile) ; \textbf{O2} réalisme des extrêmes mesuré par CRPS et centiles élevés ; \textbf{O3} causalité architecturale, c'est-à-dire dépendance non-triviale de $\muHR$ à $\Adag$ (signature contrastive vis-à-vis de \CorrDiff{}) ; \textbf{O4} robustesse inter-GCM en régime historique sous changement de régime climatique ; \textbf{O5} efficacité computationnelle sur budget CPU-only (48 cœurs, 128~Go) ; \textbf{O6} interprétabilité, le DAG appris devant être inspectable. O1 et O2 sont adressés par la décomposition à deux étages et la diffusion EDM ; O3 et O6 par le RCN et la contrainte DAGMA ; O4 par la structure causale ; O5 par le pré-calcul et la diffusion sur résidu de faible amplitude.
+Six objectifs guident la conception :
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item \textbf{O1} stabilité d'entraînement (sans équilibre adversarial fragile) ;
+    \item \textbf{O2} réalisme des extrêmes (CRPS et centiles élevés) ;
+    \item \textbf{O3} causalité architecturale --- dépendance non-triviale de $\muHR$ à $\Adag$, signature contrastive vis-à-vis de \CorrDiff{} ;
+    \item \textbf{O4} robustesse inter-GCM ;
+    \item \textbf{O5} efficacité computationnelle sur budget CPU (48 cœurs, 128~Go) ;
+    \item \textbf{O6} interprétabilité du DAG appris.
+\end{itemize}
+Décomposition deux étages et diffusion EDM adressent O1--O2 ; RCN et contrainte DAGMA adressent O3 et O6 ; la structure causale adresse O4 ; le pré-calcul et la diffusion sur résidu de faible amplitude adressent O5.
 
 % =============================================================
 \section{Vue d'ensemble et différence avec CorrDiff}
@@ -229,14 +246,91 @@ La conception obéit à six objectifs : \textbf{O1} stabilité d'entraînement (
 
 \begin{figure}[ht]
   \centering
-  \figplaceholder{Figure (Chap III) à produire --- Vue d'ensemble simplifiée d'Oracle en quatre blocs : (1) baseline bilinéaire, (2) module causal résiduel (graphe + encodeur + RCN + décodeur, $\to \mu_{HR}$), (3) diffusion EDM résiduelle (bruit + concat 3 canaux $\to \delta$), (4) recombinaison finale ($x_{HR}$).}
-  \caption{Vue d'ensemble simplifiée du modèle \Oracle{} en quatre blocs articulés autour de l'équation~\eqref{eq:oracle-decomposition}. La causalité architecturale est concentrée dans le CRM ; la stochasticité réside dans le bloc EDM.}
+  \resizebox{0.96\linewidth}{!}{%
+  \begin{tikzpicture}[
+    inblock/.style={rectangle, draw=urigray, fill=urigray!8, rounded corners=2pt,
+                    minimum height=1.0cm, minimum width=1.8cm, align=center, font=\small, inner sep=3pt},
+    crmsub/.style={rectangle, draw=uriaccent!85, fill=uriaccent!8, rounded corners=2pt,
+                   minimum height=0.8cm, minimum width=1.3cm, align=center, font=\scriptsize, inner sep=2pt},
+    edmcore/.style={rectangle, draw=uridarkblue, fill=uridarkblue!12, rounded corners=2pt,
+                    minimum height=1.0cm, minimum width=2.4cm, align=center, font=\small\bfseries,
+                    text=uridarkblue, inner sep=3pt, very thick},
+    sumblock/.style={rectangle, draw=urigray, fill=urigray!10, rounded corners=2pt,
+                     minimum height=1.0cm, minimum width=2.2cm, align=center, font=\small\bfseries, inner sep=3pt},
+    container/.style={rectangle, draw=#1, dashed, rounded corners=4pt, inner sep=10pt, very thick, fill=#1!4},
+    containerheader/.style={font=\small\bfseries, text=#1, fill=white, inner sep=2pt},
+    blocklabel/.style={font=\footnotesize\bfseries, text=#1, inner sep=3pt},
+    arr/.style={-{Stealth[length=2.2mm]}, thick, urigray!85},
+    carr/.style={-{Stealth[length=2.2mm]}, thick, uriaccent!90},
+    sarr/.style={-{Stealth[length=2.2mm]}, thick, uridarkblue!85},
+  ]
+    % (1) Baseline (à gauche)
+    \node[inblock] (lr) at (0, 2.0) {$\yLR$\\ \scriptsize ACCESS-CM2};
+    \node[inblock, below=1.0cm of lr] (base) {Baseline\\ \scriptsize bilinéaire};
+    \draw[arr] (lr) -- (base);
+
+    % (2) CRM sub-blocks (centre haut)
+    \node[crmsub] (g)  at (4.5, 2.0)        {graphe};
+    \node[crmsub, right=0.25cm of g]  (e)   {encodeur};
+    \node[crmsub, right=0.25cm of e]  (rc)  {RCN};
+    \node[crmsub, right=0.25cm of rc] (dec) {décodeur};
+    \draw[carr] (g) -- (e);
+    \draw[carr] (e) -- (rc);
+    \draw[carr] (rc) -- (dec);
+
+    % CRM container autour des sub-blocks
+    \node[container=uriaccent, fit=(g)(dec), inner ysep=14pt] (crmbox) {};
+    \node[containerheader=uriaccent, anchor=north]
+      at (crmbox.north) {Module causal résiduel};
+    \node[blocklabel=uriaccent, anchor=north east]
+      at ([xshift=-3pt, yshift=-3pt]crmbox.north east) {(2)};
+
+    % mu_HR à droite du CRM
+    \node[inblock, right=1.3cm of crmbox] (mu) {$\muHR$};
+    \draw[arr]  (lr.east)    -| ([xshift=-0.5cm]crmbox.west) -- (crmbox.west);
+    \draw[carr] (crmbox.east) -- (mu.west);
+
+    % (3) EDM core (centre bas)
+    \node[edmcore] (edm) at (5.5, -1.4) {Diffusion EDM};
+    \node[inblock, left=0.8cm of edm]  (noise) {bruit\\ $\sigma\epsilon$};
+    \node[inblock, right=0.8cm of edm] (delta) {$\delta$};
+    \draw[arr]  (noise) -- (edm);
+    \draw[sarr] (edm)   -- (delta);
+
+    % EDM container
+    \node[container=uridarkblue, fit=(noise)(delta), inner ysep=14pt] (edmbox) {};
+    \node[containerheader=uridarkblue, anchor=north]
+      at (edmbox.north) {Diffusion EDM résiduelle};
+    \node[blocklabel=uridarkblue, anchor=north east]
+      at ([xshift=-3pt, yshift=-3pt]edmbox.north east) {(3)};
+    \node[font=\scriptsize\itshape, text=uridarkblue!80, anchor=south]
+      at ([yshift=3pt]edmbox.south) {bruit $+$ concat 3 canaux};
+
+    % mu_HR -> EDM (conditionnement)
+    \draw[carr, dashed] (mu.south) to[bend left=20]
+        node[font=\scriptsize, right=2pt, pos=0.5] {cond.} (edmbox.east);
+
+    % (4) Recombinaison
+    \node[sumblock, right=1.5cm of delta] (sum) {$\sum \to \xHR$};
+    \draw[arr]  (base.south) -- ++(0,-2.0) -| (sum.south);
+    \draw[carr] (mu.east)    -- ++(0.5,0) |- (sum.north);
+    \draw[sarr] (delta.east) -- (sum.west);
+
+    % (1) (4) labels
+    \node[blocklabel=urigray] at ([xshift=-5pt, yshift=-5pt]base.north east) {(1)};
+    \node[blocklabel=urigray] at ([xshift=-5pt, yshift=-5pt]sum.north east) {(4)};
+
+    % Equation finale (en bas)
+    \node[font=\small\itshape, text=urigray, align=center]
+       at ([yshift=-1.0cm]edmbox.south)
+       {\(\xHR = \mathrm{baseline} + \muHR + \delta\)};
+  \end{tikzpicture}%
+  }
+  \caption[Vue d'ensemble d'Oracle]{Vue d'ensemble simplifiée du modèle \Oracle{} en quatre blocs articulés autour de l'équation~\eqref{eq:oracle-decomposition}. La causalité architecturale est concentrée dans le module causal résiduel (CRM, bloc 2) ; la stochasticité réside dans le bloc EDM (3).}
   \label{fig:oracle-overview-simple}
 \end{figure}
 
-La décomposition sépare explicitement la composante déterministe causale ($\muHR$, captant le forçage-réponse via le DAG appris) et la composante stochastique non-causale ($\delta$, captant la variabilité fine résiduelle que la diffusion EDM modélise efficacement).
-
-L'écart avec \CorrDiff{} est entièrement localisé dans le module produisant $\muHR$ : \CorrDiff{} y emploie un U-Net générique entraîné par MSE sur $\xHR - \mathrm{baseline}$ ; \Oracle{} le remplace par un module causal en quatre sous-blocs dont la sortie transite obligatoirement par $\Adag$. Cette substitution est volontairement \emph{circonscrite} — le Stage 2 de diffusion, les pertes EDM, le sampler de Heun et le préconditionnement sont hérités tels quels — afin d'isoler l'apport de la causalité architecturale : toute amélioration mesurée sera attribuable au remplacement du module $\muHR$ et non à un changement collatéral.
+La décomposition sépare la composante déterministe causale ($\muHR$, forçage-réponse via le DAG) de la composante stochastique non-causale ($\delta$, variabilité fine résiduelle modélisée par EDM). L'écart avec \CorrDiff{} est entièrement concentré dans la production de $\muHR$ : \CorrDiff{} y emploie un U-Net générique entraîné par MSE sur $\xHR - \mathrm{baseline}$, là où \Oracle{} substitue un module causal dont la sortie transite obligatoirement par $\Adag$. Stage 2, pertes EDM, sampler de Heun et préconditionnement sont hérités tels quels : toute amélioration mesurée sera attribuable au remplacement du module $\muHR$, pas à un changement collatéral.
 
 % =============================================================
 \section{Graphe atmosphérique hétérogène}
@@ -248,34 +342,131 @@ L'écart avec \CorrDiff{} est entièrement localisé dans le module produisant $
 \subsection{Types de nœuds et hiérarchie verticale}
 \label{ssec:oracle-types-noeuds}
 
-Le graphe atmosphérique $G$ qui structure l'inférence causale d'\Oracle{} est \emph{hétérogène} : il comporte quatre types de nœuds. \textbf{GP850, GP500, GP250} correspondent aux variables dynamiques (température, vent, humidité spécifique) aux trois niveaux de pression $850/500/250\,\mathrm{hPa}$ représentant la basse, moyenne et haute troposphère ; chaque nœud GP correspond à un point de la grille LR ($N_{\LR} = 23\times 26 = 598$). \textbf{SP\_HR} regroupe les variables \emph{statiques} à haute résolution (orographie, masque terre/mer, caractéristiques de surface), avec un nœud par point de la grille HR ($N_{\HR} = 172\times 179 = 30\,788$). Le total atteint $\approx 32\,600$ nœuds en configuration complète. La dissymétrie LR/HR reflète la nature physique : variables atmosphériques fournies grossièrement par le GCM, caractéristiques de surface disponibles à la résolution cible.
+Le graphe $G$ comporte quatre types de nœuds : \textbf{GP850, GP500, GP250} pour les variables dynamiques (température, vent, humidité spécifique) aux trois niveaux de pression --- un nœud par point de la grille LR ($N_{\LR} = 23\times 26 = 598$) ; \textbf{SP\_HR} pour les variables statiques HR (orographie, masque terre/mer) avec un nœud par point HR ($N_{\HR} = 172\times 179 = 30\,788$). Le total atteint $\approx 32\,600$ nœuds en configuration complète. La dissymétrie LR/HR reflète la nature physique : variables atmosphériques fournies grossièrement par le GCM, caractéristiques de surface à la résolution cible.
 
 \subsection{Types d'arêtes et physique encodée}
 \label{ssec:oracle-types-aretes}
 
-Le graphe comporte trois types d'arêtes, chacun encodant un mécanisme physique connu. Les \textbf{arêtes spatiales} (intra-niveau, voisins horizontaux des nœuds GP) modélisent l'\emph{advection} et la diffusion. Les \textbf{arêtes verticales} (inter-niveaux GP) modélisent la \emph{convection} et l'instabilité verticale, déterminantes pour la précipitation. Les \textbf{arêtes statique-vers-pression} (\texttt{SP\_HR} $\to$ GP, du nœud HR vers la cellule LR qui le contient) modélisent l'\emph{influence orographique} et l'effet d'occupation du sol. Cet ensemble constitue le support d'agrégation pour les couches SAGEConv de l'encodeur et du RCN ; la matrice $\Adag$ apprise par DAGMA pondère par-dessus les liens causaux entre variables.
+Le graphe comporte trois types d'arêtes encodant chacune un mécanisme physique : les \textbf{spatiales} (voisins horizontaux des GP) modélisent l'advection et la diffusion ; les \textbf{verticales} (inter-niveaux GP) modélisent la convection et l'instabilité verticale ; les \textbf{statiques-vers-pression} (\texttt{SP\_HR}~$\to$~GP) modélisent l'influence orographique. Cet ensemble constitue le support d'agrégation pour les couches SAGEConv ; la matrice $\Adag$ apprise par DAGMA pondère par-dessus les liens causaux entre variables.
 
 \begin{figure}[ht]
   \centering
-  \figplaceholder[0.85\linewidth]{Figure (Chap III) à produire --- Vue conceptuelle du graphe hétérogène : trois plans de pression GP850 / GP500 / GP250 (nœuds dynamiques colorés par niveau) + plan SP\_HR (nœuds statiques en gris). Arêtes : spatiales (intra-plan), verticales (inter-plans), static $\to$ pressure (en pointillé du plan SP\_HR vers les plans GP). Pas de variables nommées : vue structurelle uniquement.}
-  \caption{Vue conceptuelle du graphe atmosphérique hétérogène d'\Oracle{}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant.}
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    gp250node/.style={circle, draw=uridarkblue!85, fill=uridarkblue!12, minimum size=6mm, inner sep=0pt},
+    gp500node/.style={circle, draw=uridarkblue!60, fill=uridarkblue!22, minimum size=6mm, inner sep=0pt},
+    gp850node/.style={circle, draw=uridarkblue!40, fill=uridarkblue!32, minimum size=6mm, inner sep=0pt},
+    sphrnode/.style={rectangle, draw=urigray!70, fill=urigray!15, minimum size=5.5mm, inner sep=0pt},
+    plane/.style={rectangle, draw=#1!50, fill=#1!5, rounded corners=2pt, inner sep=4pt},
+    planelabel/.style={font=\small\bfseries, text=#1!75!black, anchor=south west, inner sep=2pt},
+    spatial/.style={uridarkblue!50, very thin},
+    vertical/.style={->,>=Stealth, uriaccent!75, thick},
+    static/.style={->,>=Stealth, urigray!75, thick, dashed},
+    legendnode/.style={font=\scriptsize},
+  ]
+    % Three pressure planes (3D-like via offsets)
+    % GP250 (top)
+    \begin{scope}[xshift=0cm, yshift=4.6cm]
+      \foreach \i in {0,1,2,3,4} {
+        \foreach \j in {0,1,2,3} {
+          \node[gp250node] (g250-\i-\j) at (\i*1.65+\j*0.66, \j*0.13) {};
+        }
+      }
+      \node[planelabel=uridarkblue, anchor=south east] at (9.5, 0.70) {GP250};
+    \end{scope}
+    % GP500 (middle)
+    \begin{scope}[xshift=0cm, yshift=2.3cm]
+      \foreach \i in {0,1,2,3,4} {
+        \foreach \j in {0,1,2,3} {
+          \node[gp500node] (g500-\i-\j) at (\i*1.65+\j*0.66, \j*0.13) {};
+        }
+      }
+      \node[planelabel=uridarkblue, anchor=south east] at (9.5, 0.70) {GP500};
+    \end{scope}
+    % GP850 (lower)
+    \begin{scope}[xshift=0cm, yshift=0cm]
+      \foreach \i in {0,1,2,3,4} {
+        \foreach \j in {0,1,2,3} {
+          \node[gp850node] (g850-\i-\j) at (\i*1.65+\j*0.66, \j*0.13) {};
+        }
+      }
+      \node[planelabel=uridarkblue, anchor=south east] at (9.5, 0.70) {GP850};
+    \end{scope}
+    % SP_HR (bottom, denser grid - HR static surface)
+    \begin{scope}[xshift=0cm, yshift=-2.4cm]
+      \foreach \i in {0,1,2,3,4,5,6,7,8} {
+        \foreach \j in {0,1,2,3,4} {
+          \node[sphrnode] (sphr-\i-\j) at (\i*1.02+\j*0.33, \j*0.10) {};
+        }
+      }
+      \node[planelabel=urigray, anchor=south east] at (9.5, 0.90) {SP\_HR};
+    \end{scope}
+
+    % Spatial edges (intra-plane) - subset for readability
+    \foreach \i in {0,1,2,3} {
+      \foreach \j in {0,1,2} {
+        \pgfmathtruncatemacro\ip{\i+1}
+        \pgfmathtruncatemacro\jp{\j+1}
+        \draw[spatial] (g850-\i-\j) -- (g850-\ip-\j);
+        \draw[spatial] (g850-\i-\j) -- (g850-\i-\jp);
+        \draw[spatial] (g500-\i-\j) -- (g500-\ip-\j);
+        \draw[spatial] (g500-\i-\j) -- (g500-\i-\jp);
+        \draw[spatial] (g250-\i-\j) -- (g250-\ip-\j);
+        \draw[spatial] (g250-\i-\j) -- (g250-\i-\jp);
+      }
+    }
+
+    % Vertical edges (subset GP850 -> GP500, GP500 -> GP250)
+    \foreach \i in {0,2,4} {
+      \foreach \j in {0,2} {
+        \draw[vertical] (g850-\i-\j) -- (g500-\i-\j);
+        \draw[vertical] (g500-\i-\j) -- (g250-\i-\j);
+      }
+    }
+
+    % Static -> pressure edges (subset)
+    \foreach \i in {1,3,5,7} {
+      \foreach \j in {1,3} {
+        \draw[static] (sphr-\i-\j) -- (g850-2-1);
+        \draw[static] (sphr-\i-\j) -- (g850-3-2);
+      }
+    }
+
+    % Legend (below SP_HR, 2 columns × 3 rows)
+    \begin{scope}[xshift=0cm, yshift=-3.6cm]
+      % Column 1
+      \node[gp250node] (lg1) at (0, 0) {};
+      \node[legendnode, right=0.15cm of lg1] {nœud GP (250 / 500 / 850 hPa)};
+      \node[sphrnode] (lg2) at (0, -0.55) {};
+      \node[legendnode, right=0.15cm of lg2] {nœud statique SP\_HR};
+      \draw[spatial, ultra thick] (-0.18,-1.10) -- (0.18,-1.10);
+      \node[legendnode, right=0.2cm] at (0.18,-1.10) {arête spatiale (intra-plan)};
+      % Column 2
+      \draw[vertical] (4.82, 0) -- (5.18, 0);
+      \node[legendnode, right=0.2cm] at (5.18, 0) {arête verticale (inter-plans)};
+      \draw[static] (4.82, -0.55) -- (5.18, -0.55);
+      \node[legendnode, right=0.2cm] at (5.18, -0.55) {arête statique~$\to$~pression};
+    \end{scope}
+  \end{tikzpicture}%
+  }
+  \caption[Graphe atmosphérique hétérogène]{Vue conceptuelle du graphe atmosphérique hétérogène d'\Oracle{}. Quatre types de nœuds (GP850, GP500, GP250 dynamiques en bleu ; SP\_HR statique en gris) et trois types d'arêtes (spatiales intra-plan en bleu clair, verticales inter-plans en rouge, statiques-vers-pression en pointillé gris). L'instanciation concrète avec variables nommées et dimensions exactes est différée au chapitre IV.}
   \label{fig:graphe-conceptuel}
 \end{figure}
 
 \subsection{Drivers statiques et acheminement causal}
 \label{ssec:oracle-statics}
 
-Un choix central concerne l'acheminement des drivers statiques (orographie, masque, sol). Plutôt que de les injecter comme canaux supplémentaires du Stage 2, comme dans les approches GAN résiduelles~\cite{rampal_cgan_2024}, nous les introduisons exclusivement comme nœuds \texttt{SP\_HR} du graphe. Leur influence sur $\muHR$ est nécessairement médiée par les arêtes \texttt{SP\_HR} $\to$ GP dont les poids sont gouvernés par $\Adag$. Ce choix garantit que \emph{toute information passe par le chemin causal} ; il assure que l'intervention $\Adag \leftarrow \mathbf{0}$ supprime aussi l'influence des drivers statiques, ce qui contribue à la propriété (O3) formalisée en section~\ref{sec:oracle-o3}.
+Plutôt que d'injecter les drivers statiques (orographie, masque, sol) comme canaux supplémentaires du Stage 2 (comme dans~\cite{rampal_cgan_2024}), nous les introduisons exclusivement comme nœuds \texttt{SP\_HR} du graphe. Leur influence sur $\muHR$ passe nécessairement par les arêtes \texttt{SP\_HR} $\to$ GP dont les poids sont gouvernés par $\Adag$, ce qui garantit que toute information transite par le chemin causal et contribue à la propriété (O3).
 
 % =============================================================
-\section{Encodeur intelligible des variables}
+\section{Encodeur intelligible et réseau causal récurrent}
 \label{sec:oracle-encoder}
 % =============================================================
 
 \subsection{Motivation : préserver l'identité physique des variables}
 \label{ssec:oracle-encoder-motivation}
 
-L'encodeur intelligible projette chaque variable physique (température, vent, humidité, précipitation) dans un espace latent commun de dimension $d=128$ qui alimentera le RCN. Sa spécificité tient à la \emph{préservation de l'identité physique} : chaque dimension latente reste attachée à une variable source, plutôt que de fondre toutes les variables dans une représentation distribuée opaque. Cette préservation repose sur deux choix : (i)~chaque couple variable-niveau est encodé par un MLP \emph{dédié} $f_{v,p}$, ce qui empêche le mélange précoce ; (ii)~une perte de reconstruction $\Lrec$ (section~\ref{sec:oracle-pertes}) contraint le décodage de l'état latent à reproduire les variables d'entrée, forçant l'encodeur à conserver l'information variable par variable.
+L'encodeur intelligible projette chaque variable physique (température, vent, humidité, précipitation) dans un espace latent commun de dimension $d=128$, qui alimentera ensuite le RCN. Sa spécificité tient à la \emph{préservation de l'identité physique} : chaque dimension latente reste attachée à une variable source, au lieu de fondre toutes les variables dans une représentation distribuée opaque. Deux choix techniques portent cette préservation : un MLP \emph{dédié} $f_{v,p}$ par couple variable-niveau (interdisant tout mélange précoce), et une perte de reconstruction $\Lrec$ (section~\ref{sec:oracle-pertes}) qui contraint le décodage à reproduire les variables d'entrée.
 
 \subsection{Architecture par variable et normalisation}
 \label{ssec:oracle-encoder-archi}
@@ -285,17 +476,16 @@ Chaque MLP $f_{v,p}$ est de profondeur 3 (activations GELU, normalisation de cou
   h_i^{(\ell+1)} \;=\; \sigma\!\left( W_{\mathrm{self}}^{(\ell)}\, h_i^{(\ell)} \,+\, W_{\mathrm{neigh}}^{(\ell)}\, \mathrm{mean}_{j \in \mathcal{N}(i)} h_j^{(\ell)} \right),
   \label{eq:sageconv}
 \end{equation}
-SAGEConv a été préféré aux variantes par attention (GAT) suivant deux lignes de défense. \textbf{(i)~Matériel} : un benchmark préalable sur CPU 48 c\oe urs montre qu'un GAT à $4$ têtes multiplie le temps par batch par~$\sim$$5$ et la mémoire d'activation par~$\sim$$3{,}5$, rendant Stage~1 ($\sim$$140$ batches/époque, $75$ époques) infaisable. \textbf{(ii)~Théorique} : SAGEConv moyenne localement (filtre passe-bas) susceptible de lisser les anomalies extrêmes ; cette limite est compensée \emph{globalement} par $\Adag$, qui surimpose une pondération causale asymétrique \emph{entre variables} à chaque pas RCN. La synergie est explicite : SAGEConv assume le lissage spatial local bon marché, $\Adag$ porte la hiérarchie causale globale --- là où un GAT paie l'attention deux fois (voisins et variables).
+SAGEConv a été préféré aux variantes par attention (GAT) selon deux lignes de défense :
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item \textbf{Matériel} --- un benchmark sur CPU 48 cœurs montre qu'un GAT à 4 têtes multiplie le temps par batch par $\sim$5 et la mémoire d'activation par $\sim$3,5, rendant Stage~1 ($\sim$140 batches/époque, 75 époques) infaisable.
+    \item \textbf{Théorique} --- SAGEConv moyenne localement (filtre passe-bas) et peut lisser les anomalies extrêmes ; cette limite est compensée globalement par $\Adag$, qui surimpose une pondération causale asymétrique entre variables. La synergie est explicite : SAGEConv assume le lissage spatial local, $\Adag$ porte la hiérarchie causale globale --- là où un GAT paierait l'attention deux fois.
+\end{itemize}
 
-% =============================================================
-\section{Réseau causal récurrent (RCN)}
+\subsection{Réseau causal récurrent --- principe : SCM dynamique et mise à jour temporelle}
 \label{sec:oracle-rcn}
-% =============================================================
 
-\subsection{Principe : SCM dynamique enchaîné à une mise à jour temporelle}
-\label{ssec:oracle-rcn-principe}
-
-Le \emph{Recurrent Causal Network} (RCN) constitue le cœur méthodologique d'\Oracle{}. À chaque pas de temps il combine deux briques : un \emph{modèle causal structurel} (SCM) qui prédit l'évolution de l'état caché en fonction du DAG appris, et une \emph{mise à jour récurrente} (GRU) qui fusionne cette prédiction théorique avec l'observation courante pour produire l'état effectif. Le SCM joue le rôle du \emph{plan de vol} théorique, la GRU celui de la \emph{mise à jour aux instruments}. L'innovation conceptuelle d'\Oracle{} est que \emph{le SCM est le moteur récurrent lui-même} : la transition $\Ht \to H_{t+1}$ est définie comme une assignation structurelle causale, non comme un post-traitement appliqué à un état caché produit par ailleurs.
+Le \emph{Recurrent Causal Network} (RCN) forme le cœur méthodologique d'\Oracle{}. À chaque pas de temps, il combine deux briques : un \emph{modèle causal structurel} (SCM) qui prédit l'évolution de l'état caché à partir du DAG appris, et une \emph{mise à jour récurrente} (GRU) qui fusionne cette prédiction théorique avec l'observation courante. Le SCM joue le rôle du \emph{plan de vol} théorique, la GRU celui de la \emph{mise à jour aux instruments}. L'originalité d'\Oracle{} tient à ceci : \emph{le SCM est le moteur récurrent lui-même}. La transition $\Ht \to H_{t+1}$ est une assignation structurelle causale, pas un post-traitement appliqué à un état caché produit par ailleurs.
 
 \subsection{Équations SCM et mise à jour GRU}
 \label{ssec:oracle-rcn-scm}
@@ -307,19 +497,12 @@ Le \emph{Recurrent Causal Network} (RCN) constitue le cœur méthodologique d'\O
 \end{equation}
 où $\Adag^{(i,:)}$ regroupe les pondérations causales entrantes vers $i$, $\odot$ est le produit composante par composante avec broadcast nœud, $\varepsilon_t^{(i)}$ un bruit exogène, et $f_i$ un MLP structurel propre à la variable. Les $K$ $f_i$ sont implémentés en parallèle, suivant l'usage des SCM neuronaux multivariés. La perte $\Lrec$ contraint $\hat{H}_t$ à porter l'information nécessaire au décodage des variables d'entrée, forçant la dynamique à apprendre des liens prédictifs effectifs.
 
-L'étape GRU fusionne $\hat{H}_t$ et l'embedding $x_t^{\mathrm{emb}}$ (produit par un MLP léger nommé FactorEncoder) suivant les équations standard de Cho et~al.~\cite{cho_gru_2014} :
-\begin{align}
-  z_t &= \sigma\!\left( W_z\, x_t^{\mathrm{emb}} + U_z\, \hat{H}_t \right), \label{eq:gru-z}\\
-  r_t &= \sigma\!\left( W_r\, x_t^{\mathrm{emb}} + U_r\, \hat{H}_t \right), \label{eq:gru-r}\\
-  \tilde{H}_t &= \tanh\!\left( W_h\, x_t^{\mathrm{emb}} + U_h\, (r_t \odot \hat{H}_t) \right), \label{eq:gru-h-tilde}\\
-  H_t &= (1 - z_t) \odot \hat{H}_t + z_t \odot \tilde{H}_t. \label{eq:gru-h}
-\end{align}
-$H_t$ est réinjecté au pas suivant comme entrée du SCM, fermant la boucle. Après $T=8$ pas, $\HT = H_T$ est consommé par le décodeur (section~\ref{sec:oracle-decoder}).
-
-\subsection{Passe avant}
-\label{ssec:oracle-rcn-pseudocode}
-
-L'état $H_0$ est initialisé par un paramètre apprenable indépendant du lot. À chaque pas $t=1,\ldots,T$, on calcule successivement la prédiction causale $\hat{H}_t = \mathrm{SCM}(H_{t-1}, \Adag, x_t)$ par l'équation~\eqref{eq:scm-update}, puis l'embedding $x_t^{\mathrm{emb}} = \mathrm{FactorEncoder}(x_t)$, puis les portes GRU $(z_t, r_t, \tilde{H}_t)$ par les équations~\eqref{eq:gru-z}--\eqref{eq:gru-h-tilde}, et enfin $H_t = (1 - z_t) \odot \hat{H}_t + z_t \odot \tilde{H}_t$. L'état $\HT = H_T$ est retourné après $T$ itérations.
+L'étape GRU fusionne $\hat{H}_t$ et l'embedding $x_t^{\mathrm{emb}}$ (produit par un MLP léger \texttt{FactorEncoder}) suivant les équations standard de Cho et~al.~\cite{cho_gru_2014} avec portes $z_t, r_t$ et candidat $\tilde{H}_t$ :
+\begin{equation}
+  H_t = (1 - z_t) \odot \hat{H}_t + z_t \odot \tilde{H}_t.
+  \label{eq:gru-h}
+\end{equation}
+$H_t$ est réinjecté au pas suivant comme entrée du SCM, fermant la boucle. Après $T=8$ pas, $\HT = H_T$ est consommé par le décodeur (section~\ref{sec:oracle-decoder}). L'état initial $H_0$ est un paramètre apprenable indépendant du lot.
 
 % =============================================================
 \section{Apprentissage du DAG par contrainte DAGMA}
@@ -329,24 +512,17 @@ L'état $H_0$ est initialisé par un paramètre apprenable indépendant du lot. 
 \subsection{Caractérisation différentiable et formulation DAGMA}
 \label{ssec:oracle-dag-problem}
 
-Apprendre conjointement la structure d'un DAG et les fonctions structurelles est combinatoire dans sa formulation discrète (le nombre de DAG à $N$ nœuds croît super-exponentiellement). Zheng et~al.~\cite{zheng_notears_2018} ont reformulé l'acyclicité comme contrainte différentiable $h_{\mathrm{NOTEARS}}(A) = \mathrm{tr}(e^{A \odot A}) - N$, qui s'annule ssi $A$ est acyclique mais souffre du coût et de l'instabilité numérique de l'exponentielle de matrice. Bello, Aragam et Ravikumar~\cite{bello_dagma_2022} ont proposé une caractérisation alternative par \emph{log-déterminant} d'une matrice M-positive :
+Apprendre conjointement la structure d'un DAG et les fonctions structurelles est combinatoire (le nombre de DAG à $N$ nœuds croît super-exponentiellement). Zheng et~al.~\cite{zheng_notears_2018} ont reformulé l'acyclicité comme contrainte différentiable $h_{\mathrm{NOTEARS}}(A) = \mathrm{tr}(e^{A \odot A}) - N$, coûteuse numériquement. Bello, Aragam et Ravikumar~\cite{bello_dagma_2022} ont proposé une caractérisation par log-déterminant d'une matrice M-positive :
 \begin{equation}
   h_{\mathrm{DAGMA}}(A;\, s) \;=\; -\log \det\!\left( s\,I - A \odot A \right) + N \log s,
   \label{eq:dagma}
 \end{equation}
-où $s > N \cdot \max_{i,j} |A_{i,j}|$ garantit la M-positivité. La quantité $h_{\mathrm{DAGMA}}$ s'annule ssi $A$ représente un DAG, ne requiert qu'une décomposition LU, et son gradient se déduit de l'inverse de $sI - A \odot A$. Dans \Oracle{}, cette pénalité est combinée à une sparsité $L_1$ encourageant une matrice creuse et auditable :
+où $s > N \cdot \max_{i,j} |A_{i,j}|$ garantit la M-positivité. $h_{\mathrm{DAGMA}}$ s'annule ssi $A$ représente un DAG, ne requiert qu'une décomposition LU, et son gradient se déduit de l'inverse de $sI - A \odot A$. Dans \Oracle{}, cette pénalité est combinée à une sparsité $L_1$ encourageant une matrice creuse et auditable :
 \begin{equation}
   \mathcal{L}_{\mathrm{dag}} \;=\; \lambda_{\mathrm{DAGMA}} \cdot h_{\mathrm{DAGMA}}(\Adag) \;+\; \lambda_{L_1} \cdot \|\Adag\|_1.
   \label{eq:loss-dag}
 \end{equation}
 Les valeurs effectives des coefficients sont détaillées au chapitre suivant.
-
-\subsection{Portée et limites de la causalité apprise}
-\label{ssec:oracle-causal-limits}
-
-\begin{disclaimerbox}
-\Oracle{} est \textbf{structurellement causal} : son architecture respecte par construction l'acyclicité et la propriété d'intervention, le passage par $\Adag$ étant nécessaire à la production de $\muHR$ (propriété O3, section~\ref{sec:oracle-o3}). Le DAG appris \textbf{ne prétend pas refléter la causalité physique réelle} : il s'agit d'une représentation \emph{stylisée} optimisée pour la prédiction sous contrainte d'acyclicité, dont la fidélité aux mécanismes physiques est une propriété empirique à vérifier. Cette posture demeure défendable car le DAG est \textbf{auditable} — visualisable, comparable à une connaissance a priori, corrigible manuellement par un expert — propriété indépendante de la fidélité physique stricte et apport opérationnel concret face aux approches purement corrélatives.
-\end{disclaimerbox}
 
 % =============================================================
 \section{Décodeur graphe-à-grille et moyenne haute résolution}
@@ -356,7 +532,7 @@ Les valeurs effectives des coefficients sont détaillées au chapitre suivant.
 \subsection{Cross-attention à résolution intermédiaire et raffinement}
 \label{ssec:oracle-decoder-principe}
 
-Le décodeur transforme l'état caché final $\HT \in \mathbb{R}^{B \times N \times d}$ en une carte $\muHR \in \mathbb{R}^{B \times 1 \times H_{\HR} \times W_{\HR}}$ en deux étapes : (i)~attention croisée entre des requêtes définies sur une grille intermédiaire $H_{\mathrm{int}} \times W_{\mathrm{int}} = 43 \times 45$ (double de la résolution LR) et l'ensemble des nœuds du graphe (clés/valeurs) ; (ii)~sur-échantillonnage bilinéaire et raffinement convolutif vers la résolution HR. L'attention croisée multi-têtes calcule
+Le décodeur transforme l'état caché final $\HT \in \mathbb{R}^{B \times N \times d}$ en une carte $\muHR \in \mathbb{R}^{B \times 1 \times H_{\HR} \times W_{\HR}}$ en deux étapes : attention croisée entre des requêtes définies sur une grille intermédiaire $43 \times 45$ (double de la résolution LR) et l'ensemble des nœuds du graphe (clés/valeurs), suivie d'un sur-échantillonnage bilinéaire et d'un raffinement convolutif vers la résolution HR. L'attention croisée multi-têtes calcule
 \begin{equation}
   \tilde{\mu}_p \;=\; \sum_{n=1}^{N} \alpha_{p,n} \cdot V_n,
   \quad
@@ -399,18 +575,10 @@ mesure l'apport du chemin causal à la qualité de la prédiction. \Oracle{} sat
 avec typiquement $\tau \in [0{,}05,\, 0{,}10]$ dans nos protocoles.
 \end{definition}
 
-\subsection{Variante d'ablation \texttt{noncausal}}
-\label{ssec:oracle-noncausal}
+L'opérationnalisation de (O3) repose sur la variante d'ablation \texttt{noncausal} qui force $\Adag = \mathbf{0}$ à l'inférence (pas à l'entraînement), exposée par le paramètre \texttt{run\_variant}. C'est l'instrument principal de validation expérimentale ; la mesure de $\Delta_{O3}$ est reportée au chapitre suivant.
 
-L'opérationnalisation de (O3) repose sur la variante \texttt{noncausal} qui force $\Adag = \mathbf{0}$ à l'inférence (pas à l'entraînement). Exposée par le paramètre \texttt{run\_variant}, elle constitue l'instrument principal de validation expérimentale ; la mesure de $\Delta_{O3}$ est reportée au chapitre suivant.
-
-% =============================================================
-\section{Étage 2 : diffusion EDM résiduelle}
+\subsection{Étage 2 --- paradigme EDM et conditionnement par concaténation}
 \label{sec:oracle-edm}
-% =============================================================
-
-\subsection{Paradigme EDM et conditionnement par concaténation}
-\label{ssec:oracle-edm-choix}
 
 Le second étage échantillonne le résiduel $\delta$ conditionnellement à $\muHR$ et à la baseline. Nous reprenons sans modification le formalisme EDM de Karras et~al.~\cite{karras_edm_2022}, dont le préconditionnement s'écrit, pour $x_\sigma = x + \sigma \epsilon$ :
 \begin{equation}
@@ -424,42 +592,32 @@ avec $c_{\mathrm{skip}}, c_{\mathrm{out}}, c_{\mathrm{in}}, c_{\mathrm{noise}}$ 
 \end{equation}
 L'échantillonnage utilise un solveur de Heun à pas variable selon le calendrier de Karras. Un examen détaillé du formalisme est donné au chapitre précédent (sous-section~\ref{ssec:soa-edm}).
 
-\Oracle{} conditionne exclusivement par \emph{concaténation de canaux} (et non par cross-attention), c'est-à-dire :
+\Oracle{} conditionne exclusivement par \emph{concaténation de canaux}, et non par cross-attention :
 \begin{equation}
   \mathrm{input}_{\mathrm{UNet}} \;=\; \mathrm{concat}\!\left( \delta_{\mathrm{noisy}},\; \muHR,\; \log(1 + \mathrm{baseline}) \right) \;\in\; \mathbb{R}^{B \times 3 \times H_{\HR} \times W_{\HR}},
   \label{eq:causal-concat}
 \end{equation}
-avec $\delta_{\mathrm{noisy}} = \delta + \sigma \epsilon$. Deux raisons motivent ce choix : la cross-attention introduit une voie d'information parallèle qui dilue la traçabilité causale, tandis que la concaténation force le U-Net à \emph{voir} $\muHR$ comme un canal d'image traité localement par les couches initiales ; et la concaténation est computationnellement moins coûteuse, ce qui importe en CPU-only.
+avec $\delta_{\mathrm{noisy}} = \delta + \sigma \epsilon$. Ce choix tient à deux raisons. La cross-attention ouvre une voie d'information parallèle qui dilue la traçabilité causale ; la concaténation force au contraire le U-Net à \emph{voir} $\muHR$ comme un canal d'image traité localement par ses couches initiales. Et le coût computationnel de la concaténation est nettement inférieur, ce qui pèse en CPU-only.
 
-\subsection{Pourquoi le résidu plutôt que le champ complet}
+\subsubsection{Pourquoi le résidu plutôt que le champ complet}
 \label{ssec:oracle-residu-justif}
 
-Modéliser $\delta$ plutôt que $\xHR$ réduit l'amplitude de la variable cible : $\xHR$ couvre plusieurs ordres de grandeur (zones sèches aux extrêmes orageux), $\delta$ est centré autour de zéro avec un écart-type de l'ordre de $\sigma_{\mathrm{data}}$ après log-transformation. Deux conséquences : la calibration de $\sigma_{\mathrm{data}}$ devient sensée (la diffusion opère sur la variabilité fine non capturée par le Stage 1) ; et la variance prédite est mieux calibrée sur la variance observée des résiduels, ce qui réduit la sub-dispersion typique des modèles génératifs sur champ complet (objectif O2).
+Modéliser $\delta$ plutôt que $\xHR$ réduit l'amplitude de la cible : $\xHR$ couvre plusieurs ordres de grandeur, $\delta$ est centré autour de zéro avec un écart-type de l'ordre de $\sigma_{\mathrm{data}}$ après log-transformation. La calibration de $\sigma_{\mathrm{data}}$ retrouve un sens physique et la variance prédite s'aligne mieux sur la variance observée des résiduels, réduisant la sub-dispersion typique des modèles entraînés sur champ complet (O2). L'interface inter-étages joue le rôle d'un \emph{pacte architectural} : le Stage 1 délivre $\muHR$ comme seule information conditionnelle, le Stage 2 la reçoit par concaténation sans voie d'attention parallèle, et l'ablation $\Adag \leftarrow \mathbf{0}$ n'a d'effet sur la sortie que si elle modifie effectivement $\muHR$ --- ce qui requiert simultanément que le Stage 1 utilise $\Adag$ et que le Stage 2 dépende de $\muHR$.
 
 % =============================================================
 \section{Pertes composites et entraînement}
 \label{sec:oracle-pertes}
 % =============================================================
 
-\subsection{Pertes des deux étages}
+\subsection{Pertes et procédure d'entraînement}
 \label{ssec:oracle-pertes-stage1}
 
-L'entraînement du Stage 1 minimise une combinaison de quatre termes. La perte principale est l'erreur quadratique sur $\muHR$ :
-\begin{equation}
-  \Lmse \;=\; \mathbb{E}\!\left[\, \left\| \muHR \,-\, \left( \log(1 + \xHR) - \log(1 + \mathrm{baseline}) \right) \right\|^2 \right].
-  \label{eq:loss-mse}
-\end{equation}
-La perte de reconstruction $\Lrec = \sum_{v,p} \mathbb{E}[\| \mathrm{decode}_{v,p}(\hat{H}_t) - x_{v,p,t} \|^2]$ contraint le décodage de l'état latent à reproduire les variables d'entrée, ce qui préserve l'identité physique. Les deux derniers termes, $h_{\mathrm{DAGMA}}$ et $\|\Adag\|_1$, sont regroupés dans $\mathcal{L}_{\mathrm{dag}}$ (équation~\ref{eq:loss-dag}). La perte composite du Stage 1 est :
+L'entraînement du Stage 1 minimise une perte composite combinant l'erreur quadratique sur $\muHR$, $\Lmse = \mathbb{E}[\Vert \muHR - (\log(1+\xHR) - \log(1+\mathrm{baseline}))\Vert^2]$, la perte de reconstruction $\Lrec$ qui préserve l'identité physique, et le terme $\mathcal{L}_{\mathrm{dag}}$ regroupant la pénalité DAGMA et la régularisation $\|\Adag\|_1$ :
 \begin{equation}
   \Ltotal^{(1)} \;=\; \Lmse \;+\; \alpha\, \Lrec \;+\; \mathcal{L}_{\mathrm{dag}}.
   \label{eq:loss-total-stage1}
 \end{equation}
-Le Stage 2 minimise exclusivement $\LEDM$ (équation~\ref{eq:edm-loss}) sur les résiduels pré-calculés, sans perte auxiliaire dans la configuration finale. Des pertes spectrales (FACL) et Wasserstein sliced ont été explorées en préparation puis abandonnées (gain marginal, instabilités) ; les détails empiriques figurent au chapitre suivant.
-
-\subsection{Procédure d'entraînement et optimisation}
-\label{ssec:oracle-train-procedure}
-
-L'entraînement procède en deux phases successives. Le Stage 1 est entraîné par AdamW sur $E_1$ époques jusqu'à convergence sur $\Ltotal^{(1)}$ ; ses paramètres sont alors gelés et l'on pré-calcule $\muHR^{(i)}$ et $\mathrm{baseline}^{(i)}$ pour tout le jeu d'entraînement, puis $\sigma_{\mathrm{data}}$ empirique. Le critère (O3) (équation~\ref{eq:o3-criterion}) joue le rôle de \emph{gate} : si $\Delta_{O3}/\mathrm{MSE} < \tau$, le Stage 1 est ré-entraîné. Le Stage 2 (U-Net de diffusion) est ensuite entraîné par Adam sur les résiduels pré-calculés : à chaque pas on tire $\sigma$ selon le calendrier EDM et $\epsilon \sim \mathcal{N}(0, I)$, on forme $\mathrm{input}_{\mathrm{UNet}} = \mathrm{concat}(\delta + \sigma\epsilon,\, \muHR,\, \log(1+\mathrm{baseline}))$, on évalue $\mathcal{D}_\theta$ (équation~\ref{eq:edm-precond}) et $\LEDM = \lambda(\sigma)\|\hat\delta - \delta\|^2$, puis on met à jour les paramètres et leurs poids EMA. Trois éléments du protocole méritent mention : l'\emph{EMA} (décroissance $0{,}9999$) stabilise l'échantillonnage en lissant les fluctuations des paramètres ; le \emph{conditioning dropout} (taux $p \approx 0{,}13$) remplace aléatoirement $\muHR$ par zéro pendant l'entraînement, préparant l'usage en classifier-free guidance ; la valeur effective de \texttt{cfg\_scale} est discutée au chapitre suivant.
+La procédure se déroule en deux phases. Le Stage 1 est entraîné par AdamW jusqu'à convergence ; ses paramètres sont alors gelés et on pré-calcule $\muHR^{(i)}$, $\mathrm{baseline}^{(i)}$ et $\sigma_{\mathrm{data}}$ empirique. Le critère (O3) joue le rôle de \emph{gate} : si $\Delta_{O3}/\mathrm{MSE} < \tau$, le Stage 1 est ré-entraîné. Le Stage 2 minimise ensuite exclusivement $\LEDM$ (équation~\ref{eq:edm-loss}) sur les résiduels pré-calculés. Trois éléments du protocole : l'EMA (décroissance $0{,}9999$) stabilise l'échantillonnage, le \emph{conditioning dropout} ($p \approx 0{,}13$) prépare la classifier-free guidance, et \texttt{cfg\_scale} est calibré au chapitre suivant.
 
 % =============================================================
 \section{Synthèse, traçabilité et choix non retenus}
@@ -474,7 +632,7 @@ Le tableau~\ref{tab:tracabilite} retrace l'inspiration et le verrou adressé par
 \begin{table}[ht]
   \centering
   \small
-  \caption{Traçabilité des composants d'\Oracle{} : inspiration et verrou adressé.}
+  \caption[Traçabilité des composants]{Traçabilité des composants d'\Oracle{} : inspiration et verrou adressé.}
   \label{tab:tracabilite}
   \begin{tabularx}{\linewidth}{l X l}
     \toprule
@@ -494,10 +652,7 @@ Le tableau~\ref{tab:tracabilite} retrace l'inspiration et le verrou adressé par
   \end{tabularx}
 \end{table}
 
-Plusieurs alternatives ont été envisagées puis écartées : les \emph{Diffusion Transformers} (coût supérieur au U-Net à la résolution $172\times 179$, apport empirique non démontré pour le downscaling à cette échelle) ; le \emph{flow matching} et les \emph{consistency models} (maturité limitée sur cette application, perspective de continuation signalée en conclusion) ; l'injection des drivers statiques comme canaux supplémentaires du U-Net Stage 2 (écartée pour préserver le passage architectural par le DAG, condition de la validité de O3) ; la cross-attention pour le conditionnement Stage 2 (écartée au profit de la concaténation, cf. section~\ref{ssec:oracle-edm-choix}).
-
-\subsection{Transition vers le Chapitre IV}
-\label{ssec:oracle-transition}
+Plusieurs alternatives ont été envisagées puis écartées : les \emph{Diffusion Transformers} (coût supérieur au U-Net à la résolution $172\times 179$, apport empirique non démontré pour le downscaling à cette échelle) ; le \emph{flow matching} et les \emph{consistency models} (maturité limitée sur cette application, perspective de continuation signalée en conclusion) ; l'injection des drivers statiques comme canaux supplémentaires du U-Net Stage 2 (écartée pour préserver le passage architectural par le DAG, condition de la validité de O3) ; la cross-attention pour le conditionnement Stage 2 (écartée au profit de la concaténation, cf. section~\ref{sec:oracle-edm}).
 
 Le présent chapitre a présenté \Oracle{} dans sa forme architecturale finale. La validation empirique --- satisfaction effective de la propriété (O3), mesure de la sub-dispersion résiduelle, robustesse hors-distribution --- constitue l'objet du chapitre suivant, qui documente également l'environnement logiciel, les jeux de données, la trajectoire de développement et la discussion des résultats.
 

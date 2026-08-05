@@ -1,0 +1,151 @@
+{
+  "seed": 42,
+  "n_nodes": 9,
+  "node_labels": [
+    "GP850",
+    "GP850->GP500",
+    "GP500",
+    "GP500->GP250",
+    "GP250",
+    "Q850",
+    "W500",
+    "IVT",
+    "SP_HR"
+  ],
+  "threshold_adaptive": 0.2081,
+  "q_phys_continuous_recomputed": 0.9997,
+  "q_phys_continuous_ondisk": 0.9997145490835596,
+  "q_phys_binary_ondisk": 1.0,
+  "skeleton_f1_ondisk": 1.0,
+  "phys_mag_gained_ondisk": 6.367338722571731,
+  "n_physical_edges": 10,
+  "n_matched": 10,
+  "n_extra_edges": 0,
+  "A_dag_frobenius_final": 2.1805,
+  "A_dag_frobenius_initial": 3.0013,
+  "edges": [
+    {
+      "edge": "GP250 -> GP500",
+      "expected_sign": 1,
+      "learned_weight": 0.6849,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP500 -> GP850",
+      "expected_sign": 1,
+      "learned_weight": 0.6879,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP850 -> SP_HR",
+      "expected_sign": 1,
+      "learned_weight": 0.6857,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP850->GP500 -> GP500",
+      "expected_sign": 1,
+      "learned_weight": 0.69,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP500->GP250 -> GP250",
+      "expected_sign": 1,
+      "learned_weight": 0.6937,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP850 -> Q850",
+      "expected_sign": 1,
+      "learned_weight": 0.6854,
+      "sign_correct": true
+    },
+    {
+      "edge": "GP500 -> W500",
+      "expected_sign": 1,
+      "learned_weight": 0.6905,
+      "sign_correct": true
+    },
+    {
+      "edge": "Q850 -> IVT",
+      "expected_sign": 1,
+      "learned_weight": 0.6934,
+      "sign_correct": true
+    },
+    {
+      "edge": "W500 -> SP_HR",
+      "expected_sign": 1,
+      "learned_weight": 0.692,
+      "sign_correct": true
+    },
+    {
+      "edge": "IVT -> SP_HR",
+      "expected_sign": 1,
+      "learned_weight": 0.6918,
+      "sign_correct": true
+    }
+  ],
+  "metrics_full_prediction": {
+    "rmse": 0.14135445654392242,
+    "mae": 0.06948994845151901,
+    "spread_mean": 0.05084722489118576,
+    "f1_extremes": {
+      "p95": 0.5828834369803412,
+      "p99": 0.45309689025957334
+    },
+    "pearson_corr": {
+      "global": 0.7667191624641418,
+      "per_sample_avg": 0.7656855471432209,
+      "per_sample_n": 16,
+      "per_sample_list": [
+        0.795880138874054,
+        0.5960835218429565,
+        0.7003418803215027,
+        0.8023368120193481,
+        0.7861564755439758,
+        0.6596606969833374,
+        0.8567084670066833,
+        0.834581732749939,
+        0.8042519688606262,
+        0.8949346542358398,
+        0.7350695133209229,
+        0.7903160452842712,
+        0.8321627974510193,
+        0.6587496995925903,
+        0.6930021643638611,
+        0.8107321858406067
+      ]
+    },
+    "rapsd_distance": 319.41387939453125
+  },
+  "spread_skill_ratio": 0.3597143389348056,
+  "training": {
+    "epochs": 215,
+    "k9_temporal_split": {
+      "train": [
+        "1980-01-01",
+        "2009-12-31"
+      ],
+      "val": [
+        "2010-01-01",
+        "2011-12-31"
+      ],
+      "test": [
+        "2012-01-01",
+        "2013-12-31"
+      ],
+      "holdout": [
+        "2014-01-01",
+        "2014-12-31"
+      ]
+    },
+    "hyperparams": {
+      "lambda_dag_prior": 0.4,
+      "lambda_l1_start": 0.04,
+      "lambda_l1_end": 0.005,
+      "g_phys_alpha": 0.25,
+      "dag_gate_warmup_start_epoch": null,
+      "dag_gate_warmup_end_epoch": null
+    }
+  }
+}

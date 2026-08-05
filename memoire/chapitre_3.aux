@@ -9,6 +9,7 @@
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \citation{mardani_corrdiff_2023}
+\citation{karras_edm_2022}
 \babel@aux{french}{}
 \@writefile{toc}{\contentsline {chapter}{\numberline {III}Proposition : Oracle, architecture causale à deux étages}{45}{chapter.3}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
@@ -16,174 +17,110 @@
 \newlabel{chap:oracle}{{III}{45}{Proposition : Oracle, architecture causale à deux étages}{chapter.3}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {III.1}Introduction}{45}{section.3.1}\protected@file@percent }
 \newlabel{sec:oracle-intro}{{III.1}{45}{Introduction}{section.3.1}{}}
-\citation{karras_edm_2022}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.1.1}Notations}{47}{subsection.3.1.1}\protected@file@percent }
-\newlabel{ssec:oracle-notations}{{III.1.1}{47}{Notations}{subsection.3.1.1}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Notations utilisées dans le présent chapitre.}}{47}{table.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.1.1}Notations et objectifs}{46}{subsection.3.1.1}\protected@file@percent }
+\newlabel{ssec:oracle-notations}{{III.1.1}{46}{Notations et objectifs}{subsection.3.1.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Notations principales.}}{46}{table.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:notations}{{1}{47}{Notations utilisées dans le présent chapitre}{table.caption.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.1.2}Objectifs O1-O6}{47}{subsection.3.1.2}\protected@file@percent }
-\newlabel{ssec:oracle-objectifs}{{III.1.2}{47}{Objectifs O1-O6}{subsection.3.1.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.2}Vue d'ensemble et différence avec CorrDiff}{49}{section.3.2}\protected@file@percent }
-\newlabel{sec:oracle-overview}{{III.2}{49}{Vue d'ensemble et différence avec CorrDiff}{section.3.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.2.1}Architecture en quatre blocs fonctionnels}{49}{subsection.3.2.1}\protected@file@percent }
-\newlabel{ssec:oracle-blocs}{{III.2.1}{49}{Architecture en quatre blocs fonctionnels}{subsection.3.2.1}{}}
-\newlabel{eq:oracle-decomposition}{{III.1}{49}{Architecture en quatre blocs fonctionnels}{equation.3.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Vue d'ensemble simplifiée du modèle \textsc  {Oracle}{} : quatre blocs fonctionnels articulés autour de l'équation centrale~\eqref  {eq:oracle-decomposition}. La causalité est concentrée dans le bloc CRM ; la stochasticité réside dans le bloc EDM.}}{49}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:oracle-overview-simple}{{1}{49}{Vue d'ensemble simplifiée du modèle \Oracle {} : quatre blocs fonctionnels articulés autour de l'équation centrale~\eqref {eq:oracle-decomposition}. La causalité est concentrée dans le bloc CRM ; la stochasticité réside dans le bloc EDM}{figure.caption.2}{}}
-\citation{mardani_corrdiff_2023}
-\citation{mardani_corrdiff_2023}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.2.2}Écart avec CorrDiff : la causalisation du premier étage}{50}{subsection.3.2.2}\protected@file@percent }
-\newlabel{ssec:oracle-diff-corrdiff}{{III.2.2}{50}{Écart avec CorrDiff : la causalisation du premier étage}{subsection.3.2.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Comparaison côte à côte des pipelines \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023} et \textsc  {Oracle}{}. Le seul écart se situe au niveau du premier étage : le réseau de régression générique de \textsc  {CorrDiff}{} est remplacé par un module structurellement causal dans \textsc  {Oracle}{}. Le second étage de diffusion EDM est conservé tel quel.}}{50}{figure.caption.3}\protected@file@percent }
-\newlabel{fig:oracle-vs-corrdiff}{{2}{50}{Comparaison côte à côte des pipelines \CorrDiff {}~\cite {mardani_corrdiff_2023} et \Oracle {}. Le seul écart se situe au niveau du premier étage : le réseau de régression générique de \CorrDiff {} est remplacé par un module structurellement causal dans \Oracle {}. Le second étage de diffusion EDM est conservé tel quel}{figure.caption.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.3}Graphe atmosphérique hétérogène}{51}{section.3.3}\protected@file@percent }
-\newlabel{sec:oracle-graphe}{{III.3}{51}{Graphe atmosphérique hétérogène}{section.3.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.1}Types de nœuds et hiérarchie verticale}{51}{subsection.3.3.1}\protected@file@percent }
-\newlabel{ssec:oracle-types-noeuds}{{III.3.1}{51}{Types de nœuds et hiérarchie verticale}{subsection.3.3.1}{}}
+\newlabel{tab:notations}{{1}{46}{Notations principales}{table.caption.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.2}Vue d'ensemble et différence avec CorrDiff}{47}{section.3.2}\protected@file@percent }
+\newlabel{sec:oracle-overview}{{III.2}{47}{Vue d'ensemble et différence avec CorrDiff}{section.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.2.1}Architecture en quatre blocs fonctionnels}{47}{subsection.3.2.1}\protected@file@percent }
+\newlabel{ssec:oracle-blocs}{{III.2.1}{47}{Architecture en quatre blocs fonctionnels}{subsection.3.2.1}{}}
+\newlabel{eq:oracle-decomposition}{{III.1}{47}{Architecture en quatre blocs fonctionnels}{equation.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Vue d'ensemble simplifiée du modèle \textsc  {Oracle}{} en quatre blocs articulés autour de l'équation~\eqref  {eq:oracle-decomposition}. La causalité architecturale est concentrée dans le CRM ; la stochasticité réside dans le bloc EDM.}}{47}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:oracle-overview-simple}{{1}{47}{Vue d'ensemble simplifiée du modèle \Oracle {} en quatre blocs articulés autour de l'équation~\eqref {eq:oracle-decomposition}. La causalité architecturale est concentrée dans le CRM ; la stochasticité réside dans le bloc EDM}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.3}Graphe atmosphérique hétérogène}{48}{section.3.3}\protected@file@percent }
+\newlabel{sec:oracle-graphe}{{III.3}{48}{Graphe atmosphérique hétérogène}{section.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.1}Types de nœuds et hiérarchie verticale}{48}{subsection.3.3.1}\protected@file@percent }
+\newlabel{ssec:oracle-types-noeuds}{{III.3.1}{48}{Types de nœuds et hiérarchie verticale}{subsection.3.3.1}{}}
 \citation{rampal_cgan_2024}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.2}Types d'arêtes et physique encodée}{52}{subsection.3.3.2}\protected@file@percent }
-\newlabel{ssec:oracle-types-aretes}{{III.3.2}{52}{Types d'arêtes et physique encodée}{subsection.3.3.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.3}Drivers statiques et acheminement causal}{52}{subsection.3.3.3}\protected@file@percent }
-\newlabel{ssec:oracle-statics}{{III.3.3}{52}{Drivers statiques et acheminement causal}{subsection.3.3.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Vue conceptuelle du graphe atmosphérique hétérogène d'\textsc  {Oracle}{}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant.}}{53}{figure.caption.4}\protected@file@percent }
-\newlabel{fig:graphe-conceptuel}{{3}{53}{Vue conceptuelle du graphe atmosphérique hétérogène d'\Oracle {}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant}{figure.caption.4}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.4}Encodeur intelligible des variables}{53}{section.3.4}\protected@file@percent }
-\newlabel{sec:oracle-encoder}{{III.4}{53}{Encodeur intelligible des variables}{section.3.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.1}Motivation : préserver l'identité physique des variables}{53}{subsection.3.4.1}\protected@file@percent }
-\newlabel{ssec:oracle-encoder-motivation}{{III.4.1}{53}{Motivation : préserver l'identité physique des variables}{subsection.3.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.2}Types d'arêtes et physique encodée}{49}{subsection.3.3.2}\protected@file@percent }
+\newlabel{ssec:oracle-types-aretes}{{III.3.2}{49}{Types d'arêtes et physique encodée}{subsection.3.3.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Vue conceptuelle du graphe atmosphérique hétérogène d'\textsc  {Oracle}{}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant.}}{49}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:graphe-conceptuel}{{2}{49}{Vue conceptuelle du graphe atmosphérique hétérogène d'\Oracle {}. Quatre types de nœuds (GP850, GP500, GP250, SP\_HR) et trois types d'arêtes (spatiales intra-niveau, verticales inter-niveaux, statique-vers-pression). L'instanciation concrète avec les variables nommées et les dimensions exactes est différée au chapitre suivant}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.3.3}Drivers statiques et acheminement causal}{49}{subsection.3.3.3}\protected@file@percent }
+\newlabel{ssec:oracle-statics}{{III.3.3}{49}{Drivers statiques et acheminement causal}{subsection.3.3.3}{}}
 \citation{hamilton_sage_2017}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.2}Architecture par variable et normalisation}{54}{subsection.3.4.2}\protected@file@percent }
-\newlabel{ssec:oracle-encoder-archi}{{III.4.2}{54}{Architecture par variable et normalisation}{subsection.3.4.2}{}}
-\newlabel{eq:sageconv}{{III.2}{54}{Architecture par variable et normalisation}{equation.3.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.5}Réseau causal récurrent (RCN)}{55}{section.3.5}\protected@file@percent }
-\newlabel{sec:oracle-rcn}{{III.5}{55}{Réseau causal récurrent (RCN)}{section.3.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.1}Principe : SCM dynamique enchaîné à une mise à jour temporelle}{55}{subsection.3.5.1}\protected@file@percent }
-\newlabel{ssec:oracle-rcn-principe}{{III.5.1}{55}{Principe : SCM dynamique enchaîné à une mise à jour temporelle}{subsection.3.5.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.2}Équations du SCM dynamique}{55}{subsection.3.5.2}\protected@file@percent }
-\newlabel{ssec:oracle-rcn-scm}{{III.5.2}{55}{Équations du SCM dynamique}{subsection.3.5.2}{}}
-\newlabel{eq:scm-update}{{III.3}{55}{Équations du SCM dynamique}{equation.3.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.4}Encodeur intelligible des variables}{50}{section.3.4}\protected@file@percent }
+\newlabel{sec:oracle-encoder}{{III.4}{50}{Encodeur intelligible des variables}{section.3.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.1}Motivation : préserver l'identité physique des variables}{50}{subsection.3.4.1}\protected@file@percent }
+\newlabel{ssec:oracle-encoder-motivation}{{III.4.1}{50}{Motivation : préserver l'identité physique des variables}{subsection.3.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.4.2}Architecture par variable et normalisation}{50}{subsection.3.4.2}\protected@file@percent }
+\newlabel{ssec:oracle-encoder-archi}{{III.4.2}{50}{Architecture par variable et normalisation}{subsection.3.4.2}{}}
+\newlabel{eq:sageconv}{{III.2}{50}{Architecture par variable et normalisation}{equation.3.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.5}Réseau causal récurrent (RCN)}{51}{section.3.5}\protected@file@percent }
+\newlabel{sec:oracle-rcn}{{III.5}{51}{Réseau causal récurrent (RCN)}{section.3.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.1}Principe : SCM dynamique enchaîné à une mise à jour temporelle}{51}{subsection.3.5.1}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-principe}{{III.5.1}{51}{Principe : SCM dynamique enchaîné à une mise à jour temporelle}{subsection.3.5.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.2}Équations SCM et mise à jour GRU}{51}{subsection.3.5.2}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-scm}{{III.5.2}{51}{Équations SCM et mise à jour GRU}{subsection.3.5.2}{}}
+\newlabel{eq:scm-update}{{III.3}{51}{Équations SCM et mise à jour GRU}{equation.3.3}{}}
 \citation{cho_gru_2014}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.3}Mise à jour temporelle GRU}{56}{subsection.3.5.3}\protected@file@percent }
-\newlabel{ssec:oracle-rcn-gru}{{III.5.3}{56}{Mise à jour temporelle GRU}{subsection.3.5.3}{}}
-\newlabel{eq:gru-z}{{III.4}{56}{Mise à jour temporelle GRU}{equation.3.4}{}}
-\newlabel{eq:gru-r}{{III.5}{56}{Mise à jour temporelle GRU}{equation.3.5}{}}
-\newlabel{eq:gru-h-tilde}{{III.6}{56}{Mise à jour temporelle GRU}{equation.3.6}{}}
-\newlabel{eq:gru-h}{{III.7}{56}{Mise à jour temporelle GRU}{equation.3.7}{}}
 \citation{zheng_notears_2018}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Architecture de la cellule \emph  {Recurrent Causal Network} (RCN). Le bloc SCM (à gauche) produit une prédiction causale $\hat  {H}_t$ à partir de l'état précédent et du DAG. Le bloc GRU (à droite) fusionne cette prédiction avec l'observation courante $x_t$ pour produire le nouvel état $H_t$, qui est réinjecté au pas suivant.}}{57}{figure.caption.5}\protected@file@percent }
-\newlabel{fig:rcn-cellule}{{4}{57}{Architecture de la cellule \emph {Recurrent Causal Network} (RCN). Le bloc SCM (à gauche) produit une prédiction causale $\hat {H}_t$ à partir de l'état précédent et du DAG. Le bloc GRU (à droite) fusionne cette prédiction avec l'observation courante $x_t$ pour produire le nouvel état $H_t$, qui est réinjecté au pas suivant}{figure.caption.5}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.4}Pseudo-code de la passe avant}{57}{subsection.3.5.4}\protected@file@percent }
-\newlabel{ssec:oracle-rcn-pseudocode}{{III.5.4}{57}{Pseudo-code de la passe avant}{subsection.3.5.4}{}}
-\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Passe avant du RCN}}{57}{algorithm.1}\protected@file@percent }
-\newlabel{algo:rcn-forward}{{1}{57}{Passe avant du RCN}{algorithm.1}{}}
 \citation{bello_dagma_2022}
-\@writefile{toc}{\contentsline {section}{\numberline {III.6}Apprentissage du DAG par contrainte DAGMA}{58}{section.3.6}\protected@file@percent }
-\newlabel{sec:oracle-dagma}{{III.6}{58}{Apprentissage du DAG par contrainte DAGMA}{section.3.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.1}Problème de l'apprentissage de graphes acycliques}{58}{subsection.3.6.1}\protected@file@percent }
-\newlabel{ssec:oracle-dag-problem}{{III.6.1}{58}{Problème de l'apprentissage de graphes acycliques}{subsection.3.6.1}{}}
-\newlabel{eq:notears}{{III.8}{58}{Problème de l'apprentissage de graphes acycliques}{equation.3.8}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.2}Caractérisation DAGMA}{58}{subsection.3.6.2}\protected@file@percent }
-\newlabel{ssec:oracle-dagma-caract}{{III.6.2}{58}{Caractérisation DAGMA}{subsection.3.6.2}{}}
-\newlabel{eq:dagma}{{III.9}{58}{Caractérisation DAGMA}{equation.3.9}{}}
-\newlabel{eq:loss-dag}{{III.10}{59}{Caractérisation DAGMA}{equation.3.10}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Intuition de la contrainte DAGMA. À gauche, un graphe initial dense et cyclique pour lequel $h_{\mathrm  {DAGMA}}(A) > 0$. À droite, le graphe obtenu après convergence de l'optimisation sous contrainte d'acyclicité différentiable et de sparsité $L_1$ : la matrice d'adjacence est creuse, acyclique, et auditable.}}{59}{figure.caption.6}\protected@file@percent }
-\newlabel{fig:dagma-intuition}{{5}{59}{Intuition de la contrainte DAGMA. À gauche, un graphe initial dense et cyclique pour lequel $h_{\mathrm {DAGMA}}(A) > 0$. À droite, le graphe obtenu après convergence de l'optimisation sous contrainte d'acyclicité différentiable et de sparsité $L_1$ : la matrice d'adjacence est creuse, acyclique, et auditable}{figure.caption.6}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.3}Portée et limites de la causalité apprise}{59}{subsection.3.6.3}\protected@file@percent }
-\newlabel{ssec:oracle-causal-limits}{{III.6.3}{59}{Portée et limites de la causalité apprise}{subsection.3.6.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.7}Décodeur graphe-à-grille et moyenne haute résolution}{60}{section.3.7}\protected@file@percent }
-\newlabel{sec:oracle-decoder}{{III.7}{60}{Décodeur graphe-à-grille et moyenne haute résolution}{section.3.7}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.1}Du tenseur de graphe à la grille de pixels}{60}{subsection.3.7.1}\protected@file@percent }
-\newlabel{ssec:oracle-decoder-principe}{{III.7.1}{60}{Du tenseur de graphe à la grille de pixels}{subsection.3.7.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.2}Cross-attention à résolution intermédiaire}{61}{subsection.3.7.2}\protected@file@percent }
-\newlabel{ssec:oracle-cross-attn}{{III.7.2}{61}{Cross-attention à résolution intermédiaire}{subsection.3.7.2}{}}
-\newlabel{eq:cross-attention}{{III.11}{61}{Cross-attention à résolution intermédiaire}{equation.3.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.3}Raffinement convolutif et projection finale}{61}{subsection.3.7.3}\protected@file@percent }
-\newlabel{ssec:oracle-refine}{{III.7.3}{61}{Raffinement convolutif et projection finale}{subsection.3.7.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.8}Interface inter-étages et propriété (O3)}{62}{section.3.8}\protected@file@percent }
-\newlabel{sec:oracle-o3}{{III.8}{62}{Interface inter-étages et propriété (O3)}{section.3.8}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.1}Pré-calcul et mise en cache des sorties de Stage 1}{62}{subsection.3.8.1}\protected@file@percent }
-\newlabel{ssec:oracle-cache}{{III.8.1}{62}{Pré-calcul et mise en cache des sorties de Stage 1}{subsection.3.8.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.2}Recalibration de l'écart-type des résiduels}{62}{subsection.3.8.2}\protected@file@percent }
-\newlabel{ssec:oracle-recalib}{{III.8.2}{62}{Recalibration de l'écart-type des résiduels}{subsection.3.8.2}{}}
-\newlabel{eq:residu}{{III.12}{62}{Recalibration de l'écart-type des résiduels}{equation.3.12}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.3}Définition formelle de la propriété (O3)}{63}{subsection.3.8.3}\protected@file@percent }
-\newlabel{ssec:oracle-o3-def}{{III.8.3}{63}{Définition formelle de la propriété (O3)}{subsection.3.8.3}{}}
-\newlabel{def:o3}{{III.1}{63}{Indispensabilité causale, O3}{definition.3.1}{}}
-\newlabel{eq:delta-o3}{{III.13}{63}{Indispensabilité causale, O3}{equation.3.13}{}}
-\newlabel{eq:o3-criterion}{{III.14}{63}{Indispensabilité causale, O3}{equation.3.14}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Schéma de la procédure d'ablation pour la propriété (O3). Deux évaluations du Stage 1 sur les mêmes données : l'une avec la matrice $\ensuremath  {A_{\mathrm  {dag}}}$ apprise, l'autre avec $\ensuremath  {A_{\mathrm  {dag}}}= \mathbf  {0}$. L'écart d'erreur quadratique entre les deux mesure l'indispensabilité du chemin causal.}}{63}{figure.caption.7}\protected@file@percent }
-\newlabel{fig:o3-gate}{{6}{63}{Schéma de la procédure d'ablation pour la propriété (O3). Deux évaluations du Stage 1 sur les mêmes données : l'une avec la matrice $\Adag $ apprise, l'autre avec $\Adag = \mathbf {0}$. L'écart d'erreur quadratique entre les deux mesure l'indispensabilité du chemin causal}{figure.caption.7}{}}
+\newlabel{eq:gru-z}{{III.4}{52}{Équations SCM et mise à jour GRU}{equation.3.4}{}}
+\newlabel{eq:gru-r}{{III.5}{52}{Équations SCM et mise à jour GRU}{equation.3.5}{}}
+\newlabel{eq:gru-h-tilde}{{III.6}{52}{Équations SCM et mise à jour GRU}{equation.3.6}{}}
+\newlabel{eq:gru-h}{{III.7}{52}{Équations SCM et mise à jour GRU}{equation.3.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.5.3}Passe avant}{52}{subsection.3.5.3}\protected@file@percent }
+\newlabel{ssec:oracle-rcn-pseudocode}{{III.5.3}{52}{Passe avant}{subsection.3.5.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.6}Apprentissage du DAG par contrainte DAGMA}{52}{section.3.6}\protected@file@percent }
+\newlabel{sec:oracle-dagma}{{III.6}{52}{Apprentissage du DAG par contrainte DAGMA}{section.3.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.1}Caractérisation différentiable et formulation DAGMA}{52}{subsection.3.6.1}\protected@file@percent }
+\newlabel{ssec:oracle-dag-problem}{{III.6.1}{52}{Caractérisation différentiable et formulation DAGMA}{subsection.3.6.1}{}}
+\newlabel{eq:dagma}{{III.8}{53}{Caractérisation différentiable et formulation DAGMA}{equation.3.8}{}}
+\newlabel{eq:loss-dag}{{III.9}{53}{Caractérisation différentiable et formulation DAGMA}{equation.3.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.6.2}Portée et limites de la causalité apprise}{54}{subsection.3.6.2}\protected@file@percent }
+\newlabel{ssec:oracle-causal-limits}{{III.6.2}{54}{Portée et limites de la causalité apprise}{subsection.3.6.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.7}Décodeur graphe-à-grille et moyenne haute résolution}{54}{section.3.7}\protected@file@percent }
+\newlabel{sec:oracle-decoder}{{III.7}{54}{Décodeur graphe-à-grille et moyenne haute résolution}{section.3.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.7.1}Cross-attention à résolution intermédiaire et raffinement}{54}{subsection.3.7.1}\protected@file@percent }
+\newlabel{ssec:oracle-decoder-principe}{{III.7.1}{54}{Cross-attention à résolution intermédiaire et raffinement}{subsection.3.7.1}{}}
+\newlabel{eq:cross-attention}{{III.10}{54}{Cross-attention à résolution intermédiaire et raffinement}{equation.3.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.8}Interface inter-étages et propriété (O3)}{55}{section.3.8}\protected@file@percent }
+\newlabel{sec:oracle-o3}{{III.8}{55}{Interface inter-étages et propriété (O3)}{section.3.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.1}Pré-calcul, cache et recalibration de $\sigma _{\mathrm  {data}}$}{55}{subsection.3.8.1}\protected@file@percent }
+\newlabel{ssec:oracle-cache}{{III.8.1}{55}{Pré-calcul, cache et recalibration de $\sigma _{\mathrm {data}}$}{subsection.3.8.1}{}}
+\newlabel{eq:residu}{{III.11}{55}{Pré-calcul, cache et recalibration de $\sigma _{\mathrm {data}}$}{equation.3.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.2}Définition formelle de la propriété (O3)}{55}{subsection.3.8.2}\protected@file@percent }
+\newlabel{ssec:oracle-o3-def}{{III.8.2}{55}{Définition formelle de la propriété (O3)}{subsection.3.8.2}{}}
+\newlabel{def:o3}{{III.1}{55}{Indispensabilité causale, O3}{definition.3.1}{}}
 \citation{karras_edm_2022}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.4}Variante d'ablation \texttt  {noncausal}}{64}{subsection.3.8.4}\protected@file@percent }
-\newlabel{ssec:oracle-noncausal}{{III.8.4}{64}{Variante d'ablation \texttt {noncausal}}{subsection.3.8.4}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.9}Étage 2 : diffusion EDM résiduelle}{64}{section.3.9}\protected@file@percent }
-\newlabel{sec:oracle-edm}{{III.9}{64}{Étage 2 : diffusion EDM résiduelle}{section.3.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.1}Choix du paradigme : EDM Karras 2022}{64}{subsection.3.9.1}\protected@file@percent }
-\newlabel{ssec:oracle-edm-choix}{{III.9.1}{64}{Choix du paradigme : EDM Karras 2022}{subsection.3.9.1}{}}
-\newlabel{eq:edm-precond}{{III.15}{64}{Choix du paradigme : EDM Karras 2022}{equation.3.15}{}}
-\newlabel{eq:edm-loss}{{III.16}{64}{Choix du paradigme : EDM Karras 2022}{equation.3.16}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.2}Spécificité Oracle : conditionnement par concaténation de canaux}{65}{subsection.3.9.2}\protected@file@percent }
-\newlabel{ssec:oracle-causal-concat}{{III.9.2}{65}{Spécificité Oracle : conditionnement par concaténation de canaux}{subsection.3.9.2}{}}
-\newlabel{eq:causal-concat}{{III.17}{65}{Spécificité Oracle : conditionnement par concaténation de canaux}{equation.3.17}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.3}Pourquoi le résidu plutôt que le champ complet}{65}{subsection.3.9.3}\protected@file@percent }
-\newlabel{ssec:oracle-residu-justif}{{III.9.3}{65}{Pourquoi le résidu plutôt que le champ complet}{subsection.3.9.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Conditionnement par concaténation de canaux dans le second étage d'\textsc  {Oracle}{}. Le U-Net reçoit trois canaux d'entrée empilés : le résiduel bruité, la moyenne causale et la baseline log-transformée. Cette concaténation force le passage architectural de l'information causale par les couches initiales du U-Net.}}{66}{figure.caption.8}\protected@file@percent }
-\newlabel{fig:causal-concat}{{7}{66}{Conditionnement par concaténation de canaux dans le second étage d'\Oracle {}. Le U-Net reçoit trois canaux d'entrée empilés : le résiduel bruité, la moyenne causale et la baseline log-transformée. Cette concaténation force le passage architectural de l'information causale par les couches initiales du U-Net}{figure.caption.8}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.10}Pertes composites et entraînement}{67}{section.3.10}\protected@file@percent }
-\newlabel{sec:oracle-pertes}{{III.10}{67}{Pertes composites et entraînement}{section.3.10}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.1}Pertes du premier étage}{67}{subsection.3.10.1}\protected@file@percent }
-\newlabel{ssec:oracle-pertes-stage1}{{III.10.1}{67}{Pertes du premier étage}{subsection.3.10.1}{}}
-\newlabel{eq:loss-mse}{{III.18}{67}{Pertes du premier étage}{equation.3.18}{}}
-\newlabel{eq:loss-rec}{{III.19}{67}{Pertes du premier étage}{equation.3.19}{}}
-\newlabel{eq:loss-total-stage1}{{III.20}{67}{Pertes du premier étage}{equation.3.20}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.2}Perte du second étage}{67}{subsection.3.10.2}\protected@file@percent }
-\newlabel{ssec:oracle-pertes-stage2}{{III.10.2}{67}{Perte du second étage}{subsection.3.10.2}{}}
-\newlabel{eq:loss-total-stage2}{{III.21}{67}{Perte du second étage}{equation.3.21}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.3}Procédure d'entraînement en deux étages}{68}{subsection.3.10.3}\protected@file@percent }
-\newlabel{ssec:oracle-train-procedure}{{III.10.3}{68}{Procédure d'entraînement en deux étages}{subsection.3.10.3}{}}
-\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Entraînement du premier étage (CRM)}}{68}{algorithm.2}\protected@file@percent }
-\newlabel{algo:train-stage1}{{2}{68}{Entraînement du premier étage (CRM)}{algorithm.2}{}}
-\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces Entraînement du second étage (diffusion EDM)}}{69}{algorithm.3}\protected@file@percent }
-\newlabel{algo:train-stage2}{{3}{69}{Entraînement du second étage (diffusion EDM)}{algorithm.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.4}Tableau récapitulatif des pertes}{69}{subsection.3.10.4}\protected@file@percent }
-\newlabel{ssec:oracle-tab-pertes}{{III.10.4}{69}{Tableau récapitulatif des pertes}{subsection.3.10.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.5}Optimisation, EMA et conditioning dropout}{69}{subsection.3.10.5}\protected@file@percent }
-\newlabel{ssec:oracle-optim}{{III.10.5}{69}{Optimisation, EMA et conditioning dropout}{subsection.3.10.5}{}}
+\newlabel{eq:delta-o3}{{III.12}{56}{Indispensabilité causale, O3}{equation.3.12}{}}
+\newlabel{eq:o3-criterion}{{III.13}{56}{Indispensabilité causale, O3}{equation.3.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.8.3}Variante d'ablation \texttt  {noncausal}}{56}{subsection.3.8.3}\protected@file@percent }
+\newlabel{ssec:oracle-noncausal}{{III.8.3}{56}{Variante d'ablation \texttt {noncausal}}{subsection.3.8.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.9}Étage 2 : diffusion EDM résiduelle}{56}{section.3.9}\protected@file@percent }
+\newlabel{sec:oracle-edm}{{III.9}{56}{Étage 2 : diffusion EDM résiduelle}{section.3.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.1}Paradigme EDM et conditionnement par concaténation}{56}{subsection.3.9.1}\protected@file@percent }
+\newlabel{ssec:oracle-edm-choix}{{III.9.1}{56}{Paradigme EDM et conditionnement par concaténation}{subsection.3.9.1}{}}
+\newlabel{eq:edm-precond}{{III.14}{56}{Paradigme EDM et conditionnement par concaténation}{equation.3.14}{}}
+\newlabel{eq:edm-loss}{{III.15}{57}{Paradigme EDM et conditionnement par concaténation}{equation.3.15}{}}
+\newlabel{eq:causal-concat}{{III.16}{57}{Paradigme EDM et conditionnement par concaténation}{equation.3.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.9.2}Pourquoi le résidu plutôt que le champ complet}{57}{subsection.3.9.2}\protected@file@percent }
+\newlabel{ssec:oracle-residu-justif}{{III.9.2}{57}{Pourquoi le résidu plutôt que le champ complet}{subsection.3.9.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.10}Pertes composites et entraînement}{58}{section.3.10}\protected@file@percent }
+\newlabel{sec:oracle-pertes}{{III.10}{58}{Pertes composites et entraînement}{section.3.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.1}Pertes des deux étages}{58}{subsection.3.10.1}\protected@file@percent }
+\newlabel{ssec:oracle-pertes-stage1}{{III.10.1}{58}{Pertes des deux étages}{subsection.3.10.1}{}}
+\newlabel{eq:loss-mse}{{III.17}{58}{Pertes des deux étages}{equation.3.17}{}}
+\newlabel{eq:loss-total-stage1}{{III.18}{58}{Pertes des deux étages}{equation.3.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.10.2}Procédure d'entraînement et optimisation}{58}{subsection.3.10.2}\protected@file@percent }
+\newlabel{ssec:oracle-train-procedure}{{III.10.2}{58}{Procédure d'entraînement et optimisation}{subsection.3.10.2}{}}
 \citation{mardani_corrdiff_2023}
 \citation{hamilton_sage_2017}
 \citation{pearl_causality_2009}
 \citation{cho_gru_2014}
 \citation{bello_dagma_2022}
 \citation{karras_edm_2022}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Pertes utilisées dans l'entraînement d'\textsc  {Oracle}{}. Les pertes auxiliaires explorées et abandonnées sont reportées en partie basse pour transparence méthodologique.}}{70}{table.caption.9}\protected@file@percent }
-\newlabel{tab:pertes-oracle}{{2}{70}{Pertes utilisées dans l'entraînement d'\Oracle {}. Les pertes auxiliaires explorées et abandonnées sont reportées en partie basse pour transparence méthodologique}{table.caption.9}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {III.11}Synthèse, traçabilité et choix non retenus}{70}{section.3.11}\protected@file@percent }
-\newlabel{sec:oracle-synthese}{{III.11}{70}{Synthèse, traçabilité et choix non retenus}{section.3.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.1}Tableau composant × inspiration × verrou adressé}{70}{subsection.3.11.1}\protected@file@percent }
-\newlabel{ssec:oracle-tab-tracabilite}{{III.11.1}{70}{Tableau composant × inspiration × verrou adressé}{subsection.3.11.1}{}}
-\citation{mardani_corrdiff_2023}
-\citation{karras_edm_2022}
-\citation{bello_dagma_2022}
-\citation{pearl_causality_2009}
-\citation{mardani_corrdiff_2023}
-\citation{bello_dagma_2022}
-\citation{pearl_causality_2009}
-\citation{karras_edm_2022}
-\citation{mardani_corrdiff_2023}
-\citation{bello_dagma_2022}
-\citation{pearl_causality_2009}
-\citation{karras_edm_2022}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Traçabilité des composants d'\textsc  {Oracle}{} : inspiration bibliographique et verrou adressé.}}{71}{table.caption.10}\protected@file@percent }
-\newlabel{tab:tracabilite}{{3}{71}{Traçabilité des composants d'\Oracle {} : inspiration bibliographique et verrou adressé}{table.caption.10}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.2}Cartouche conceptuel final d'Oracle}{71}{subsection.3.11.2}\protected@file@percent }
-\newlabel{ssec:oracle-cartouche-final}{{III.11.2}{71}{Cartouche conceptuel final d'Oracle}{subsection.3.11.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.3}Choix architecturaux non retenus}{71}{subsection.3.11.3}\protected@file@percent }
-\newlabel{ssec:oracle-non-retenus}{{III.11.3}{71}{Choix architecturaux non retenus}{subsection.3.11.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Vue complète et finale du modèle \textsc  {Oracle}{} avec annotations des équations clés et des références bibliographiques sur chaque composant. Le premier étage causalise \textsc  {CorrDiff}{}~\cite  {mardani_corrdiff_2023} par insertion d'un module structurellement causal (graphe + RCN + DAGMA~\cite  {bello_dagma_2022}, SCM Pearl~\cite  {pearl_causality_2009}) ; le second conserve la diffusion EDM~\cite  {karras_edm_2022}.}}{72}{figure.caption.11}\protected@file@percent }
-\newlabel{fig:oracle-final}{{8}{72}{Vue complète et finale du modèle \Oracle {} avec annotations des équations clés et des références bibliographiques sur chaque composant. Le premier étage causalise \CorrDiff {}~\cite {mardani_corrdiff_2023} par insertion d'un module structurellement causal (graphe + RCN + DAGMA~\cite {bello_dagma_2022}, SCM Pearl~\cite {pearl_causality_2009}) ; le second conserve la diffusion EDM~\cite {karras_edm_2022}}{figure.caption.11}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.4}Transition vers le Chapitre IV}{73}{subsection.3.11.4}\protected@file@percent }
-\newlabel{ssec:oracle-transition}{{III.11.4}{73}{Transition vers le Chapitre IV}{subsection.3.11.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.11}Synthèse, traçabilité et choix non retenus}{59}{section.3.11}\protected@file@percent }
+\newlabel{sec:oracle-synthese}{{III.11}{59}{Synthèse, traçabilité et choix non retenus}{section.3.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.1}Traçabilité des composants}{59}{subsection.3.11.1}\protected@file@percent }
+\newlabel{ssec:oracle-tab-tracabilite}{{III.11.1}{59}{Traçabilité des composants}{subsection.3.11.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Traçabilité des composants d'\textsc  {Oracle}{} : inspiration et verrou adressé.}}{59}{table.caption.4}\protected@file@percent }
+\newlabel{tab:tracabilite}{{2}{59}{Traçabilité des composants d'\Oracle {} : inspiration et verrou adressé}{table.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {III.11.2}Transition vers le Chapitre IV}{60}{subsection.3.11.2}\protected@file@percent }
+\newlabel{ssec:oracle-transition}{{III.11.2}{60}{Transition vers le Chapitre IV}{subsection.3.11.2}{}}
 \bibcite{mardani_corrdiff_2023}{{1}{}{{}}{{}}}
 \bibcite{karras_edm_2022}{{2}{}{{}}{{}}}
 \bibcite{bello_dagma_2022}{{3}{}{{}}{{}}}
@@ -193,4 +130,4 @@
 \bibcite{cho_gru_2014}{{7}{}{{}}{{}}}
 \bibcite{rampal_cgan_2024}{{8}{}{{}}{{}}}
 \providecommand\NAT@force@numbers{}\NAT@force@numbers
-\gdef \@abspage@last{31}
+\gdef \@abspage@last{18}

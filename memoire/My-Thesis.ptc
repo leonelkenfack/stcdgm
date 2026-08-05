@@ -1,0 +1,246 @@
+\changetocdepth {3}
+\babel@toc {french}{}\relax
+\contentsline {chapter}{ \hspace {-0.25cm}Dédicaces }{ii}{chapter*.2}%
+\contentsline {chapter}{Remerciements}{iii}{chapter*.4}%
+\contentsline {chapter}{ \hspace {-0.25cm}Liste des Acronymes }{ix}{chapter*.7}%
+\contentsline {chapter}{ \hspace {-0.25cm}Liste des Tableaux }{xi}{table.0.1}%
+\contentsline {chapter}{ \hspace {-0.25cm}Liste des Figures }{xii}{chapter*.8}%
+\contentsline {chapter}{ \hspace {-0.25cm}Résumé }{xiii}{chapter*.11}%
+\contentsline {chapter}{ \hspace {-0.25cm}Abstract }{xv}{chapter*.15}%
+\contentsline {chapter}{Introduction générale}{1}{chapter*.17}%
+\ttl@starttoc {chapters@1}
+\ttl@starttoc {chapters@1}
+\contentsline {section}{ \hspace {-0.55cm}Contexte du travail }{1}{section*.18}%
+\ttl@stoptoc {chapters@1}
+\ttl@starttoc {chapters@1}
+\contentsline {section}{ \hspace {-0.55cm}Problématique étudiée }{2}{section*.19}%
+\ttl@stoptoc {chapters@1}
+\ttl@starttoc {chapters@1}
+\contentsline {section}{ \hspace {-0.55cm}Objectifs }{4}{section*.20}%
+\ttl@stoptoc {chapters@1}
+\ttl@starttoc {chapters@1}
+\contentsline {section}{ \hspace {-0.55cm}Contribution }{5}{section*.21}%
+\ttl@stoptoc {chapters@1}
+\ttl@starttoc {chapters@1}
+\contentsline {section}{ \hspace {-0.55cm}Organisation du manuscrit }{6}{section*.22}%
+\ttl@stoptoc {chapters@1}
+\contentsline {chapter}{\chapternumberline {I}Fondements du downscaling climatique}{8}{chapter.1}%
+\ttl@stoptoc {chapters@1}
+\ttl@starttoc {chapters@2}
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.1}Introduction}{8}{section.1.1}%
+\ttl@stoptoc {chapters@2}
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.2}Contexte climatique et besoin de désagrégation}{9}{section.1.2}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.2.1}Modèles climatiques globaux et régionaux}{9}{subsection.1.2.1}%
+\contentsline {subsection}{\numberline {I.2.2}Cas de la précipitation}{10}{subsection.1.2.2}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.3}Données climatiques et leurs propriétés}{10}{section.1.3}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.3.1}Sources de données et formats}{10}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {I.3.2}Propriétés statistiques de la précipitation}{11}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {I.3.3}Sources d'incertitude et nécessité d'un cadre probabiliste}{12}{subsection.1.3.3}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.4}Approches classiques de downscaling}{12}{section.1.4}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.4.1}Désagrégation spatiale}{12}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {I.4.2}Désagrégation temporelle}{13}{subsection.1.4.2}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.5}Approches probabilistes et génératives}{13}{section.1.5}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.5.1}Du déterministe au probabiliste}{13}{subsection.1.5.1}%
+\contentsline {subsection}{\numberline {I.5.2}Modèles génératifs adversariaux}{14}{subsection.1.5.2}%
+\contentsline {subsection}{\numberline {I.5.3}Modèles de diffusion}{14}{subsection.1.5.3}%
+\contentsline {subsection}{\numberline {I.5.4}Le paradigme deux étages : CorrDiff}{14}{subsection.1.5.4}%
+\contentsline {paragraph}{Évaluation probabiliste.}{15}{figure.caption.23}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.6}Causalité et modèles structurels}{16}{section.1.6}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.6.1}Pourquoi la causalité en downscaling climatique}{16}{subsection.1.6.1}%
+\contentsline {subsection}{\numberline {I.6.2}Modèles causaux structurels et graphes acycliques dirigés}{16}{subsection.1.6.2}%
+\contentsline {subsection}{\numberline {I.6.3}Intervention, identifiabilité et lien avec le downscaling}{17}{subsection.1.6.3}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.7}Verrous scientifiques et trilemme}{19}{section.1.7}%
+\ttl@stoptoc {chapters@2}
+\contentsline {subsection}{\numberline {I.7.1}Verrou 1 : stabilité d'entraînement}{19}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {I.7.2}Verrou 2 : réalisme des extrêmes et sub-dispersion}{20}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {I.7.3}Verrou 3 : robustesse hors-distribution}{20}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {I.7.4}Trilemme et positionnement d'\mbox {\textsc {Oracle}}{}}{20}{subsection.1.7.4}%
+\ttl@starttoc {chapters@2}
+\contentsline {section}{\numberline {I.8}Synthèse}{21}{section.1.8}%
+\ttl@stoptoc {chapters@2}
+\contentsline {chapter}{\chapternumberline {II}État de l'art du downscaling par apprentissage profond}{23}{chapter.2}%
+\ttl@stoptoc {chapters@2}
+\ttl@starttoc {chapters@3}
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.1}Introduction}{23}{section.2.1}%
+\ttl@stoptoc {chapters@3}
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.2}Approches déterministes}{24}{section.2.2}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.2.1}Régression statistique classique}{24}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {II.2.2}Réseaux convolutifs et super-résolution}{25}{subsection.2.2.2}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.3}Approches probabilistes adversariales}{25}{section.2.3}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.3.1}Réseaux antagonistes génératifs conditionnels}{25}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {II.3.2}cGAN résiduel pour le downscaling climatique}{26}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {II.3.3}Limites empiriques des cGAN appliqués au downscaling}{26}{subsection.2.3.3}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.4}Approches à vraisemblance explicite}{26}{section.2.4}%
+\ttl@stoptoc {chapters@3}
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.5}Modèles de diffusion}{27}{section.2.5}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.5.1}Denoising Diffusion Probabilistic Models}{27}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {II.5.2}Formalisme EDM de Karras et al.}{27}{subsection.2.5.2}%
+\contentsline {subsection}{\numberline {II.5.3}Premières applications au climat : SR3, ResShift, ResDiff}{28}{subsection.2.5.3}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.6}Le paradigme à deux étages : \mbox {CorrDiff}}{28}{section.2.6}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.6.1}Idée fondatrice}{28}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {II.6.2}Architecture détaillée}{29}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {II.6.3}Forces du paradigme à deux étages}{29}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {II.6.4}Limites identifiées de CorrDiff}{30}{subsection.2.6.4}%
+\contentsline {subsection}{\numberline {II.6.5}Le piège du conditionnement par cross-attention}{30}{subsection.2.6.5}%
+\contentsline {subsection}{\numberline {II.6.6}Pourquoi CorrDiff plutôt que SR3 ?}{31}{subsection.2.6.6}%
+\contentsline {subsection}{\numberline {II.6.7}Reformulation du paradigme deux étages dans le langage probabiliste}{32}{subsection.2.6.7}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.7}Fonctions de perte et contraintes physiques}{32}{section.2.7}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.7.1}Pertes adaptées à la précipitation}{32}{subsection.2.7.1}%
+\contentsline {subsection}{\numberline {II.7.2}Contraintes physiques et explicabilité}{33}{subsection.2.7.2}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.8}Cadres d'évaluation et foundation models}{34}{section.2.8}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.8.1}Benchmarks standardisés}{34}{subsection.2.8.1}%
+\contentsline {subsection}{\numberline {II.8.2}Foundation models climat}{34}{subsection.2.8.2}%
+\ttl@starttoc {chapters@3}
+\contentsline {section}{\numberline {II.9}Synthèse, tableau comparatif et gap scientifique}{35}{section.2.9}%
+\ttl@stoptoc {chapters@3}
+\contentsline {subsection}{\numberline {II.9.1}Tableau comparatif modèle × verrou}{35}{subsection.2.9.1}%
+\contentsline {subsection}{\numberline {II.9.2}Gap scientifique}{36}{subsection.2.9.2}%
+\contentsline {subsection}{\numberline {II.9.3}Positionnement d'Oracle dans le paysage}{36}{subsection.2.9.3}%
+\contentsline {chapter}{\chapternumberline {III}Proposition : Oracle, architecture causale à deux étages}{38}{chapter.3}%
+\ttl@stoptoc {chapters@3}
+\ttl@starttoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.1}Introduction}{38}{section.3.1}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.2}Vue d'ensemble et différence avec \mbox {CorrDiff}}{40}{section.3.2}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.3}Graphe atmosphérique hétérogène}{41}{section.3.3}%
+\ttl@stoptoc {chapters@4}
+\contentsline {subsection}{\numberline {III.3.1}Types de nœuds et hiérarchie verticale}{41}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {III.3.2}Types d'arêtes et physique encodée}{41}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {III.3.3}Drivers statiques et acheminement causal}{43}{subsection.3.3.3}%
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.4}Encodeur intelligible et réseau causal récurrent}{43}{section.3.4}%
+\ttl@stoptoc {chapters@4}
+\contentsline {subsection}{\numberline {III.4.1}Motivation : préserver l'identité physique des variables}{43}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {III.4.2}Architecture par variable et normalisation}{43}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {III.4.3}Réseau causal récurrent : SCM dynamique et mise à jour temporelle}{44}{subsection.3.4.3}%
+\contentsline {subsection}{\numberline {III.4.4}Équations SCM et mise à jour GRU}{45}{subsection.3.4.4}%
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.5}Apprentissage du DAG par contrainte DAGMA}{45}{section.3.5}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.6}Décodeur graphe-à-grille et moyenne haute résolution}{46}{section.3.6}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.7}Interface inter-étages et propriété (O3)}{47}{section.3.7}%
+\ttl@stoptoc {chapters@4}
+\contentsline {subsection}{\numberline {III.7.1}Pré-calcul, cache et recalibration de $\sigma _{\mathrm {data}}$}{47}{subsection.3.7.1}%
+\contentsline {subsection}{\numberline {III.7.2}Définition formelle de la propriété (O3)}{47}{subsection.3.7.2}%
+\contentsline {subsection}{\numberline {III.7.3}Étage 2 : paradigme EDM et conditionnement par concaténation}{48}{subsection.3.7.3}%
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.8}Pertes composites et entraînement}{49}{section.3.8}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@4}
+\contentsline {section}{\numberline {III.9}Synthèse, traçabilité et choix non retenus}{50}{section.3.9}%
+\ttl@stoptoc {chapters@4}
+\contentsline {chapter}{\chapternumberline {IV}Matériels, méthodes, expérimentations et discussion}{51}{chapter.4}%
+\ttl@stoptoc {chapters@4}
+\ttl@starttoc {chapters@5}
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.1}Introduction}{51}{section.4.1}%
+\ttl@stoptoc {chapters@5}
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.2}Environnement et données}{52}{section.4.2}%
+\ttl@stoptoc {chapters@5}
+\contentsline {subsection}{\numberline {IV.2.1}Pile logicielle et matériel}{52}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {IV.2.2}Données et prétraitements}{52}{subsection.4.2.2}%
+\contentsline {paragraph}{Alignement sur Rampal et al.~\cite {rampal_cgan_2024}.}{53}{equation.4.1}%
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.3}Topologie effective d'\mbox {\textsc {Oracle}}{}}{54}{section.4.3}%
+\ttl@stoptoc {chapters@5}
+\contentsline {subsection}{\numberline {IV.3.1}Premier étage : encodeur, RCN, décodeur}{55}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {IV.3.2}Second étage : UNet EDM}{55}{subsection.4.3.2}%
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.4}Trajectoire et procédure d'entraînement}{56}{section.4.4}%
+\ttl@stoptoc {chapters@5}
+\contentsline {subsection}{\numberline {IV.4.1}Trajectoire des versions et leçons retenues}{56}{subsection.4.4.1}%
+\contentsline {paragraph}{Phase 0, HG-SCM abandonné.}{56}{subsection.4.4.1}%
+\contentsline {paragraph}{Phases 1--2, single-stage DDPM puis EDM.}{56}{subsection.4.4.1}%
+\contentsline {paragraph}{Phases 3--4, pivot two-stage.}{56}{subsection.4.4.1}%
+\contentsline {paragraph}{Variantes écartées.}{57}{subsection.4.4.1}%
+\contentsline {paragraph}{Validation.}{57}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {IV.4.2}Procédure two-stage et sampler à l'inférence}{57}{subsection.4.4.2}%
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.5}Protocole d'évaluation}{58}{section.4.5}%
+\ttl@stoptoc {chapters@5}
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.6}Résultats observés}{59}{section.4.6}%
+\ttl@stoptoc {chapters@5}
+\contentsline {subsection}{\numberline {IV.6.1}Performance en distribution}{59}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {IV.6.2}Calibration probabiliste}{60}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {IV.6.3}Indices climatiques et extrêmes}{61}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {IV.6.4}Robustesse inter-GCM en régime historique}{62}{subsection.4.6.4}%
+\contentsline {paragraph}{Stabilité temporelle du gain.}{63}{table.caption.42}%
+\contentsline {subsection}{\numberline {IV.6.5}Diagnostics causaux}{64}{subsection.4.6.5}%
+\contentsline {paragraph}{Structure de $\ensuremath {A_{\mathrm {dag}}}$.}{64}{table.caption.43}%
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.7}Discussion critique}{66}{section.4.7}%
+\ttl@stoptoc {chapters@5}
+\contentsline {paragraph}{Trois résultats robustes.}{66}{section.4.7}%
+\contentsline {paragraph}{Régularisation topologique vs identification physique.}{66}{section.4.7}%
+\contentsline {paragraph}{Ablation : que porte le two-stage, que porte le DAG ?}{66}{section.4.7}%
+\contentsline {paragraph}{Le DAG \emph {peut} apprendre la physique : architecture à 9 nœuds.}{67}{table.caption.45}%
+\contentsline {paragraph}{Menaces à la validité.}{68}{table.caption.46}%
+\contentsline {paragraph}{Absence du DEM HR : limite structurelle isolable.}{69}{table.caption.46}%
+\contentsline {paragraph}{Périmètre des contributions.}{71}{table.caption.47}%
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.8}Perspectives d'amélioration}{71}{section.4.8}%
+\ttl@stoptoc {chapters@5}
+\ttl@starttoc {chapters@5}
+\contentsline {section}{\numberline {IV.9}Synthèse}{72}{section.4.9}%
+\ttl@stoptoc {chapters@5}
+\contentsline {chapter}{Conclusion générale et perspectives}{74}{chapter*.49}%
+\ttl@stoptoc {chapters@5}
+\ttl@starttoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\contentsline {section}{ \hspace {-0.55cm}Problématique étudiée et choix méthodologiques }{74}{section*.50}%
+\ttl@stoptoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\contentsline {section}{ \hspace {-0.55cm}Analyse critique des résultats obtenus }{75}{section*.51}%
+\ttl@stoptoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\contentsline {section}{ \hspace {-0.55cm}Quelques perspectives }{76}{section*.52}%
+\ttl@stoptoc {chapters@6}
+\contentsline {chapter}{Bibliographie}{78}{chapter*.54}%
+\contentsline {appendix}{\chapternumberline {A}Diagnostics et métriques complémentaires}{83}{appendix.A}%
+\ttl@starttoc {chapters@6}
+\ttl@stoptoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\ttl@stoptoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\ttl@stoptoc {chapters@6}
+\contentsline {appendix}{\chapternumberline {B}Analyses causales complémentaires}{85}{appendix.B}%
+\ttl@starttoc {chapters@6}
+\ttl@stoptoc {chapters@6}
+\ttl@starttoc {chapters@6}
+\ttl@stoptoc {chapters@6}
+\contentsfinish

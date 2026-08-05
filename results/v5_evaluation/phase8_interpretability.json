@@ -1,0 +1,119 @@
+{
+  "interventions": {
+    "V5": [
+      {
+        "intervention": "do_humidity_plus_20pct",
+        "variable": "q_850",
+        "delta_mean": 0.00123978401243221,
+        "delta_ci_lo": 0.00043711188372981275,
+        "delta_ci_hi": 0.0021269504194545634,
+        "fraction_positive": 0.6666666666666666,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "sign_expected": 1,
+        "match": 1,
+        "n_samples": 30
+      },
+      {
+        "intervention": "do_temp_plus_3K",
+        "variable": "t_850",
+        "delta_mean": 0.0008375736198407443,
+        "delta_ci_lo": 9.189857801175094e-05,
+        "delta_ci_hi": 0.0016324348758947355,
+        "fraction_positive": 0.6333333333333333,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "sign_expected": 1,
+        "match": 1,
+        "n_samples": 30
+      }
+    ],
+    "Noncausal": [
+      {
+        "intervention": "do_humidity_plus_20pct",
+        "variable": "q_850",
+        "delta_mean": 0.0005466620723988551,
+        "delta_ci_lo": 0.0002541702585343349,
+        "delta_ci_hi": 0.0008410966280644058,
+        "fraction_positive": 0.7666666666666667,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "sign_expected": 1,
+        "match": 1,
+        "n_samples": 30
+      },
+      {
+        "intervention": "do_temp_plus_3K",
+        "variable": "t_850",
+        "delta_mean": -0.0008446913669104105,
+        "delta_ci_lo": -0.0010777129742700706,
+        "delta_ci_hi": -0.0005920797121628615,
+        "fraction_positive": 0.1,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "sign_expected": 1,
+        "match": 0,
+        "n_samples": 30
+      }
+    ]
+  },
+  "Q_int": {
+    "V5": 1.0,
+    "Noncausal": 0.5
+  },
+  "sensitivities": {
+    "V5": {
+      "u_850": 0.08473636209964752,
+      "u_500": 0.030802570283412933,
+      "u_250": 0.0340879000723362,
+      "v_850": 0.043957121670246124,
+      "v_500": 0.038544315844774246,
+      "v_250": 0.024841971695423126,
+      "w_850": 0.2603466212749481,
+      "w_500": 0.09261420369148254,
+      "w_250": 0.06671518832445145,
+      "q_850": 0.046574488282203674,
+      "q_500": 0.020410314202308655,
+      "q_250": 0.022650808095932007,
+      "t_850": 0.11772818863391876,
+      "t_500": 0.05976571515202522,
+      "t_250": 0.0420253649353981
+    },
+    "Noncausal": {
+      "u_850": 0.006791712716221809,
+      "u_500": 0.009514580480754375,
+      "u_250": 0.007124755531549454,
+      "v_850": 0.006848039571195841,
+      "v_500": 0.008373139426112175,
+      "v_250": 0.013261081650853157,
+      "w_850": 0.007248592097312212,
+      "w_500": 0.006165044382214546,
+      "w_250": 0.00778723880648613,
+      "q_850": 0.005772370845079422,
+      "q_500": 0.01247351337224245,
+      "q_250": 0.004549753852188587,
+      "t_850": 0.0057396432384848595,
+      "t_500": 0.009002377279102802,
+      "t_250": 0.007652665488421917
+    }
+  },
+  "ablation_A_dag_delta_signal_ratio": 0.10658113658428192,
+  "alpha_distribution": {
+    "mean": null,
+    "std": null,
+    "prop_above_floor": null
+  },
+  "figures": [
+    "01_dag_oracle.png",
+    "03_interventions_maps.png",
+    "04_sensitivity_per_variable.png",
+    "05_ablation_A_dag.png",
+    "06_spatial_comparison.png",
+    "07_rapsd_comparison.png",
+    "08_intensity_histogram.png"
+  ],
+  "schema_version": "legacy-pre-K1",
+  "valid_for_analysis": false,
+  "tombstone_reason": "K1 audit: causal_concat=True applied to both Oracle and CorrDiff sampling. K30 audit: V5-mini ran only 10/200 epochs. J29 audit: cfg_scale silently ignored. See path_c_plus/HYPERPLAN.md section 'ALERTE METHODOLOGIQUE MAJEURE'.",
+  "tombstone_applied_by": "path_c_plus/scripts/_tombstone_legacy_jsons.py"
+}

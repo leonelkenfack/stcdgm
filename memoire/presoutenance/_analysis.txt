@@ -1,0 +1,177 @@
+
+========== NJIKE ==========
+--- P12 | style=Normal | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=14.0 bold=True ital=None u=None font=default col=None] : 'RAPPORT DE PR'
+   R1 [sz=14.0 bold=True ital=None u=None font=default col=None] : 'É'
+   R2 [sz=14.0 bold=True ital=None u=None font=default col=None] : 'SOUTENANCE'
+--- P13 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=14.0 bold=None ital=None u=None font=Times New Roman col=None] : 'MÉMOIRE'
+   R1 [sz=14.0 bold=None ital=None u=None font=Times New Roman col=None] : ' DE MASTER OF SCIENCE DE L’'
+   R2 [sz=14.0 bold=None ital=None u=None font=Times New Roman col=None] : 'ÉTUDIANT'
+--- P14 | style=Normal | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=14.0 bold=True ital=None u=None font=default col=None] : 'NJIKE NJINGANG KEVIN GORDAN'
+--- P16 | style=Normal | align=JUSTIFY (3) | lb_idt=None fst_idt=449580
+   R0 [sz=14.0 bold=None ital=None u=None font=default col=None] : 'M'
+   R1 [sz=14.0 bold=None ital=None u=None font=default col=None] : 'onsieur'
+   R3 [sz=14.0 bold=True ital=None u=None font=default col=None] : 'NJIKE NJINGANG KEVIN GORDAN'
+   R5 [sz=14.0 bold=None ital=None u=None font=default col=None] : 'a réalisé au sein '
+   R6 [sz=14.0 bold=None ital=None u=None font=default col=None] : 'l’URIFIA (l’Unité de recherche en Informatique Fondamentale, Ingénierie et Applications)'
+   R7 [sz=14.0 bold=None ital=None u=None font=default col=None] : ', des travaux de recherche pour son mémoire de Master of Science sur le sujet: '
+   R8 [sz=14.0 bold=True ital=True u=None font=default col=None] : '«'
+   R9 [sz=None bold=True ital=None u=None font=default col=None] : 'UNE APPROCHE DE SYNTHÈSE MOLÉCULAIRE BASÉE SUR LE MACHINE LEARNING POUR LA DÉTECTION DES PETITES MOLÉCULES'
+   R10 [sz=14.0 bold=True ital=True u=None font=default col=None] : '».'
+--- P18 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : "Ce travail s'inscrit dans un domaine d'une importance stratégique majeure : la conception de médicaments et la chimie médicinale assistée par intelligence artificielle. Face à la complexité croissante"
+--- P19 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : 'La problématique abordée dans ce mémoire est de déterminer comment intégrer de manière unifiée et efficace des connaissances hétérogènes et multi-échelles (génomiques, chimiques, biologiques) pour la '
+--- P20 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : "Dans ce mémoire, le candidat s'est fixé comme objectif principal de proposer une nouvelle architecture d'apprentissage profond, nommée\xa0"
+   R1 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'SynGRAID'
+   R2 [sz=13.0 bold=None ital=None u=None font=default col=None] : ", capable d'exploiter un graphe de connaissances biomédical enrichi pour prédire les associations petites molécules. Plus spécifiquement, il a prévu de :"
+--- P21 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : "Construire un graphe de connaissances biomédical hétérogène (HeteroKG) intégrant trois types d'entités – médicaments, maladies et gènes – et six types de relations biologiquement validées."
+--- P22 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : 'Concevoir et implémenter une architecture\xa0'
+   R1 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'Hetero-GNN'
+   R2 [sz=13.0 bold=None ital=None u=None font=default col=None] : "\xa0s'appuyant sur des modules GCN "
+   R3 [sz=13.0 bold=None ital=None u=None font=default col=None] : "indépendants par type d'entité, couplés à des mécanismes d'attention multi-têtes (GAT) pour pondérer l'importance des connexions biologiques."
+--- P23 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : 'Intégrer une couche de classification finale robuste (XGBoost) pour prédire les associations à partir des représentations latentes (embeddings) apprises par le modèle.'
+--- P24 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : 'Évaluer rigoureusement la performance et la robustesse du modèle sur trois jeux de données publics (Fdataset, Cdataset, LRSSL) en utilisant des métriques standards (AUROC, AUPR) dans un cadre de valid'
+--- P25 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : "Pour atteindre cet objectif, l'intéressé a implémenté le plan suivant :"
+   R2 [sz=13.0 bold=True ital=None u=None font=default col=None] : "Chapitre I : Généralités sur l'Apprentissage Automatique et la Chimie Computationnelle"
+   R3 [sz=13.0 bold=None ital=None u=None font=default col=None] : '\xa0: ce chapitre introduit les concepts fondamentaux du machine learning, du deep learning et de la chimie computationnelle, essentiels à la compréhension du travail.'
+   R5 [sz=13.0 bold=True ital=None u=None font=default col=None] : "Chapitre II : État de l'art sur la Synthèse et la Détection Moléculaire par Machine Learning"
+   R6 [sz=13.0 bold=None ital=None u=None font=default col=None] : "\xa0: ce chapitre analyse les approches existantes, des systèmes à base de règles traditionnels aux modèles d'apprentissage profond récents, en soulignant leurs forces et leurs limitations."
+   R8 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'Chapitre III : Approche proposée pour la Synthèse et la Détection Moléculaire'
+   R9 [sz=13.0 bold=None ital=None u=None font=default col=None] : "\xa0: ce chapitre expose en détail la contribution scientifique, incluant l'architecture du modèle SynGRAID, le pipeline expérimental, et une analyse approfondie des résultats obtenus en comparaison avec"
+--- P26 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : 'Les résultats issus de cette expérience sont très encourageants et très satisfaisants. Le modèle SynGRAID a démontré des performances supérieures aux approches de référence sur les trois jeux de donné'
+   R1 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'AUROC moyenne de 0,99421'
+   R2 [sz=13.0 bold=None ital=None u=None font=default col=None] : '\xa0et une\xa0'
+   R3 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'AUPR moyenne de 0,84684'
+   R4 [sz=13.0 bold=None ital=None u=None font=default col=None] : ". Cette amélioration significative, notamment en AUPR qui est une métrique critique en contexte de données déséquilibrées, valide la pertinence de l'intégration des gènes comme entité structurante et "
+--- P27 | style=MSG_EN_FONT_STYLE_NAME_TEMPLATE_ROLE_NUMBER MSG_EN_FONT_STYLE_NAME_BY_ROLE_TEXT 2 | align=default | lb_idt=None fst_idt=None
+   R0 [sz=13.0 bold=None ital=None u=None font=default col=None] : "Pour toutes ces raisons, j'émets un\xa0"
+   R1 [sz=13.0 bold=True ital=None u=None font=default col=None] : 'avis très favorable'
+   R2 [sz=13.0 bold=None ital=None u=None font=default col=None] : '\xa0pour une soutenance publique de ce mémoire de Master of Science en Informatique.'
+
+========== YANKAM ==========
+--- P0 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'REPUBLIQUE'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'DU'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'CAMEROUN'
+--- P1 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Paix-Travail-Patrie'
+--- P2 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'UNIVERSITE'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'DE'
+   R6 [sz=None bold=None ital=None u=None font=default col=None] : 'DSCHANG ECOLE DOCTORALE'
+--- P4 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'UFD'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'Sciences'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'Fondamentales'
+   R6 [sz=None bold=None ital=None u=None font=default col=None] : 'et '
+   R7 [sz=None bold=None ital=None u=None font=default col=None] : 'Technologiques'
+--- P5 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : '--------------'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : '-'
+--- P6 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Fundamental'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'Computer'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'Science, Engineering, and'
+--- P7 | style=Normal | align=CENTER (1) | lb_idt=243205 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Application'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'research'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'unit'
+--- P11 | style=Normal | align=default | lb_idt=412750 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : '(URIFIA)'
+--- P12 | style=Normal | align=CENTER (1) | lb_idt=206375 fst_idt=None
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : 'REPUBLIC'
+   R3 [sz=None bold=None ital=None u=None font=default col=None] : 'OF'
+   R5 [sz=None bold=None ital=None u=None font=default col=None] : 'CAMEROON'
+--- P13 | style=Normal | align=CENTER (1) | lb_idt=208280 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Peace-Work-Fatherland'
+--- P14 | style=Normal | align=CENTER (1) | lb_idt=206375 fst_idt=None
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'UNIVERSITY'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'OF'
+   R6 [sz=None bold=None ital=None u=None font=default col=None] : 'DSCHANG DOCTORAL SCHOOL'
+--- P16 | style=Normal | align=CENTER (1) | lb_idt=117475 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Dschang'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'School'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'of'
+   R6 [sz=None bold=None ital=None u=None font=default col=None] : 'Science'
+   R8 [sz=None bold=None ital=None u=None font=default col=None] : 'and'
+   R10 [sz=None bold=None ital=None u=None font=default col=None] : 'Technology'
+--- P17 | style=Normal | align=CENTER (1) | lb_idt=206375 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : '-------------'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : '-'
+--- P20 | style=Body Text | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=True ital=None u=None font=default col=None] : 'RAPPORT SCIENTIFIQUE SUR LE MÉMOIRE DE MASTER'
+   R1 [sz=None bold=True ital=None u=None font=default col=None] : '\nPrésenté par :'
+   R3 [sz=None bold=None ital=True u=None font=default col=None] : 'Mr. YANKAM NGUEGUIM JOËL STEPHANE'
+   R4 [sz=None bold=None ital=True u=None font=default col=None] : '\nMatricule : CM-UDS-17SCI2531'
+   R5 [sz=None bold=None ital=True u=None font=default col=None] : '\nÉtudiant en Master au Département de Mathématiques et Informatique'
+   R6 [sz=None bold=None ital=True u=None font=default col=None] : '\nFaculté des Sciences, Université de Dschang'
+--- P21 | style=Body Text | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=True u=None font=default col=None] : 'Mémoire de Master réalisé au sein de l’Unité de Recherche en Informatique Fondamentale, Ingénierie et Applications (URIFIA)'
+--- P23 | style=Body Text | align=default | lb_idt=None fst_idt=None
+   R0 [sz=None bold=True ital=None u=None font=default col=None] : 'Thème :'
+   R2 [sz=None bold=True ital=True u=None font=default col=None] : '« '
+   R3 [sz=None bold=True ital=True u=None font=default col=None] : 'Conception d’un système d’aide à la décision pour la culture du maïs à Dschang : implémentation basée sur les ontologies '
+   R4 [sz=None bold=True ital=True u=None font=default col=None] : '»'
+--- P25 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'La région de Dschang, située dans les Hautes Terres de l’Ouest Cameroun, constitue un foyer agricole vital où la culture du maïs est centrale à la sécurité alimentaire. Cependant, cette culture straté'
+--- P26 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Dans ce contexte, le mémoire de Mr. YANKAM NGUEGUIM JOËL STEPHANE propose une réponse technologique innovante à cette problématique : un système d’aide à la décision sémantique, reposant sur l’ontolog'
+   R1 [sz=None bold=None ital=True u=None font=default col=None] : 'MaCOnto'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : ', intégrant en temps réel des données météorologiques (via '
+   R3 [sz=None bold=None ital=None u=None font=default col=None] : 'OpenWeather'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : ' ou l’IRAD), et capable de produire des recommandations agricoles contextualisées, localisées et dynamiques.'
+--- P28 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Le travail de l’étudiant s’articule autour de trois grands chapitres, encadrés par une introduction générale et une conclusion. Sa structure rigoureuse et sa méthodologie hybride, mêlant formalisation'
+--- P29 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : "Le premier chapitre introduit le contexte géographique, climatique et agricole de Dschang. Il souligne les enjeux liés à la culture du maïs et les limites des pratiques actuelles, notamment l'absence "
+--- P30 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Le deuxième chapitre constitue l’état de l’art. Il dresse un panorama des technologies de l’agriculture 4.0 et des systèmes d’aide à la décision fondés sur les ontologies. Il expose notamment les modè'
+   R1 [sz=None bold=None ital=True u=None font=default col=None] : 'MaCOnto'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : ', '
+   R3 [sz=None bold=None ital=None u=None font=default col=None] : 'AgroPortal'
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : ', et les standards sémantiques '
+   R5 [sz=None bold=None ital=None u=None font=default col=None] : 'OWL/SWRL.'
+--- P31 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Le troisième chapitre, cœur de la contribution, décrit en détail la conception du système : modélisation sémantique, élaboration de règles d’inférence SWRL à partir de questions de compétence, intégra'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : ' web'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : '.'
+--- P33 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Les résultats obtenus montrent que le système développé est capable de générer des recommandations fiables (gestion du stress hydrique, optimisation de l’évapotranspiration, et ajustement des pratique'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : ', '
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'tout en étant adaptable aux moyens limités des petits exploitants. L’architecture repose sur des standards interopérables (RDF, OWL, SPARQL), garantissant sa pérennité, sa modularité et sa portabilité'
+--- P34 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Malgré quelques limites'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : 'notamment l’absence d’intégration complète des données historiques de l’IRAD ou la gestion encore manuelle des règles SWRL'
+   R3 [sz=None bold=None ital=None u=None font=default col=None] : ', '
+   R4 [sz=None bold=None ital=None u=None font=default col=None] : 'le système démontre un potentiel remarquable pour la modernisation de l’agriculture vivrière au Cameroun.'
+--- P36 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Ce travail se distingue par :'
+--- P37 | style=Body Text | align=JUSTIFY (3) | lb_idt=408305 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Une'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : ' valeur scientifique indéniable, à travers la mise en œuvre de standards du Web sémantique ;'
+--- P38 | style=Body Text | align=JUSTIFY (3) | lb_idt=408305 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Une'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : ' valeur applicative forte, orientée vers l’autonomie décisionnelle des petits producteurs ;'
+--- P39 | style=Body Text | align=JUSTIFY (3) | lb_idt=408305 fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Une'
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : ' valeur sociétale, en contribuant à la résilience des systèmes agricoles face au changement climatique.'
+--- P41 | style=Body Text | align=JUSTIFY (3) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Compte tenu de la qualité du travail réalisé, tant sur le fond que sur la forme, de la pertinence du sujet, de la maîtrise technique démontrée, et des perspectives offertes par ce mémoire, je recomman'
+--- P43 | style=Body Text | align=CENTER (1) | lb_idt=None fst_idt=None
+   R0 [sz=None bold=None ital=None u=None font=default col=None] : 'Fait à Dschang, le '
+   R1 [sz=None bold=None ital=None u=None font=default col=None] : '30'
+   R2 [sz=None bold=None ital=None u=None font=default col=None] : ' juin 2025'
+--- P44 | style=Body Text | align=CENTER (1) | lb_idt=None fst_idt=None
+   R1 [sz=None bold=True ital=None u=None font=default col=None] : 'Directeur de mémoire'
+--- P50 | style=Body Text | align=CENTER (1) | lb_idt=None fst_idt=None
+   R1 [sz=None bold=True ital=None u=None font=default col=None] : 'Dr. Géraud FOKOU PELAP'

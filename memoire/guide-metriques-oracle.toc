@@ -1,0 +1,30 @@
+\babel@toc {french}{}\relax 
+\contentsline {section}{\numberline {1}Tableau de bord (à garder sous les yeux)}{3}{section.1}%
+\contentsline {section}{\numberline {2}D'abord : où teste-t-on ? Les régimes (du plus facile au plus dur)}{3}{section.2}%
+\contentsline {subsection}{Régime 1 : En distribution (ID) --- le terrain d'entraînement}{3}{section*.2}%
+\contentsline {subsection}{Régime 2 : Inter-GCM historique --- d'autres modèles climatiques jamais vus}{4}{section*.3}%
+\contentsline {subsection}{Régime 3 : OOD temporel --- climats décalés (froid ancien / queue chaude)}{4}{section*.4}%
+\contentsline {section}{\numberline {3}Famille 1 --- Est-il juste ? (erreur ponctuelle)}{5}{section.3}%
+\contentsline {subsection}{RMSE : Erreur quadratique moyenne --- « de combien je me trompe, en punissant les gros ratés »}{5}{section*.5}%
+\contentsline {subsection}{MAE : Erreur absolue moyenne --- « de combien je me trompe, en moyenne toute simple »}{5}{section*.6}%
+\contentsline {subsection}{Pearson : Corrélation --- « mes hausses et baisses suivent-elles le réel ? »}{5}{section*.7}%
+\contentsline {subsection}{RMSE global (mm/j) : la même erreur, mais en vraie pluie}{5}{section*.8}%
+\contentsline {section}{\numberline {4}Famille 2 --- Connaît-il ses limites ? (calibration probabiliste)}{6}{section.4}%
+\contentsline {subsection}{CRPS (mm/j) : le score-roi des prévisions à incertitude --- « MAE probabiliste »}{6}{section*.9}%
+\contentsline {subsection}{CRPS-SS : le CRPS transformé en note sur 1, contre « deviner la moyenne »}{6}{section*.10}%
+\contentsline {subsection}{Ratio spread-skill : le test d'honnêteté de l'incertitude}{6}{section*.11}%
+\contentsline {subsection}{$\chi ^2$ histogramme de rang : la vérité tombe-t-elle bien à l'intérieur de l'éventail ?}{7}{section*.12}%
+\contentsline {section}{\numberline {5}Famille 3 --- L'image a-t-elle la bonne texture ? (structure spatiale)}{7}{section.5}%
+\contentsline {subsection}{RAPSD / PSD : distance spectrale --- « ma carte est-elle granuleuse ou floue ? »}{7}{section*.13}%
+\contentsline {subsection}{FSS : Fractions Skill Score --- « à partir de quelle finesse suis-je fiable ? »}{7}{section*.14}%
+\contentsline {section}{\numberline {6}Famille 4 --- Les extrêmes (ce qui inonde ou assèche)}{8}{section.6}%
+\contentsline {subsection}{F1@p95 et F1@p99 : place-t-il les fortes pluies au bon endroit ?}{8}{section*.15}%
+\contentsline {subsection}{RX1day (biais, mm) : le jour le plus pluvieux de l'année --- l'indicateur d'inondation}{8}{section*.16}%
+\contentsline {subsection}{R10mm et CDD (biais, jours) : jours de pluie et jours de sécheresse}{8}{section*.17}%
+\contentsline {subsection}{Courbe de période de retour : les événements « une fois par siècle »}{9}{section*.18}%
+\contentsline {section}{\numberline {7}Famille 5 --- Raisonne-t-il causalement ? (diagnostics)}{9}{section.7}%
+\contentsline {subsection}{Ratio O3 : le graphe causal est-il vraiment utilisé, ou décoratif ?}{9}{section*.19}%
+\contentsline {subsection}{$Q_{\mathrm {int}}$ : réagit-il dans le bon sens quand on force une cause ?}{9}{section*.20}%
+\contentsline {subsection}{$Q_{\mathrm {phys}}$ : le graphe appris est-il la vraie physique ?}{10}{section*.21}%
+\contentsline {section}{\numberline {8}L'ablation : d'où vient le gain, pièce par pièce}{10}{section.8}%
+\contentsline {section}{En résumé}{10}{section*.22}%

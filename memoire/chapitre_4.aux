@@ -1,0 +1,130 @@
+\relax 
+\providecommand \babel@aux [2]{\global \let \babel@toc \@gobbletwo }
+\@nameuse{bbl@beforestart}
+\catcode `:\active 
+\catcode `;\active 
+\catcode `!\active 
+\catcode `?\active 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\babel@aux{french}{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {IV}Matériels, méthodes, expérimentations et discussion}{70}{chapter.4}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\newlabel{chap:experiences}{{IV}{70}{Matériels, méthodes, expérimentations et discussion}{chapter.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.1}Introduction}{70}{section.4.1}\protected@file@percent }
+\newlabel{sec:exp-intro}{{IV.1}{70}{Introduction}{section.4.1}{}}
+\citation{fey_pyg_2019}
+\citation{hoyer_xarray_2017}
+\citation{yadan_hydra_2019}
+\citation{mardani_corrdiff_2023}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.2}Environnement et données}{71}{section.4.2}\protected@file@percent }
+\newlabel{sec:exp-env}{{IV.2}{71}{Environnement et données}{section.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.2.1}Pile logicielle et matériel}{71}{subsection.4.2.1}\protected@file@percent }
+\newlabel{ssec:exp-env-soft}{{IV.2.1}{71}{Pile logicielle et matériel}{subsection.4.2.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.2.2}Données et prétraitements}{71}{subsection.4.2.2}\protected@file@percent }
+\newlabel{ssec:exp-env-data}{{IV.2.2}{71}{Données et prétraitements}{subsection.4.2.2}{}}
+\newlabel{eq:exp-decomp}{{IV.1}{72}{Données et prétraitements}{equation.4.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.3}Topologie effective d'\textsc  {Oracle}{}}{72}{section.4.3}\protected@file@percent }
+\newlabel{sec:exp-topo}{{IV.3}{72}{Topologie effective d'\Oracle {}}{section.4.3}{}}
+\citation{bello_dagma_2022}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.1}{\ignorespaces Pipeline architectural d'\textsc  {Oracle}{} : Stage 1 (causal, déterministe) produit la moyenne $\ensuremath  {\mu _{\ensuremath  {\text  {HR}}}}$ par chemin obligatoire à travers le DAG appris ; Stage 2 (diffusion EDM) échantillonne le résiduel $\setbox \z@ \hbox {\mathsurround \z@ $\textstyle \delta $}\mathaccent "0362{\delta }$ conditionné par concaténation de canaux.}}{73}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:exp-architecture}{{IV.1}{73}{Pipeline architectural d'\Oracle {} : Stage 1 (causal, déterministe) produit la moyenne $\muHR $ par chemin obligatoire à travers le DAG appris ; Stage 2 (diffusion EDM) échantillonne le résiduel $\widehat \delta $ conditionné par concaténation de canaux}{figure.caption.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.2}{\ignorespaces Graphe atmosphérique hétérogène à $N=6$ nœuds typés. La hiérarchie verticale GP$_{250}\to $GP$_{500}\to $GP$_{850}$ reflète le couplage quasi-géostrophique descendant attendu ; SP$_{\ensuremath  {\text  {HR}}}$ est la sortie haute résolution.}}{73}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:exp-graph-6}{{IV.2}{73}{Graphe atmosphérique hétérogène à $N=6$ nœuds typés. La hiérarchie verticale GP$_{250}\to $GP$_{500}\to $GP$_{850}$ reflète le couplage quasi-géostrophique descendant attendu ; SP$_{\HR }$ est la sortie haute résolution}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.3.1}Premier étage : encodeur, RCN, décodeur}{73}{subsection.4.3.1}\protected@file@percent }
+\newlabel{ssec:exp-topo-stage1}{{IV.3.1}{73}{Premier étage : encodeur, RCN, décodeur}{subsection.4.3.1}{}}
+\citation{cho_gru_2014}
+\citation{karras_edm_2022}
+\newlabel{eq:exp-skip}{{IV.2}{74}{Premier étage : encodeur, RCN, décodeur}{equation.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.3.2}Second étage : UNet EDM}{74}{subsection.4.3.2}\protected@file@percent }
+\newlabel{ssec:exp-topo-stage2}{{IV.3.2}{74}{Second étage : UNet EDM}{subsection.4.3.2}{}}
+\citation{lin_hgscm_2023}
+\citation{ho_ddpm_2020}
+\citation{karras_edm_2022}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.4}Trajectoire et procédure d'entraînement}{75}{section.4.4}\protected@file@percent }
+\newlabel{sec:exp-traj}{{IV.4}{75}{Trajectoire et procédure d'entraînement}{section.4.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.4.1}Trajectoire P0$\to $P4}{75}{subsection.4.4.1}\protected@file@percent }
+\newlabel{ssec:exp-traj-trajectoire}{{IV.4.1}{75}{Trajectoire P0$\to $P4}{subsection.4.4.1}{}}
+\citation{lu_dpmpp_2022}
+\citation{loshchilov_adamw_2019}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.4.2}Procédure two-stage et sampler à l'inférence}{76}{subsection.4.4.2}\protected@file@percent }
+\newlabel{ssec:exp-traj-procedure}{{IV.4.2}{76}{Procédure two-stage et sampler à l'inférence}{subsection.4.4.2}{}}
+\newlabel{eq:exp-edm-loss}{{IV.3}{77}{Procédure two-stage et sampler à l'inférence}{equation.4.3}{}}
+\newlabel{eq:exp-gate-o3}{{IV.4}{77}{Procédure two-stage et sampler à l'inférence}{equation.4.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.5}Protocole d'évaluation}{77}{section.4.5}\protected@file@percent }
+\newlabel{sec:exp-protoc}{{IV.5}{77}{Protocole d'évaluation}{section.4.5}{}}
+\citation{zhang_etccdi_2011}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.6}Résultats observés}{79}{section.4.6}\protected@file@percent }
+\newlabel{sec:exp-resultats}{{IV.6}{79}{Résultats observés}{section.4.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.6.1}Performance en distribution}{79}{subsection.4.6.1}\protected@file@percent }
+\newlabel{ssec:exp-res-id}{{IV.6.1}{79}{Performance en distribution}{subsection.4.6.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.1}{\ignorespaces Métriques en distribution sur ACCESS-CM2 (2013--2014), espace $\log (1 + \mathrm  {precip})$, ensemble $K = 64$. Les intervalles entre crochets sont des IC 95\% bootstrap (10\,000 rééchantillonnages, $n=16$ valeurs per-sample).}}{79}{table.caption.3}\protected@file@percent }
+\newlabel{tab:exp-res-id}{{IV.1}{79}{Métriques en distribution sur ACCESS-CM2 (2013--2014), espace $\log (1 + \mathrm {precip})$, ensemble $K = 64$. Les intervalles entre crochets sont des IC 95\% bootstrap (10\,000 rééchantillonnages, $n=16$ valeurs per-sample)}{table.caption.3}{}}
+\citation{fortin_sk_2014}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.3}{\ignorespaces Spectres radiaux moyens. La distance PSD \textsc  {Oracle}{}--ERA5 est réduite d'un facteur $\sim 450$ vs \textsc  {CorrDiff}{}.}}{80}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:exp-rapsd}{{IV.3}{80}{Spectres radiaux moyens. La distance PSD \Oracle {}--ERA5 est réduite d'un facteur $\sim 450$ vs \CorrDiff {}}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.6.2}Calibration probabiliste}{80}{subsection.4.6.2}\protected@file@percent }
+\newlabel{ssec:exp-res-calib}{{IV.6.2}{80}{Calibration probabiliste}{subsection.4.6.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.2}{\ignorespaces Métriques probabilistes en distribution sur ACCESS-CM2, ensemble $K = 12$.}}{81}{table.caption.5}\protected@file@percent }
+\newlabel{tab:exp-res-calib}{{IV.2}{81}{Métriques probabilistes en distribution sur ACCESS-CM2, ensemble $K = 12$}{table.caption.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.4}{\ignorespaces Diagramme de fiabilité. \textsc  {Oracle}{} proche de la diagonale ; \textsc  {CorrDiff}{} sur-confiant. Sous-dispersion résiduelle.}}{81}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:exp-reliability}{{IV.4}{81}{Diagramme de fiabilité. \Oracle {} proche de la diagonale ; \CorrDiff {} sur-confiant. Sous-dispersion résiduelle}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.6.3}Indices climatiques et extrêmes}{81}{subsection.4.6.3}\protected@file@percent }
+\newlabel{ssec:exp-res-extremes}{{IV.6.3}{81}{Indices climatiques et extrêmes}{subsection.4.6.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.3}{\ignorespaces Biais sur les indices ETCCDI en distribution. \emph  {Plus c'est proche de zéro, mieux c'est.}}}{81}{table.caption.7}\protected@file@percent }
+\newlabel{tab:exp-res-indices}{{IV.3}{81}{Biais sur les indices ETCCDI en distribution. \emph {Plus c'est proche de zéro, mieux c'est.}}{table.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.5}{\ignorespaces Biais sur RX1day. Le déficit se concentre sur le versant occidental --- révèle l'absence de DEM.}}{82}{figure.caption.8}\protected@file@percent }
+\newlabel{fig:exp-extreme-bias}{{IV.5}{82}{Biais sur RX1day. Le déficit se concentre sur le versant occidental --- révèle l'absence de DEM}{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.6.4}Robustesse inter-GCM en régime historique}{83}{subsection.4.6.4}\protected@file@percent }
+\newlabel{ssec:exp-res-ood}{{IV.6.4}{83}{Robustesse inter-GCM en régime historique}{subsection.4.6.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.4}{\ignorespaces Métriques inter-GCM historiques sur deux GCM extérieurs (ID = ACCESS-CM2 rappelé pour référence).}}{83}{table.caption.9}\protected@file@percent }
+\newlabel{tab:exp-res-ood}{{IV.4}{83}{Métriques inter-GCM historiques sur deux GCM extérieurs (ID = ACCESS-CM2 rappelé pour référence)}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.6.5}Diagnostics causaux}{83}{subsection.4.6.5}\protected@file@percent }
+\newlabel{ssec:exp-res-causal}{{IV.6.5}{83}{Diagnostics causaux}{subsection.4.6.5}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.5}{\ignorespaces Réponse aux perturbations contrôlées $\Delta (q +20\%)$ et $\Delta (t +3~\mathrm  {K})$ ; IC bootstrap 95~\% sur $n = 30$.}}{83}{table.caption.10}\protected@file@percent }
+\newlabel{tab:exp-res-int}{{IV.5}{83}{Réponse aux perturbations contrôlées $\Delta (q +20\%)$ et $\Delta (t +3~\mathrm {K})$ ; IC bootstrap 95~\% sur $n = 30$}{table.caption.10}{}}
+\citation{pearl_causality_2009}
+\@writefile{toc}{\contentsline {paragraph}{Structure de $\ensuremath  {A_{\mathrm  {dag}}}$.}{84}{paragraph*.11}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.6}{\ignorespaces DAG appris $\ensuremath  {A_{\mathrm  {dag}}}$ (lignes = enfants, colonnes = parents). La structure est plate ($Q_{\mathrm  {phys}} = 0{,}40$, deux arêtes physiquement attendues sur cinq correctement orientées). La comparaison avec le DAG physique attendu et les cartes de réponse aux perturbations contrôlées sont reportées en annexe~IV.D (Fig.~\ref {fig:exp-dag-phys} et Fig.~\ref {fig:exp-interventions}).}}{85}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:exp-dag}{{IV.6}{85}{DAG appris $\Adag $ (lignes = enfants, colonnes = parents). La structure est plate ($Q_{\mathrm {phys}} = 0{,}40$, deux arêtes physiquement attendues sur cinq correctement orientées). La comparaison avec le DAG physique attendu et les cartes de réponse aux perturbations contrôlées sont reportées en annexe~IV.D (Fig.~\ref {fig:exp-dag-phys} et Fig.~\ref {fig:exp-interventions})}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {paragraph}{Simplification revendiquée du DAG à 6 nœuds.}{85}{paragraph*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Effet de proxy : $t$ comme substitut de $q$.}{86}{paragraph*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Arête physiquement incorrecte SP\_HR $\to $ GP850.}{86}{paragraph*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Quantification Clausius-Clapeyron.}{86}{paragraph*.16}\protected@file@percent }
+\citation{pearl_causality_2009,spirtes_2000}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.7}Discussion critique}{87}{section.4.7}\protected@file@percent }
+\newlabel{sec:exp-discussion}{{IV.7}{87}{Discussion critique}{section.4.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.7.1}Contributions empiriques défendables}{87}{subsection.4.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.7.2}Causalité architecturale et limite d'identification}{87}{subsection.4.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {IV.7.3}Menaces à la validité}{88}{subsection.4.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Information physique manquante en entrée.}{88}{paragraph*.17}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV.6}{\ignorespaces Variables atmosphériques non incluses dans l'ensemble des prédicteurs \ensuremath  {\text  {LR}}{} : rôle physique, raison d'exclusion, gain attendu.}}{89}{table.caption.18}\protected@file@percent }
+\newlabel{tab:exp-vars-missing}{{IV.6}{89}{Variables atmosphériques non incluses dans l'ensemble des prédicteurs \LR {} : rôle physique, raison d'exclusion, gain attendu}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.8}Synthèse}{90}{section.4.8}\protected@file@percent }
+\newlabel{sec:exp-synthese}{{IV.8}{90}{Synthèse}{section.4.8}{}}
+\citation{kyono_castle_2020}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.7}{\ignorespaces Le trilemme du downscaling génératif probabiliste. \textsc  {Oracle}{} progresse vers le sommet « robustesse inter-GCM » sans dégrader stabilité ni réalisme des extrêmes.}}{91}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:exp-trilemma}{{IV.7}{91}{Le trilemme du downscaling génératif probabiliste. \Oracle {} progresse vers le sommet « robustesse inter-GCM » sans dégrader stabilité ni réalisme des extrêmes}{figure.caption.19}{}}
+\@writefile{toc}{\contentsline {section}{Annexes du chapitre}{91}{figure.caption.19}\protected@file@percent }
+\newlabel{ssec:exp-annexe-f1p99}{{IV.8}{91}{}{figure.caption.19}{}}
+\citation{maraun_widmann_2018}
+\newlabel{ssec:exp-annexe-cdd}{{IV.8}{92}{}{figure.caption.19}{}}
+\newlabel{ssec:exp-annexe-sens}{{IV.8}{92}{}{figure.caption.19}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV.7}{\ignorespaces Sensibilités directes par variable \ensuremath  {\text  {LR}}{} (norme du gradient moyenne, unités relatives, top 8 sur 15).}}{92}{table.caption.20}\protected@file@percent }
+\newlabel{tab:exp-res-sens}{{IV.7}{92}{Sensibilités directes par variable \LR {} (norme du gradient moyenne, unités relatives, top 8 sur 15)}{table.caption.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.8}{\ignorespaces Sensibilité par variable d'entrée ($\Delta _{\mathrm  {signal}}$).}}{93}{figure.caption.21}\protected@file@percent }
+\newlabel{fig:exp-sensitivity}{{IV.8}{93}{Sensibilité par variable d'entrée ($\Delta _{\mathrm {signal}}$)}{figure.caption.21}{}}
+\newlabel{ssec:exp-annexe-causal-ext}{{IV.8}{93}{}{figure.caption.21}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.9}{\ignorespaces Comparaison entre le DAG appris $\ensuremath  {A_{\mathrm  {dag}}}$ et le DAG physique de référence (couplage quasi-géostrophique descendant attendu). Deux arêtes sur cinq physiquement attendues sont correctement orientées ($Q_{\mathrm  {phys}} = 0{,}40$).}}{93}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:exp-dag-phys}{{IV.9}{93}{Comparaison entre le DAG appris $\Adag $ et le DAG physique de référence (couplage quasi-géostrophique descendant attendu). Deux arêtes sur cinq physiquement attendues sont correctement orientées ($Q_{\mathrm {phys}} = 0{,}40$)}{figure.caption.22}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.10}{\ignorespaces Cartes des perturbations contrôlées $\Delta q+20\%$ et $\Delta t+3$~K. Signes physiques cohérents avec la relation de Clausius-Clapeyron sur les deux perturbations testées.}}{94}{figure.caption.23}\protected@file@percent }
+\newlabel{fig:exp-interventions}{{IV.10}{94}{Cartes des perturbations contrôlées $\Delta q+20\%$ et $\Delta t+3$~K. Signes physiques cohérents avec la relation de Clausius-Clapeyron sur les deux perturbations testées}{figure.caption.23}{}}
+\newlabel{ssec:exp-annexe-climato}{{IV.8}{94}{}{figure.caption.23}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.11}{\ignorespaces Histogramme des intensités de pluie (mm/j, log-log). \textsc  {Oracle}{} reproduit la queue droite ; \textsc  {CorrDiff}{} coupe à $\sim 30$ mm/j.}}{94}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:exp-intensity-hist}{{IV.11}{94}{Histogramme des intensités de pluie (mm/j, log-log). \Oracle {} reproduit la queue droite ; \CorrDiff {} coupe à $\sim 30$ mm/j}{figure.caption.24}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {IV.12}{\ignorespaces FSS en fonction de l'échelle spatiale. \textsc  {Oracle}{} \emph  {skillful} à $\sim 30$~km, \textsc  {CorrDiff}{} seulement à $\sim 80$~km.}}{95}{figure.caption.25}\protected@file@percent }
+\newlabel{fig:exp-fss}{{IV.12}{95}{FSS en fonction de l'échelle spatiale. \Oracle {} \emph {skillful} à $\sim 30$~km, \CorrDiff {} seulement à $\sim 80$~km}{figure.caption.25}{}}
+\gdef \@abspage@last{26}

@@ -1,0 +1,30 @@
+{
+  "gcm": "NorESM2-MM",
+  "run_variant": "causal",
+  "in_distribution": false,
+  "protocol": "cgan_rampal_vendored",
+  "thresh_mm": 1.0,
+  "n_days": 90,
+  "grid": [
+    172,
+    179
+  ],
+  "k_samples": 4,
+  "indices": {
+    "cdd_pred": 16.00172144991555,
+    "cdd_truth": 14.299730066445182,
+    "cdd_bias": 1.701991383470368,
+    "rx1day_pred": 40.49020271791989,
+    "rx1day_truth": 40.263279968171986,
+    "rx1day_bias": 0.2269227497479065,
+    "r10day_pred": 5.1517474340652205,
+    "r10day_truth": 4.761627906976744,
+    "r10day_bias": 0.3901195270884763,
+    "seasonal_error": "\"not all values found in index 'season'. Try setting the `method` keyword argument (example: method='nearest').\""
+  },
+  "psd_distance": 0.05878845033452584,
+  "crps_gaussian_log1p": 0.08217266335322931,
+  "n_batches_evaluated": 90,
+  "k_samples_per_batch": 4,
+  "eval_time_s": 837.4418244361877
+}

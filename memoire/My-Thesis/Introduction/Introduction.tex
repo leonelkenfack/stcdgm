@@ -1,0 +1,75 @@
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+\myMiniToc{section}{Sommaire}
+
+\vspace{1em}
+
+% =============================================================
+\mySectionStar{Contexte du travail}{}{true}
+\label{intro:contexte}
+% =============================================================
+
+Le changement climatique impose aux décideurs locaux des choix de plus en plus fins en matière d'agriculture, de gestion de l'eau et d'urbanisme. Au Cameroun, l'agriculture représente environ 22\,\% du PIB et fait vivre près de 44\,\% de la population active~\cite{wb_ccdr_cameroon_2022} : un secteur très majoritairement pluvial dont la planification dépend directement de la qualité des projections climatiques locales. La centrale hydroélectrique de Lagdo fournit environ 74\,\% de l'électricité du Nord-Cameroun~\cite{nonki_lagdo_2021}. Les inondations de l'Extrême-Nord d'octobre 2024 ont affecté 356\,000~personnes et noyé 82\,500~hectares de cultures, sans qu'aucune anticipation communale n'ait été possible~\cite{ocha_cameroon_2024}. À l'échelle continentale, le changement climatique a réduit d'environ 34\,\% la croissance de la productivité agricole africaine depuis 1961, soit le frein le plus fort toutes régions confondues~\cite{ipcc_ar6_africa_2022} ; en l'absence d'adaptation, la Banque mondiale estime que le Cameroun pourrait perdre entre 4 et 10\,\% de son PIB d'ici 2050~\cite{wb_ccdr_cameroon_2022}.
+
+Pour anticiper ces risques, la communauté scientifique s'appuie sur des modèles climatiques globaux (GCM) : des programmes qui simulent l'atmosphère de la planète entière sur plusieurs décennies. Leur limite est le manque de finesse : chaque point de leur grille résume une zone de 100 à 250~km de côté~\cite{eyring_cmip6_2016}. À cette échelle, Douala et Yaoundé occupent la même cellule, le mont Cameroun n'a aucun effet, la transition savane--forêt disparaît. Pour utiliser ces simulations dans des décisions d'aménagement, d'agriculture ou d'énergie, il faut donc reconstruire l'information à une échelle plus fine (1 à 12~km) : c'est la descente d'échelle climatique (\emph{downscaling}). Deux familles coexistent. La descente d'échelle \emph{dynamique} emboîte dans le GCM un modèle régional (RCM) qui rejoue les équations de la physique, sur la seule région d'intérêt, à une maille plus fine~\cite{maraun_widmann_2018} : rigoureuse, mais très coûteuse en calcul. La descente d'échelle \emph{statistique} apprend, à partir d'archives, la correspondance entre cartes grossières et cartes fines ; elle repose aujourd'hui sur l'apprentissage profond, cette branche de l'intelligence artificielle qui empile de nombreuses couches de calcul pour capturer des relations complexes. Moins coûteuse, elle se heurte en revanche à trois limites : on comprend mal ce qu'elle a appris (interprétabilité), elle se dégrade sur des conditions éloignées de celles de l'apprentissage (généralisation dite hors-distribution) et rien ne l'empêche de violer la physique. C'est dans cette seconde voie que s'inscrit le présent mémoire.
+
+% =============================================================
+\mySectionStar{Problématique étudiée}{}{true}
+\label{intro:probl}
+% =============================================================
+
+Trois verrous rendent aujourd'hui ces deux familles inadaptées à un déploiement africain : un verrou de coût pour la voie dynamique, et pour la voie statistique, deux verrous correspondant à ses deux générations de méthodes, les émulateurs déterministes de première génération puis les modèles génératifs à deux étages qui leur ont succédé.
+
+Premier verrou, le coût de calcul de la voie dynamique est hors de portée pour la plupart des pays africains. Un exemple fixe l'ordre de grandeur : la configuration régionale utilisée à Taïwan (CWA-WRF) mobilise 928~cœurs de calcul en parallèle~\cite{mardani_corrdiff_2023}. À budget fixe, on ne descend donc qu'un seul scénario à la fois, et les grands exercices internationaux de régionalisation (CORDEX) restent à des mailles de 12--50~km. Or les applications de risque (assurance paramétrique, où l'indemnisation se déclenche automatiquement dès qu'un seuil météorologique mesuré est franchi ; planification d'urgence) demandent des milliers de simulations parallèles pour couvrir l'éventail des futurs possibles, ce que l'on appelle des membres d'ensemble~\cite{hobeichi_ml_downscaling_2023}. Pour un continent qui héberge moins de 1\,\% des capacités mondiales de calcul haute performance~\cite{bachmann_hpc_africa_2025}, ce paradigme exclut de facto la production locale de projections fines.
+
+Deuxième verrou, du côté statistique : les émulateurs déterministes de première génération, des réseaux de neurones entraînés à reproduire une simulation physique, restent opaques (on comprend mal ce qu'ils ont appris) et rien ne les empêche de violer les lois physiques qu'ils imitent, puisqu'ils optimisent un score plutôt qu'une contrainte physique. González-Abad et al.~\cite{gonzalezabad_physical_2023} montrent ainsi que des réseaux convolutifs (CNN) entraînés séparément sur la température minimale et la température maximale produisent des sorties physiquement impossibles ($T_{\min} > T_{\max}$), à un taux qui passe de 4\,\% sur les données d'apprentissage à 15--17\,\% en projection 2100 sous un scénario de fort réchauffement (RCP8.5). Doury et al.~\cite{doury_rcm_emulator_2023} qualifient leur propre émulateur de \og \emph{black-box regression model}~\fg{} (modèle de régression boîte noire) et montrent que 31~réentraînements identiques du même réseau produisent des erreurs sur la climatologie future variant d'un facteur 46 sous l'effet du seul hasard de l'initialisation.
+
+Troisième verrou, plus récent : les modèles génératifs (qui produisent des réalisations plausibles plutôt qu'une valeur unique) à deux étages ont résolu l'opacité de la génération précédente, mais reposent sur une hypothèse tout aussi fragile. La référence actuelle, CorrDiff~\cite{mardani_corrdiff_2023}, découpe la tâche en deux temps : une première étape prédit la partie prévisible du champ fin (sa moyenne), puis une seconde étape génère les détails restants, appelés le résidu, par un procédé stochastique (c'est-à-dire aléatoire) nommé diffusion~\cite{karras_edm_2022} que le chapitre II détaillera. Le tout est environ 60~fois plus rapide qu'une simulation physique. Toutefois, les auteurs identifient eux-mêmes la difficulté centrale : un \emph{significant distribution shift} (décalage substantiel de distribution) entre les données d'entraînement et les conditions d'usage. Toute la construction suppose en effet que la relation entre cartes grossières et cartes fines reste stable dans le temps (hypothèse de stationnarité) : c'est précisément la généralisation hors-distribution déjà signalée plus haut, et c'est ce que le changement climatique invalide par construction.
+
+Le problème central s'énonce donc ainsi : \emph{comment causaliser le premier étage du paradigme à deux étages pour doter le downscaling probabiliste d'une robustesse de principe au changement de distribution, sans dégrader la stabilité ni le réalisme acquis} ? Par \og causaliser~\fg{}, nous entendons remplacer l'estimateur générique de ce premier étage par un module dont la sortie transite obligatoirement par un graphe de relations de cause à effet appris ; le terme est repris dans ce sens tout au long du mémoire.
+
+% =============================================================
+\mySectionStar{Objectifs}{}{true}
+\label{intro:obj}
+% =============================================================
+
+Au regard de cette problématique, notre objectif principal est de proposer une architecture de descente d'échelle probabiliste dont les prédictions passent obligatoirement par des relations de cause à effet apprises, plutôt que par de simples associations statistiques. Plus spécifiquement, nous voulons :
+\begin{itemize}[leftmargin=1.2em, itemsep=2pt]
+    \item Concevoir le module qui porte cette causalité : un réseau récurrent (appliqué pas de temps par pas de temps) où chaque variable atmosphérique n'est influencée que par ses causes, identifiées dans un graphe appris sous contrainte d'absence de boucle (les outils correspondants, le modèle causal structurel SCM~\cite{pearl_causality_2009}, la cellule récurrente GRU~\cite{cho_gru_2014} et la contrainte d'acyclicité DAGMA~\cite{bello_dagma_2022}, sont introduits progressivement aux chapitres I et III) ;
+    \item Inscrire ce module dans le paradigme à deux étages de CorrDiff~\cite{mardani_corrdiff_2023}, en remplaçant uniquement la première étape (la régression générique) par ce chemin causal, sans modifier l'étape de diffusion~\cite{karras_edm_2022} : toute différence mesurée sera ainsi attribuable à la causalité et à elle seule ;
+    \item Définir un protocole expérimental qui juge à la fois la justesse des prévisions, la fiabilité de leur incertitude, le réalisme des extrêmes et la robustesse face à des modèles climatiques jamais vus, complété par un test original dans le contexte du downscaling par apprentissage profond : perturber volontairement une entrée et vérifier que la réponse du modèle suit le sens prévu par la physique.
+\end{itemize}
+
+% =============================================================
+\mySectionStar{Contribution}{}{true}
+\label{intro:contrib}
+% =============================================================
+
+La contribution principale de ce mémoire réside dans la conception, l'implémentation et l'évaluation d'\Oracle{}, une architecture générative à deux étages qui conserve les avantages des modèles résiduels (stabilité, calibration probabiliste au sens de la fiabilité des incertitudes annoncées, efficacité) et y ajoute une garantie structurelle de causalité. Quatre choix la structurent, auxquels nous nous référerons par les étiquettes (C1) à (C4) dans la suite du manuscrit :
+\begin{itemize}[leftmargin=1.2em, itemsep=3pt]
+    \item (\textbf{C1}) Le placement de la causalité dans l'architecture elle-même plutôt que dans une pénalité d'entraînement : une pénalité peut être contournée par un réseau suffisamment expressif, alors qu'un chemin câblé dans la structure du calcul est, par construction, incontournable.
+    \item (\textbf{C2}) Le réseau causal récurrent (RCN), qui réunit dans une même cellule la prédiction de chaque variable par ses causes et sa mise à jour au fil du temps (chapitre III).
+    \item (\textbf{C3}) Une interface entre les deux étages conçue pour qu'aucune information ne contourne le chemin causal. Cette indispensabilité du graphe, que nous nommons propriété O3 (le troisième des six objectifs de conception d'\Oracle{}, la causalité architecturale, énoncés au chapitre III), est vérifiée empiriquement : couper le graphe modifie la sortie de $87\,\%$ de son amplitude.
+    \item (\textbf{C4}) Un protocole expérimental à six familles de métriques, dont deux diagnostics causaux originaux : le ratio O3 (le graphe sert-il réellement au calcul ?) et le test d'intervention $Q_{\mathrm{int}}$ (le modèle répond-il dans le sens de la physique quand on force une de ses entrées ?).
+\end{itemize}
+
+Faute d'un jeu de données de référence à haute résolution sur le continent africain visé, nous éprouvons la méthode sur la Nouvelle-Zélande, un \emph{bac à sable} exigeant : un terrain de test qui n'est pas la cible finale, mais qui la remplace avantageusement pour valider la méthode, car il concentre volontairement des conditions extrêmes. Rampal et al.~\cite{rampal_cgan_2024} l'ont retenue pour sa diversité climatique compacte (subtropical, marin tempéré, semi-aride sous le vent, alpin sur moins de $270\,000$~km$^2$) et l'un des gradients de relief les plus extrêmes au monde : des conditions qui mettent la méthode à l'épreuve plus durement qu'un terrain climatiquement plus uniforme. Ce terrain sollicite simultanément trois exigences difficiles à concilier, que ce mémoire désignera comme le trilemme : un entraînement stable, des extrêmes réalistes et une robustesse au changement de distribution. Sur ce cadre, \Oracle{} réduit de $40\,\%$ l'erreur de prévision probabiliste par rapport à une \emph{baseline} (modèle de référence) non causale strictement comparable, et de $30\,\%$ face à des modèles climatiques jamais vus à l'apprentissage ; il améliore d'un facteur $3{,}5$ la fiabilité de son estimation d'incertitude (au sens du rapport entre dispersion prédite et erreur, défini au chapitre IV) et conserve le signe physiquement correct sous deux perturbations contrôlées (il s'agit d'une cohérence de direction, non d'une identification causale complète), là où la baseline échoue sur la perturbation thermique. La dépendance de l'architecture à son graphe causal, vérifiée sur ce terrain, est une propriété structurelle : elle plaide pour une validité indépendante du climat d'entraînement. L'extension au contexte africain qui motive ce travail reste hypothétique au stade actuel, conditionnée à la disponibilité d'un jeu de référence sur la zone visée, et portée comme axe de perspectives.
+
+% =============================================================
+\mySectionStar{Organisation du manuscrit}{}{true}
+\label{intro:orga}
+% =============================================================
+
+Le manuscrit est structuré en quatre chapitres et une conclusion, ordonnés pour qu'aucune notion ne soit utilisée avant d'avoir été introduite :
+
+Chapitre I, Fondements du downscaling climatique. Pose les bases accessibles à un lecteur non spécialiste : besoin de désagrégation, propriétés statistiques de la précipitation, approches classiques, passage au probabiliste et au génératif, langage mathématique de la causalité proposé par Pearl~\cite{pearl_causality_2009}, et formulation du trilemme stabilité~/~extrêmes~/~robustesse hors-distribution.
+
+Chapitre II, État de l'art du downscaling par apprentissage profond. Parcourt systématiquement les familles de modèles, chacune étant présentée avant d'être comparée : approches déterministes (CNN, U-Net), adversariales~\cite{rampal_cgan_2024}, à vraisemblance explicite, et de diffusion (dont les formulations DDPM~\cite{ho_ddpm_2020} et EDM, précisées sur place, et CorrDiff~\cite{mardani_corrdiff_2023}). Un tableau comparatif identifie le \emph{gap} qui motive notre contribution.
+
+Chapitre III, Proposition d'\Oracle{}. Formalise l'architecture : graphe atmosphérique à six nœuds typés, encodeur préservant l'identité de chaque variable, réseau causal récurrent sous contrainte d'acyclicité, décodeur du graphe vers la grille, interface inter-étages et diffusion résiduelle.
+
+Chapitre IV, Matériels, méthodes, expérimentations et discussion. Couvre l'environnement, les données, la topologie effectivement entraînée, le protocole d'évaluation à six familles de métriques, les résultats et la discussion critique des limites.
+
+Conclusion générale et perspectives. Synthétise les contributions, analyse les résultats et trace cinq axes de perspectives, dont le transfert vers le contexte africain qui constitue la motivation finale.

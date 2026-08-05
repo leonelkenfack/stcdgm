@@ -1,0 +1,78 @@
+% =============================================================
+% My-Thesis.tex --- Memoire ORACLE, point d'entree modulaire
+% Style : template officiel UDs (Template-Style/, classe memoir),
+% flux calque sur these/My-Thesis.tex (reference URIFIA).
+% Compile avec : pdflatex -interaction=nonstopmode My-Thesis.tex (x2)
+% =============================================================
+
+% Import du style template + reglages + macros du memoire
+\input{defs-and-imports.tex}
+
+\begin{document}
+{
+	% Taille de police du texte (convention template)
+	\timesContentFontSize
+
+	\pagestyle{ruled}
+	\nouppercaseheads
+	\normalfont
+
+	% *********** Pages liminaires (pagination romaine) ***********
+	\frontmatter
+
+	% Page de garde (charte UDs)
+	\input{My-Thesis/other-pages/titlepage.tex}
+
+	% Certification (originalité des travaux) — retirée à la demande (2026-07-27)
+	% \input{My-Thesis/other-pages/certification.tex}
+
+	% Dédicace
+	\input{My-Thesis/Dedication/Dedication.tex}
+
+	% Remerciements
+	\input{My-Thesis/Acknowledgements/Acknowledgements.tex}
+
+	% Table des matières, liste des acronymes, des tableaux, des figures
+	% (style du template ; entrées ToC au niveau chapitre comme la version de
+	% base : la ToC elle-même sans entrée, les trois listes en chapitre)
+	\myTableOfContentsStar{Table des Matières}
+	\myListOfAcronymsChap{Liste des Acronymes}
+	\myListOfTablesChap{Liste des Tableaux}
+	\myListOfFiguresChap{Liste des Figures}
+
+	% Résumé FR, thème traduit, Abstract EN
+	\input{My-Thesis/Resume/Resume.tex}
+	\input{My-Thesis/other-pages/english_theme.tex}
+	\input{My-Thesis/Abstract/Abstract.tex}
+	\clearpage
+
+	% *********** Partie principale (pagination arabe) ***********
+	\mainmatter
+
+	\input{My-Thesis/Introduction/Introduction.tex}
+	\clearpage
+	\input{My-Thesis/Chap1/Chap1.tex}
+	\clearpage
+	\input{My-Thesis/Chap2/Chap2.tex}
+	\clearpage
+	\input{My-Thesis/Chap3/Chap3.tex}
+	\clearpage
+	\input{My-Thesis/Chap4/Chap4.tex}
+	\clearpage
+
+	% Conclusion + perspectives
+	\input{My-Thesis/Conclusion/Conclusion.tex}
+	\clearpage
+
+	% Bibliographie
+	\input{My-Thesis/Appendices/bibliography_block.tex}
+	\clearpage
+
+	% *********** Annexes *********************
+	% Convention du template : \appendix puis un \input par annexe
+	\appendix
+
+	\input{My-Thesis/Appendices/Appendix1}
+	\input{My-Thesis/Appendices/Appendix2}
+}
+\end{document}

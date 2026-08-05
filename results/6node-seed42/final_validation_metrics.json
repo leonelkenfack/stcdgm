@@ -1,0 +1,28 @@
+{
+  "checkpoint": "/content/drive/MyDrive/climate_data/oracle_full/seed_42/epoch_last.pth",
+  "causal_concat": true,
+  "n_test_batches": 16,
+  "k_samples": 64,
+  "eval_time_s": 2330.6781239509583,
+  "rmse": 0.14136530458927155,
+  "mae": 0.06970784813165665,
+  "spread_mean": 0.04654260724782944,
+  "f1_extremes": {
+    "p95": 0.5810567568183371,
+    "p99": 0.4470465781941192
+  },
+  "pearson_corr": {
+    "global": 0.766583263874054,
+    "per_sample_avg": 0.7618106976151466,
+    "per_sample_n": 16
+  },
+  "rapsd_distance": 307.7807312011719,
+  "mu_HR_ablation": {
+    "delta_signal_ratio_avg": 1.0221298597214603,
+    "verdict": "MU_HR_CONDITIONS"
+  },
+  "shortcut_diagnostic": {
+    "shortcut_ratio": 1.1821884941757494,
+    "verdict": "REFINEMENT_OK"
+  }
+}

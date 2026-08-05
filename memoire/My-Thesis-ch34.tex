@@ -1,0 +1,30 @@
+% =============================================================
+% My-Thesis-ch34.tex --- Chapitres 3 et 4 uniquement
+% =============================================================
+
+\input{defs-and-imports.tex}
+
+\begin{document}
+
+% --- Chap1 + Chap2 chargés dans un vbox jeté (résolution des refs croisées) ---
+\setbox0=\vbox{%
+  \input{My-Thesis/Chap1/Chap1.tex}%
+  \input{My-Thesis/Chap2/Chap2.tex}%
+}
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% --- Chapitre 3 ---
+\input{My-Thesis/Chap3/Chap3.tex}
+\cleardoublepage
+
+% --- Chapitre 4 ---
+\input{My-Thesis/Chap4/Chap4.tex}
+
+% --- Bibliographie chargée dans un vbox jeté ---
+\setbox0=\vbox{%
+  \input{My-Thesis/Appendices/bibliography_block.tex}%
+}
+
+\end{document}

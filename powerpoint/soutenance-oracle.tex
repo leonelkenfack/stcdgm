@@ -1,0 +1,668 @@
+\documentclass[11pt]{beamer}
+\usetheme{Warsaw}
+\usefonttheme{serif}
+\include{tweaks}
+
+\usepackage{makecell}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{ragged2e}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{tikz}
+\usetikzlibrary{positioning, fit, shapes, arrows.meta, calc}
+\justifying
+
+% ---------- Chemins des images (memoire + illustrations ChatGPT) ----------
+\graphicspath{%
+  {img/}%
+  {images/}%
+  {../results/v5_evaluation/phase8_figures/}%
+  {../results/v5_evaluation/phase9_climate_standards/}%
+  {../results/v5_evaluation/phase10_extreme_bias_maps/}%
+  {../results/v5_evaluation/phase12_integrated_gradients/}%
+  {../results/9node-seed42/}%
+  {../results/literature_figures/}%
+}
+\logo{\includegraphics[height=5mm]{logouniv.png}}
+
+\definecolor{uridarkblue}{RGB}{30,40,90}
+\definecolor{urigray}{RGB}{70,70,70}
+\definecolor{uriaccent}{RGB}{180,60,40}
+
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\LR}{\ensuremath{\text{LR}}}
+\newcommand{\HR}{\ensuremath{\text{HR}}}
+\newcommand{\muHR}{\ensuremath{\mu_{\HR}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+
+\title[\Oracle{} : downscaling causal]{Développement d'une méthode d'apprentissage automatique pour la mise à l'échelle spatiale des données climatiques}
+\subtitle{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+%-------------------------------->
+\begin{frame}[plain]
+  \begin{figure}
+    \vspace{-0.5cm}
+    \centering
+    \includegraphics[width=.8\textwidth]{univ-header.png}
+  \end{figure}
+  \vspace{-1.2cm}
+  \author{}
+  \date{}
+  \titlepage
+  \vspace{-2.5cm}
+  \centering
+  {
+    \scriptsize
+    Par\\[1mm]
+    {\bfseries KENFACK Leonel}\\[1mm]
+    CM-UDS-17SCI0998\\[3mm]
+    Sous la direction de\\[1mm]
+    {\bfseries Pr.~BOMGNI Alain Bertrand}\\[1mm]
+    {\itshape Maître de Conférences, Université de Dschang}
+  }
+\end{frame}
+
+\author{KENFACK Leonel}
+
+\begin{frame}
+\frametitle{Plan de présentation}
+\vspace{-1mm}
+\tiny
+\tableofcontents[hideallsubsections]
+\end{frame}
+
+% =============================================================
+\section{Contexte et motivation}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Le climat local n'est pas un détail}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.62\linewidth]{img-cameroon-stats-2col.png}
+\end{figure}
+\vspace{-2mm}
+{\centering\tiny\color{urigray}%
+\makebox[0.31\linewidth][c]{OCHA, oct.\ 2024}%
+\makebox[0.31\linewidth][c]{GIEC (AR6), 2022}\par}
+\end{frame}
+
+\begin{frame}
+\frametitle{Prévoir le temps de demain ne suffit pas}
+\begin{block}{Météo $\neq$ climat}
+\begin{itemize}
+  \item Une appli météo \textbf{prévoit} quelques jours, à partir de l'état observé aujourd'hui.
+  \item Anticiper un événement à 10 ou 30 ans demande de \textbf{simuler} le climat, pas de prévoir le temps.
+  \item C'est le rôle des modèles climatiques globaux (GCM), mais à quelle résolution ?
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Un pixel du modèle global peut contenir une ville et un volcan}
+\begin{figure}
+  \centering
+  \includegraphics[height=4.4cm]{img-cameroon-pixel.png}
+\end{figure}
+\begin{block}{}
+  \centering\small Grille GCM de $\sim$200~km : un seul chiffre pour toute cette zone.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{La solution : retrouver le détail que le modèle global ne voit pas}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.80\linewidth]{img-downscaling-schema.png}
+\end{figure}
+\begin{block}{}
+  \centering\small Mise à l'échelle : d'une image grossière à une image fine (facteur $\sim$50).
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Structure d'une image classique}
+\begin{columns}[T]
+\column{0.48\linewidth}
+  \centering\includegraphics[height=3.5cm]{img-house-photo.png}\\[1mm]
+  {\scriptsize Image normale}
+\column{0.48\linewidth}
+  \centering\includegraphics[height=3.5cm]{img-house-channels.png}\\[1mm]
+  {\scriptsize Décomposée : 3 canaux (R, G, B)}
+\end{columns}
+\vspace{1mm}
+\begin{block}{}
+  \centering\small Chaque pixel d'une photo, c'est 3 nombres empilés.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Structure d'une image climatique}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.95\linewidth]{img-cameroon-channels.png}
+\end{figure}
+\end{frame}
+
+% =============================================================
+\section{État de l'art}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{La solution physique est hors de portée pour l'Afrique}
+\begin{block}{}
+\begin{itemize}
+  \item Un modèle régional (RCM) résout la physique à 10--50~km : rigoureux, mais coûteux.
+  \item 928 cœurs mobilisés pour \textbf{un seul} scénario (CWA-WRF, Taïwan).
+  \item L'Afrique héberge moins de 1\,\% des capacités HPC mondiales.
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Trois familles de solutions, trois limites}
+\begin{table}
+\centering
+\renewcommand{\arraystretch}{1.4}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Approche} & \textbf{Stabilité} & \textbf{Extrêmes} & \textbf{OOD} \\
+\midrule
+Déterministe (U-Net, DeepSD) & \checkmark & $\times$ & $\times$ \\
+Générative GAN (cGAN résiduel) & $\triangle$ & \checkmark & $\times$ \\
+Générative diffusion (\CorrDiff{}) & \checkmark & $\triangle$ & $\times$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+\begin{block}{}
+  \centering\small \checkmark{} bien traité \quad $\triangle$ partiellement traité \quad $\times$ non traité
+\end{block}
+\end{frame}
+
+% =============================================================
+\section{Présentation de la causalité}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Formaliser : chaque variable est une fonction de ses causes}
+\begin{block}{Modèle causal structurel (Pearl)}
+\centering
+$V_i \;=\; f_i\!\left(\mathrm{Pa}(V_i),\, U_i\right)$
+\end{block}
+\begin{itemize}
+  \item $V_i$ : une variable observable (ex. la précipitation).
+  \item $\mathrm{Pa}(V_i)$ : ses causes directes (humidité, vent, température, orographie).
+  \item $U_i$ : un peu de hasard propre, non modélisé.
+  \item $f_i$ : \textbf{apprise} par le réseau, pas écrite à la main.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{La vraie question causale : et si on intervenait ?}
+\begin{block}{Observer $\neq$ intervenir}
+\centering
+$p(Y \mid X = x) \quad$ vs $\quad p(Y \mid \mathrm{do}(X = x'))$
+\end{block}
+\begin{itemize}
+  \item Observer $T$ élevé $\to$ associé à moins de pluie (confondu par l'anticyclone).
+  \item \textbf{Intervenir} sur $T$ (do-opérateur) $\to$ isole le vrai effet physique, signe positif attendu.
+  \item C'est précisément ce que mesure notre test $Q_{\mathrm{int}}$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Corrélation : le piège hors distribution}
+\vspace{3mm}
+\begin{columns}[T]
+\column{0.5\linewidth}
+\begin{center}\small\textbf{En distribution}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.72,>=Stealth]
+  \draw[->,thick] (0,0) -- (4.3,0) node[right,font=\tiny]{T};
+  \draw[->,thick] (0,0) -- (0,3.5) node[above,font=\tiny]{P};
+  \draw[very thick,black] (0.4,1.0) .. controls (1.5,1.5) and (2.5,2.0) .. (3.8,2.55);
+  \node[font=\scriptsize,black,anchor=north west] at (2.4,2.35) {réalité};
+  \foreach \x/\y in {0.6/1.05,1.1/1.4,1.6/1.55,2.1/1.8,2.6/2.0,3.1/2.25,3.5/2.4}
+     \fill[gray!55] (\x,\y) circle (1.4pt);
+  \draw[very thick,uriaccent,dashed] (0.4,0.95) .. controls (1.5,1.45) and (2.5,1.95) .. (3.8,2.5);
+  \node[font=\scriptsize,uriaccent,anchor=south east] at (1.9,0.75) {modèle};
+\end{tikzpicture}
+\end{center}
+\column{0.5\linewidth}
+\begin{center}\small\textbf{Hors distribution}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.72,>=Stealth]
+  \fill[gray!12] (0,0) rectangle (4,3.3);
+  \draw[->,thick] (0,0) -- (4.3,0) node[right,font=\tiny]{T};
+  \draw[->,thick] (0,0) -- (0,3.5) node[above,font=\tiny]{P};
+  \draw[very thick,black] (0.4,1.6) .. controls (1.5,1.35) and (2.5,0.95) .. (3.8,0.55);
+  \node[font=\scriptsize,black,anchor=north east] at (3.7,0.6) {réalité};
+  \draw[very thick,uriaccent,dashed] (0.4,1.65) .. controls (1.5,1.95) and (2.5,2.45) .. (3.8,2.95);
+  \node[font=\scriptsize,uriaccent,anchor=south east] at (3.7,2.9) {modèle};
+  \draw[<->,uriaccent,thick] (3.8,0.6) -- (3.8,2.9);
+\end{tikzpicture}
+\end{center}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Causalité : la robustesse par la physique}
+\vspace{3mm}
+\begin{columns}[T]
+\column{0.5\linewidth}
+\begin{center}\small\textbf{En distribution}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.72,>=Stealth]
+  \draw[->,thick] (0,0) -- (4.3,0) node[right,font=\tiny]{T};
+  \draw[->,thick] (0,0) -- (0,3.5) node[above,font=\tiny]{P};
+  \draw[very thick,black] (0.4,1.0) .. controls (1.5,1.5) and (2.5,2.0) .. (3.8,2.55);
+  \node[font=\scriptsize,black,anchor=north west] at (2.4,2.35) {réalité};
+  \foreach \x/\y in {0.6/1.05,1.1/1.4,1.6/1.55,2.1/1.8,2.6/2.0,3.1/2.25,3.5/2.4}
+     \fill[gray!55] (\x,\y) circle (1.4pt);
+  \draw[very thick,green!45!black,dash pattern=on 4pt off 2pt] (0.4,0.95) .. controls (1.5,1.45) and (2.5,1.95) .. (3.8,2.5);
+  \node[font=\scriptsize,green!45!black,anchor=south east] at (1.9,0.75) {modèle};
+\end{tikzpicture}
+\end{center}
+\column{0.5\linewidth}
+\begin{center}\small\textbf{Hors distribution}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.72,>=Stealth]
+  \fill[gray!12] (0,0) rectangle (4,3.3);
+  \draw[->,thick] (0,0) -- (4.3,0) node[right,font=\tiny]{T};
+  \draw[->,thick] (0,0) -- (0,3.5) node[above,font=\tiny]{P};
+  \draw[very thick,black] (0.4,1.6) .. controls (1.5,1.35) and (2.5,0.95) .. (3.8,0.55);
+  \node[font=\scriptsize,black,anchor=south west] at (2.6,1.1) {réalité};
+  \draw[very thick,green!45!black,dash pattern=on 4pt off 2pt] (0.4,1.55) .. controls (1.5,1.3) and (2.5,0.9) .. (3.8,0.48);
+  \node[font=\scriptsize,green!45!black,anchor=north east] at (2.2,1.05) {modèle};
+\end{tikzpicture}
+\end{center}
+\end{columns}
+\end{frame}
+
+% =============================================================
+\section{Architecture}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Vue d'ensemble : l'architecture complète en deux étages}
+\begin{figure}
+  \centering
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    block/.style={rectangle, draw=uridarkblue, fill=uridarkblue!10, rounded corners, minimum height=1.5cm, minimum width=2.5cm, align=center, font=\small, inner sep=3pt},
+    stage/.style={rectangle, draw=uriaccent, dashed, rounded corners, inner sep=10pt, font=\footnotesize\itshape},
+    arr/.style={-{Stealth[length=2.5mm]}, thick, uridarkblue!80}
+  ]
+  \node[block] (lr) {\textbf{Entrée LR} \\[1pt] \scriptsize ACCESS-CM2};
+  \node[block, right=1.2cm of lr] (enc) {\textbf{Encodeur} \\[1pt] \scriptsize intelligible \\[1pt] \scriptsize $15$ MLP};
+  \node[block, right=1.2cm of enc] (graph) {\textbf{Graphe} \\[1pt] \scriptsize hétérogène};
+  \node[block, right=1.2cm of graph] (rcn) {\textbf{RCN} \\[1pt] \scriptsize SCM $+$ GRU \\[1pt] \scriptsize $+$ DAGMA};
+  \node[block, below=1.8cm of enc] (dec) {\textbf{Décodeur} \\[1pt] \scriptsize graphe $\to$ grille \\[1pt] \scriptsize sortie $\muHR$};
+  \node[block, right=1.2cm of dec] (edm) {\textbf{UNet EDM} \\[1pt] \scriptsize Stage 2 \\[1pt] \scriptsize sortie $\widehat\delta$};
+  \node[block, right=1.2cm of edm] (out) {\textbf{Sortie HR} \\[1pt] $\widehat{x}_{\HR}$};
+  \draw[arr] (lr) -- (enc);
+  \draw[arr] (enc) -- (graph);
+  \draw[arr] (graph) -- (rcn);
+  \draw[arr] (rcn.south) -- ++(0,-0.6) -| (dec.north);
+  \draw[arr] (dec) -- (edm);
+  \draw[arr] (edm) -- (out);
+  \node[stage, fit=(lr) (enc) (graph) (rcn) (dec), label={[font=\small\bfseries, text=uriaccent]above:Stage 1 (causal, déterministe)}] {};
+  \node[stage, fit=(edm), label={[font=\small\bfseries, text=uriaccent]above:Stage 2 (diffusion résiduelle)}] {};
+  \end{tikzpicture}%
+  }
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Stage 1 : de $y_{\LR}$ à $\muHR$, par le chemin causal}
+\vspace{-4mm}
+\begin{figure}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  block/.style={rectangle, draw=uridarkblue, fill=uridarkblue!10, rounded corners, minimum height=1.1cm, minimum width=2.0cm, align=center, font=\small, inner sep=3pt},
+  gp/.style={circle, draw=uridarkblue, fill=uridarkblue!20, minimum size=0.9cm, font=\scriptsize\bfseries, inner sep=1pt},
+  statique/.style={rectangle, draw=urigray, fill=urigray!15, rounded corners, align=center, font=\scriptsize, inner sep=3pt},
+  arr/.style={-{Stealth[length=2.2mm]}, thick, uridarkblue!80},
+  darr/.style={-{Stealth[length=2.2mm]}, thick, dashed, urigray},
+]
+\node[block] (lr) {$y_{\LR}$\\ \scriptsize 15 variables\\ \scriptsize grille $23{\times}26$};
+\node[block, right=0.8cm of lr] (enc) {Encodeur\\ \scriptsize 15 MLP\\ \scriptsize (1 par variable)};
+\node[gp, right=2.1cm of enc, yshift=1.6cm] (gp250) {GP\textsubscript{250}};
+\node[gp, below=0.3cm of gp250] (gp500) {GP\textsubscript{500}};
+\node[gp, below=0.3cm of gp500] (gp850) {GP\textsubscript{850}};
+\node[statique, below=0.45cm of gp850] (sp) {SP\_HR (statique)\\ orographie, masque\\ 1 n\oe ud / pixel HR};
+\draw[arr] (gp250) -- (gp500);
+\draw[arr] (gp500) -- (gp850);
+\draw[darr] (sp) -- (gp850) node[midway, right=1pt, font=\tiny, text=urigray] {pondéré par $\Adag$};
+\node[draw=uriaccent, dashed, rounded corners=3pt, inner sep=6pt, fit=(gp250) (gp850) (sp),
+      label={[font=\scriptsize\bfseries, text=uriaccent]above:Graphe causal}] (gbox) {};
+\node[block, right=1.1cm of gbox] (rcn) {RCN\\ \scriptsize propagation par $\Adag$\\ \scriptsize 8 pas de temps};
+\node[block, right=0.8cm of rcn] (dec) {Décodeur\\ \scriptsize graphe $\to$ grille};
+\node[block, right=0.8cm of dec] (mu) {$\muHR$\\ \scriptsize $172{\times}179$};
+\draw[arr] (lr) -- (enc);
+\draw[arr] (enc.east) -- (gbox.west);
+\draw[arr] (gbox.east) -- (rcn.west);
+\draw[arr] (rcn) -- (dec);
+\draw[arr] (dec) -- (mu);
+% boucle recurrente temporelle : l'etat H_t est reinjecte au pas suivant (x8)
+\draw[arr] (rcn.north east) to[out=45,in=135,looseness=1.3]
+  node[midway, above=-0.5pt, font=\tiny, text=uridarkblue, inner sep=1pt] {$H_{t-1}\!\to\!H_t$ ($\times 8$)}
+  (rcn.north west);
+\end{tikzpicture}%
+}
+\end{figure}
+\vspace{-2mm}
+\begin{block}{}
+\small
+Propagation causale (par n\oe ud) : $\;\widehat{H}_t^{(i)} = f_i\!\big(\Adag^{(i,:)} \odot H_{t-1},\; x_t,\; \varepsilon_t^{(i)}\big)$ \\[3pt]
+Entraînement (3 objectifs) : $\;\mathcal{L}_{\mathrm{total}}^{(1)} = \mathcal{L}_{\mathrm{mse}} + \alpha\,\mathcal{L}_{\mathrm{rec}} + \mathcal{L}_{\mathrm{dag}}$
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Point de départ : la baseline par interpolation}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.84\linewidth]{img-baseline-interp.png}
+\end{figure}
+\begin{block}{}
+  \centering\small Plus de pixels, aucune information nouvelle.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Zoom sur un pixel : l'interpolation ne crée rien}
+\begin{columns}[c,onlytextwidth]
+\column{0.5\linewidth}
+\centering
+{\small\textbf{Avant : 1 pixel}}\par\vspace{2mm}
+\begin{tikzpicture}[scale=0.9]
+  \fill[red!40] (0,0) rectangle (3,3);
+  \draw[thick] (0,0) rectangle (3,3);
+  \node[font=\small\bfseries] at (1.5,1.5) {19\,$^{\circ}$C};
+\end{tikzpicture}
+\column{0.5\linewidth}
+\centering
+{\small\textbf{Après : 36 pixels}}\par\vspace{2mm}
+\begin{tikzpicture}[scale=0.9]
+  \fill[red!40] (0,0) rectangle (3,3);
+  \draw[step=0.5,white,line width=1pt] (0,0) grid (3,3);
+  \draw[thick] (0,0) rectangle (3,3);
+  \node[font=\small\bfseries] at (1.5,1.5) {19\,$^{\circ}$C};
+\end{tikzpicture}
+\end{columns}
+\vspace{1mm}
+\begin{block}{}
+  \centering\small Même couleur, même valeur : \textbf{aucun gain d'information}. C'est au modèle de créer le détail manquant.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Stage 2 : le conditionnement par concaténation de canaux}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.78\linewidth]{img-concat-canaux.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\frametitle{Vue d'ensemble : l'architecture complète en deux étages}
+\begin{figure}
+  \centering
+  \resizebox{0.82\linewidth}{!}{%
+  \begin{tikzpicture}[
+    block/.style={rectangle, draw=uridarkblue, fill=uridarkblue!10, rounded corners, minimum height=1.5cm, minimum width=2.5cm, align=center, font=\small, inner sep=3pt},
+    stage/.style={rectangle, draw=uriaccent, dashed, rounded corners, inner sep=10pt, font=\footnotesize\itshape},
+    arr/.style={-{Stealth[length=2.5mm]}, thick, uridarkblue!80}
+  ]
+  \node[block] (lr) {\textbf{Entrée LR} \\[1pt] \scriptsize ACCESS-CM2};
+  \node[block, right=1.2cm of lr] (enc) {\textbf{Encodeur} \\[1pt] \scriptsize intelligible \\[1pt] \scriptsize $15$ MLP};
+  \node[block, right=1.2cm of enc] (graph) {\textbf{Graphe} \\[1pt] \scriptsize hétérogène};
+  \node[block, right=1.2cm of graph] (rcn) {\textbf{RCN} \\[1pt] \scriptsize SCM $+$ GRU \\[1pt] \scriptsize $+$ DAGMA};
+  \node[block, below=1.8cm of enc] (dec) {\textbf{Décodeur} \\[1pt] \scriptsize graphe $\to$ grille \\[1pt] \scriptsize sortie $\muHR$};
+  \node[block, right=1.2cm of dec] (edm) {\textbf{UNet EDM} \\[1pt] \scriptsize Stage 2 \\[1pt] \scriptsize sortie $\widehat\delta$};
+  \node[block, right=1.2cm of edm] (out) {\textbf{Sortie HR} \\[1pt] $\widehat{x}_{\HR}$};
+  \draw[arr] (lr) -- (enc);
+  \draw[arr] (enc) -- (graph);
+  \draw[arr] (graph) -- (rcn);
+  \draw[arr] (rcn.south) -- ++(0,-0.6) -| (dec.north);
+  \draw[arr] (dec) -- (edm);
+  \draw[arr] (edm) -- (out);
+  \node[stage, fit=(lr) (enc) (graph) (rcn) (dec), label={[font=\small\bfseries, text=uriaccent]above:Stage 1 (causal, déterministe)}] {};
+  \node[stage, fit=(edm), label={[font=\small\bfseries, text=uriaccent]above:Stage 2 (diffusion résiduelle)}] {};
+  \end{tikzpicture}%
+  }
+\end{figure}
+\vspace{-1mm}
+\begin{block}{}
+\centering\small $\widehat{x}_{\HR} \;=\; \underbrace{\text{baseline}}_{\text{interpolation}} \;+\; \underbrace{\muHR}_{\text{Stage 1 (causal)}} \;+\; \underbrace{\widehat{\delta}}_{\text{Stage 2 (diffusion)}}$
+\end{block}
+\end{frame}
+
+% =============================================================
+\section{Protocole et entraînement}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Protocole expérimental}
+\begin{columns}[T]
+\column{0.5\linewidth}
+\begin{block}{Données (Nouvelle-Zélande)}
+\footnotesize
+\begin{itemize}
+  \item Train 1980--2009 · Val 2010--2012 · Test 2013--2014 (ACCESS-CM2)
+  \item Généralisation : EC-Earth3, NorESM2-MM (GCM jamais vus)
+\end{itemize}
+\end{block}
+
+\column{0.5\linewidth}
+\begin{block}{Évaluation}
+\footnotesize
+\begin{itemize}
+  \item Baseline \textbf{Noncausal} = \CorrDiff{} réentraîné à l'identique
+\end{itemize}
+\end{block}
+\end{columns}
+\vspace{2mm}
+\begin{block}{}
+  \centering\small Comparaison strictement appariée : seule la causalisation du Stage 1 change.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Entraînement : Google Colab, $\sim$45 heures}
+\vfill
+\begin{block}{Ressources}
+\footnotesize
+Entraînement réalisé sur \textbf{Google Colab} (GPU), pour \textbf{$\sim$45 heures} de calcul au total.
+\end{block}
+\vfill
+\begin{block}{Deux étages, deux budgets}
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Étage} & \textbf{Rôle} & \textbf{Budget} \\
+\midrule
+Stage 1 & causal, déterministe & \textbf{15 époques} \\
+Stage 2 & diffusion résiduelle & \textbf{200 époques} \\
+\bottomrule
+\end{tabular}
+\end{block}
+\vfill
+\end{frame}
+
+% =============================================================
+\section{Résultats}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Le résultat central : un gain de CRPS dans tous les régimes}
+\begin{table}
+\centering
+\renewcommand{\arraystretch}{1.3}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Régime (CRPS mm/j)} & \Oracle{} & \textbf{Noncausal} & \textbf{Gain} \\
+\midrule
+En distribution & $\mathbf{0{,}249}$ & $0{,}415$ & $-40\,\%$ \\
+Inter-GCM (EC-Earth3 / NorESM2) & $0{,}319$ / $0{,}342$ & $0{,}457$ / $0{,}478$ & $-30$ / $-28\,\%$ \\
+Hors distribution (froid / chaud) & $0{,}389$ / $0{,}288$ & $0{,}561$ / $0{,}444$ & $-31$ / $-35\,\%$ \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+\begin{block}{}
+  \centering\small Le gain se maintient de la distribution aux climats jamais vus.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Le vrai test : généraliser à des modèles climatiques jamais vus}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.85\linewidth]{02_return_period.png}
+\end{figure}
+\begin{block}{}
+  \centering\small Robustesse inter-GCM historique : $-30\,\%$ (EC-Earth3), $-28\,\%$ (NorESM2-MM). Le gain de niveau se maintient sur des GCM jamais vus à l'entraînement.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Les extrêmes, pas juste la moyenne}
+\vspace{4mm}
+\begin{block}{}
+\centering
+\Large Distance spectrale RAPSD divisée par $\mathbf{450}$ vs \CorrDiff{}
+\end{block}
+\vspace{6mm}
+\begin{block}{}
+\centering
+\Large Biais RX1day ramené de $-4{,}1$ à $\mathbf{-2{,}7}$~mm
+\end{block}
+\end{frame}
+
+% =============================================================
+\section{Limites}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Limite clé : le gain porte sur le niveau, pas sur la pente}
+\begin{figure}
+\centering
+\begin{tikzpicture}[scale=0.68,>=Stealth]
+  \draw[->,thick] (0,0) -- (6.2,0) node[right,font=\scriptsize]{éloignement du climat};
+  \draw[->,thick] (0,0) -- (0,4) node[above,font=\scriptsize]{erreur (CRPS)};
+  \draw[very thick,uriaccent] (0.4,1.9) -- (5.4,3.5);
+  \node[font=\scriptsize,uriaccent,anchor=south east] at (5.3,3.45) {Noncausal};
+  \draw[very thick,uridarkblue] (0.4,0.9) -- (5.4,2.5);
+  \node[font=\scriptsize,uridarkblue,anchor=north west] at (3.4,2.15) {\Oracle{}};
+  \draw[<->,gray] (1.1,1.16) -- (1.1,2.06);
+  \draw[<->,gray] (4.7,2.34) -- (4.7,3.24);
+  \node[font=\scriptsize,gray,anchor=west] at (4.85,2.79) {écart constant};
+\end{tikzpicture}
+\end{figure}
+\begin{block}{}
+  \centering\small \Oracle{} reste $\sim$$1{,}4\times$ meilleur, mais se dégrade \textbf{à la même pente} que la baseline : la causalité améliore le point de départ, pas (encore) la robustesse différentielle.
+\end{block}
+\end{frame}
+
+% =============================================================
+\section{Perspectives}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Court et moyen terme : enrichir le graphe, ancrer la physique}
+\begin{figure}
+  \centering
+  \includegraphics[width=0.55\linewidth]{annex_dag_heatmap.png}
+\end{figure}
+\begin{block}{}
+  \small IVT, MSLP, CAPE/CIN comme nouveaux nœuds ; pénalité $\lambda_{\mathrm{prior}}$ ; et surtout SSP5-8.5 comme vrai test OOD à venir.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Vers une causalité par groupes : les Cluster-DAG}
+\begin{columns}[c]
+\column{0.46\linewidth}
+\begin{center}\small\textbf{Aujourd'hui : n\oe ud $\to$ n\oe ud}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.7,>=Stealth, n/.style={circle,draw=uridarkblue,fill=uridarkblue!15,minimum size=0.75cm,font=\tiny,inner sep=0pt}]
+  \node[n] (a) at (0,2.1) {$V_1$};
+  \node[n] (b) at (0,0.7) {$V_2$};
+  \node[n] (c) at (2,2.1) {$V_3$};
+  \node[n] (d) at (2,0.7) {$V_4$};
+  \draw[->,thick,uridarkblue!80] (a)--(c);
+  \draw[->,thick,uridarkblue!80] (a)--(d);
+  \draw[->,thick,uridarkblue!80] (b)--(d);
+  \draw[->,thick,uridarkblue!80] (c)--(d);
+\end{tikzpicture}
+\end{center}
+\column{0.54\linewidth}
+\begin{center}\small\textbf{Demain : groupe $\to$ groupe}\end{center}
+\begin{center}
+\begin{tikzpicture}[scale=0.7,>=Stealth,
+  clu/.style={draw=uriaccent,thick,rounded corners,fill=uriaccent!12,minimum width=1.7cm,minimum height=1.1cm,font=\scriptsize,align=center},
+  sfc/.style={draw=urigray,thick,rounded corners,fill=urigray!15,minimum width=1.7cm,minimum height=0.9cm,font=\scriptsize,align=center}]
+  \node[clu] (c1) at (0,2.2) {Dynamique};
+  \node[clu] (c2) at (2.8,2.2) {Thermo.};
+  \node[sfc] (c3) at (1.4,0.3) {Surface};
+  \draw[->,very thick,uriaccent] (c1)--(c2);
+  \draw[->,very thick,uriaccent] (c1)--(c3);
+  \draw[->,very thick,uriaccent] (c2)--(c3);
+\end{tikzpicture}
+\end{center}
+\end{columns}
+\vspace{1mm}
+\begin{block}{}
+  \small La causalité au niveau des \textbf{groupes physiques} est plus robustement identifiable que les arêtes fines : réponse directe à la limite $Q_{\mathrm{phys}}$. \emph{Cluster-DAG}, Anand et al., AAAI 2023.
+\end{block}
+\end{frame}
+
+% =============================================================
+\section{Conclusion}
+\frame{\scriptsize\tableofcontents[currentsection,hideallsubsections]}
+% =============================================================
+
+\begin{frame}
+\frametitle{Ce que ce mémoire retient}
+\begin{itemize}
+  \item La causalité comme \textbf{contrainte architecturale}, pas décoration.
+  \item Gain de skill mesurable ($-40\,\%$ CRPS ID, $-30/-28\,\%$ inter-GCM).
+  \item Robustesse inter-GCM et raisonnement interventionnel cohérent.
+  \item Un pas concret vers un downscaling fiable pour les régions qui en ont le plus besoin.
+\end{itemize}
+\begin{center}
+  \Large\bfseries Merci de votre attention.
+\end{center}
+\end{frame}
+
+\end{document}

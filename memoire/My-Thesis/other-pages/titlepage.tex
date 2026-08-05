@@ -1,0 +1,130 @@
+% =============================================================
+% PAGE DE GARDE (gabarit URIFIA --- design DZIKANG)
+% Double bordure bleue, encadrés bilingues, titre dégradé, ruban d'année
+% =============================================================
+\newgeometry{margin=1.5cm}
+\thispagestyle{empty}
+
+\begin{titlepage}
+
+\centering
+
+\vspace*{0.3em}
+
+% --- Bandeau bilingue : encadrés gauche/droite avec logo intercalé ---
+\noindent
+\begin{minipage}[c]{0.40\linewidth}
+  \begin{tcolorbox}[colback=white, colframe=white, boxrule=0pt, arc=0pt,
+                    left=0.4em, right=0.4em, top=0.4em, bottom=0.4em]
+    \centering\footnotesize
+    \textbf{RÉPUBLIQUE DU CAMEROUN}\\[0.1em]
+    \textit{PAIX -- TRAVAIL -- PATRIE}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{UNIVERSITÉ DE DSCHANG}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{ÉCOLE DES SCIENCES ET\\TECHNOLOGIES DE DSCHANG}
+  \end{tcolorbox}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.16\linewidth}
+  \centering
+  \includegraphics[width=2.0cm]{My-Thesis/images/logouniv.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.40\linewidth}
+  \begin{tcolorbox}[colback=white, colframe=white, boxrule=0pt, arc=0pt,
+                    left=0.4em, right=0.4em, top=0.4em, bottom=0.4em]
+    \centering\footnotesize
+    \textbf{REPUBLIC OF CAMEROON}\\[0.1em]
+    \textit{PEACE -- WORK -- FATHERLAND}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{UNIVERSITY OF DSCHANG}\\[0.1em]
+    {\tiny *********}\\[0.05em]
+    \textbf{SCHOOL OF SCIENCES AND\\TECHNOLOGIES OF DSCHANG}
+  \end{tcolorbox}
+\end{minipage}
+
+\vspace{1.4em}
+
+% --- Unité de recherche ---
+{\small \textbf{UNITÉ DE RECHERCHE EN INFORMATIQUE FONDAMENTALE,\\
+INGÉNIERIE ET APPLICATIONS (URIFIA)} \par}
+
+\vspace{1.5em}
+
+% --- THÈME label ---
+{\small \textbf{THÈME :} \par}
+
+\vspace{0.5em}
+
+% --- Boîte titre avec dégradé bleu ---
+\begin{tikzpicture}
+  \node[draw=uridarkblue!75, line width=0.7pt, rounded corners=10pt,
+        inner sep=14pt, text width=0.82\linewidth, align=center,
+        top color=uridarkblue!18, bottom color=teal!12] {%
+    \color{uridarkblue}\large\bfseries
+    Développement d'une méthode d'apprentissage automatique\\[2pt]
+    pour la mise à l'échelle spatiale\\[2pt]
+    des données climatiques%
+  };
+\end{tikzpicture}
+
+\vspace{1.1em}
+
+% --- Type de document ---
+{\small \textit{Mémoire présenté en vue de l'obtention du diplôme de} \par}
+\vspace{0.2em}
+{\large \textbf{Master en Informatique} \par}
+\vspace{0.3em}
+{\small \textbf{Option :} \textcolor{uridarkblue}{\textit{Informatique Fondamentale}} \par}
+{\small \textbf{Spécialisation :} \textcolor{uridarkblue}{\textit{Intelligence Artificielle}} \par}
+
+\vspace{1em}
+
+% --- Séparateur ---
+\rule{0.55\linewidth}{0.4pt}
+
+\vspace{0.7em}
+
+% --- Auteur ---
+{\small Par \par}
+\vspace{0.3em}
+{\Large\bfseries \textcolor{uridarkblue}{KENFACK Leonel} \par}
+\vspace{0.1em}
+{\footnotesize Matricule : \textit{CM-UDS-17SCI0998} \par}
+{\footnotesize Licence de Technologie \par}
+
+\vspace{0.7em}
+
+% --- Séparateur ---
+\rule{0.55\linewidth}{0.4pt}
+
+\vspace{0.7em}
+
+% --- Directeur ---
+{\small Sous la direction de : \par}
+\vspace{0.3em}
+{\Large\bfseries \textcolor{uridarkblue}{Pr~BOMGNI Alain Bertrand} \par}
+{\footnotesize \textit{Maître de Conférences, Université de Dschang} \par}
+
+\vfill
+
+% --- Bandeau "Année académique" (ruban hexagonal bleu) ---
+\begin{tikzpicture}
+  \def\bw{7.0}    % largeur corps
+  \def\bh{0.85}   % hauteur corps
+  \def\tip{0.45}  % extension pointe
+  \fill[uridarkblue]
+    (0, 0) -- (\bw, 0)
+    -- ++(\tip, \bh/2)
+    -- (\bw, \bh) -- (0, \bh)
+    -- ++(-\tip, -\bh/2)
+    -- cycle;
+  \node[white, font=\normalsize\bfseries\itshape]
+    at (\bw/2, \bh/2) {Année académique 2025--2026};
+\end{tikzpicture}
+
+\vspace{0.3em}
+
+\end{titlepage}
+\restoregeometry

@@ -1,0 +1,202 @@
+% =============================================================
+% Policy Brief — SAGUEU WAKAM Dilane (MOSAIC)
+% Université de Dschang, École Doctorale
+% Format aligné sur Policy Brief KENFACK Leonel
+% =============================================================
+
+\documentclass[14pt,a4paper]{extarticle}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+
+% --- Police adaptée à l'impression papier (Palatino, élégant et lisible) ---
+\usepackage{mathpazo}
+\linespread{1.05}
+
+\usepackage[a4paper,inner=3cm,outer=3cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+% --- Couleurs réajustées pour impression papier (CMJN-friendly) ---
+\definecolor{uridarkblue}{RGB}{20,40,80}
+\definecolor{textgray}{RGB}{40,40,40}
+\definecolor{accentred}{RGB}{140,40,30}
+\definecolor{linegray}{RGB}{120,120,120}
+\AtBeginDocument{\color{textgray}}
+
+\usepackage{enumitem}
+\setlist{leftmargin=1.3em, itemsep=3pt, topsep=2pt}
+
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+\usepackage[hidelinks]{hyperref}
+
+\usepackage{fancyhdr}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+\pagestyle{fancy}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\large\bfseries\color{uridarkblue}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{0.7em}{0.2em}
+
+\begin{document}
+
+% =============================================================
+% PAGE DE GARDE (taille fixée explicitement, indépendante du class)
+% =============================================================
+\thispagestyle{empty}
+\begingroup\fontsize{12pt}{14.4pt}\selectfont
+
+\noindent
+\begin{minipage}[c]{0.42\linewidth}
+\centering\fontsize{10pt}{12pt}\selectfont
+\textbf{RÉPUBLIQUE DU CAMEROUN}\\
+\textit{Paix~–~Travail~–~Patrie}\\
+\rule{4cm}{0.4pt}\\
+\textbf{UNIVERSITÉ DE DSCHANG}\\
+\textit{Scholae Thesaurus Dschangensis Ibi Cordum}\\
+\rule{3cm}{0.4pt}\\
+\textbf{RECTORAT}\\
+\rule{2cm}{0.4pt}\\
+\textbf{ÉCOLE DOCTORALE}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.14\linewidth}
+\centering
+\includegraphics[width=2.2cm]{../My-Thesis/images/logouniv.png}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.42\linewidth}
+\centering\fontsize{10pt}{12pt}\selectfont
+\textbf{REPUBLIC OF CAMEROON}\\
+\textit{Peace~–~Work~–~Fatherland}\\
+\rule{4cm}{0.4pt}\\
+\textbf{UNIVERSITY OF DSCHANG}\\
+\textit{Scholae Thesaurus Dschangensis Ibi Cordum}\\
+\rule{3cm}{0.4pt}\\
+\textbf{CHANCELLERY}\\
+\rule{2cm}{0.4pt}\\
+\textbf{POSTGRADUATE SCHOOL}
+\end{minipage}
+
+\vspace{0.4em}
+\noindent\rule{\linewidth}{0.6pt}\\[0.1em]
+{\fontsize{9pt}{11pt}\selectfont BP 96, Dschang (Cameroun)~~|~~Tél./Fax (237) 233 45 13 81~~|~~\url{https://www.univ-dschang.org}}\\[0.1em]
+\noindent\rule{\linewidth}{0.6pt}
+
+\vspace{3em}
+
+\begin{center}
+{\fontsize{18pt}{22pt}\selectfont\bfseries POLICY BRIEF}\\[1.5em]
+{\fontsize{15pt}{18pt}\selectfont\bfseries DSCHANG SCHOOL OF SCIENCES AND TECHNOLOGY}
+\end{center}
+
+\vspace{2.5em}
+
+\begin{center}
+\fbox{\parbox{0.88\linewidth}{\centering\vspace{0.5em}\fontsize{13pt}{16pt}\selectfont\bfseries
+PRÉDIRE LE POTENTIEL DE FIXATION\\
+DE L'AZOTE CHEZ LES BACTÉRIES\\
+PAR INTELLIGENCE ARTIFICIELLE
+\vspace{0.5em}}}
+\end{center}
+
+\vspace{3em}
+
+\begin{center}
+{\fontsize{15pt}{18pt}\selectfont\bfseries Auteurs}\\[1em]
+{\fontsize{12pt}{14pt}\selectfont
+\textbf{Candidat :} SAGUEU WAKAM Dilane\\[0.5em]
+\textbf{Directeur des travaux :} Pr.~BOMGNI Alain Bertrand,\\
+Maître de Conférences, Université de Dschang}
+\end{center}
+
+\vfill
+
+\begin{center}
+{\fontsize{12pt}{14pt}\selectfont\textbf{Date :} Juin 2026}
+\end{center}
+
+\endgroup
+\newpage
+
+% =============================================================
+% CONTENU
+% =============================================================
+
+\section*{Résumé}
+L'azote est indispensable à la croissance des plantes, mais sa production industrielle consomme 1 à 2\,\% de l'énergie mondiale et émet des gaz à effet de serre. Des bactéries naturellement présentes dans les sols fixent l'azote atmosphérique sans engrais chimiques ; les identifier rapidement parmi des centaines de souches isolées sur le terrain reste un défi coûteux. Ce travail propose \textbf{MOSAIC}, un outil computationnel qui prédit le statut de fixation d'une bactérie et estime son activité à partir de données génomiques, avec une précision de \textbf{91,4\,\%} et une AUC de \textbf{0,9646}. MOSAIC dépasse l'outil de référence international Carmna de \textbf{+2,8 points} et peut réduire de \textbf{40 à 60\,\%} le nombre de souches à tester en laboratoire.
+
+\section*{Contexte}
+L'agriculture camerounaise et africaine dépend fortement des engrais azotés importés, dont le coût pèse lourdement sur les exploitations familiales. Leur usage excessif dégrade les sols et contribue aux émissions de gaz à effet de serre. Les biofertilisants bactériens représentent une alternative durable, dont le développement reste freiné par un goulot d'étranglement : la sélection rapide des souches réellement fixatrices parmi des centaines de candidates.
+
+\section*{Problème}
+Trois verrous bloquent aujourd'hui la sélection efficace des bactéries diazotrophes :
+\begin{itemize}
+    \item Le test de référence (test ARA) est \textbf{lent, coûteux} et exige des équipements de laboratoire spécialisés, hors de portée de la plupart des unités de recherche africaines.
+    \item Les outils computationnels existants traitent les milliers de descripteurs génomiques comme une liste plate de chiffres, sans capturer les relations entre familles de descripteurs.
+    \item La classification du statut de fixation et l'estimation de l'activité enzymatique sont aujourd'hui traitées par des modèles indépendants, alors qu'elles partagent une biologie commune.
+\end{itemize}
+
+\section*{Objectif}
+Concevoir un outil computationnel capable de prédire simultanément le statut de fixation d'une bactérie et son activité nitrogénase à partir de données génomiques, afin de prioriser efficacement les souches candidates avant tests expérimentaux. L'outil doit être interprétable, transférable et déployable comme service académique en libre accès.
+
+\section*{Méthodologie}
+\textbf{MOSAIC} organise l'information génomique en deux étages complémentaires :
+\begin{itemize}
+    \item \textbf{Étage relationnel} : les 35\,341 descripteurs d'une souche sont regroupés en 59 blocs, connectés par un graphe de corrélations de Pearson. Un réseau de neurones GAT (Graph Attention Network) propage l'information entre ces blocs pour produire un vecteur latent $z \in \mathbb{R}^{128}$.
+    \item \textbf{Pipeline hybride} : SMOTE équilibre les classes avant un classifieur XGBoost ; un régresseur SVR-RBF prédit indépendamment l'activité nitrogénase. Les deux sont optimisés par Optuna (150 essais).
+\end{itemize}
+Évaluation sur le benchmark ARA (402 souches : 193 fixatrices, 209 non fixatrices), partition stratifiée 321/81, transformation $\log_{10}(x+2)$ de la cible.
+
+\section*{Résultats}
+\begin{itemize}
+    \item \textbf{Classification du statut de fixation} : AUC = \textbf{0,9646}, F1 = \textbf{0,9136}, précision globale = \textbf{91,4\,\%}, rappel = \textbf{94,87\,\%} (9 fixatrices sur 10 détectées). Gain de \textbf{+2,8 points} d'AUC sur Carmna (0,9365) et de \textbf{+4,3 points} sur NFEmbed-C (0,922).
+    \item \textbf{Estimation de l'activité nitrogénase} : R$^2$ = \textbf{0,6217}, RMSE = \textbf{0,5256}, contre R$^2$ = 0,5572 pour Carmna.
+    \item \textbf{Apport du pipeline hybride} : +0,92 point d'AUC par rapport aux têtes directes du réseau de neurones, ce qui démontre l'intérêt de combiner GAT et méthodes classiques.
+    \item \textbf{Interprétabilité} : l'analyse SHAP, attention et t-SNE révèle que les descripteurs de composition et d'usage des codons sont les plus déterminants. Cela ouvre des hypothèses biologiques sur les signatures génomiques des souches fixatrices.
+\end{itemize}
+
+\textbf{Limites assumées :} MOSAIC est un outil de priorisation et non un substitut à la validation expérimentale ; le benchmark ARA reste centré sur des souches publiquement disponibles ; un jeu de données camerounais élargirait la représentativité du modèle.
+
+\section*{Conclusion}
+MOSAIC démontre qu'un cadre relationnel par graphe et un pipeline hybride en espace latent suffisent à dépasser l'outil de référence international sur les deux tâches clés de la sélection de souches diazotrophes. La méthode s'entraîne une fois et fonctionne ensuite à coût marginal, ce qui ouvre la voie à un service en libre accès hébergé localement par les unités de recherche agronomiques camerounaises.
+
+\section*{Recommandations}
+\begin{enumerate}
+    \item \textbf{MINRESI} : financer une extension du benchmark ARA avec des souches camerounaises et d'Afrique centrale, en partenariat avec l'IRAD et les universités, pour adapter MOSAIC aux écosystèmes locaux.
+    \item \textbf{MINADER} : intégrer les outils de prédiction computationnelle dans la chaîne de développement nationale des biofertilisants, afin de réduire le coût et le délai d'identification des souches.
+    \item \textbf{Université de Dschang / URIFIA} : déployer MOSAIC comme service web académique en libre accès, sous licence ouverte, pour les unités de recherche agronomiques de la région.
+    \item \textbf{Bailleurs (FAO, CGIAR, BAD)} : considérer l'IA appliquée à l'agronomie durable comme un axe de financement à fort levier et faible coût de développement.
+    \item \textbf{Recherche} : poursuivre l'enrichissement du graphe de descripteurs, étendre MOSAIC aux autres mécanismes de promotion de croissance végétale (PGPR), et valider expérimentalement les souches priorisées par le modèle.
+\end{enumerate}
+
+\section*{Références}
+\begin{enumerate}
+    \item Sagueu Wakam D., Bomgni A.~B. (2026). \emph{DIGNIF: Diazotroph Identification via Graph Neural Networks}. Soumis à \emph{Computational Biology and Chemistry}.
+    \item Sagueu Wakam D. et al. (2026). \emph{Dual-Level Bayesian Predictive Modeling of Biological Nitrogen Fixation}.
+    \item Lundberg S.~M., Lee S.-I. (2017). \emph{A Unified Approach to Interpreting Model Predictions} (SHAP). NeurIPS.
+    \item Veličković P. et al. (2018). \emph{Graph Attention Networks}. ICLR.
+    \item Chen T., Guestrin C. (2016). \emph{XGBoost: A Scalable Tree Boosting System}. KDD.
+\end{enumerate}
+
+\vspace{3em}
+
+\noindent
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\textbf{Superviseur}\\[2.5em]
+Pr.~BOMGNI Alain Bertrand
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\linewidth}
+\centering
+\textbf{Auteur}\\[2.5em]
+SAGUEU WAKAM Dilane
+\end{minipage}
+
+\end{document}

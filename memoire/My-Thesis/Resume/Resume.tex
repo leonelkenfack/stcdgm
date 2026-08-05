@@ -1,0 +1,20 @@
+\let\oldprintchaptertitle=\printchaptertitle
+\renewcommand{\printchaptertitle}[1]{%
+	\vspace*{-75pt}
+	\oldprintchaptertitle{#1}
+}%
+\myChapterStar{Résumé}{}{true}
+\let\printchaptertitle=\oldprintchaptertitle
+
+Les modèles climatiques mondiaux projettent le climat sur plusieurs décennies, mais leurs cartes sont très grossières : chaque point y résume une zone d'environ deux cents kilomètres de côté, où une ville et une montagne reçoivent la même valeur. Or les décisions concrètes (se protéger des inondations, gérer l'eau, planifier les cultures) exigent le détail local. Reconstruire la carte fine à partir de la carte grossière, c'est la mise à l'échelle spatiale, ou \emph{downscaling}.
+
+Deux familles de solutions existent. La première rejoue la physique sur une région réduite : fidèle, mais d'un coût de calcul hors de portée de nombreux pays. La seconde confie la tâche à l'apprentissage automatique, qui apprend sur des archives la correspondance entre cartes grossières et fines. Rapide et précise, cette voie retient toutefois des coïncidences plutôt que des causes : quand le climat change, elles se brisent et le modèle échoue là où l'on en a le plus besoin.
+
+Ce mémoire propose \Oracle{}, un modèle construit pour raisonner en causes et effets plutôt qu'en ressemblances : l'information doit traverser un schéma explicite de relations physiques (l'humidité et les vents qui produisent la pluie, le relief qui la renforce), avant qu'un second module n'ajoute les détails fins et une marge d'incertitude honnête.
+
+Testé en Nouvelle-Zélande, \Oracle{} réduit d'environ $40\,\%$ l'erreur de reconstruction de la référence, le meilleur modèle comparable, et de près de $30\,\%$ sur des modèles climatiques jamais vus à l'apprentissage. Sa marge d'incertitude devient $3{,}5$ fois plus fiable et le détail de ses cartes rejoint celui des observations. Quand on augmente artificiellement la température ou l'humidité, il réagit dans le sens prévu par la physique, là où la référence se trompe. Ces résultats valent pour le climat des dernières décennies ; la robustesse à un climat plus chaud reste à démontrer.
+
+\vspace{0.3em}
+\noindent\textbf{Mots-clés :} mise à l'échelle spatiale (\emph{downscaling}), apprentissage automatique, causalité, précipitations, incertitude, changement climatique.
+
+\myCleanStarChapterEnd

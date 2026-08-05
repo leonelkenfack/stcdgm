@@ -1,0 +1,9 @@
+
+\newcommand*\oldmacro{}%
+\let\oldmacro\insertshorttitle%
+\renewcommand*\insertshorttitle{%
+  \oldmacro\hfill%
+  \insertframenumber\,/\,\inserttotalframenumber}
+
+\let\olditem=\item% 
+\renewcommand{\item}{\olditem \justifying}%

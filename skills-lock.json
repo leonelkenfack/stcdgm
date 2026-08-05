@@ -49,6 +49,12 @@
       "sourceType": "github",
       "skillPath": "plugins/backend-development/skills/microservices-patterns/SKILL.md",
       "computedHash": "d0851a64dbe56bef0d80b5f426d58d37e1018e29ed90b1d676e6601d1a23b899"
+    },
+    "plagiarism-checker": {
+      "source": "bitwize-music-studio/claude-ai-music-skills",
+      "sourceType": "github",
+      "skillPath": "skills/plagiarism-checker/SKILL.md",
+      "computedHash": "1f2cdd8bfe780e0e3f9eafa4dd4e3297665b6588a2f189594d315af7ced6a13c"
     }
   }
 }

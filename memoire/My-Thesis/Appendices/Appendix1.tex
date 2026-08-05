@@ -1,0 +1,42 @@
+% Annexe A — mécanisme du template : \appendix (My-Thesis.tex) + \myChapter
+\myChapter{Diagnostics et métriques complémentaires}{Diagnostics et métriques complémentaires}
+\label{annexe:diags-metriques}
+\mySaveMarks
+
+\mySectionStar{Diagnostics ciblés (F1@p99, CDD)}{}{false}
+\label{ssec:exp-annexe-diags}
+
+\emph{Régression F1@p99 ($-6{,}9\,\%$).} La skip-connection conditionnelle avec plancher $\alpha_{\mathrm{floor}}=0{,}6$ force la voie directe (convolution + upsampling bilinéaire, lissée par construction) à contribuer jusqu'à $40\,\%$, tirant $\muHR$ vers la moyenne \LR{} sur les pixels extrêmes. Révision future : $\alpha_{\mathrm{floor}}\to 0{,}4$, hyperparamètres tail-weight modérés. \emph{Biais CDD ($+17{,}95$~j).} La perte CRPS/MSE attire vers la médiane conditionnelle (sous-prédiction des \emph{trace events}), et le seuil de $1$~mm/j est très sensible à la queue basse. La perte hybride Bernoulli-Gamma~\cite{maraun_widmann_2018} est renvoyée aux perspectives.
+
+\mySectionStar{Sensibilités directes}{}{false}
+\label{ssec:exp-annexe-sens}
+
+\begin{table}[ht]
+  \centering
+  \small
+  \caption[Sensibilités directes par variable]{Sensibilités directes par variable \LR{} (norme moyenne du gradient, unités relatives, top 8 sur 15).}
+  \label{tab:exp-res-sens}
+  \begin{tabularx}{\linewidth}{l c c X}
+    \toprule
+    \textbf{Variable} & \Oracle{} & \textbf{Noncausal} & \textbf{Ratio} \\
+    \midrule
+    $w_{850}$ & $0{,}260$ & $0{,}007$ & $\times 36$ \\
+    $t_{850}$ & $0{,}118$ & $0{,}006$ & $\times 20$ \\
+    $w_{500}$ & $0{,}093$ & $0{,}006$ & $\times 15$ \\
+    $u_{850}$ & $0{,}085$ & $0{,}007$ & $\times 12$ \\
+    $w_{250}$ & $0{,}067$ & $0{,}008$ & $\times 9$ \\
+    $t_{500}$ & $0{,}060$ & $0{,}009$ & $\times 7$ \\
+    $q_{850}$ & $0{,}047$ & $0{,}006$ & $\times 8$ \\
+    $v_{850}$ & $0{,}044$ & $0{,}007$ & $\times 7$ \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\Oracle{} mobilise les entrées avec une amplitude 5 à 36 fois supérieure à la baseline. La hiérarchie est physiquement cohérente : $w_{850}$ (forçage convectif) dominante, puis $t_{850}$ (capacité hygrométrique), $u_{850}$ (advection). Ces variables sont précisément celles identifiées comme dominantes en downscaling de précipitation par la littérature climatologique. C'est un argument indirect de pertinence physique du conditionnement appris, malgré la structure plate de $\Adag$.
+
+\mySectionStar{Métriques climato complémentaires}{}{false}
+\label{ssec:exp-annexe-climato}
+
+Diagnostics climato standards : la distribution log-log des intensités confirme que \Oracle{} reproduit la queue droite tandis que \CorrDiff{} tronque la distribution à environ $30$~mm/j ; le \emph{Fractions Skill Score} indique que \Oracle{} est \emph{skillful} à l'échelle environ $30$~km, contre environ $80$~km pour \CorrDiff{}.
+
+\myRestoreMarks

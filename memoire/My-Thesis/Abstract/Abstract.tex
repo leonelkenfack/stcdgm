@@ -1,0 +1,20 @@
+\let\oldprintchaptertitle=\printchaptertitle
+\renewcommand{\printchaptertitle}[1]{%
+	\vspace*{-75pt}
+	\oldprintchaptertitle{#1}
+}%
+\myChapterStar{Abstract}{}{true}
+\let\printchaptertitle=\oldprintchaptertitle
+
+Global climate models project the climate several decades ahead, but their maps are very coarse: each point summarises an area roughly two hundred kilometres across, in which a city and a mountain receive the same value. Yet practical decisions (protecting against floods, managing water, planning crops) require local detail. Rebuilding the fine map from the coarse one is called spatial downscaling.
+
+Two families of solutions exist. The first replays physics over a smaller region: faithful, but at a computational cost out of reach for many countries. The second relies on machine learning, which learns from archives the correspondence between coarse and fine maps. Fast and accurate, this route nevertheless memorises coincidences rather than causes: when the climate changes, they break down and the model fails where it is needed most.
+
+This thesis proposes \Oracle{}, a model built to reason in causes and effects rather than resemblances: the information must flow through an explicit diagram of physical relations (the moisture and winds that produce rain, the terrain that strengthens it), before a second module adds the fine details and an honest uncertainty margin.
+
+Tested over New Zealand, \Oracle{} reduces the reconstruction error of the reference, the best comparable model, by about $40\%$, and by nearly $30\%$ on climate models never seen during training. Its uncertainty margin becomes $3.5$ times more reliable, and the detail of its maps matches that of observations. When temperature or moisture is artificially increased, it responds in the direction predicted by physics, where the reference gets it wrong. These results hold for the climate of recent decades; robustness to a warmer climate is still to be demonstrated.
+
+\vspace{0.3em}
+\noindent\textbf{Keywords:} spatial downscaling, machine learning, causality, precipitation, uncertainty, climate change.
+
+\myCleanStarChapterEnd

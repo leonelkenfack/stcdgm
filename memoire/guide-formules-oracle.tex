@@ -1,0 +1,644 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{mdframed}
+\usepackage{pifont}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt plus 2pt}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\definecolor{bleu}{RGB}{30,40,90}
+\definecolor{accent}{RGB}{180,60,40}
+\definecolor{vert}{RGB}{40,110,60}
+\definecolor{grisclair}{RGB}{244,244,248}
+
+% --- notations calquées sur le mémoire ---
+\newcommand{\Oracle}{\textsc{Oracle}}
+\newcommand{\CorrDiff}{\textsc{CorrDiff}}
+\newcommand{\LR}{\ensuremath{\mathrm{LR}}}
+\newcommand{\HR}{\ensuremath{\mathrm{HR}}}
+\newcommand{\yLR}{\ensuremath{y_{\LR}}}
+\newcommand{\xHR}{\ensuremath{x_{\HR}}}
+\newcommand{\muHR}{\ensuremath{\mu_{\HR}}}
+\newcommand{\Adag}{\ensuremath{A_{\mathrm{dag}}}}
+\newcommand{\Ht}{\ensuremath{H_t}}
+\newcommand{\HT}{\ensuremath{H_T}}
+\newcommand{\Lmse}{\ensuremath{\mathcal{L}_{\mathrm{mse}}}}
+\newcommand{\Lrec}{\ensuremath{\mathcal{L}_{\mathrm{rec}}}}
+\newcommand{\Ldag}{\ensuremath{\mathcal{L}_{\mathrm{dag}}}}
+\newcommand{\Ltotal}{\ensuremath{\mathcal{L}_{\mathrm{total}}}}
+\newcommand{\LEDM}{\ensuremath{\mathcal{L}_{\mathrm{EDM}}}}
+
+% --- structure ---
+\newcommand{\formule}[2]{\subsection*{\textcolor{bleu}{\rule[-1pt]{0pt}{12pt}Formule #1 \;:\; #2}}\addcontentsline{toc}{subsection}{Formule #1 : #2}}
+\newcommand{\bloc}[1]{\par\medskip\noindent\textcolor{accent}{\textbf{#1}}\par\nopagebreak\smallskip}
+\newcommand{\ou}[1]{\par\smallskip\noindent{\footnotesize\textcolor{vert}{\textbf{Où :}} #1}\par}
+
+% encadré formule (fond gris, centré)
+\newmdenv[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.7pt,
+          innertopmargin=8pt,innerbottommargin=8pt,skipabove=6pt,skipbelow=6pt,
+          roundcorner=3pt]{formulebox}
+
+\title{\textcolor{bleu}{\textbf{Guide des formules --- Mémoire \textsc{Oracle}}}\\[2mm]
+\large Chaque équation expliquée dans l'ordre logique de l'architecture :\\ ce qu'elle fait, où elle sert, chaque variable, ses blocs, et pourquoi elle est là}
+\author{KENFACK Leonel}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.6pt,roundcorner=3pt]
+\textbf{Comment lire ce guide.} Les formules ne sont pas rangées par ordre d'apparition dans le mémoire, mais dans l'\textbf{ordre où l'information circule dans le modèle} : d'abord les deux fondations (causalité de Pearl, décomposition de \CorrDiff{}), puis l'équation-mère d'\Oracle{}, puis le Stage~1 étape par étape (encodeur $\to$ RCN $\to$ décodeur), l'apprentissage du graphe, l'interface inter-étages, le Stage~2 (diffusion), et enfin les pertes qui pilotent l'entraînement. Chaque formule est décryptée en quatre temps : \textbf{Rôle} (ce qu'elle fait, où elle sert), \textbf{Décryptage terme à terme} (chaque symbole), \textbf{Les blocs} (la formule découpée en morceaux qui ont un sens), \textbf{Pourquoi elle est là} (la raison de conception). Aucune connaissance préalable n'est supposée.
+\end{mdframed}
+
+\tableofcontents
+\newpage
+
+% ==================================================================
+\section{La carte des formules (à garder sous les yeux)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Tout \Oracle{} tient dans une seule idée, l'\textbf{équation-mère} :
+\[
+  \xHR \;=\; \underbrace{\mathrm{baseline}}_{\text{point de départ}} \;+\; \underbrace{\muHR}_{\text{Stage 1 : causal}} \;+\; \underbrace{\delta}_{\text{Stage 2 : diffusion}}
+\]
+Le reste du mémoire ne fait que \emph{détailler comment on fabrique ces trois termes}. Voici où chaque formule intervient :
+\begin{itemize}[nosep,leftmargin=1.4em]
+  \item \textbf{Fondations} : la causalité (SCM, formule 1) et le patron à deux étages hérité de \CorrDiff{} (formule 2).
+  \item \textbf{Fabriquer \muHR{} (Stage 1)} : encodeur (SAGEConv, f.4) $\to$ c\oe ur récurrent (SCM+GRU, f.5--6) $\to$ décodeur (attention, f.7), plus la porte causale/directe (f.8).
+  \item \textbf{Apprendre le graphe \Adag{}} : contrainte d'acyclicité (NOTEARS puis DAGMA, f.9--10) et sa perte (f.11).
+  \item \textbf{Relier les deux étages} : définition du résidu $\delta$ (f.12) et test d'indispensabilité O3 (f.13--15).
+  \item \textbf{Fabriquer $\delta$ (Stage 2)} : diffusion EDM (préconditionnement f.16, perte f.17) et conditionnement par concaténation (f.18).
+  \item \textbf{Entraîner} : les pertes composites (\Lmse{} f.19, perte totale f.20).
+\end{itemize}
+\end{mdframed}
+
+% ==================================================================
+\section{Les deux fondations}
+% ==================================================================
+
+% ------------------------------------------------------------------
+\formule{1}{Le modèle causal structurel (SCM) --- la définition même de « causer »}
+\ou{Chapitre I (état de l'art / cadre théorique), équation~(1.x). C'est le socle conceptuel de tout le mémoire.}
+
+\begin{formulebox}
+\centering $V_i \;=\; f_i\!\left(\mathrm{Pa}(V_i),\; U_i\right)$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle définit mathématiquement ce que veut dire « une cause produit un effet ». Un \emph{modèle causal structurel} (SCM, Pearl) est un triplet $(V, U, F)$ : les variables observables $V$, des bruits exogènes indépendants $U$, et des fonctions $F$ qui disent comment chaque variable est produite par ses causes. Toute l'ambition d'\Oracle{} est de faire respecter \emph{cette} équation à l'intérieur d'un réseau de neurones.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $V_i$ : une variable observable (par exemple la précipitation). L'indice $i$ la numérote.
+  \item $\mathrm{Pa}(V_i)$ : ses \textbf{parents} causaux (\emph{Pa} = \emph{parents}), c'est-à-dire ses causes directes (humidité, vent, température, orographie).
+  \item $U_i$ : un \textbf{bruit exogène} propre à $V_i$, tout ce qui n'est pas modélisé (le hasard local).
+  \item $f_i$ : la \textbf{fonction structurelle}, la « recette » qui transforme les causes en effet.
+\end{itemize}
+
+\bloc{Les blocs}
+Deux blocs seulement : \emph{(a)} les causes $\mathrm{Pa}(V_i)$ et \emph{(b)} le hasard $U_i$. La formule affirme que ces deux blocs \emph{suffisent} : rien d'autre n'entre dans $V_i$. Mises bout à bout, ces relations parent$\to$enfant dessinent un \textbf{DAG} (graphe orienté sans cycle) : les flèches disent qui cause qui, sans boucle.
+
+\bloc{Pourquoi elle est là}
+Parce qu'un modèle qui apprend seulement des \emph{corrélations} se trompe quand le climat change. Écrire les relations sous forme causale (cette formule) est le seul moyen de viser un modèle robuste hors distribution. \Oracle{} reprendra cette formule presque à l'identique dans son c\oe ur récurrent (formule~5).
+
+% ------------------------------------------------------------------
+\formule{2}{La décomposition à deux étages de \CorrDiff{} --- le patron qu'\Oracle{} causalise}
+\ou{Chapitre II (état de l'art), équation~(2.x). C'est l'antécédent direct dont \Oracle{} est une variante.}
+
+\begin{formulebox}
+\centering $\xHR \;=\; \mathrm{baseline}_{\LR\uparrow} \;+\; \muHR\!\left(\yLR,\, s_{\HR}\right) \;+\; \delta(\,\cdot\,)$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle décrit la stratégie gagnante de l'état de l'art (\CorrDiff{}, NVIDIA) : ne pas prédire la carte fine d'un coup, mais en \textbf{trois morceaux additionnés}. \Oracle{} garde exactement ce squelette et n'en change qu'\emph{un} ingrédient (voir formule~3).
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\xHR$ : la carte fine cible (précipitation haute résolution).
+  \item $\mathrm{baseline}_{\LR\uparrow}$ : la carte grossière simplement agrandie (sur-échantillonnage bilinéaire ; la flèche $\uparrow$ veut dire « remontée en résolution »).
+  \item $\muHR(\yLR, s_{\HR})$ : la \textbf{moyenne} haute résolution, apprise par régression à partir de l'entrée $\yLR$ et des champs statiques $s_{\HR}$ (relief, etc.).
+  \item $\delta(\cdot)$ : le \textbf{résidu stochastique}, la texture fine générée par diffusion.
+\end{itemize}
+
+\bloc{Les blocs}
+Trois blocs empilés : \emph{situer} (baseline) $+$ \emph{structurer} (moyenne $\muHR$) $+$ \emph{texturer} (résidu $\delta$). Facile $\to$ difficile, déterministe $\to$ aléatoire.
+
+\bloc{Pourquoi elle est là}
+Elle sert de point de comparaison. \textbf{La faille} : ici $\muHR$ dépend de $s_{\HR}$ par un réseau générique qui apprend des corrélations ; rien ne garantit sa robustesse quand le climat dérive. \Oracle{} va remplacer ce $\muHR$ générique par un $\muHR$ \emph{causal} (formule~3), sans toucher au reste.
+
+% ==================================================================
+\section{L'équation-mère d'Oracle}
+% ==================================================================
+
+\formule{3}{La décomposition d'\Oracle{} --- où la causalité entre dans le patron}
+\ou{Chapitre III, équation~(3.1), \emph{le} c\oe ur de l'architecture. Reprise au Chapitre IV (éq.~4.1) sous la forme $\widehat{x}_{\HR} = \mathrm{baseline} + \muHR + \widehat{\delta}$.}
+
+\begin{formulebox}
+\centering $\xHR \;=\; \mathrm{baseline}_{\LR\uparrow} \;+\; \muHR\!\left(\yLR;\, \Adag\right) \;+\; \delta\!\left(\sigma;\, \muHR, \mathrm{baseline}\right)$
+\end{formulebox}
+
+\bloc{Rôle}
+C'est l'équation qui \emph{définit} \Oracle{}. Comparez-la mot à mot avec la formule~2 : le squelette est identique, mais $\muHR$ ne dépend plus de $s_{\HR}$ « en vrac », il dépend de $\Adag$, la \textbf{matrice du graphe causal appris}. Tout le mémoire consiste à fabriquer proprement ce $\muHR(\yLR; \Adag)$.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\muHR(\yLR;\, \Adag)$ : la moyenne HR, produite par le \emph{module causal résiduel} en faisant transiter $\yLR$ à travers le graphe $\Adag$. Le point-virgule sépare l'entrée ($\yLR$) des paramètres causaux ($\Adag$).
+  \item $\delta(\sigma;\, \muHR, \mathrm{baseline})$ : le résidu échantillonné par diffusion, \emph{conditionné} sur $\muHR$ et la baseline ; $\sigma$ est le niveau de bruit de la diffusion.
+  \item $\mathrm{baseline}_{\LR\uparrow}$ : inchangé (interpolation bilinéaire).
+\end{itemize}
+
+\bloc{Les blocs}
+Le \textbf{bloc déterministe causal} ($\mathrm{baseline} + \muHR$) et le \textbf{bloc stochastique} ($\delta$). La causalité est \emph{entièrement concentrée} dans $\muHR$ ; $\delta$ ne fait qu'ajouter la variabilité fine. C'est ce qui permet d'affirmer : « tout gain mesuré vient du remplacement de $\muHR$, pas d'un effet collatéral ».
+
+\bloc{Pourquoi elle est là}
+Parce qu'elle isole chirurgicalement la contribution du mémoire. En gardant baseline et $\delta$ identiques à \CorrDiff{} et en ne causalisant que $\muHR$, on obtient une \textbf{comparaison strictement appariée} : la seule variable qui change est la causalité.
+
+% ==================================================================
+\section{Stage 1 : fabriquer \texorpdfstring{$\muHR$}{mu\_HR} par le chemin causal}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Les quatre formules qui suivent décrivent le trajet de l'information dans le Stage~1 : \textbf{encodeur} (formule~4, mélange les voisins) $\to$ \textbf{c\oe ur récurrent RCN} (formules~5--6, propage la causalité dans le temps) $\to$ \textbf{décodeur} (formule~7, reprojette sur la grille fine), plus une \textbf{porte} (formule~8) qui dose causal vs direct.
+\end{mdframed}
+
+% ------------------------------------------------------------------
+\formule{4}{L'agrégation de graphe SAGEConv --- « chaque n\oe ud écoute ses voisins »}
+\ou{Chapitre III, éq.~(3.2), dans l'encodeur intelligible (avant le RCN).}
+
+\begin{formulebox}
+\centering $h_i^{(\ell+1)} \;=\; \sigma\!\left( W_{\mathrm{self}}^{(\ell)}\, h_i^{(\ell)} \,+\, W_{\mathrm{neigh}}^{(\ell)}\, \mathrm{mean}_{j \in \mathcal{N}(i)}\, h_j^{(\ell)} \right)$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle met à jour la représentation de chaque n\oe ud du graphe en \emph{mélangeant sa propre information avec la moyenne de ses voisins}. C'est l'opération de base d'un réseau de neurones sur graphe (GNN), ici de type \emph{GraphSAGE}. Elle assure le lissage spatial local (advection, diffusion entre points voisins).
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $h_i^{(\ell)}$ : le vecteur qui représente le n\oe ud $i$ à la couche $\ell$ (dimension $d=128$). $h_i^{(\ell+1)}$ : sa version mise à jour à la couche suivante.
+  \item $\mathcal{N}(i)$ : l'ensemble des voisins de $i$ dans le graphe. $\mathrm{mean}_{j\in\mathcal{N}(i)}$ : la \textbf{moyenne} des représentations de ces voisins.
+  \item $W_{\mathrm{self}}^{(\ell)}$, $W_{\mathrm{neigh}}^{(\ell)}$ : deux matrices de poids apprises, l'une pour « soi-même », l'autre pour « les voisins ».
+  \item $\sigma$ : une fonction d'activation non linéaire (ici GELU). \emph{Attention} : ce $\sigma$ n'a rien à voir avec le $\sigma$ « niveau de bruit » de la diffusion (formules~16--17).
+\end{itemize}
+
+\bloc{Les blocs}
+Deux blocs additionnés : \emph{(a)} $W_{\mathrm{self}}\,h_i$ (« ce que je sais de moi ») et \emph{(b)} $W_{\mathrm{neigh}}\cdot\mathrm{mean}(\text{voisins})$ (« ce que m'apprennent mes voisins »), le tout passé dans une non-linéarité $\sigma$.
+
+\bloc{Pourquoi elle est là}
+SAGEConv a été choisi plutôt qu'une attention (GAT) pour deux raisons : sur CPU, l'attention coûte $\sim$5$\times$ plus cher ; et le lissage local de SAGEConv se \emph{complète} avec $\Adag$, qui porte, lui, la hiérarchie causale globale entre variables. Division du travail : SAGEConv lisse dans l'espace, $\Adag$ hiérarchise les causes.
+
+% ------------------------------------------------------------------
+\formule{5}{La mise à jour SCM du RCN --- le c\oe ur causal d'\Oracle{}}
+\ou{Chapitre III, éq.~(3.3), dans le \emph{Recurrent Causal Network} (RCN). C'est la formule la plus importante du modèle. Reprise sur le slide « Stage 1 » de la soutenance (avec la boucle récurrente).}
+
+\begin{formulebox}
+\centering $\hat{H}_t^{(i)} \;=\; f_i\!\left(\, \Adag^{(i,:)} \odot H_{t-1},\; x_t,\; \varepsilon_t^{(i)} \right)$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle est la formule~1 (le SCM de Pearl) \emph{rendue concrète et temporelle} à l'intérieur du réseau. À chaque pas de temps, elle calcule le nouvel état de chaque variable à partir de ses parents, filtrés par le graphe appris. C'est ici, et seulement ici, que la causalité devient une contrainte \emph{architecturale} : l'information ne peut pas contourner $\Adag$.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\hat{H}_t^{(i)}$ : la prédiction du nouvel état du n\oe ud $i$ au pas de temps $t$ (le « $V_i$ » de la formule~1, suivi dans le temps).
+  \item $H_{t-1}$ : l'état de \emph{tous} les n\oe uds au pas précédent (la mémoire du réseau).
+  \item $\Adag^{(i,:)}$ : la \textbf{$i$-ème ligne} de la matrice du graphe, c'est-à-dire les poids des arêtes qui \emph{pointent vers} $i$ (ses parents). Un poids nul = « pas un parent ».
+  \item $\odot$ : le produit \textbf{terme à terme} (Hadamard). $\Adag^{(i,:)} \odot H_{t-1}$ ne garde donc que les états des parents de $i$, chacun dosé par la force de son arête. C'est le « $\mathrm{Pa}(V_i)$ » de la formule~1, mais filtré par le graphe.
+  \item $x_t$ : l'observation courante injectée à ce pas (les drivers grossiers).
+  \item $\varepsilon_t^{(i)}$ : le bruit exogène (le « $U_i$ » de la formule~1).
+  \item $f_i$ : un petit MLP structurel propre à la variable $i$.
+\end{itemize}
+
+\bloc{Les blocs}
+Trois entrées de $f_i$, exactement comme le SCM : \emph{(a)} les \textbf{parents} $\Adag^{(i,:)}\odot H_{t-1}$, \emph{(b)} l'\textbf{observation} $x_t$, \emph{(c)} le \textbf{hasard} $\varepsilon_t^{(i)}$. Le bloc central est $\Adag^{(i,:)}\odot H_{t-1}$ : c'est le « goulot causal » infranchissable.
+
+\bloc{Pourquoi elle est là}
+C'est la matérialisation du pari « causalité dans l'architecture, pas dans la perte ». Si une arête vaut 0, ce parent est physiquement déconnecté : il n'y a rien à contourner. On répète l'opération sur $T=8$ pas de temps (la boucle récurrente) pour laisser l'influence se propager en cascade : le haut de l'atmosphère influence le milieu, qui influence la surface.
+
+% ------------------------------------------------------------------
+\formule{6}{La mise à jour GRU --- fusionner la théorie causale et l'observation}
+\ou{Chapitre III, éq.~(3.4), juste après le SCM dans le RCN.}
+
+\begin{formulebox}
+\centering $H_t \;=\; (1 - z_t) \odot \hat{H}_t \;+\; z_t \odot \tilde{H}_t$
+\end{formulebox}
+
+\bloc{Rôle}
+Le SCM (formule~5) propose une prédiction \emph{théorique} $\hat{H}_t$. La GRU (\emph{Gated Recurrent Unit}, Cho et al.) la \emph{corrige} avec l'observation courante pour produire l'état retenu $H_t$. Analogie du mémoire : le SCM est le \emph{plan de vol}, la GRU la \emph{mise à jour aux instruments}.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\hat{H}_t$ : la prédiction causale du SCM (formule~5).
+  \item $\tilde{H}_t$ : l'état « candidat » calculé par la GRU à partir de l'observation courante.
+  \item $z_t$ : la \textbf{porte de mise à jour} (\emph{update gate}), un nombre entre 0 et 1 par composante, appris. C'est le curseur du mélange.
+  \item $\odot$ : produit terme à terme.
+\end{itemize}
+
+\bloc{Les blocs}
+Une \textbf{moyenne pondérée} entre deux blocs : $(1-z_t)$ de « prédiction causale $\hat{H}_t$ » et $z_t$ de « candidat observationnel $\tilde{H}_t$ ». Si $z_t \to 0$, on fait confiance à la théorie causale ; si $z_t \to 1$, on suit l'observation.
+
+\bloc{Pourquoi elle est là}
+Une prédiction purement théorique dériverait sur 8 pas ; une prédiction purement observationnelle oublierait la structure causale. La porte $z_t$ laisse le réseau doser lui-même, à chaque pas, la confiance accordée à chacune. $H_t$ est réinjecté au pas suivant (la boucle récurrente) ; après $T=8$ pas, $\HT$ part au décodeur.
+
+% ------------------------------------------------------------------
+\formule{7}{L'attention croisée du décodeur --- du graphe à la grille fine}
+\ou{Chapitre III, éq.~(3.7), dans le décodeur graphe-à-grille (fin du Stage 1).}
+
+\begin{formulebox}
+\centering $\displaystyle \tilde{\mu}_p \;=\; \sum_{n=1}^{N} \alpha_{p,n} \cdot V_n,
+\qquad
+\alpha_{p,n} = \frac{\exp\!\left( \langle Q_p, K_n \rangle / \sqrt{d} \right)}{\sum_{n'} \exp\!\left( \langle Q_p, K_{n'} \rangle / \sqrt{d} \right)}$
+\end{formulebox}
+
+\bloc{Rôle}
+Le RCN travaille sur des \emph{n\oe uds} de graphe ; la sortie doit être une \emph{carte} (une grille de pixels). Cette attention croisée traduit l'un dans l'autre : chaque point de la grille intermédiaire va « interroger » tous les n\oe uds du graphe et récupérer un mélange pondéré de leur information.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $p$ : un point (pixel) de la grille intermédiaire ($43\times45$). $n$ : un n\oe ud du graphe (parmi $N$).
+  \item $Q_p$ : la \textbf{requête} (\emph{query}) du pixel $p$, « ce qu'il cherche ». $K_n$, $V_n$ : la \textbf{clé} (\emph{key}) et la \textbf{valeur} (\emph{value}) du n\oe ud $n$, « son étiquette » et « son contenu ».
+  \item $\langle Q_p, K_n\rangle$ : le produit scalaire requête-clé = degré de \emph{ressemblance} entre la demande du pixel et l'offre du n\oe ud.
+  \item $\alpha_{p,n}$ : le \textbf{poids d'attention}, une probabilité (softmax) qui dit « quelle part de son mélange le pixel $p$ prend au n\oe ud $n$ ». $\sqrt{d}$ : un facteur de normalisation qui évite que les produits scalaires explosent.
+  \item $\tilde{\mu}_p$ : la valeur produite pour le pixel $p$ (avant sur-échantillonnage final vers $172\times179$).
+\end{itemize}
+
+\bloc{Les blocs}
+Deux temps : \emph{(a)} calculer les poids $\alpha_{p,n}$ (le softmax des ressemblances requête-clé), \emph{(b)} en faire une \textbf{somme pondérée des valeurs} $\sum_n \alpha_{p,n} V_n$. C'est le mécanisme d'attention standard (Transformer), appliqué entre pixels (requêtes) et n\oe uds (clés/valeurs).
+
+\bloc{Pourquoi elle est là}
+Il fallait un pont graphe$\to$grille qui tienne en mémoire. Une attention directe à $172\times179$ produirait une matrice $30\,788\times N$ prohibitive ; passer par une grille intermédiaire $43\times45$ divise le coût par $\sim$16, puis un simple agrandissement bilinéaire finit le travail.
+
+% ------------------------------------------------------------------
+\formule{8}{La porte causale / directe --- garder une soupape sans tricher}
+\ou{Chapitre IV, éq.~(4.2), détail d'implémentation du Stage 1 (comment $\muHR$ est réellement produit).}
+
+\begin{formulebox}
+\centering $\muHR \;=\; \alpha(\yLR) \cdot \mu_{\mathrm{causal}} \;+\; \bigl(1 - \alpha(\yLR)\bigr) \cdot \mu_{\mathrm{direct}}$
+\end{formulebox}
+
+\bloc{Rôle}
+En pratique, la moyenne finale $\muHR$ est un mélange entre la voie \emph{causale} (celle qui passe par le graphe) et une voie \emph{directe} (courte, sans graphe), dosé par une porte apprise $\alpha$. Cela libère un peu de capacité pour les cas où l'entrée brute contient déjà un signal exploitable, sans abandonner la causalité.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\mu_{\mathrm{causal}}$ : la moyenne produite par le chemin causal complet (encodeur $\to$ RCN $\to$ décodeur).
+  \item $\mu_{\mathrm{direct}}$ : une moyenne produite par une voie courte, sans passer par le graphe.
+  \item $\alpha(\yLR) \in [0,1]$ : la \textbf{porte}, apprise et dépendant de l'entrée. Initialisée fortement biaisée vers le causal ($\alpha_0 \approx 0{,}88$).
+\end{itemize}
+
+\bloc{Les blocs}
+Une moyenne pondérée : $\alpha$ de « causal » $+$ $(1-\alpha)$ de « direct ».
+
+\bloc{Pourquoi elle est là}
+Sans garde-fou, le réseau pourrait glisser vers la voie directe et devenir « non-causal déguisé ». Une régularisation $\mathcal{L}_{\mathrm{O3\text{-}preserve}}$ pénalise toute dérive de $\alpha$ sous un plancher $\alpha_{\mathrm{floor}}=0{,}6$ : la porte peut s'ouvrir un peu, jamais se fermer. C'est ce qui protège la propriété O3 (formules~13--15).
+
+% ==================================================================
+\section{Apprendre le graphe causal \texorpdfstring{$\Adag$}{A\_dag}}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Le graphe $\Adag$ n'est pas écrit à la main : il est \emph{appris}. Problème : « être un graphe sans cycle » est une condition combinatoire, incompatible avec la descente de gradient. Les formules~9--10 rendent cette condition \emph{différentiable} ; la formule~11 en fait une perte.
+\end{mdframed}
+
+% ------------------------------------------------------------------
+\formule{9}{La contrainte d'acyclicité NOTEARS --- l'ancêtre}
+\ou{Chapitre III, texte de la section DAGMA (rappel de l'antériorité, avant l'éq.~3.6).}
+
+\begin{formulebox}
+\centering $h_{\mathrm{NOTEARS}}(A) \;=\; \mathrm{tr}\!\left( e^{A \odot A} \right) - N$
+\end{formulebox}
+
+\bloc{Rôle}
+Première façon connue de transformer « $A$ est un DAG (sans cycle) » en une \emph{fonction lisse} qui vaut 0 exactement quand $A$ n'a pas de cycle. On peut alors l'ajouter à une perte et la minimiser par gradient.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $A$ : la matrice d'adjacence candidate ($A_{ij}$ = force de l'arête $j\to i$).
+  \item $A \odot A$ : le carré terme à terme (rend tous les coefficients positifs, on ne regarde que la \emph{présence} d'arête, pas son signe).
+  \item $e^{A\odot A}$ : l'\textbf{exponentielle de matrice}. Son terme diagonal compte les chemins fermés (les cycles) de toute longueur.
+  \item $\mathrm{tr}(\cdot)$ : la \textbf{trace} (somme de la diagonale) = compte total des cycles. On retranche $N$ (le nombre de n\oe uds) pour que la fonction vaille 0 en l'absence de cycle.
+\end{itemize}
+
+\bloc{Les blocs}
+Un seul bloc à comprendre : $\mathrm{tr}(e^{A\odot A})$ « pèse les cycles », et $-N$ recentre à zéro. Grand $\Rightarrow$ beaucoup de cycles ; nul $\Rightarrow$ vrai DAG.
+
+\bloc{Pourquoi elle est là}
+Pour situer la formule~10. NOTEARS marche mais son exponentielle de matrice est \emph{coûteuse} à évaluer ; le mémoire lui préfère DAGMA.
+
+% ------------------------------------------------------------------
+\formule{10}{La contrainte d'acyclicité DAGMA --- celle réellement utilisée}
+\ou{Chapitre III, éq.~(3.5). C'est la contrainte effectivement employée dans \Oracle{}.}
+
+\begin{formulebox}
+\centering $h_{\mathrm{DAGMA}}(A;\, s) \;=\; -\log \det\!\left( s\,I - A \odot A \right) + N \log s$
+\end{formulebox}
+
+\bloc{Rôle}
+Même but que NOTEARS (valoir 0 ssi $A$ est un DAG), mais \emph{beaucoup moins cher} : elle ne demande qu'une décomposition LU, et son gradient est simple à calculer. C'est la version de Bello, Aragam \& Ravikumar.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $A \odot A$ : encore le carré terme à terme (présence d'arête).
+  \item $I$ : la matrice identité. $s$ : un scalaire de sécurité, choisi $s > N\cdot\max_{i,j}|A_{ij}|$ pour garantir que $sI - A\odot A$ est « M-positive » (inversible et bien conditionnée).
+  \item $\det(\cdot)$ : le \textbf{déterminant}. $-\log\det(sI - A\odot A)$ mesure à quel point la matrice s'éloigne d'un DAG.
+  \item $N\log s$ : un terme de recentrage pour que $h_{\mathrm{DAGMA}}$ s'annule exactement sur les DAG.
+\end{itemize}
+
+\bloc{Les blocs}
+Deux blocs : le \textbf{log-déterminant} $-\log\det(sI - A\odot A)$ (le c\oe ur, qui « sent » les cycles) et le \textbf{recentrage} $+N\log s$. La fonction $=0$ ssi $A$ est un DAG.
+
+\bloc{Pourquoi elle est là}
+Sur budget CPU, le coût d'entraînement compte. DAGMA remplace l'exponentielle de matrice de NOTEARS par un log-déterminant, bien plus rapide, tout en gardant la même garantie mathématique. C'est ce qui rend l'apprentissage du graphe faisable.
+
+% ------------------------------------------------------------------
+\formule{11}{La perte du DAG --- acyclicité + parcimonie}
+\ou{Chapitre III, éq.~(3.6). C'est le terme $\Ldag$ qui entrera dans la perte totale du Stage 1 (formule~20).}
+
+\begin{formulebox}
+\centering $\Ldag \;=\; \lambda_{\mathrm{DAGMA}} \cdot h_{\mathrm{DAGMA}}(\Adag) \;+\; \lambda_{L_1} \cdot \|\Adag\|_1$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle transforme la contrainte d'acyclicité en une \emph{pénalité} à minimiser, et y ajoute une pression vers un graphe \textbf{creux} (peu d'arêtes), donc lisible.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $h_{\mathrm{DAGMA}}(\Adag)$ : la contrainte de la formule~10, appliquée au graphe appris $\Adag$.
+  \item $\|\Adag\|_1$ : la \textbf{norme $L_1$}, c'est-à-dire la somme des valeurs absolues de tous les coefficients. La minimiser pousse les petites arêtes vers zéro (parcimonie).
+  \item $\lambda_{\mathrm{DAGMA}}$, $\lambda_{L_1}$ : deux \textbf{coefficients} qui dosent l'importance de chaque terme.
+\end{itemize}
+
+\bloc{Les blocs}
+Deux blocs additionnés : « reste un DAG » ($\lambda_{\mathrm{DAGMA}}\,h_{\mathrm{DAGMA}}$) $+$ « reste creux » ($\lambda_{L_1}\|\Adag\|_1$).
+
+\bloc{Pourquoi elle est là}
+Un graphe sans contrainte de parcimonie deviendrait dense et illisible (chaque variable reliée à toutes les autres). Le terme $L_1$ produit une matrice creuse et \emph{auditable} : on peut lire les quelques arêtes retenues et vérifier si elles ont un sens physique (objectif O6, interprétabilité).
+
+% ==================================================================
+\section{L'interface inter-étages : le résidu et la preuve O3}
+% ==================================================================
+
+% ------------------------------------------------------------------
+\formule{12}{La définition du résidu $\delta$ --- ce que le Stage 2 doit apprendre}
+\ou{Chapitre III, éq.~(3.8), au point de jonction entre Stage 1 et Stage 2.}
+
+\begin{formulebox}
+\centering $\delta^{(i)} \;=\; \log(1 + \xHR^{(i)}) \;-\; \log(1 + \mathrm{baseline}^{(i)}) \;-\; \muHR^{(i)}$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle définit exactement la cible du Stage 2 : ce qui \emph{reste} à prédire une fois la baseline et la moyenne causale retirées de la vérité. C'est l'inverse de l'équation-mère (formule~3), résolue pour $\delta$.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\xHR^{(i)}$ : la vraie précipitation HR de l'échantillon $i$.
+  \item $\log(1 + \cdot)$ : la transformation \emph{log1p}, appliquée à la pluie. Elle compresse la queue lourde (les très fortes pluies) et stabilise l'entraînement. On travaille en espace log.
+  \item $\mathrm{baseline}^{(i)}$ : la carte grossière agrandie. $\muHR^{(i)}$ : la moyenne causale du Stage 1 (déjà en espace log).
+  \item $\delta^{(i)}$ : le résidu, centré autour de zéro, de faible amplitude.
+\end{itemize}
+
+\bloc{Les blocs}
+Vérité $-$ baseline $-$ moyenne causale $=$ résidu. Trois termes retirés l'un après l'autre, tous en espace $\log(1+\cdot)$.
+
+\bloc{Pourquoi elle est là}
+Prédire un petit résidu centré est bien plus facile et stable que prédire le champ complet (qui couvre plusieurs ordres de grandeur). En plus, l'écart-type empirique de ce $\delta$ fournit $\sigma_{\mathrm{data}}$, la constante qui calibre le préconditionnement EDM (formule~16). D'où l'ordre : on fige le Stage 1, on pré-calcule les $\delta$, on en tire $\sigma_{\mathrm{data}}$, puis on entraîne le Stage 2.
+
+% ------------------------------------------------------------------
+\formule{13}{Le contraste O3 --- mesurer l'apport du chemin causal}
+\ou{Chapitre III, éq.~(3.9), définition de la propriété (O3).}
+
+\begin{formulebox}
+\centering $\Delta_{O3} \;=\; \mathrm{MSE}\!\left( \muHR(\mathbf{0});\, \xHR \right) \,-\, \mathrm{MSE}\!\left( \muHR(\Adag);\, \xHR \right)$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle chiffre « combien on perd si on débranche le graphe ». On compare l'erreur du modèle normal (avec $\Adag$) à celle du même modèle dont on a forcé le graphe à zéro. Grand écart $\Rightarrow$ le graphe travaille vraiment.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\mathrm{MSE}(\cdot;\xHR)$ : l'\textbf{erreur quadratique moyenne} de la prédiction par rapport à la vérité $\xHR$ (plus bas = mieux).
+  \item $\muHR(\Adag)$ : la moyenne produite avec le graphe appris (le modèle normal).
+  \item $\muHR(\mathbf{0})$ : la même, mais avec la matrice \emph{forcée à zéro} ($\Adag \leftarrow \mathbf{0}$) au moment de l'inférence.
+  \item $\Delta_{O3}$ : la différence des deux erreurs = l'apport du graphe.
+\end{itemize}
+
+\bloc{Les blocs}
+« Erreur sans graphe » $-$ « erreur avec graphe ». Si les deux sont égales ($\Delta_{O3}\approx 0$), le graphe ne servait à rien (décoratif). Si l'erreur explose sans graphe, il est indispensable.
+
+\bloc{Pourquoi elle est là}
+C'est le détecteur de \emph{causalité décorative}. Un premier prototype (diffusion simple) donnait $\Delta_{O3}\approx 0$ : le graphe était ignoré. Cette mesure force à concevoir une architecture où le graphe est réellement porteur (\emph{load-bearing}).
+
+% ------------------------------------------------------------------
+\formule{14}{Le critère O3 --- le seuil de validation}
+\ou{Chapitre III, éq.~(3.10), toujours dans la définition d'(O3).}
+
+\begin{formulebox}
+\centering $\dfrac{\Delta_{O3}}{\mathrm{MSE}\!\left( \muHR(\Adag);\, \xHR \right)} \;\geq\; \tau$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle transforme le contraste $\Delta_{O3}$ (formule~13) en un \textbf{test binaire} : le modèle « passe » O3 si l'apport relatif du graphe dépasse un seuil $\tau$.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item Le numérateur $\Delta_{O3}$ : l'apport absolu du graphe (formule~13).
+  \item Le dénominateur $\mathrm{MSE}(\muHR(\Adag))$ : l'erreur de référence, qui \emph{normalise} l'apport (le rend relatif, sans unité).
+  \item $\tau$ : le \textbf{seuil} de décision, typiquement $\tau \in [0{,}05,\, 0{,}10]$ dans les protocoles.
+\end{itemize}
+
+\bloc{Les blocs}
+Un ratio « apport du graphe / erreur de référence », comparé à un seuil. Au-dessus $\Rightarrow$ validé ; en dessous $\Rightarrow$ le Stage 1 est réentraîné.
+
+\bloc{Pourquoi elle est là}
+Elle sert de \emph{porte de validation} (\emph{gate}) : on ne passe au Stage 2 que si le Stage 1 utilise vraiment son graphe. C'est un contrôle qualité inséré dans la procédure d'entraînement.
+
+% ------------------------------------------------------------------
+\formule{15}{Le ratio O3 mesuré --- la version qui donne 0,87}
+\ou{Chapitre IV, éq.~(4.3). C'est la quantité effectivement calculée sur \Oracle{}.}
+
+\begin{formulebox}
+\centering $\mathrm{ratio}_{\mathrm{O3}} \;=\; \dfrac{\mathbb{E}\!\left[\, \bigl| \muHR(\Adag) - \muHR(\mathbf{0}) \bigr| \,\right]}{\mathbb{E}\!\left[\, \bigl| \muHR(\Adag) \bigr| \,\right]} \;=\; 0{,}87$
+\end{formulebox}
+
+\bloc{Rôle}
+C'est la mise en \oe uvre \emph{pratique} du critère O3. Au lieu de comparer des erreurs (MSE), on mesure directement de combien la sortie $\muHR$ \emph{bouge} quand on met le graphe à zéro, rapporté à son amplitude. \Oracle{} obtient \textbf{0,87}.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\mathbb{E}[\cdot]$ : la \textbf{moyenne} (espérance) sur les échantillons.
+  \item $|\muHR(\Adag) - \muHR(\mathbf{0})|$ : de combien la sortie change quand on débranche le graphe (en valeur absolue).
+  \item $|\muHR(\Adag)|$ : l'amplitude typique de la sortie, qui sert de référence.
+\end{itemize}
+
+\bloc{Les blocs}
+« Amplitude du changement dû au graphe » / « amplitude de la sortie ». Un ratio de 0,87 (proche de 1) veut dire : couper le graphe modifie la sortie de $\sim$87\,\% de son ampleur $\Rightarrow$ le graphe est bien au c\oe ur du calcul.
+
+\bloc{Pourquoi elle est là}
+Un ratio sous 0,05 aurait \emph{stoppé} l'entraînement (le graphe aurait été jugé décoratif). \textbf{Honnêteté à retenir} : ce ratio de 0,87 prouve la \emph{dépendance fonctionnelle} de la sortie au graphe (O3), mais \emph{pas} que le graphe est causalement correct au sens de Pearl. « Structurellement causal » $\ne$ « causalement identifié ».
+
+% ==================================================================
+\section{Stage 2 : fabriquer $\delta$ par diffusion EDM}
+% ==================================================================
+
+% ------------------------------------------------------------------
+\formule{16}{Le préconditionnement EDM --- normaliser selon le niveau de bruit}
+\ou{Chapitre III, éq.~(3.11), Stage 2 (diffusion), formalisme de Karras et al. repris tel quel.}
+
+\begin{formulebox}
+\centering $\mathcal{D}_\theta(x_\sigma, \sigma) \;=\; c_{\mathrm{skip}}(\sigma) \cdot x_\sigma \;+\; c_{\mathrm{out}}(\sigma) \cdot \epsilon_\theta\!\left( c_{\mathrm{in}}(\sigma) \cdot x_\sigma,\; c_{\mathrm{noise}}(\sigma) \right)$
+\end{formulebox}
+
+\bloc{Rôle}
+Un modèle de diffusion apprend à \emph{débruiter}. Mais le niveau de bruit $\sigma$ varie énormément d'un pas à l'autre. Le préconditionnement EDM \textbf{normalise adaptativement} entrées et sorties du réseau selon $\sigma$, pour que le signal d'apprentissage reste stable sur toute la plage de bruit, sans réglage manuel.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $x_\sigma = x + \sigma\epsilon$ : l'entrée bruitée ($x$ le signal propre, $\epsilon$ un bruit gaussien, $\sigma$ son intensité).
+  \item $\mathcal{D}_\theta$ : le \textbf{débruiteur} complet (ce qui doit retrouver $x$). $\theta$ = ses paramètres appris.
+  \item $\epsilon_\theta$ : le réseau de neurones brut (le U-Net), à l'intérieur.
+  \item $c_{\mathrm{skip}}, c_{\mathrm{out}}, c_{\mathrm{in}}, c_{\mathrm{noise}}$ : quatre \textbf{coefficients} qui dépendent de $\sigma$ (et de $\sigma_{\mathrm{data}}$). Ils re-mettent tout à l'échelle : entrée du réseau ($c_{\mathrm{in}}$), sa cible ($c_{\mathrm{out}}$), le raccourci direct ($c_{\mathrm{skip}}$), et l'information de bruit passée au réseau ($c_{\mathrm{noise}}$).
+\end{itemize}
+
+\bloc{Les blocs}
+Deux blocs : un \textbf{raccourci} $c_{\mathrm{skip}}\,x_\sigma$ (« garde une partie de l'entrée telle quelle ») et une \textbf{correction apprise} $c_{\mathrm{out}}\,\epsilon_\theta(\dots)$ (« le réseau prédit le reste »). Aux faibles bruits, le raccourci domine ; aux forts bruits, la correction domine.
+
+\bloc{Pourquoi elle est là}
+Sans préconditionnement, il faudrait régler à la main des hyperparamètres pour chaque niveau de bruit, et l'entraînement serait instable. \Oracle{} reprend ce formalisme \emph{sans le modifier} : c'est un héritage assumé de l'état de l'art, ce qui garantit que le gain vient du Stage 1, pas d'un bricolage du Stage 2.
+
+% ------------------------------------------------------------------
+\formule{17}{La perte de diffusion EDM --- apprendre à débruiter}
+\ou{Chapitre III, éq.~(3.12). C'est la \emph{seule} perte minimisée par le Stage 2.}
+
+\begin{formulebox}
+\centering $\LEDM(\theta) \;=\; \mathbb{E}_{x, \sigma, \epsilon}\!\left[\, \lambda(\sigma) \cdot \left\| \mathcal{D}_\theta\!\left( x + \sigma \epsilon,\, \sigma \right) - x \right\|^2 \right]$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle apprend au débruiteur $\mathcal{D}_\theta$ à \textbf{retrouver le résidu propre $x$ à partir de sa version bruitée}. C'est la fonction que le Stage 2 minimise, sur les résidus $\delta$ pré-calculés.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $x$ : le résidu propre à reconstruire (le $\delta$ de la formule~12). $x + \sigma\epsilon$ : sa version bruitée.
+  \item $\mathcal{D}_\theta(x+\sigma\epsilon, \sigma)$ : la reconstruction produite par le débruiteur (formule~16).
+  \item $\|\cdot\|^2$ : l'\textbf{erreur quadratique} entre reconstruction et vérité.
+  \item $\lambda(\sigma)$ : un \textbf{poids} qui dépend du niveau de bruit, pour équilibrer la contribution des différents $\sigma$.
+  \item $\mathbb{E}_{x,\sigma,\epsilon}[\cdot]$ : la moyenne sur les échantillons $x$, les niveaux de bruit $\sigma$ et les tirages de bruit $\epsilon$.
+\end{itemize}
+
+\bloc{Les blocs}
+Un c\oe ur « erreur de débruitage » $\|\mathcal{D}_\theta(x+\sigma\epsilon,\sigma) - x\|^2$, pondéré par $\lambda(\sigma)$, et moyenné sur tous les cas de figure.
+
+\bloc{Pourquoi elle est là}
+C'est l'objectif qui donne au Stage 2 sa capacité à \emph{générer} : en apprenant à débruiter à tous les niveaux, le réseau apprend à partir d'un bruit pur à reconstruire un résidu réaliste. À l'inférence, on part du bruit et on débruite pas à pas (solveur de Heun), ce qui produit à chaque fois un $\delta$ différent, donc un ensemble de scénarios.
+
+% ------------------------------------------------------------------
+\formule{18}{Le conditionnement par concaténation --- faire entrer la causalité dans le Stage 2}
+\ou{Chapitre III, éq.~(3.13). C'est le point où la sortie causale $\muHR$ est injectée dans la diffusion. Vérifié dans le code.}
+
+\begin{formulebox}
+\centering $\mathrm{input}_{\mathrm{UNet}} \;=\; \mathrm{concat}\!\left( \delta_{\mathrm{noisy}},\; \muHR,\; \log(1 + \mathrm{baseline}) \right) \in \mathbb{R}^{B \times 3 \times H_{\HR} \times W_{\HR}}$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle dit \emph{comment} le Stage 2 reçoit l'information du Stage 1 : en \textbf{empilant trois cartes} en entrée du U-Net, comme les canaux R, G, B d'une image couleur.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\delta_{\mathrm{noisy}} = \delta + \sigma\epsilon$ : le résidu en cours de débruitage (le canal « à nettoyer »).
+  \item $\muHR$ : la moyenne causale du Stage 1 (le \textbf{seul} canal porteur de causalité).
+  \item $\log(1+\mathrm{baseline})$ : la baseline, en espace log (canal de référence, neutre).
+  \item $\mathrm{concat}(\cdot)$ : l'empilement sur l'axe des canaux. $\mathbb{R}^{B\times 3\times H_{\HR}\times W_{\HR}}$ : la forme du tenseur ($B$ = taille du lot, $3$ canaux, $172\times179$).
+\end{itemize}
+
+\bloc{Les blocs}
+Trois canaux empilés : \emph{(1)} bruit à nettoyer, \emph{(2)} moyenne causale $\muHR$, \emph{(3)} baseline. \textbf{Concaténer $\ne$ additionner} : ici on \emph{juxtapose} pour informer la génération ; l'addition (reconstruction) n'a lieu qu'à la fin, dans l'équation-mère (formule~3).
+
+\bloc{Pourquoi elle est là}
+C'est le maillon qui rend la causalité \emph{architecturale} de bout en bout. On a écarté la cross-attention (qui ouvrirait une voie d'information parallèle diluant la traçabilité causale) : la concaténation force le U-Net à \emph{voir} $\muHR$ comme un canal d'image. Comme $\muHR$ est le seul canal causal, tout gain du Stage 2 est attribuable au chemin causal du Stage 1. C'est aussi ce qui rend l'ablation $\Adag\leftarrow\mathbf{0}$ significative (elle n'affecte la sortie que si elle change $\muHR$).
+
+% ==================================================================
+\section{L'entraînement : les pertes composites}
+% ==================================================================
+
+% ------------------------------------------------------------------
+\formule{19}{La perte MSE du Stage 1 --- « prédis la bonne moyenne »}
+\ou{Chapitre III, texte de la section pertes (composante de l'éq.~3.14).}
+
+\begin{formulebox}
+\centering $\Lmse \;=\; \mathbb{E}\!\left[\, \bigl\Vert\, \muHR - \bigl(\log(1+\xHR) - \log(1+\mathrm{baseline})\bigr) \bigr\Vert^2 \,\right]$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle mesure l'écart entre la moyenne prédite $\muHR$ et la \emph{vraie} moyenne à prédire (la vérité, moins la baseline, en espace log). C'est le terme « sois juste » du Stage 1.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\muHR$ : la moyenne causale prédite.
+  \item $\log(1+\xHR) - \log(1+\mathrm{baseline})$ : la \emph{cible} de $\muHR$, c'est-à-dire ce qui reste de la vérité une fois la baseline retirée (comparez avec la formule~12 : c'est $\delta + \muHR$, donc la cible « moyenne » du Stage 1).
+  \item $\|\cdot\|^2$ : l'erreur quadratique. $\mathbb{E}[\cdot]$ : la moyenne sur les échantillons.
+\end{itemize}
+
+\bloc{Les blocs}
+Un seul bloc : « (prédiction $-$ cible) au carré, en moyenne ». La cible est déjà en espace log et déjà débarrassée de la baseline.
+
+\bloc{Pourquoi elle est là}
+Sans elle, $\muHR$ n'aurait aucune raison de ressembler à la vraie moyenne. C'est le socle de précision, sur lequel les deux autres pertes (lisibilité, causalité) viennent se greffer.
+
+% ------------------------------------------------------------------
+\formule{20}{La perte totale du Stage 1 --- juste, lisible et causal en même temps}
+\ou{Chapitre III, éq.~(3.14). C'est la perte réellement minimisée au Stage 1. Reprise sur le slide « Stage 1 » de la soutenance (formule \ding{193}).}
+
+\begin{formulebox}
+\centering $\Ltotal^{(1)} \;=\; \Lmse \;+\; \alpha\, \Lrec \;+\; \Ldag$
+\end{formulebox}
+
+\bloc{Rôle}
+Elle assemble les trois exigences du Stage 1 en une seule fonction à minimiser. C'est elle qui garde \Oracle{} \emph{à la fois} précis, interprétable et causal.
+
+\bloc{Décryptage terme à terme}
+\begin{itemize}[nosep]
+  \item $\Lmse$ : l'\textbf{exactitude} (formule~19) : « prédis la bonne moyenne ».
+  \item $\Lrec$ : la \textbf{lisibilité} (reconstruction) : elle oblige la représentation interne à rester fidèle aux variables physiques, au lieu de devenir un code opaque. C'est ce qui rend l'encodeur « intelligible ».
+  \item $\Ldag$ : la \textbf{validité causale} (formule~11) : « reste un DAG creux ».
+  \item $\alpha$ : un \textbf{coefficient} qui dose le poids de la reconstruction.
+\end{itemize}
+
+\bloc{Les blocs}
+Trois blocs additionnés : \emph{précision} ($\Lmse$) $+$ \emph{lisibilité} ($\alpha\Lrec$) $+$ \emph{causalité} ($\Ldag$). Retirez le deuxième et le modèle redevient une boîte noire ; retirez le troisième et le graphe part en vrille (cycles, densité).
+
+\bloc{Pourquoi elle est là}
+Un modèle seulement précis ($\Lmse$ seul) serait une boîte noire corrélative. Les deux autres termes sont précisément ce qui distingue \Oracle{} : la lisibilité (objectif O6) et la causalité (objectifs O3/O6). Le Stage 2, lui, est entraîné séparément avec sa propre perte $\LEDM$ (formule~17), une fois le Stage 1 gelé.
+
+% ==================================================================
+\section{Annexe : les grandeurs d'évaluation (nommées, pas posées en équations)}
+% ==================================================================
+
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=vert,linewidth=0.6pt,roundcorner=3pt]
+Le mémoire n'écrit pas les métriques d'évaluation sous forme d'équations (ce sont des indicateurs standard, cités par leur nom). Pour que la lecture des résultats du Chapitre IV soit complète, voici ce que \emph{mesure} chacun.
+\end{mdframed}
+
+\begin{description}[style=nextline,nosep]
+  \item[CRPS (mm/j)] \emph{Continuous Ranked Probability Score}. Compare la \emph{distribution} prédite (l'ensemble des tirages) à la valeur observée. Récompense justesse \emph{et} honnêteté de l'incertitude. Plus bas = mieux. \Oracle{} : 0,249 vs 0,415 ($-40\,\%$).
+  \item[CRPS-SS] CRPS \emph{Skill Score} contre la climatologie : $1$ = parfait, $0$ = pas mieux que la moyenne climatique. \Oracle{} $+0{,}895$.
+  \item[Ratio spread-skill] Dispersion de l'ensemble / erreur réelle. $1$ = incertitude honnête ; $\ll 1$ = trop confiant. \Oracle{} $0{,}41$ contre $0{,}23$ pour la baseline.
+  \item[Distance RAPSD] Écart entre le \emph{spectre spatial} de l'image produite et celui du réel : vérifie la \emph{texture} (granularité). Plus bas = plus réaliste. \Oracle{} 241,8 vs 319,4.
+  \item[RX1day (mm)] Indice ETCCDI : maximum annuel de pluie en un jour (l'indicateur des inondations). Un biais négatif = sous-estimation. \Oracle{} $-2{,}73$ contre $-4{,}09$ (sous-estime $33\,\%$ de moins).
+  \item[F1@p95 / p99] Qualité de détection des pixels au-dessus du 95\up{e} / 99\up{e} centile (extrêmes). \Oracle{} régresse sur F1@p99 : une limite assumée.
+  \item[FSS] \emph{Fractions Skill Score} : accord spatial à plusieurs échelles.
+  \item[$Q_{\mathrm{int}}$] Test d'intervention (do-opérateur) : le \emph{signe} de la réponse de la pluie à une hausse de température est-il physiquement correct ? \Oracle{} : bon signe ($+$) ; baseline : signe inversé ($-$).
+  \item[$Q_{\mathrm{phys}}$] Fidélité du graphe appris à la physique attendue (proportion d'arêtes correctes). $0{,}40$ à 6 n\oe uds, $\approx 1{,}0$ à 9 n\oe uds.
+\end{description}
+
+\vspace{4pt}
+\begin{mdframed}[backgroundcolor=grisclair,linecolor=bleu,linewidth=0.6pt,roundcorner=3pt]
+\textbf{Fil rouge à retenir.} Tout part du SCM (f.1) et du patron deux étages (f.2). \Oracle{} = « causaliser $\muHR$ » (f.3). Le Stage 1 fabrique $\muHR$ (f.4--8) en apprenant un graphe (f.9--11) ; l'interface définit le résidu et prouve que le graphe sert (f.12--15) ; le Stage 2 fabrique $\delta$ par diffusion conditionnée sur $\muHR$ (f.16--18) ; et l'entraînement tient les trois exigences ensemble (f.19--20). La causalité vit \emph{uniquement} dans $\muHR$ ; le réalisme des extrêmes vient de $\delta$.
+\end{mdframed}
+
+\end{document}

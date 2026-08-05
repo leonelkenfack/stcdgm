@@ -1,0 +1,165 @@
+{
+  "protocol": {
+    "n_days": 20,
+    "K": 2,
+    "n_steps": 14,
+    "space_units": "physical (destandardized)"
+  },
+  "Q_int": {
+    "Oracle": 0.16666666666666666,
+    "Noncausal": 0.0,
+    "n_correct_oracle": 1,
+    "n_correct_noncausal": 0,
+    "n_total": 6
+  },
+  "interventions": {
+    "V5": [
+      {
+        "intervention": "q850_+20pct",
+        "variable": "q_850",
+        "expected_sign": 1,
+        "delta_mean": -0.008551832661032677,
+        "ci_lo": -0.010173578361282127,
+        "ci_hi": -0.007206607110565528,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q850_-20pct",
+        "variable": "q_850",
+        "expected_sign": -1,
+        "delta_mean": 0.009883625735528766,
+        "ci_lo": 0.008146649548434652,
+        "ci_hi": 0.011747991701122373,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q850_+40pct",
+        "variable": "q_850",
+        "expected_sign": 1,
+        "delta_mean": -0.015044069784926251,
+        "ci_lo": -0.017791426884941758,
+        "ci_hi": -0.012424694662477124,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q500_+20pct",
+        "variable": "q_500",
+        "expected_sign": 1,
+        "delta_mean": 0.0012309397148783318,
+        "ci_lo": 0.00013168876688723688,
+        "ci_hi": 0.002403427813951566,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "match": 1,
+        "n": 20
+      },
+      {
+        "intervention": "t850_+3K",
+        "variable": "t_850",
+        "expected_sign": 1,
+        "delta_mean": -0.0036888236660161055,
+        "ci_lo": -0.005973362251424987,
+        "ci_hi": -0.001417053628902068,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "t850_-3K",
+        "variable": "t_850",
+        "expected_sign": -1,
+        "delta_mean": 0.00455373167496873,
+        "ci_lo": 0.0017724042444388034,
+        "ci_hi": 0.007618818942682992,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "match": 0,
+        "n": 20
+      }
+    ],
+    "Noncausal": [
+      {
+        "intervention": "q850_+20pct",
+        "variable": "q_850",
+        "expected_sign": 1,
+        "delta_mean": -0.0009503665634838399,
+        "ci_lo": -0.0014223032379595678,
+        "ci_hi": -0.0005359811686867034,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q850_-20pct",
+        "variable": "q_850",
+        "expected_sign": -1,
+        "delta_mean": 0.0015691554159275255,
+        "ci_lo": 0.0012015263340072124,
+        "ci_hi": 0.0019409183586685686,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q850_+40pct",
+        "variable": "q_850",
+        "expected_sign": 1,
+        "delta_mean": -0.0018362921684456524,
+        "ci_lo": -0.0023702896683244034,
+        "ci_hi": -0.0013438142246741335,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "q500_+20pct",
+        "variable": "q_500",
+        "expected_sign": 1,
+        "delta_mean": -0.00011906968593393686,
+        "ci_lo": -0.0004408037363009498,
+        "ci_hi": 0.0002208922286126835,
+        "ci_excludes_zero": 0,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "t850_+3K",
+        "variable": "t_850",
+        "expected_sign": 1,
+        "delta_mean": -0.0007848842091334518,
+        "ci_lo": -0.0011482992521087,
+        "ci_hi": -0.0004570377750678746,
+        "ci_excludes_zero": 1,
+        "sign_pred": -1,
+        "match": 0,
+        "n": 20
+      },
+      {
+        "intervention": "t850_-3K",
+        "variable": "t_850",
+        "expected_sign": -1,
+        "delta_mean": 0.0008165752453351161,
+        "ci_lo": 0.0004762766581825417,
+        "ci_hi": 0.0012021139915850652,
+        "ci_excludes_zero": 1,
+        "sign_pred": 1,
+        "match": 0,
+        "n": 20
+      }
+    ]
+  }
+}
