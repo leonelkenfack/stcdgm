@@ -6609,27 +6609,6 @@
       "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_phase3_mu_HR_probe.py:25"
     },
     {
-      "id": "file::_build_stage1_diagnostics_notebook",
-      "label": "_build_stage1_diagnostics_notebook.py",
-      "fileType": "code",
-      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
-      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:1"
-    },
-    {
-      "id": "_build_stage1_diagnostics_notebook::md",
-      "label": "md",
-      "fileType": "code",
-      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
-      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:32"
-    },
-    {
-      "id": "_build_stage1_diagnostics_notebook::code",
-      "label": "code",
-      "fileType": "code",
-      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
-      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:36"
-    },
-    {
       "id": "file::cell_00",
       "label": "cell_00.py",
       "fileType": "code",
@@ -7055,6 +7034,27 @@
       "fileType": "code",
       "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
       "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:29"
+    },
+    {
+      "id": "file::_build_stage1_diagnostics_notebook",
+      "label": "_build_stage1_diagnostics_notebook.py",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:1"
+    },
+    {
+      "id": "_build_stage1_diagnostics_notebook::md",
+      "label": "md",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:30"
+    },
+    {
+      "id": "_build_stage1_diagnostics_notebook::code",
+      "label": "code",
+      "fileType": "code",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:31"
     }
   ],
   "edges": [
@@ -14538,24 +14538,6 @@
       "weight": 1
     },
     {
-      "source": "file::_build_stage1_diagnostics_notebook",
-      "target": "_build_stage1_diagnostics_notebook::md",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
-      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:32",
-      "weight": 1
-    },
-    {
-      "source": "file::_build_stage1_diagnostics_notebook",
-      "target": "_build_stage1_diagnostics_notebook::code",
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
-      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:36",
-      "weight": 1
-    },
-    {
       "source": "file::diag_stage1",
       "target": "diag_stage1::jensen_on",
       "relation": "contains",
@@ -14599,12 +14581,30 @@
       "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py",
       "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\scripts\\diag_stage1b.py:29",
       "weight": 1
+    },
+    {
+      "source": "file::_build_stage1_diagnostics_notebook",
+      "target": "_build_stage1_diagnostics_notebook::md",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:30",
+      "weight": 1
+    },
+    {
+      "source": "file::_build_stage1_diagnostics_notebook",
+      "target": "_build_stage1_diagnostics_notebook::code",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "sourceFile": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py",
+      "sourceLocation": "c:\\Users\\reall\\Desktop\\climate_data\\path_c_plus\\scripts\\_build_stage1_diagnostics_notebook.py:31",
+      "weight": 1
     }
   ],
   "metadata": {
     "files": 172,
     "nodes": 1008,
     "edges": 838,
-    "builtAt": "2026-08-03T11:11:01.969Z"
+    "builtAt": "2026-08-09T15:30:37.377Z"
   }
 }
