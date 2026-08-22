@@ -33,11 +33,39 @@ the H_T topology.
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+
+
+def _sincos_2d(h: int, w: int, d_model: int, scale: float = 100.0) -> Tensor:
+    """Encodage positionnel sinusoïdal 2-D, ``[h*w, d_model]``.
+
+    Les positions sont normalisées sur ``[0, scale]`` **indépendamment de la
+    taille de la grille** : la ligne 11 d'une grille LR 23×26 et la ligne 21
+    d'une grille 43×45 reçoivent le même code. C'est la condition pour que
+    requêtes et clés, définies sur deux grilles de résolutions différentes
+    mais couvrant le MÊME domaine physique, partagent un système de
+    coordonnées — sans quoi l'attention ne peut pas exploiter la proximité
+    géométrique.
+    """
+    if d_model % 4 != 0:
+        raise ValueError(f"d_model={d_model} doit être divisible par 4 pour le PE 2-D")
+    d4 = d_model // 4
+    omega = torch.exp(torch.arange(d4, dtype=torch.float32)
+                      * (-math.log(10000.0) / max(d4 - 1, 1)))
+    ys = (torch.arange(h, dtype=torch.float32) + 0.5) / h * scale
+    xs = (torch.arange(w, dtype=torch.float32) + 0.5) / w * scale
+    ay = ys[:, None] * omega[None, :]                       # [h, d4]
+    ax = xs[:, None] * omega[None, :]                       # [w, d4]
+    ey = torch.cat([ay.sin(), ay.cos()], dim=1)             # [h, 2*d4]
+    ex = torch.cat([ax.sin(), ax.cos()], dim=1)             # [w, 2*d4]
+    pe = torch.cat([ey[:, None, :].expand(h, w, 2 * d4),
+                    ex[None, :, :].expand(h, w, 2 * d4)], dim=2)
+    return pe.reshape(h * w, d_model)
 
 
 class GraphToGridDecoder(nn.Module):
@@ -81,14 +109,23 @@ class GraphToGridDecoder(nn.Module):
         n_heads: int = 4,
         refine_channels: int = 64,
         output_channels: int = 1,
+        # >>> V8 — A2a (docs/architecture_v8_design.md §9.3)
+        query_mode: str = "learned",
+        lr_h: int = 23,
+        lr_w: int = 26,
     ) -> None:
         super().__init__()
         if d_model % n_heads != 0:
             raise ValueError(
                 f"d_model={d_model} must be divisible by n_heads={n_heads}"
             )
+        if query_mode not in ("learned", "spatial"):
+            raise ValueError(f"query_mode inconnu : {query_mode!r}")
 
         self.d_model = d_model
+        self.query_mode = query_mode
+        self.lr_h = lr_h
+        self.lr_w = lr_w
         self.hr_h = hr_h
         self.hr_w = hr_w
         self.intermediate_h = intermediate_h
@@ -102,6 +139,27 @@ class GraphToGridDecoder(nn.Module):
         self.grid_queries = nn.Parameter(
             torch.randn(1, n_queries, d_model) * 0.02
         )
+
+        # >>> V8 — A2a. Mesuré (§9.3) : le plafond de la grille 43×45 est 0,750
+        # et le modèle plafonne à 0,512 — l'écart n'est donc PAS la résolution.
+        # En mode "learned", ni les requêtes ni les clés ne portent de position :
+        # l'attention doit apprendre 1935 × (q·N) affinités par le seul contenu,
+        # alors que H_T est DÉJÀ un champ spatial sur la grille LR. En mode
+        # "spatial" les requêtes sont amorcées par l'état lui-même rééchantillonné
+        # (donc dépendantes de l'entrée) et les deux côtés reçoivent le même
+        # encodage positionnel : l'attention devient un raffinement géométrique
+        # local au lieu d'une recherche globale par contenu.
+        if query_mode == "spatial":
+            self.register_buffer(
+                "pe_query",
+                _sincos_2d(intermediate_h, intermediate_w, d_model).unsqueeze(0),
+                persistent=False,
+            )
+            self.register_buffer(
+                "pe_key",
+                _sincos_2d(lr_h, lr_w, d_model).unsqueeze(0),
+                persistent=False,
+            )
 
         # Cross-attention: queries attend to H_T tokens.
         self.cross_attn = nn.MultiheadAttention(
@@ -127,8 +185,11 @@ class GraphToGridDecoder(nn.Module):
             nn.Upsample(size=(hr_h, hr_w), mode="bilinear", align_corners=False),
             nn.Conv2d(refine_channels // 2, output_channels, kernel_size=3, padding=1),
         )
+        # Largeur des features juste avant la projection finale — c'est ce que
+        # consomme une tête probabiliste (BernoulliGammaHead) branchée dessus.
+        self.feature_channels = refine_channels // 2
 
-    def forward(self, H_T: Tensor) -> Tensor:
+    def forward(self, H_T: Tensor, return_features: bool = False) -> Tensor:
         """Apply cross-attention + CNN refinement.
 
         Parameters
@@ -137,6 +198,10 @@ class GraphToGridDecoder(nn.Module):
             Causal latent state. Accepted shapes:
             ``[q, N, d_model]`` (single sample, RCN native output) or
             ``[B, q, N, d_model]`` (batched).
+        return_features : bool
+            Return the HR features *before* the final projection instead of
+            ``μ_HR``, so a probabilistic head can consume them. Shape
+            ``[B, feature_channels, hr_h, hr_w]``.
 
         Returns
         -------
@@ -161,12 +226,35 @@ class GraphToGridDecoder(nn.Module):
         # Flatten q × N into token sequence: [B, q*N, d_model]
         tokens = H_T.reshape(B, q * N, d)
 
-        # Expand queries for the batch
-        queries = self.grid_queries.expand(B, -1, -1)
+        if self.query_mode == "spatial":
+            if N != self.lr_h * self.lr_w:
+                raise ValueError(
+                    f"query_mode='spatial' suppose des tokens posés sur la grille "
+                    f"LR {self.lr_h}×{self.lr_w}={self.lr_h * self.lr_w}, "
+                    f"or N={N}. Corriger lr_h/lr_w."
+                )
+            # Amorce dépendante de l'entrée : l'état moyenné sur les q variables
+            # est déjà un champ [B, d, lr_h, lr_w] — on le rééchantillonne sur la
+            # grille des requêtes. Le contenu par variable, lui, arrive par
+            # l'attention sur les clés.
+            spatial = H_T.mean(dim=1).transpose(1, 2).reshape(
+                B, d, self.lr_h, self.lr_w
+            )
+            seed = torch.nn.functional.interpolate(
+                spatial, size=(self.intermediate_h, self.intermediate_w),
+                mode="bilinear", align_corners=False,
+            )
+            queries = seed.flatten(2).transpose(1, 2) + self.pe_query
+            keys = tokens + self.pe_key.repeat(1, q, 1)
+        else:
+            queries = self.grid_queries.expand(B, -1, -1)
+            keys = tokens
 
         # Cross-attention; attention scores shape [B, n_heads, n_queries, q*N]
         # are released as soon as cross_attn returns — only attn_out is kept.
-        attn_out, _ = self.cross_attn(query=queries, key=tokens, value=tokens)
+        # Les valeurs restent SANS encodage positionnel : le PE sert à décider
+        # où regarder, pas à polluer ce qui est transporté.
+        attn_out, _ = self.cross_attn(query=queries, key=keys, value=tokens)
 
         # Residual + LayerNorm
         grid_features = self.norm(queries + attn_out)
@@ -176,10 +264,11 @@ class GraphToGridDecoder(nn.Module):
             B, self.d_model, self.intermediate_h, self.intermediate_w
         )
 
-        # CNN refine + upsample to HR
-        mu_HR = self.upsample(grid_features)
-
-        return mu_HR
+        # CNN refine + upsample to HR. Slicing the Sequential shares the same
+        # modules, so no state_dict key changes and no duplicated parameters.
+        if return_features:
+            return self.upsample[:-1](grid_features)
+        return self.upsample(grid_features)
 
     def num_params(self) -> int:
         """Return total trainable parameter count."""
@@ -187,3 +276,71 @@ class GraphToGridDecoder(nn.Module):
 
 
 __all__ = ["GraphToGridDecoder"]
+
+
+if __name__ == "__main__":
+    # Self-check A2a. Ce qui doit tenir : (1) requetes et cles partagent un
+    # systeme de coordonnees malgre deux grilles de tailles differentes ;
+    # (2) les requetes dependent vraiment de l'entree ; (3) le gradient passe.
+    torch.manual_seed(0)
+    LRH, LRW, IH, IW, D = 23, 26, 43, 45, 64
+
+    # (1) Le PE doit apparier les MEMES positions physiques. La ligne centrale
+    # de la grille LR doit ressembler le plus a la ligne centrale de la grille
+    # intermediaire, pas a une ligne quelconque.
+    pk = _sincos_2d(LRH, LRW, D).reshape(LRH, LRW, D)
+    pq = _sincos_2d(IH, IW, D).reshape(IH, IW, D)
+    for lr_row in (0, LRH // 2, LRH - 1):
+        ref = pk[lr_row, LRW // 2]
+        cand = pq[:, IW // 2]
+        sim = torch.nn.functional.cosine_similarity(cand, ref[None, :], dim=1)
+        best = int(sim.argmax())
+        expected = int((lr_row + 0.5) / LRH * IH)
+        assert abs(best - expected) <= 2, (
+            f"PE desaligne : ligne LR {lr_row}/{LRH} appariee a {best}/{IH}, "
+            f"attendu ~{expected}")
+    print("OK — PE partage entre grilles LR et intermediaire")
+
+    H_T = torch.randn(2, 11, LRH * LRW, D)
+    common = dict(d_model=D, hr_h=172, hr_w=179, intermediate_h=IH,
+                  intermediate_w=IW, n_heads=4, lr_h=LRH, lr_w=LRW)
+    dec_l = GraphToGridDecoder(query_mode="learned", **common)
+    dec_s = GraphToGridDecoder(query_mode="spatial", **common)
+    assert dec_l(H_T).shape == (2, 1, 172, 179)
+    assert dec_s(H_T).shape == (2, 1, 172, 179)
+
+    # (2) Dependance a l'entree : en mode "learned" les requetes sont un
+    # parametre fige, identiques quelle que soit l'entree ; en mode "spatial"
+    # elles doivent bouger avec H_T. C'est TOUT l'objet de A2a.
+    def queries_of(dec, x):
+        B, q, N, d = x.shape
+        if dec.query_mode == "learned":
+            return dec.grid_queries.expand(B, -1, -1)
+        sp = x.mean(dim=1).transpose(1, 2).reshape(B, d, dec.lr_h, dec.lr_w)
+        seed = torch.nn.functional.interpolate(
+            sp, size=(dec.intermediate_h, dec.intermediate_w),
+            mode="bilinear", align_corners=False)
+        return seed.flatten(2).transpose(1, 2) + dec.pe_query
+
+    H_T2 = torch.randn_like(H_T)
+    assert torch.allclose(queries_of(dec_l, H_T), queries_of(dec_l, H_T2)), \
+        "mode 'learned' : les requetes ne doivent PAS bouger (temoin)"
+    dq = (queries_of(dec_s, H_T) - queries_of(dec_s, H_T2)).abs().mean()
+    assert dq > 1e-3, f"mode 'spatial' : requetes insensibles a l'entree ({dq:.2e})"
+    print(f"OK — requetes dependantes de l'entree (ecart moyen {dq:.3f})")
+
+    # (3) Gradient jusqu'aux poids d'attention, et features exposees a la tete.
+    out = dec_s(H_T, return_features=True)
+    assert out.shape[1] == dec_s.feature_channels
+    dec_s(H_T).sum().backward()
+    g = dec_s.cross_attn.in_proj_weight.grad
+    assert g is not None and g.abs().sum() > 0, "gradient bloque dans l'attention"
+
+    # Garde-fou : N incoherent avec lr_h/lr_w doit echouer bruyamment, pas
+    # produire un reshape silencieusement faux.
+    try:
+        dec_s(torch.randn(1, 11, 600, D))
+        raise SystemExit("un N incoherent aurait du lever ValueError")
+    except ValueError:
+        pass
+    print("OK — gradient, features et garde sur la forme des tokens")

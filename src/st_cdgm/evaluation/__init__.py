@@ -32,6 +32,7 @@ from .two_stage_inference import (
     build_two_stage_inputs,
     sample_once_edm,
 )
+from .jensen import JensenCorrector
 
 __all__ = [
     "autoregressive_inference",
@@ -60,5 +61,6 @@ __all__ = [
     "build_two_stage_batch",
     "build_two_stage_inputs",
     "sample_once_edm",
+    "JensenCorrector",
 ]
 
