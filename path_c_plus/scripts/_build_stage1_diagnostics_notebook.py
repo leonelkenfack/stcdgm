@@ -214,9 +214,11 @@ for K in (12, 64):
     print(f"  K={K:>2d} | moyenne d'ensemble {f_mean:.4f} | par membre {f_memb:.4f} "
           f"| quantile 90% {f_q90:.4f}")
     SPEC[f"S3_K{K}"] = dict(ens_mean=f_mean, per_member=f_memb, q90=f_q90)
-print("\\n=== SPEC-3 ===")
-print("  Si 'par membre' >> 'moyenne d'ensemble', la metrique penalise la")
-print("  convention d'evaluation, pas le modele. Rapporter les DEUX.")
+gap = SPEC["S3_K64"]["per_member"] - SPEC["S3_K64"]["ens_mean"]
+SPEC["S3_verdict"] = "convention en cause" if gap > 0.02 else "convention innocente"
+print(f"\\n=== SPEC-3 ===  ecart (par membre - moyenne) = {gap:+.4f}  -> {SPEC['S3_verdict']}")
+print("  > +0.02 : la metrique penalise la convention d'evaluation, pas le modele.")
+print("  sinon   : la convention est innocente, ne rien changer.")
 """
 
 C6 = """# >>> Cell 6 : HARNAIS — a appliquer a TOUT etage 1 futur (V8 inclus)
@@ -227,19 +229,34 @@ def audit_stage1(mu_log, target_log, baseline_log, lr_fields=None, name="stage1"
     lr_fields : [N,C,h,w] optionnel -> active le test decisif de
                 predictibilite residuelle.
     \"\"\"
+    from st_cdgm.evaluation.jensen import JensenCorrector
+
     to_mm = lambda z: np.expm1(np.clip(z, -20, 20))
     x_mm  = to_mm(baseline_log + target_log)
-    mu_mm = to_mm(baseline_log + mu_log)
     rep = {"name": name}
 
-    # --- C1 biais conditionnel (Jensen residuel) --------------------------
-    q = np.unique(np.quantile(mu_mm, np.linspace(0, 1, 11)))
-    bid = np.clip(np.digitize(mu_mm.ravel(), q[1:-1]), 0, len(q) - 2)
-    xr_, mr_ = x_mm.ravel(), mu_mm.ravel()
-    bias = [100*(xr_[bid==k].mean()-mr_[bid==k].mean())/max(xr_[bid==k].mean(),1e-9)
-            for k in range(len(q)-1) if (bid==k).sum() > 500]
-    rep["C1_max_conditional_bias_pct"] = float(np.max(np.abs(bias)))
+    # --- C1 biais conditionnel, APRES correction de Jensen (A1) -----------
+    # Sans elle, C1 mesurerait l'inegalite de Jensen (mu ~ E[log1p x], pas
+    # E[x]) et non le modele : tout etage 1 entraine en log1p echouerait pour
+    # une raison qui n'est pas la sienne. On calibre s^2 sur la 1re moitie et
+    # on juge sur la 2nde — sinon la correction voit sa propre cible.
+    nh = max(1, len(mu_log) // 2)
+    jc = JensenCorrector.fit(mu_log[:nh], target_log[:nh], baseline_log[:nh])
+    mu_mm = jc.to_mm(mu_log, baseline_log, delta=0.0).numpy()
+    mu_mm_naive = to_mm(baseline_log + mu_log)
+
+    def _cond_bias(pred_mm, lo):
+        q = np.unique(np.quantile(pred_mm[lo:], np.linspace(0, 1, 11)))
+        bid = np.clip(np.digitize(pred_mm[lo:].ravel(), q[1:-1]), 0, len(q) - 2)
+        xr_, mr_ = x_mm[lo:].ravel(), pred_mm[lo:].ravel()
+        return [100*(xr_[bid==k].mean()-mr_[bid==k].mean())/max(xr_[bid==k].mean(),1e-9)
+                for k in range(len(q)-1) if (bid==k).sum() > 500]
+
+    rep["C1_max_conditional_bias_pct"] = float(np.max(np.abs(_cond_bias(mu_mm, nh))))
+    rep["C1_max_bias_uncorrected_pct"] = float(np.max(np.abs(_cond_bias(mu_mm_naive, nh))))
     rep["C1_pass"] = rep["C1_max_conditional_bias_pct"] < 5.0
+    rep["C1_jensen_share_pct"] = float(rep["C1_max_bias_uncorrected_pct"]
+                                       - rep["C1_max_conditional_bias_pct"])
 
     # --- C2 resolution effective (spectre) --------------------------------
     def rapsd(f):
@@ -285,7 +302,10 @@ def audit_stage1(mu_log, target_log, baseline_log, lr_fields=None, name="stage1"
 
 print("=== HARNAIS PRET ===")
 print("  audit_stage1(mu_log, target_log, baseline_log, lr_fields=None)")
-print("  C1 biais conditionnel < 5 %      | C2 resolution effective <= 20 km")
+print("  C1 biais conditionnel < 5 % APRES correction de Jensen (A1) ; le")
+print("     rapport donne aussi le biais non corrige et la part imputable a")
+print("     Jensen, pour ne pas confondre defaut de modele et back-transform.")
+print("  C2 resolution effective <= 20 km")
 print("  C3 R2 residuel < 0.02  <-- LE test decisif : l'etage 1 detruit-il")
 print("     de l'information recuperable depuis y ?")
 """
@@ -306,7 +326,7 @@ if _v5:
 print(f"\\nSPEC-2  corriger le retour log1p -> mm : expm1(mu + s^2/2)")
 print(f"        biais moyen {SPEC['S2_jensen']['mean_abs_bias_naive']:.1f} % -> "
       f"{SPEC['S2_jensen']['mean_abs_bias_corrected']:.1f} %")
-print(f"\\nSPEC-3  rapporter le F1@p99 PAR MEMBRE, pas seulement sur la moyenne")
+print(f"\\nSPEC-3  convention d'evaluation : {SPEC.get('S3_verdict', '?')}")
 print(f"\\nSPEC-4  critere d'acceptation : R2 residuel < 0.02 (harnais Cell 6)")
 print("\\n=> ECRIT results/stage1_spec.json")
 print("=" * 66)
