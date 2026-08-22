@@ -80,3 +80,5 @@ desktop.ini
 
 # Path C+ tracked artifacts (re-enable .md tracking under path_c_plus/)
 !path_c_plus/**/*.md
+# Cache derive des series regionales (regenere par scripts/p0_regimes.py)
+results/_*.npz

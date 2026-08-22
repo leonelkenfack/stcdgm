@@ -1,0 +1,78 @@
+{
+  "T1_high_r2_pairs": [],
+  "T1_pass": true,
+  "T3_prior": {
+    "source": "config/dag_prior_v8_c7.yaml",
+    "n_edges_total": 33,
+    "n_edges_used": 33,
+    "by_level": {
+      "1": 10,
+      "2": 18,
+      "3": 5
+    },
+    "by_orient": {
+      "construction": 9,
+      "precedence": 9,
+      "prior": 15
+    }
+  },
+  "T3": {
+    "varsortability_raw": 0.2727272727272727,
+    "varsortability_std": null,
+    "varsortability_std_note": "non calculable : apres standardisation toutes les variances valent 1, la comparaison ne porte que sur du bruit numerique",
+    "r2_sortability": 0.3333333333333333,
+    "r2_per_node": {
+      "u850": 0.8965040445327759,
+      "v850": 0.8135876655578613,
+      "t850": 0.5125124454498291,
+      "w500": 0.3478347659111023,
+      "RH850": 0.37122493982315063,
+      "RH500": 0.3882041573524475,
+      "Gamma850_500": 0.2762148976325989,
+      "zeta500": 0.309407114982605,
+      "normV250": 0.9261205196380615,
+      "shear850_250": 0.9137267470359802,
+      "IVT_u": 0.8325952291488647,
+      "IVT_v": 0.8307849764823914,
+      "MFC": 0.11346739530563354
+    },
+    "n_edges": 33
+  },
+  "T3_null": {
+    "n_surrogates": 100,
+    "mean": 0.5003030303030302,
+    "sd": 0.13138339576630026,
+    "observed": 0.3333333333333333,
+    "z": -1.2708584368354752
+  },
+  "T3_stderr": 0.13138339576630026,
+  "T3_verdict": "PAS DE RACCOURCI EXPLOITABLE",
+  "T3_by_level": {
+    "1": {
+      "n": 10,
+      "r2_sortability": 0.4,
+      "varsortability": 0.2,
+      "stderr": 0.15811388300841897
+    },
+    "2": {
+      "n": 18,
+      "r2_sortability": 0.2777777777777778,
+      "varsortability": 0.2222222222222222,
+      "stderr": 0.11785113019775793
+    },
+    "3": {
+      "n": 5,
+      "r2_sortability": 0.4,
+      "varsortability": 0.2,
+      "stderr": 0.22360679774997896
+    }
+  },
+  "G0": {
+    "f1_inter_gcm": 0.9032258064516129,
+    "f1_inter_seed": 0.967741935483871,
+    "distinctness": 0.09677419354838712,
+    "formal_pass": true,
+    "degenerate_criterion": false,
+    "verdict": "PASSE - distinctness 9.7 % au-dessus du seuil pre-enregistre 2x(1-F1_seed) = 6.5 %"
+  }
+}
