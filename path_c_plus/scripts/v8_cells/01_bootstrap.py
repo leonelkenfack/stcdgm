@@ -24,7 +24,12 @@ if IN_COLAB:
         subprocess.check_call(["git", "-C", REPO_DIR, "fetch", "origin"])
         subprocess.check_call(["git", "-C", REPO_DIR, "checkout", GIT_BRANCH])
         subprocess.check_call(["git", "-C", REPO_DIR, "pull", "origin", GIT_BRANCH])
+    # netcdf4 ET h5netcdf sont OBLIGATOIRES : nos .nc sont au format NetCDF-4
+    # (HDF5). Sans eux xarray se rabat sur scipy, qui ne lit que le NetCDF-3, et
+    # echoue avec "is not a valid NetCDF 3 file" — message trompeur, le fichier
+    # est bon, c'est le moteur qui manque.
     subprocess.check_call([sys.executable, "-m", "pip", "-q", "install",
+                           "netcdf4", "h5netcdf",
                            "xbatcher", "omegaconf", "diffusers", "torch-geometric"])
     ROOT = Path(REPO_DIR)
 
@@ -53,6 +58,18 @@ os.chdir(ROOT)
 for _p in (str(ROOT), str(ROOT / "src")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+# Verifier qu'un moteur NetCDF-4 est reellement disponible AVANT la Cell 3 :
+# sinon l'erreur ne surgit qu'a l'ouverture du fichier, avec un message qui
+# accuse le fichier au lieu de l'environnement.
+import importlib
+_moteurs = [m for m in ("netCDF4", "h5netcdf") if importlib.util.find_spec(m)]
+if not _moteurs:
+    raise ImportError(
+        "Aucun moteur NetCDF-4 disponible (netCDF4, h5netcdf). xarray se "
+        "rabattrait sur scipy, qui ne lit que le NetCDF-3 et rejetterait nos "
+        "fichiers avec un message trompeur. Installer : pip install netcdf4 h5netcdf")
+print(f"moteurs NetCDF : {_moteurs}")
 
 import numpy as np, torch
 SEED = 42
