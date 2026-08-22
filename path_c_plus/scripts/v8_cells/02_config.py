@@ -30,10 +30,38 @@ CKPT_DIR    = Path("checkpoints_v8"); CKPT_DIR.mkdir(exist_ok=True)
 RESULTS_DIR = Path("results"); RESULTS_DIR.mkdir(exist_ok=True)
 
 # --- Donnees : EXACTEMENT celles utilisees jusqu'ici, rien de plus.
-DATA        = Path("data/raw")
-LR_PATH     = DATA / "train" / "predictor_ACCESS-CM2_hist.nc"
-HR_PATH     = DATA / "train" / "pr_ACCESS-CM2_hist.nc"
-STATIC_PATH = DATA / "static_predictors" / "ERA5_eval_ccam_12km.198110_NZ_Invariant.nc"
+# Les .nc d'entrainement sont gitignores (3 Go) : ils viennent de Drive sur
+# Colab, du depot en local. Le statique, lui, EST suivi par git.
+def resolve(*candidates):
+    for c in candidates:
+        if Path(c).exists():
+            return Path(c)
+    return None
+
+LR_PATH = resolve(
+    "data/raw/train/predictor_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/data/train/predictor_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/data/raw/train/predictor_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/predictor_ACCESS-CM2_hist.nc")
+HR_PATH = resolve(
+    "data/raw/train/pr_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/data/train/pr_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/data/raw/train/pr_ACCESS-CM2_hist.nc",
+    f"{DRIVE_ROOT}/pr_ACCESS-CM2_hist.nc")
+STATIC_PATH = resolve(
+    "data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc",
+    f"{DRIVE_ROOT}/data/raw/static_predictors/ERA5_eval_ccam_12km.198110_NZ_Invariant.nc")
+
+_manquants = [n for n, v in (("predictor_ACCESS-CM2_hist.nc", LR_PATH),
+                             ("pr_ACCESS-CM2_hist.nc", HR_PATH),
+                             ("ERA5_..._NZ_Invariant.nc", STATIC_PATH)) if v is None]
+if _manquants:
+    raise FileNotFoundError(
+        "Fichiers introuvables : " + ", ".join(_manquants)
+        + os.linesep
+        + "Les .nc d'entrainement sont gitignores (3 Go). Les deposer dans "
+        + f"{DRIVE_ROOT}/data/train/ ou, hors Colab, dans data/raw/train/ "
+        + "a la racine du depot.")
 
 # --- Garde holdout. NorESM2-MM est pre-enregistre comme intouchable : une
 #     seule evaluation finale, jamais pendant le developpement.
@@ -45,7 +73,8 @@ def guard(p):
 
 for _p in (LR_PATH, HR_PATH, STATIC_PATH):
     guard(_p)
-    assert _p.exists(), f"{_p} absent - verifier data/raw/"
 
-print("donnees   :", LR_PATH.name, "|", HR_PATH.name, "|", STATIC_PATH.name)
+print(f"LR      : {LR_PATH}")
+print(f"HR      : {HR_PATH}")
+print(f"statique: {STATIC_PATH}")
 print("13 noeuds :", list(FREE_NODES))
