@@ -1,0 +1,143 @@
+# Prior par arête à 3 niveaux — composant C7 de V8.
+#
+# Portée : les 13 nœuds LIBRES du graphe de découverte (§2.7). Les dérivés
+# câblés n'apparaissent PAS ici : ils sont imposés par leur formule, hors
+# scoring, et n'ont donc pas de crédibilité à pondérer.
+#
+# Niveaux (l'annealing V7-M5 λ_prior 0.40 -> 0.02-0.08 s'applique PAR NIVEAU,
+# pas uniformément — c'est tout l'objet de C7) :
+#   1  cascade QG validée / relation mécaniquement exacte à un facteur près
+#   2  plausible : mécanisme reconnu, mais proxy ou délai discutable
+#   3  spéculatif : à rejeter sans regret si les données s'y opposent
+#
+# `lag` : 0 = simultané, 1 = décalé d'un jour.
+# `orient` : d'où vient l'ORIENTATION (T7 exige cette colonne).
+#   precedence  — le décalage temporel l'impose, c'est la source la plus sûre
+#   construction— la cible contient la source comme facteur de sa définition
+#   prior       — orientation imposée par la physique, à documenter et assumer
+#
+# Règle C2/Climat E6 : w500 est DIAGNOSTIQUE dans un GCM hydrostatique. Il ne
+# peut jamais être cause d'une variable dynamique ; toute arête w500 -> X doit
+# être justifiée comme conséquence thermodynamique, pas comme forçage.
+#
+# Les arêtes du prior systématiquement rejetées par les données sont un signal
+# de découverte NÉGATIF, à rapporter (C7), pas à effacer.
+
+nodes:
+  - u850
+  - v850
+  - t850
+  - w500
+  - RH850
+  - RH500
+  - Gamma850_500
+  - zeta500
+  - normV250
+  - shear850_250
+  - IVT_u
+  - IVT_v
+  - MFC
+
+edges:
+
+  # --- Forcage dynamique, definitions mecaniques et thermodynamique -------
+  # (le niveau est porte par CHAQUE arete, pas par la section)
+  - {source: zeta500, target: w500, lag: 0, level: 2, orient: prior,
+     why: "Équation oméga quasi-géostrophique : c'est l'advection DIFFÉRENTIELLE
+           de tourbillon qui force l'ascendance, pas la valeur de zeta500 à un
+           niveau. Même approximation que t850 -> w500, donc même niveau : le
+           proxy est standard en analyse synoptique mais reste un proxy.
+           Orientation imposée — w est diagnostique en GCM hydrostatique, il ne
+           peut pas forcer le tourbillon."}
+  - {source: Gamma850_500, target: w500, lag: 0, level: 1, orient: prior,
+     why: "La stabilité statique sigma divise le forçage dans l'équation oméga.
+           Attention au sens : un Gamma ÉLEVÉ est un gradient raide, donc une
+           stabilité FAIBLE (sigma proportionnel a Gamma_adiabatique - Gamma),
+           donc une réponse en ascendance PLUS forte à forçage égal."}
+  - {source: t850, target: Gamma850_500, lag: 0, level: 1, orient: construction,
+     why: "Gamma = (t850 - t500)/dz. t500 est hors graphe, donc le lien est
+           mécanique sans être déterministe in-graph (condition de T1)."}
+  - {source: t850, target: RH850, lag: 0, level: 1, orient: construction,
+     why: "RH = q/q_sat(t) et q_sat suit Clausius-Clapeyron exactement.
+           q850 hors graphe : RH n'est pas déterminée par t seul."}
+  - {source: u850, target: IVT_u, lag: 0, level: 1, orient: construction,
+     why: "IVT_u = (1/g) int q.u dp — u850 est un facteur de la définition."}
+  - {source: v850, target: IVT_v, lag: 0, level: 1, orient: construction,
+     why: "Idem, composante méridienne."}
+  - {source: normV250, target: shear850_250, lag: 0, level: 1, orient: construction,
+     why: "shear = ||V250 - V850|| : V250 entre dans la définition."}
+  - {source: u850, target: shear850_250, lag: 0, level: 1, orient: construction,
+     why: "Composante basse du cisaillement."}
+  - {source: v850, target: shear850_250, lag: 0, level: 1, orient: construction,
+     why: "Idem."}
+  - {source: IVT_u, target: MFC, lag: 0, level: 2, orient: prior,
+     why: "Transport d'humidité et convergence d'humidité partagent leur
+           ascendance basse couche. ATTENTION : ce n'est PAS une relation
+           mécanique dans CE code — MFC est calculé au seul niveau 850 à partir
+           de (q850, u850, v850), alors qu'IVT intègre aussi le 500. MFC n'est
+           donc pas une fonctionnelle de l'IVT tel qu'implémenté : ce sont des
+           diagnostics frères. Niveau 2, pas 1."}
+  - {source: IVT_v, target: MFC, lag: 0, level: 2, orient: prior,
+     why: "Idem, composante méridienne."}
+  - {source: u850, target: MFC, lag: 0, level: 1, orient: construction,
+     why: "u850 entre dans le flux qV dont MFC est la divergence."}
+  - {source: v850, target: MFC, lag: 0, level: 1, orient: construction,
+     why: "Idem."}
+
+  # --- Couplages humides, continuite et advections decalees ---------------
+  - {source: w500, target: RH500, lag: 0, level: 2, orient: prior,
+     why: "L'ascendance refroidit adiabatiquement et transporte l'humidité
+           vers le haut : RH monte. Conséquence thermodynamique de w, la
+           seule direction admissible pour une variable diagnostique."}
+  - {source: MFC, target: w500, lag: 0, level: 2, orient: prior,
+     why: "Continuité de masse : la convergence de bas niveau impose
+           l'ascendance."}
+  - {source: u850, target: w500, lag: 0, level: 2, orient: prior,
+     why: "Flux d'ouest sur les Alpes du Sud : ascendance orographique.
+           Proxy grossier — w500 est en moyenne troposphère, le soulèvement
+           orographique est basse couche."}
+  - {source: RH850, target: RH500, lag: 1, level: 2, orient: precedence,
+     why: "Humidification de la moyenne troposphère par le bas, avec délai."}
+  - {source: IVT_u, target: RH850, lag: 1, level: 2, orient: precedence,
+     why: "Le transport d'humidité précède l'humidification locale."}
+  - {source: IVT_v, target: RH850, lag: 1, level: 2, orient: precedence,
+     why: "Idem."}
+  - {source: normV250, target: zeta500, lag: 0, level: 2, orient: prior,
+     why: "Vent thermique : jet d'altitude et tourbillon de moyenne
+           troposphère sont couplés par la structure verticale."}
+  - {source: shear850_250, target: w500, lag: 0, level: 2, orient: prior,
+     why: "Le cisaillement organise la convection et les fronts, donc
+           module l'ascendance. Organisation, pas forçage direct."}
+  - {source: Gamma850_500, target: RH500, lag: 0, level: 2, orient: prior,
+     why: "La stabilité contrôle le mélange vertical et le détraînement."}
+  - {source: RH850, target: MFC, lag: 0, level: 2, orient: prior,
+     why: "L'humidité est le facteur multiplicatif qui fait de MFC une
+           convergence d'HUMIDITÉ et non de masse. q850 étant hors graphe,
+           RH850 en est le seul représentant in-graph — d'où niveau 2 et non 1 :
+           RH n'est pas q."}
+  - {source: t850, target: w500, lag: 1, level: 2, orient: precedence,
+     why: "Advection thermique chaude : second terme du forçage oméga.
+           Décalé car t850 seul n'est pas l'advection."}
+  - {source: RH850, target: w500, lag: 1, level: 2, orient: precedence,
+     why: "Humidité disponible -> chauffage latent -> ascendance renforcée."}
+  - {source: u850, target: RH850, lag: 1, level: 2, orient: precedence,
+     why: "Advection d'air maritime d'ouest."}
+  - {source: v850, target: t850, lag: 1, level: 2, orient: precedence,
+     why: "Advection méridienne de température — dominante aux latitudes NZ."}
+  - {source: u850, target: t850, lag: 1, level: 2, orient: precedence,
+     why: "Advection zonale de température."}
+
+  # --- Speculatif : a rejeter sans regret si les donnees s'y opposent ------
+  - {source: shear850_250, target: MFC, lag: 0, level: 3, orient: prior,
+     why: "Organisation convective modulant la convergence d'humidité.
+           Spéculatif : le lien passe par la convection non résolue."}
+  - {source: normV250, target: w500, lag: 0, level: 3, orient: prior,
+     why: "Circulation secondaire de sortie de jet. Spéculatif : la NORME
+           du vent n'est pas la divergence du jet streak."}
+  - {source: t850, target: shear850_250, lag: 0, level: 3, orient: prior,
+     why: "Vent thermique. Spéculatif : la relation porte sur le GRADIENT
+           horizontal de température, pas sur sa valeur à un niveau."}
+  - {source: zeta500, target: RH500, lag: 1, level: 3, orient: precedence,
+     why: "Soulèvement dynamique -> humidification, avec délai."}
+  - {source: Gamma850_500, target: MFC, lag: 0, level: 3, orient: prior,
+     why: "La stabilité module l'intensité de la convergence. Spéculatif."}
