@@ -61,6 +61,15 @@ class RCNCell(nn.Module):
         detach_dag_in_state: bool = True,
         dag_prior: Optional[Tensor] = None,
         dag_prior_noise: float = 0.02,
+        # >>> V8 : prior d'initialisation de la structure CONTEMPORAINE A(0).
+        # Sans lui, A(0) demarre au bruit alors que A(1) recoit tout le prior —
+        # y compris les aretes lag 0, que la perte route pourtant vers A(0).
+        inst_prior: Optional[Tensor] = None,
+        # >>> V8 — C2/C5 : structure contemporaine A(0)
+        instantaneous: bool = False,
+        # >>> V7-M2 : routage diagonal des drivers
+        driver_routing: str = "shared",
+        driver_channel_map: Optional[Sequence[Sequence[int]]] = None,
     ) -> None:
         super().__init__()
 
@@ -122,12 +131,50 @@ class RCNCell(nn.Module):
         else:
             self._dag_prior = None
         self._dag_prior_noise = float(dag_prior_noise)
+        if inst_prior is not None:
+            inst_tensor = torch.as_tensor(inst_prior, dtype=torch.float32)
+            if inst_tensor.shape != (num_vars, num_vars):
+                raise ValueError(
+                    f"inst_prior doit etre de forme ({num_vars}, {num_vars}); "
+                    f"recu {tuple(inst_tensor.shape)}")
+            if not instantaneous:
+                raise ValueError(
+                    "inst_prior fourni mais instantaneous=False : la structure "
+                    "A(0) n'existe pas, le prior serait ignore en silence.")
+            self._inst_prior = inst_tensor
+        else:
+            self._inst_prior = None
 
         # Matrice DAG apprenable
         # Phase 8 fix (5-experts SMOKE review) : init douce 0.1*randn pour eviter gradient
         # explosion sur lambda_dag * ||A||^2 (init randn donnait ||A||^2 ~ num_vars^2,
         # loss_dag ~ 60 vs loss_mse ~ 1 -> NaN apres 1 step). Init 0.1*randn -> ||A||^2 ~ 100x plus petit.
         self.A_dag = nn.Parameter(0.1 * torch.randn(num_vars, num_vars))
+
+        # >>> V8 — C2/C5 : A(0), la structure CONTEMPORAINE.
+        #
+        # ``A_dag`` multiplie ``H_prev`` : c'est donc déjà l'opérateur à
+        # **lag 1**, et lui seul. Rien dans la cellule ne relie deux variables
+        # au MÊME pas de temps — le forçage ``u_t`` entre identiquement dans
+        # les q variables, sans chemin croisé. Une arête tau=0 est donc
+        # aujourd'hui INEXPRIMABLE, et l'imposer sur ``A_dag`` reviendrait à
+        # la déclarer décalée d'un jour alors qu'on la sait simultanée.
+        #
+        # Or à l'échelle journalière, le quasi-équilibre (Climat E6) rend la
+        # plupart des relations simultanées : 23 des 32 arêtes du prior C7
+        # sont à tau=0. Les ignorer viderait le prior ; les écraser sur A(1)
+        # le falsifierait.
+        #
+        # A(0) est contraint acyclique (DAGMA porte dessus), donc le système
+        # ``H = A(0)^T H + b`` se résout EXACTEMENT par une série de Neumann
+        # finie : une matrice acyclique est nilpotente, ``(A^T)^q = 0``, et
+        # ``(I - A^T)^{-1} = somme_{p<q} (A^T)^p``. Pas d'inversion, pas
+        # d'itération jusqu'à convergence — une somme finie et différentiable.
+        self.instantaneous = bool(instantaneous)
+        if self.instantaneous:
+            self.A_inst = nn.Parameter(0.1 * torch.randn(num_vars, num_vars))
+        else:
+            self.register_parameter("A_inst", None)
 
         # >>> BS35_CAUSAL_ABLATION — inference-time DAG perturbation.
         # ``dag_ablation_mode`` is a Python string attribute (not a
@@ -146,11 +193,64 @@ class RCNCell(nn.Module):
         self.struct_W2 = nn.Parameter(torch.empty(num_vars, hidden_dim, hidden_dim))
         self.struct_b2 = nn.Parameter(torch.empty(num_vars, 1, hidden_dim))
 
-        # Encodeur du forçage externe
-        self.driver_encoder = nn.Sequential(
-            nn.Linear(driver_dim, hidden_dim),
-            self.activation,
-        )
+        # Encodeur du forçage externe.
+        #
+        # V7-M2 — routage DIAGONAL. En mode "shared" (historique), le driver
+        # complet est encodé UNE fois et le MÊME vecteur est distribué aux q
+        # variables ; elles ne diffèrent alors que par ``var_embed``, un biais
+        # additif appris. Autrement dit les variables d'état ne se distinguent
+        # jamais par leurs ENTRÉES — elles sont interchangeables à une
+        # permutation de paramètres près, et toute « identité physique » de
+        # u850 ou d'IVT_u est décorative.
+        #
+        # En mode "diagonal", chaque variable ne reçoit QUE ses propres canaux
+        # (``driver_channel_map[v]``). L'information inter-variable ne peut
+        # alors transiter que par A[u, v] : c'est ce qui rend le DAG
+        # load-bearing au lieu de cosmétique.
+        if driver_routing not in ("shared", "diagonal"):
+            raise ValueError(f"driver_routing inconnu : {driver_routing!r}")
+        self.driver_routing = driver_routing
+
+        if driver_routing == "shared":
+            self.driver_encoder = nn.Sequential(
+                nn.Linear(driver_dim, hidden_dim),
+                self.activation,
+            )
+            self.register_buffer("driver_channel_idx", None, persistent=False)
+        else:
+            if driver_channel_map is None:
+                if driver_dim < num_vars:
+                    raise ValueError(
+                        f"routage diagonal sans carte explicite : il faut au "
+                        f"moins {num_vars} canaux (un par variable), "
+                        f"driver_dim={driver_dim}.")
+                driver_channel_map = [[v] for v in range(num_vars)]
+            cmap = [list(c) for c in driver_channel_map]
+            if len(cmap) != num_vars:
+                raise ValueError(
+                    f"driver_channel_map couvre {len(cmap)} variables, "
+                    f"num_vars={num_vars}.")
+            widths = {len(c) for c in cmap}
+            if len(widths) != 1:
+                raise ValueError(
+                    f"toutes les variables doivent recevoir le même nombre de "
+                    f"canaux (trouvé {sorted(widths)}) — sinon le routage ne se "
+                    f"vectorise pas en bmm.")
+            flat = [i for c in cmap for i in c]
+            if min(flat) < 0 or max(flat) >= driver_dim:
+                raise ValueError(
+                    f"canaux hors bornes [0, {driver_dim}) : {sorted(set(flat))}")
+            n_ch = widths.pop()
+            self.register_buffer(
+                "driver_channel_idx", torch.tensor(cmap, dtype=torch.long),
+                persistent=True)
+            # Un encodeur PAR variable : [q, n_ch, hidden]. Partager les poids
+            # rendrait à nouveau les variables interchangeables.
+            self.driver_W = nn.Parameter(torch.empty(num_vars, n_ch, hidden_dim))
+            self.driver_b = nn.Parameter(torch.zeros(num_vars, 1, hidden_dim))
+            k = 1.0 / max(n_ch, 1) ** 0.5
+            nn.init.uniform_(self.driver_W, -k, k)
+            self.driver_encoder = None
 
         # Phase B-perf: GRU vectorisé. Au lieu de stacker à chaque forward les
         # poids de q ``nn.GRUCell``, on stocke directement des paramètres
@@ -272,6 +372,12 @@ class RCNCell(nn.Module):
         # in the ORACLE config) so no spectral projection is needed here —
         # ``project_dag_spectral`` in the training loop takes care of it
         # after the first optimiser step if the noise pushes us off-cone.
+        if getattr(self, "_inst_prior", None) is not None and self.A_inst is not None:
+            with torch.no_grad():
+                self.A_inst.copy_(self._inst_prior)
+                if self._dag_prior_noise > 0:
+                    self.A_inst.add_(
+                        torch.randn_like(self.A_inst) * self._dag_prior_noise)
         if self._dag_prior is not None:
             with torch.no_grad():
                 self.A_dag.copy_(self._dag_prior)
@@ -294,9 +400,15 @@ class RCNCell(nn.Module):
         for p in (self.gru_W_ih, self.gru_W_hh, self.gru_b_ih, self.gru_b_hh):
             nn.init.uniform_(p, -gru_bound, gru_bound)
 
-        for layer in self.driver_encoder:
-            if hasattr(layer, "reset_parameters"):
-                layer.reset_parameters()
+        if self.driver_encoder is not None:
+            for layer in self.driver_encoder:
+                if hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+        else:
+            # Routage diagonal : encodeur par variable, pas de nn.Linear.
+            k = 1.0 / max(self.driver_channel_idx.shape[1], 1) ** 0.5
+            nn.init.uniform_(self.driver_W, -k, k)
+            nn.init.zeros_(self.driver_b)
         nn.init.normal_(self.var_embed.weight, std=0.02)
         if self.reconstruction_decoder is not None:
             nn.init.xavier_uniform_(self.reconstruction_decoder.weight)
@@ -460,9 +572,16 @@ class RCNCell(nn.Module):
 
         # Étape 2 : GRU vectorisé. Plus de stack de poids à chaque step :
         # les paramètres sont déjà ``[q, 3*hidden, hidden]``.
-        driver_emb = self.driver_encoder(driver)  # [N, hidden_dim]
-        driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden]
-        var_ids = torch.arange(self.num_vars, device=driver_emb.device)
+        if self.driver_routing == "diagonal":
+            # [q, N, n_ch] : chaque variable ne voit QUE ses canaux.
+            sel = driver[:, self.driver_channel_idx]          # [N, q, n_ch]
+            sel = sel.permute(1, 0, 2)                        # [q, N, n_ch]
+            driver_batch = self.activation(
+                torch.baddbmm(self.driver_b, sel, self.driver_W))
+        else:
+            driver_emb = self.driver_encoder(driver)  # [N, hidden_dim]
+            driver_batch = driver_emb.unsqueeze(0).expand(self.num_vars, -1, -1)  # [q, N, hidden]
+        var_ids = torch.arange(self.num_vars, device=driver_batch.device)
         driver_batch = driver_batch + self.var_embed(var_ids).unsqueeze(1)    # [q, N, hidden]
         hidden_batch = H_hat_tensor
 
@@ -485,6 +604,13 @@ class RCNCell(nn.Module):
         
         # Apply dropout in vectorized manner
         H_next_tensor = self.dropout(H_next_tensor)
+
+        # Étape 3 (V8) : propagation CONTEMPORAINE A(0), au même pas de temps.
+        # Appliquée APRÈS le GRU : chaque variable reçoit d'abord sa mise à
+        # jour propre (lag 1 + forçage), puis les contributions de ses parents
+        # simultanés. C'est la définition d'un SCM contemporain sur l'état.
+        if self.A_inst is not None:
+            H_next_tensor = self._propagate_instantaneous(H_next_tensor)
 
         # Reconstruction facultative.
         # Sprint 1: by default we now feed the *updated* state H_next to the
@@ -567,10 +693,48 @@ class RCNCell(nn.Module):
                 raise ValueError(f"Pooling '{pool}' non pris en charge.")
         return torch.stack(pooled, dim=0)
 
-    def dag_matrix(self, *, masked: bool = True) -> Tensor:
+    def _propagate_instantaneous(self, H: Tensor) -> Tensor:
+        """Résout ``H = A(0)^T H + b`` par série de Neumann tronquée.
+
+        Pour une ``A(0)`` acyclique la série est EXACTE et s'arrête d'elle-même
+        (nilpotence). Pendant l'entraînement l'acyclicité n'est qu'une pénalité
+        molle, donc la troncature à ``num_vars`` termes est une approximation
+        — bornée tant que le rayon spectral reste < 1, ce qu'assure la
+        projection spectrale appliquée aussi à ``A_inst``.
+        """
+        A0 = _mask_diagonal(self.A_inst)
+        if self.dag_ablation_mode != "normal":
+            A0 = self._apply_dag_ablation(A0)
+        if self.detach_dag_in_state:
+            A0_det = A0.detach()
+            A0 = A0_det + self.dag_grad_gate * (A0 - A0_det)
+
+        out = H
+        term = H
+        for _ in range(self.num_vars - 1):
+            term = torch.einsum("ik,inj->knj", A0, term)
+            out = out + term
+        return out
+
+    def dag_matrix(self, *, masked: bool = True, lag: int = 1) -> Tensor:
         """
         Retourne la matrice causale (masquée ou brute).
+
+        ``lag=1`` : ``A_dag``, l'opérateur qui multiplie ``H_prev``.
+        ``lag=0`` : ``A_inst``, la structure contemporaine (V8), qui n'existe
+        que si la cellule a été construite avec ``instantaneous=True``.
         """
+        if lag == 0:
+            if self.A_inst is None:
+                raise ValueError(
+                    "A(0) demandé mais la cellule n'a pas de structure "
+                    "contemporaine : construire RCNCell(instantaneous=True). "
+                    "Sans elle, une arête tau=0 du prior est inexprimable.")
+            return _mask_diagonal(self.A_inst) if masked else self.A_inst
+        if lag != 1:
+            raise ValueError(
+                f"lag={lag} non représenté : la cellule porte A(0) et A(1). "
+                f"Ajouter des lags demande d'étendre l'historique du runner.")
         return _mask_diagonal(self.A_dag) if masked else self.A_dag
 
     @torch.no_grad()
@@ -589,23 +753,31 @@ class RCNCell(nn.Module):
         Returns the scale factor applied (1.0 if no rescaling was needed),
         mostly for logging.
         """
-        A = self.A_dag.data
-        # Keep the diagonal strictly zero: small numerical drift during FP
-        # updates is harmless but pollutes the spectral-radius bound.
-        A.fill_diagonal_(0.0)
-        W_sq = A * A
-        # Gershgorin bound: rho(W²) <= max row-sum of |W²| = max row-sum of W²
-        # (all entries non-negative). This is tight and O(q²), matching the
-        # bound used inside ``loss_dagma``.
-        row_sum_max = float(W_sq.sum(dim=1).max().item())
-        if row_sum_max <= max_radius:
-            return 1.0
-        # We want rho(W²') <= max_radius where W' = alpha * W, and
-        # rho(alpha² * W²) = alpha² * rho(W²) <= max_radius
-        #   => alpha = sqrt(max_radius / rho(W²))
-        alpha = math.sqrt(max_radius / (row_sum_max + 1e-12))
-        A.mul_(alpha)
-        return alpha
+        def _project(A: Tensor) -> float:
+            # Keep the diagonal strictly zero: small numerical drift during FP
+            # updates is harmless but pollutes the spectral-radius bound.
+            A.fill_diagonal_(0.0)
+            W_sq = A * A
+            # Gershgorin bound: rho(W²) <= max row-sum of |W²| = max row-sum of
+            # W² (all entries non-negative). Tight and O(q²), matching the
+            # bound used inside ``loss_dagma``.
+            row_sum_max = float(W_sq.sum(dim=1).max().item())
+            if row_sum_max <= max_radius:
+                return 1.0
+            # We want rho(W²') <= max_radius where W' = alpha * W, and
+            # rho(alpha² * W²) = alpha² * rho(W²) <= max_radius
+            #   => alpha = sqrt(max_radius / rho(W²))
+            alpha = math.sqrt(max_radius / (row_sum_max + 1e-12))
+            A.mul_(alpha)
+            return alpha
+
+        scale = _project(self.A_dag.data)
+        if self.A_inst is not None:
+            # Indispensable pour A(0) : la série de Neumann tronquée n'est
+            # bornée que si le rayon spectral reste < 1. Sans cette projection,
+            # une A(0) qui s'écarte de l'acyclicité ferait diverger l'état.
+            _project(self.A_inst.data)
+        return scale
 
     @torch.no_grad()
     def project_dag_floor(
