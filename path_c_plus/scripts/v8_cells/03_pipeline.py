@@ -35,9 +35,17 @@ if V8.free_nodes:
     assert LR_VARS == list(FREE_NODES), (
         f"ordre des canaux != FREE_NODES\n  recu   : {LR_VARS}\n  attendu: {list(FREE_NODES)}")
 
-train_dataset = pipeline.build_sequence_dataset(split="train", training=True)
-val_dataset   = pipeline.build_sequence_dataset(split="val")
-test_dataset  = pipeline.build_sequence_dataset(split="test")
+# stride : sans lui build_sequence_dataset retombe sur 1, soit 10 935
+# echantillons par epoque au lieu des ~2 734 configures. Quatre fois le temps
+# de calcul ET quatre fois le cache de l'etage 2 - c'est ce qui fait passer
+# l'empreinte memoire de 1,1 Go a 4,4 Go, donc d'un run qui tient sur T4 a un
+# run qui sature.
+_STRIDE = int(CONFIG.data.get("stride", 1))
+train_dataset = pipeline.build_sequence_dataset(split="train", stride=_STRIDE,
+                                                training=True)
+val_dataset   = pipeline.build_sequence_dataset(split="val", stride=_STRIDE)
+test_dataset  = pipeline.build_sequence_dataset(split="test", stride=_STRIDE)
+print(f"stride = {_STRIDE}")
 
 _s = next(iter(train_dataset))
 print("echantillon : lr", tuple(_s["lr"].shape),

@@ -82,3 +82,8 @@ desktop.ini
 !path_c_plus/**/*.md
 # Cache derive des series regionales (regenere par scripts/p0_regimes.py)
 results/_*.npz
+
+# Sorties du run V8 (regenerees par le notebook)
+checkpoints_v8/
+results/v8_*.json
+results/clim_train_p95_p99.npz

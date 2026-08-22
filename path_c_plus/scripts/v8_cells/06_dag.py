@@ -9,7 +9,23 @@ if rcn_cell.A_inst is not None:
 
 def _score(A, lag_v, label):
     """Confronte UN operateur a la partie du prior qui lui revient.
-    Melanger les lags rendrait le bilan faux sur 24 des 33 aretes."""
+    Melanger les lags rendrait le bilan faux sur 24 des 33 aretes.
+
+    A LIRE AVEC PRUDENCE, trois limites que ce tableau ne leve pas :
+    1. Le seuil est le 80e percentile de |A|, donc calibre pour retenir a peu
+       pres autant d'aretes que le prior en contient. Comme l'entrainement
+       tire les aretes du prior vers une cible non nulle pendant que L1 pousse
+       le reste vers zero, cette separation reflete en partie la structure de
+       la PENALITE, pas seulement celle des donnees. Un null par surrogates
+       (comme T3) serait necessaire pour trancher.
+    2. UNE SEULE graine. Le composant C8 du plan exige >=3 graines avant de
+       declarer une arete retenue ou rejetee.
+    3. Magnitude seule : une arete forte de SIGNE oppose au mecanisme
+       physique compte ici comme "retenue".
+    Une arete de niveau 1 rejetee signale plus probablement une difficulte
+    d'optimisation qu'une decouverte negative : son plancher de prior est le
+    plus eleve (0,08). Les niveaux 2 et 3 sont les seuls ou un rejet est
+    reellement informatif."""
     P = edge_prior.matrix(lag=lag_v, node_order=NODE_TYPES)
     support = P != 0
     if not support.any():
@@ -22,8 +38,9 @@ def _score(A, lag_v, label):
     novel = int((found & ~support).sum())
     print(f"\nprior : {int(support.sum())} aretes | seuil |A| > {thr:.4f}")
     print(f"  retenues par les donnees : {kept}")
-    print(f"  REJETEES                 : {dropped}   <- signal de decouverte")
-    print(f"                                            NEGATIF, a rapporter (C7)")
+    print(f"  REJETEES                 : {dropped}   <- candidat signal de")
+    print(f"                                            decouverte NEGATIF (C7),")
+    print(f"                                            a confirmer sur >=3 graines")
     print(f"  hors prior               : {novel}   <- decouverte au-dela du prior")
 
     # Par niveau : le niveau 3 DOIT pouvoir tomber. C'est tout l'objet de
@@ -48,7 +65,12 @@ def _score(A, lag_v, label):
 
     return {"operator": label, "n_prior": int(support.sum()), "kept": kept,
             "dropped": dropped, "novel": novel, "threshold": thr,
-            "survival_by_level": per_level, "rejected_edges": rejected}
+            "survival_by_level": per_level, "rejected_edges": rejected,
+            "seeds": 1, "null_baseline": None,
+            "avertissement": ("une seule graine, seuil au 80e percentile calibre "
+                              "sur le budget du prior, magnitude seule (signe non "
+                              "verifie) : resultat exploratoire, pas une "
+                              "falsification")}
 
 
 if edge_prior is not None:

@@ -1,13 +1,5 @@
 # >>> Cell 8 : gel de l'etage 1 + cache pour l'etage 2
 from st_cdgm.training.two_stage import freeze_stage1, precompute_stage1_outputs
-from st_cdgm.training.stage1_paths import calibrate_sigma_data_variant
-
-sig = calibrate_sigma_data_variant(
-    variant="causal", regression_head=regression_head, data_loader=train_dataset,
-    iterate_batches_fn=iterate_batches, builder=builder, device=DEVICE,
-    encoder=encoder, rcn_runner=rcn_runner, max_samples=200)
-SIGMA_DATA = float(sig["sigma_data"])
-print(f"sigma_data = {SIGMA_DATA:.5f}")
 
 freeze_stage1(encoder, rcn_cell, regression_head, *([bg_head] if bg_head else []))
 rcn_cell.A_dag.requires_grad_(False)
@@ -20,9 +12,20 @@ print("etage 1 gele, A_dag et A(0) compris - le DAG devient une feature OOD assu
 cache = precompute_stage1_outputs(
     encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
     train_dataset=train_dataset,
-    iterate_batches_fn=lambda s: convert_sample_to_batch(s, builder, DEVICE),
+    iterate_batches_fn=lambda s: convert_sample_v8(s, builder, DEVICE),
     device=DEVICE, bg_head=bg_head)
 print({k: tuple(v.shape) for k, v in cache.items()})
+
+# sigma_data APRES le cache, et mesure sur la VRAIE cible de la diffusion.
+# calibrate_sigma_data_variant n'accepte pas bg_head : elle passerait par
+# regression_head(H_T), donc par upsample[-1] - la projection 1 canal que la
+# tete BG court-circuite et qui n'a JAMAIS recu de gradient. sigma_data aurait
+# ete l'ecart-type d'une projection aleatoire, et il alimente c_skip/c_out/c_in
+# du preconditionneur EDM.
+_delta = cache["delta_target"]
+_mask = cache["valid_mask"].bool()
+SIGMA_DATA = float(_delta[_mask].std())
+print(f"sigma_data = {SIGMA_DATA:.5f}  (ecart-type du residu reellement diffuse)")
 
 torch.save({"sigma_data": SIGMA_DATA, "node_types": NODE_TYPES,
             "v8": OmegaConf.to_container(V8)},

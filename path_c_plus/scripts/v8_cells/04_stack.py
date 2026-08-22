@@ -39,8 +39,35 @@ encoder = IntelligibleVariableEncoder(
 # son initialisation aleatoire pendant tout l'entrainement, EN SILENCE.
 from st_cdgm.evaluation.evaluation_xai import convert_sample_to_batch
 
+def convert_sample_v8(sample, bld=None, dev=None):
+    """Comme convert_sample_to_batch, mais chaque noeud recoit SON canal.
+
+    Le convertisseur partage fait :
+        dynamic_features = {nt: lr_nodes[0] for nt in dynamic_node_types}
+    c'est-a-dire le MEME tenseur 13 canaux pour les 13 types. L'etat initial
+    H(0) ne distingue donc les variables que par les poids de convolution de
+    leur metachemin - exactement le defaut que V8 corrige ailleurs. Le routage
+    diagonal V7-M2 ne couvre que la RECURRENCE ; sans ce correctif, le point de
+    depart de la recurrence reste indifferencie.
+
+    Ici le noeud d'indice v recoit uniquement le canal v, dans l'ordre de
+    FREE_NODES - la meme carte identite que le routage diagonal.
+    """
+    bld = bld if bld is not None else builder
+    dev = dev if dev is not None else DEVICE
+    lr_seq = sample["lr"]
+    steps = [bld.lr_grid_to_nodes(lr_seq[t]) for t in range(lr_seq.shape[0])]
+    if V8.free_nodes:
+        first = steps[0]                                   # [N_lr, 13]
+        feats = {nt: first[:, i:i + 1] for i, nt in enumerate(NODE_TYPES)}
+    else:
+        feats = {nt: steps[0] for nt in bld.dynamic_node_types}
+    return {"lr": torch.stack(steps, dim=0),
+            "residual": sample["residual"], "baseline": sample.get("baseline"),
+            "hetero": bld.prepare_step_data(feats).to(dev)}
+
 with torch.no_grad():
-    _warm = convert_sample_to_batch(_s, builder, DEVICE)
+    _warm = convert_sample_v8(_s, builder, DEVICE)
     _H0 = encoder.init_state(_warm["hetero"])
 _n_enc = sum(p.numel() for p in encoder.parameters())
 assert _n_enc > 0, "encodeur non materialise : l'optimiseur serait vide"
