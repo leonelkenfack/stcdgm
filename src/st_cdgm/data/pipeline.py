@@ -343,6 +343,8 @@ class NetCDFDataPipeline:
         nan_fill_strategy: str = "zero",
         precipitation_delta: float = 0.01,
         lr_variables: Optional[Sequence[str]] = None,
+        # >>> V8 : remplace les 15 bruts par les 13 nœuds LIBRES dérivés
+        lr_free_nodes: bool = False,
         hr_variables: Optional[Sequence[str]] = None,
         static_variables: Optional[Sequence[str]] = None,
         means_path: Optional[str | Path] = None,
@@ -437,6 +439,37 @@ class NetCDFDataPipeline:
             if missing:
                 raise KeyError(f"LR variables not found: {missing}")
             self.lr_dataset_raw = self.lr_dataset_raw[lr_variables]
+
+        # >>> V8. Dérivation faite UNE fois sur le jeu complet, pas par
+        # fenêtre : l'aval (``_dataset_to_numpy``, ``lr_grid_to_nodes``, le
+        # ``driver`` du RCN) voit alors 13 canaux dans l'ordre de FREE_NODES,
+        # ce qu'attend exactement le routage diagonal V7-M2. Sans cela le
+        # driver reste les 15 bruts et les variables d'état ne se distinguent
+        # que par des poids appris.
+        self.lr_free_nodes = bool(lr_free_nodes)
+        if self.lr_free_nodes and (means_path or stds_path):
+            # Les fichiers de stats externes sont indexes par les noms BRUTS
+            # (u_850, ...). Apres derivation les variables s'appellent u850,
+            # RH850, ... : l'intersection est VIDE, et l'arithmetique xarray
+            # sur Dataset supprime silencieusement les variables non partagees
+            # -> lr_dataset_normalised devient un Dataset VIDE, sans erreur.
+            raise ValueError(
+                "lr_free_nodes=True est incompatible avec means_path/stds_path : "
+                "ces fichiers sont indexes par les 15 noms bruts, alors que le "
+                "dataset porte desormais les 13 noeuds derives. Laisser le "
+                "pipeline calculer ses stats, ou regenerer des stats derivees.")
+        if self.lr_free_nodes:
+            from .derived import FREE_NODES, free_nodes_dataset
+
+            self.lr_dataset_raw = free_nodes_dataset(
+                self.lr_dataset_raw,
+                lat_name=_infer_dim(self.lr_dataset_raw, "lat"),
+                lon_name=_infer_dim(self.lr_dataset_raw, "lon"),
+            )
+            self.free_node_names = list(FREE_NODES)
+        else:
+            self.free_node_names = None
+
         if hr_variables:
             missing = set(hr_variables) - set(self.hr_dataset_raw.data_vars)
             if missing:

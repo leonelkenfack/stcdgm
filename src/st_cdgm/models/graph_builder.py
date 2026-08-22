@@ -82,6 +82,16 @@ class HeteroGraphBuilder:
     #: node types ajoutés par ``extended_v6_wind`` (V6 MVP, Climat recommandation).
     EXTENDED_V6_WIND_TYPES = ("U850", "V850")
 
+    #: V8 — les 13 nœuds LIBRES du graphe de découverte (§2.7). Contrairement
+    #: aux jeux ci-dessus, ceux-ci sont RÉELLEMENT distincts : le pipeline
+    #: (``lr_free_nodes=True``) leur fournit un canal chacun, et le routage
+    #: diagonal du RCN (V7-M2) fait que chaque variable ne voit que le sien.
+    #: Sans ces deux conditions, des types de nœuds ne sont que des étiquettes.
+    FREE_NODE_TYPES = (
+        "u850", "v850", "t850", "w500", "RH850", "RH500", "Gamma850_500",
+        "zeta500", "normV250", "shear850_250", "IVT_u", "IVT_v", "MFC",
+    )
+
     def __init__(
         self,
         lr_shape: GridShape,
@@ -92,6 +102,7 @@ class HeteroGraphBuilder:
         include_mid_layer: bool = True,
         extended_9node: bool = False,
         extended_v6_wind: bool = False,
+        free_nodes_v8: bool = False,
     ) -> None:
         self.lr_shape = lr_shape
         self.hr_shape = hr_shape
@@ -100,13 +111,24 @@ class HeteroGraphBuilder:
         self.include_mid_layer = include_mid_layer
         self.extended_9node = extended_9node
         self.extended_v6_wind = extended_v6_wind
+        self.free_nodes_v8 = free_nodes_v8
+        if free_nodes_v8 and (extended_9node or extended_v6_wind or include_mid_layer):
+            raise ValueError(
+                "free_nodes_v8 remplace entièrement le jeu de nœuds : passer "
+                "include_mid_layer=False, extended_9node=False, "
+                "extended_v6_wind=False. Mélanger les deux conventions "
+                "donnerait un q incohérent avec le prior C7 et avec le "
+                "routage diagonal.")
 
         self._validate_shapes()
 
         self.num_nodes_lr = self.lr_shape[0] * self.lr_shape[1]
         self.num_nodes_hr = self.hr_shape[0] * self.hr_shape[1]
 
-        self.dynamic_node_types = ["GP850"]
+        if self.free_nodes_v8:
+            self.dynamic_node_types = list(self.FREE_NODE_TYPES)
+        else:
+            self.dynamic_node_types = ["GP850"]
         if self.include_mid_layer:
             self.dynamic_node_types.extend(["GP500", "GP250"])
         if self.extended_9node:
@@ -155,6 +177,11 @@ class HeteroGraphBuilder:
 
         edges_spatial: Dict[str, int] = {}
         spatial_index = self._spatial_edge_index.clone()
+        if self.free_nodes_v8:
+            for nt in self.FREE_NODE_TYPES:
+                data[nt, "spat_adj", nt].edge_index = spatial_index.clone()
+                edges_spatial[nt] = spatial_index.size(1)
+            return self._finish_build(data, edges_spatial, {})
         data["GP850", "spat_adj", "GP850"].edge_index = spatial_index
         edges_spatial["GP850"] = spatial_index.size(1)
         if self.include_mid_layer:
@@ -183,16 +210,19 @@ class HeteroGraphBuilder:
             edges_vertical["GP850↔GP500"] = vert_edge.size(1) * 2
             edges_vertical["GP500↔GP250"] = vert_edge.size(1) * 2
 
+        return self._finish_build(data, edges_spatial, edges_vertical)
+
+    def _finish_build(self, data, edges_spatial, edges_vertical):
+        """Arêtes statiques, rapport et cache — partie commune à tous les jeux
+        de nœuds. Factorisée pour que le mode V8 n'ait pas sa propre copie qui
+        divergerait au premier changement."""
         edges_static: Dict[str, int] = {}
         static_edge_index = self._static_edge_index.clone()
-        data["SP_HR", "causes", "GP850"].edge_index = static_edge_index
-        edges_static["SP_HR→GP850"] = static_edge_index.size(1)
-
-        if self.include_mid_layer:
-            data["SP_HR", "causes", "GP500"].edge_index = static_edge_index.clone()
-            data["SP_HR", "causes", "GP250"].edge_index = static_edge_index.clone()
-            edges_static["SP_HR→GP500"] = static_edge_index.size(1)
-            edges_static["SP_HR→GP250"] = static_edge_index.size(1)
+        targets = (list(self.FREE_NODE_TYPES) if self.free_nodes_v8
+                   else (["GP850"] + (["GP500", "GP250"] if self.include_mid_layer else [])))
+        for nt in targets:
+            data["SP_HR", "causes", nt].edge_index = static_edge_index.clone()
+            edges_static[f"SP_HR→{nt}"] = static_edge_index.size(1)
 
         self._assign_default_batch(data)
 
