@@ -1731,6 +1731,7 @@ def train_epoch_stage1(
     # >>> V5 — extensions actives quand cfg.v5.enabled = True
     skip_block=None,                          # ConditionalSkipBlock or None (A1)
     skip_lambda_o3: float = 0.0,              # poids L_o3_preserve (A1)
+    skip_residual_scale: float = 1.0,         # V8 A4 : annealing de la voie directe
     p1_tail_tau: Optional[float] = None,      # seuil log1p pour P1 (Stage 1 tail-weight)
     p1_tail_alpha: float = 0.0,               # coefficient P1 (0 = OFF)
     p3_k_samples: int = 0,                    # # pas intermédiaires aléatoires par batch (0 = OFF)
@@ -1738,6 +1739,14 @@ def train_epoch_stage1(
     p3_intermediate_weight: float = 0.5,      # poids des supervisions intermédiaires
     lambda_spectral_highk: float = 0.0,       # RAPSD high-k loss weight (0 = OFF)
     k_highk_min: int = 30,                    # wavenumber cutoff for high-k loss
+    # >>> V8 — A3 : tête Bernoulli-Gamma (docs/architecture_v8_design.md §9.6)
+    bg_head=None,                             # BernoulliGammaHead or None
+    bg_wet_threshold: float = 1.0,            # seuil jour humide en mm/j (ETCCDI)
+    # >>> V8 — C7 : prior par arête à 3 niveaux de crédibilité
+    edge_prior=None,                          # st_cdgm.priors.EdgePrior or None
+    prior_node_order: Optional[List[str]] = None,   # ordre des variables du RCN
+    prior_level_floors: Optional[Dict[int, float]] = None,
+    prior_anneal_epochs: int = 30,
 ) -> Dict[str, float]:
     """Stage 1 of the Two-Stage Causal Architecture.
 
@@ -1762,11 +1771,41 @@ def train_epoch_stage1(
 
     Both ``μ_HR`` and the target residual live in log1p space.
     """
-    from .two_stage import gamma_dag_warmup, stage1_compute_loss
+    from .two_stage import (
+        dag_prior_level_losses, gamma_dag_warmup, stage1_compute_loss,
+    )
+    from ..models.bernoulli_gamma import decode_bg_params, stage1_bg_loss
 
     encoder.train()
     rcn_runner.cell.train()
     regression_head.train()
+
+    # V8 — A3. Le mélange convexe du skip-block redistribuerait la moyenne
+    # produite par la tête, ce que A4 propose justement de retirer : refuser
+    # la combinaison plutôt que produire une ancre dont on ne sait plus si
+    # elle vérifie E[r|y] = 0.
+    if bg_head is not None:
+        if skip_block is not None:
+            raise ValueError(
+                "bg_head et skip_block sont exclusifs : le mélange convexe "
+                "casse l'interprétation de μ = p·α·β comme moyenne conditionnelle."
+            )
+        if p1_tail_alpha > 0.0:
+            raise ValueError(
+                "bg_head et le tail-weighting P1 sont exclusifs : la "
+                "vraisemblance Bernoulli-Gamma modélise déjà la queue."
+            )
+        if p3_k_samples > 0:
+            raise ValueError(
+                "bg_head et P3-lite sont exclusifs : la supervision "
+                "intermédiaire passe par la projection 1 canal du décodeur, "
+                "que la tête court-circuite (elle resterait non entraînée)."
+            )
+        # NB : lambda_pinball et lambda_cc_reg ne sont PAS exposes par cette
+        # fonction (ils vivent dans stage1_compute_loss). S'ils le devenaient,
+        # les ajouter ici : le pinball tire l'ancre vers un QUANTILE, alors que
+        # mu = p*alpha*beta n'a de sens que comme moyenne conditionnelle.
+        bg_head.train()
 
     # B2: open the DAG grad gate so L_rec/L_reg gradients reach A_dag
     # via the SCM forward path. Stage 2 freezes A_dag entirely (Stage 1
@@ -1801,6 +1840,83 @@ def train_epoch_stage1(
                     f"  ⚠️  dag_prior shape {tuple(prior_t.shape)} non carré — "
                     f"prior pull désactivé pour cet epoch."
                 )
+
+    # >>> V8 — C7. Le prior par arête remplace le couple (dag_prior,
+    # lambda_dag_prior) : une cible et un masque PAR NIVEAU de crédibilité,
+    # chacun avec son propre annealing. L'ordre des variables du RCN vient de
+    # CONFIG.encoder.metapaths et n'a aucune raison de coïncider avec l'ordre
+    # du YAML — d'où prior_node_order, obligatoire dès que les deux existent.
+    prior_target_dev: Dict[int, Tensor] = {}
+    prior_masks_dev: Dict[int, Dict[int, Tensor]] = {}
+    prior_lambdas: Dict[int, float] = {}
+    if edge_prior is not None:
+        from ..priors import DEFAULT_LEVEL_FLOORS, anneal_lambda_prior
+
+        _q_dag = int(rcn_eager_for_gate.A_dag.shape[0])
+        if len(edge_prior.nodes) != _q_dag:
+            raise ValueError(
+                f"Le prior C7 porte sur {len(edge_prior.nodes)} nœuds mais "
+                f"A_dag en compte {_q_dag}. Pas de rembourrage automatique ici : "
+                f"appliquer un prior à 13 nœuds sur un graphe qui n'a pas les "
+                f"mêmes variables produirait des arêtes arbitraires.")
+        if prior_node_order is None:
+            # Inconditionnel, pas sous `verbose` : c'est exactement la
+            # permutation silencieuse que priors._order existe pour empecher.
+            # Un run non verbeux ne doit pas pouvoir l'ignorer.
+            import warnings as _w
+            _w.warn(
+                "prior_node_order absent : l'ordre du YAML est suppose etre "
+                "celui du RCN. A fournir explicitement des que "
+                "CONFIG.encoder.metapaths definit un autre ordre.",
+                RuntimeWarning, stacklevel=2)
+        # Routage PAR LAG. `A_dag` multiplie H_prev : c'est A(1). Les arêtes
+        # tau=0 du prior ne lui appartiennent pas — les y imposer reviendrait
+        # à décréter décalé d'un jour ce qu'on sait simultané. Elles vont sur
+        # A(0), qui n'existe que si la cellule a `instantaneous=True`.
+        has_inst = getattr(rcn_eager_for_gate, "A_inst", None) is not None
+        prior_target_dev, prior_masks_dev = {}, {}
+        for lag_v, present in ((1, True), (0, has_inst)):
+            masks = {
+                lvl: torch.as_tensor(m).to(device)
+                for lvl, m in edge_prior.level_masks(
+                    node_order=prior_node_order).items()
+            }
+            lag_sup = torch.as_tensor(
+                edge_prior.matrix(weighted=False, lag=lag_v,
+                                  node_order=prior_node_order) != 0).to(device)
+            masks = {lvl: (m & lag_sup) for lvl, m in masks.items()}
+            masks = {lvl: m for lvl, m in masks.items() if bool(m.any())}
+            if not masks:
+                continue
+            n_lag = sum(int(m.sum()) for m in masks.values())
+            if not present:
+                raise ValueError(
+                    f"{n_lag} arêtes du prior sont à lag {lag_v}, mais la "
+                    f"cellule RCN n'a pas de structure contemporaine A(0). "
+                    f"Construire RCNCell(instantaneous=True), ou retirer ces "
+                    f"arêtes du prior — les écraser sur A(1) les falsifierait.")
+            prior_masks_dev[lag_v] = masks
+            prior_target_dev[lag_v] = torch.as_tensor(
+                edge_prior.matrix(lag=lag_v, node_order=prior_node_order),
+                dtype=torch.float32).to(device)
+
+        floors = prior_level_floors or DEFAULT_LEVEL_FLOORS
+        levels_used = {lvl for m in prior_masks_dev.values() for lvl in m}
+        prior_lambdas = {
+            lvl: anneal_lambda_prior(epoch_idx, prior_anneal_epochs,
+                                     floors.get(lvl, DEFAULT_LEVEL_FLOORS[lvl]))
+            for lvl in levels_used
+        }
+        if verbose:
+            # ASCII uniquement : ce print doit survivre a une console cp1252
+            # (Windows) autant qu'a Colab en UTF-8.
+            pretty = " ".join(f"L{l}={v:.3f}" for l, v in sorted(prior_lambdas.items()))
+            counts = " | ".join(
+                f"A({lag}) " + " ".join(f"L{l}:{int(m.sum())}"
+                                        for l, m in sorted(lv.items()))
+                for lag, lv in sorted(prior_masks_dev.items()))
+            print(f"  C7 prior : {len(edge_prior)} aretes -> {counts}")
+            print(f"             lambda epoch {epoch_idx + 1} : {pretty}")
 
     amp_mode = resolve_train_amp_mode(device, use_amp)
     scaler = torch.amp.GradScaler(enabled=(amp_mode == "cuda_fp16"))
@@ -1855,12 +1971,37 @@ def train_epoch_stage1(
                 )
                 H_T = seq_out.states[-1]
 
-                mu_HR_causal = regression_head(H_T)
-                if mu_HR_causal.shape != target_residual.shape:
-                    mu_HR_causal = torch.nn.functional.interpolate(
-                        mu_HR_causal, size=target_residual.shape[-2:],
-                        mode="bilinear", align_corners=False,
+                # >>> V8 — A3 : la tête Bernoulli-Gamma consomme les features
+                # du décodeur au lieu de sa projection à 1 canal, et fournit
+                # l'ancre μ = p·α·β (= la moyenne conditionnelle analytique,
+                # donc E[r|y] = 0 tient et l'étage 2 reste valide).
+                bg_nll = None
+                if bg_head is not None:
+                    baseline_log = micro.get("baseline")
+                    if baseline_log is None:
+                        raise ValueError(
+                            "bg_head exige la clé 'baseline' du batch : la "
+                            "vraisemblance se définit en mm/j, il faut donc "
+                            "remonter log1p(HR) = residual + baseline."
+                        )
+                    baseline_log = baseline_log[-1].to(device)
+                    if baseline_log.dim() == 3:
+                        baseline_log = baseline_log.unsqueeze(0)
+                    p_bg, a_bg, b_bg = decode_bg_params(
+                        regression_head, bg_head, H_T,
+                        target_shape=target_residual.shape[-2:],
                     )
+                    bg_nll, mu_HR_causal = stage1_bg_loss(
+                        p_bg, a_bg, b_bg, target_residual, baseline_log,
+                        wet_threshold=bg_wet_threshold,
+                    )
+                else:
+                    mu_HR_causal = regression_head(H_T)
+                    if mu_HR_causal.shape != target_residual.shape:
+                        mu_HR_causal = torch.nn.functional.interpolate(
+                            mu_HR_causal, size=target_residual.shape[-2:],
+                            mode="bilinear", align_corners=False,
+                        )
 
                 # >>> V5 — A1 : skip-connection conditionnelle LR → μ_HR
                 # μ_HR = α(LR) · μ_causal + (1-α) · direct(LR), avec α ∈ [0,1].
@@ -1872,7 +2013,8 @@ def train_epoch_stage1(
                     # On utilise le dernier pas LR comme entrée du gate/voie directe
                     # (drivers est une liste de [B, C_lr, H_lr, W_lr] par pas)
                     lr_last = drivers[-1] if drivers[-1].dim() == 4 else drivers[-1].unsqueeze(0)
-                    mu_HR, _alpha = skip_block(lr_last, mu_HR_causal)
+                    mu_HR, _alpha = skip_block(lr_last, mu_HR_causal,
+                                               residual_scale=skip_residual_scale)
                     o3_preserve_loss = skip_block.compute_o3_preserve_loss(_alpha)
                     skip_alpha_mean = float(_alpha.detach().mean().item())
                 else:
@@ -1944,6 +2086,18 @@ def train_epoch_stage1(
                 else:
                     L_dag = loss_no_tears(A_masked)
                 L_l1 = A_masked.abs().sum()
+
+                # V8 — A(0) est un DAG à part entière : acyclicité et parcimonie
+                # doivent porter dessus aussi. Sans cela la structure
+                # contemporaine serait libre de boucler, et la série de Neumann
+                # ne représenterait plus rien de causal.
+                A_inst_masked = None
+                if getattr(rcn_eager, "A_inst", None) is not None:
+                    A_inst_masked = rcn_eager.dag_matrix(masked=True, lag=0)
+                    L_dag = L_dag + (loss_dagma(A_inst_masked, s=dagma_s)
+                                     if dag_method == "dagma"
+                                     else loss_no_tears(A_inst_masked))
+                    L_l1 = L_l1 + A_inst_masked.abs().sum()
                 L_prior = None
                 if dag_prior_device is not None:
                     # BS14-B: use sum() not mean() so the prior pull magnitude
@@ -1953,6 +2107,20 @@ def train_epoch_stage1(
                     # epoch 2 the moment γ_dag turned on. With sum(), the
                     # configured weight maps directly to per-entry gradient.
                     L_prior = (A_masked - dag_prior_device).pow(2).sum()
+
+                # V8 — C7 : décomposition par niveau, chaque lag sur SON
+                # opérateur, puis addition niveau par niveau.
+                L_prior_levels = None
+                if prior_masks_dev:
+                    A_by_lag = {1: A_masked, 0: A_inst_masked}
+                    L_prior_levels = {}
+                    for lag_v, masks in prior_masks_dev.items():
+                        part = dag_prior_level_losses(
+                            A_by_lag[lag_v], prior_target_dev[lag_v], masks)
+                        for lvl, term in part.items():
+                            L_prior_levels[lvl] = (
+                                term if lvl not in L_prior_levels
+                                else L_prior_levels[lvl] + term)
 
                 loss_total, components = stage1_compute_loss(
                     mu_HR=mu_HR,
@@ -1975,6 +2143,11 @@ def train_epoch_stage1(
                     # Phase 4 — spectral sharpening
                     lambda_spectral_highk=lambda_spectral_highk,
                     k_highk_min=k_highk_min,
+                    # V8 — A3 : la NLL remplace la MSE quand la tête est active
+                    reg_loss_override=bg_nll,
+                    # V8 — C7 : prior à 3 niveaux, annelé par niveau
+                    dag_prior_level_losses=L_prior_levels,
+                    lambda_dag_prior_levels=prior_lambdas,
                 )
                 # V5 — P3-lite : ajout post stage1_compute_loss pour éviter
                 # de polluer la signature (la pondération est déjà appliquée).
@@ -2006,6 +2179,7 @@ def train_epoch_stage1(
                 list(encoder.parameters())
                 + list(rcn_runner.cell.parameters())
                 + list(regression_head.parameters())
+                + (list(bg_head.parameters()) if bg_head is not None else [])
             )
             torch.nn.utils.clip_grad_norm_(params_to_clip, gradient_clipping)
 

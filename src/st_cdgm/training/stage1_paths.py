@@ -117,11 +117,16 @@ def predict_mu_hr(
     builder=None,
     device: torch.device,
     target_shape: Optional[Sequence[int]] = None,
+    bg_head=None,                       # V8 — A3 (BernoulliGammaHead)
 ) -> Tensor:
     """Predict ``mu_HR`` for one converted notebook batch.
 
     ``variant="causal"`` uses encoder + RCN. ``variant="noncausal"`` uses the
     direct LR-grid regression baseline and never touches ``A_dag``.
+
+    With ``bg_head``, ``mu_HR`` is the analytical Bernoulli-Gamma mean
+    ``p·α·β`` re-expressed as a log residual — not the decoder's 1-channel
+    projection, which is no longer trained in that mode.
     """
     variant = str(variant).lower()
     if variant == "noncausal":
@@ -134,7 +139,24 @@ def predict_mu_hr(
         h_init = encoder.init_state(batch["hetero"]).to(device)
         drivers = [lr_data[t] for t in range(lr_data.shape[0])]
         seq_out = rcn_runner.run(h_init, drivers, reconstruction_sources=None)
-        mu_hr = regression_head(seq_out.states[-1])
+        if bg_head is not None:
+            from ..models.bernoulli_gamma import BernoulliGammaHead, decode_bg_params
+
+            baseline_log = batch.get("baseline")
+            if baseline_log is None:
+                raise ValueError(
+                    "bg_head exige la clé 'baseline' : sans elle l'ancre "
+                    "log1p(mu) - log1p(baseline) suppose une baseline nulle."
+                )
+            baseline_log = _as_batched_hr(baseline_log[-1].to(device))
+            p_bg, a_bg, b_bg = decode_bg_params(
+                regression_head, bg_head, seq_out.states[-1],
+                target_shape=baseline_log.shape[-2:],
+            )
+            mu_hr = BernoulliGammaHead.mean_as_log_residual(
+                p_bg, a_bg, b_bg, baseline_log)
+        else:
+            mu_hr = regression_head(seq_out.states[-1])
     else:
         raise ValueError(f"Unknown run variant {variant!r}")
 

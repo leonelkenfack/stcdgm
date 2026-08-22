@@ -46,6 +46,36 @@ from torch import Tensor
 # ---------------------------------------------------------------------
 
 
+def dag_prior_level_losses(
+    A_masked: Tensor,
+    prior_target: Tensor,
+    level_masks: dict,
+) -> dict:
+    """Écart au prior C7, décomposé par niveau de crédibilité.
+
+    Retourne ``{niveau: somme des carrés sur les arêtes de ce niveau}``.
+
+    Deux choix qui ne vont pas de soi :
+
+    * ``sum()`` et non ``mean()`` — hérité de BS14-B. Avec ``mean()``, la force
+      de rappel du prior était divisée par q² et se retrouvait 64× plus faible
+      que DAGMA, ce qui provoquait le collapse de ``A_dag`` dès l'epoch 2.
+    * la somme ne porte QUE sur les entrées du prior. Les entrées hors prior
+      ne sont tirées vers rien : la découverte au-delà du prior est l'objectif
+      n°3 de V8, et une MSE vers la matrice complète la pénaliserait au poids
+      λ. Leur parcimonie reste assurée par le terme L1.
+    """
+    out = {}
+    diff2 = (A_masked - prior_target).pow(2)
+    for lvl, mask in level_masks.items():
+        m = mask if isinstance(mask, Tensor) else torch.as_tensor(mask)
+        m = m.to(diff2.device)
+        if not bool(m.any()):
+            continue
+        out[int(lvl)] = diff2[m].sum()
+    return out
+
+
 def gamma_dag_warmup(epoch: int, max_value: float, warmup_epochs: int = 5) -> float:
     """Linear warmup of the DAGMA penalty weight (paper §sec:arch:loss).
 
@@ -395,6 +425,16 @@ def stage1_compute_loss(
     lambda_cc_reg: float = 0.0,
     lambda_spectral_highk: float = 0.0,
     k_highk_min: int = 30,
+    # >>> V8 — A3 : substitution du terme de régression
+    # Quand une tête probabiliste (BernoulliGammaHead) fournit déjà une
+    # log-vraisemblance négative, elle remplace la MSE ici plutôt que de
+    # dupliquer toute la machinerie DAG/DAGMA de cette fonction.
+    reg_loss_override: Optional[Tensor] = None,
+    # >>> V8 — C7 : prior par arête à 3 niveaux de crédibilité.
+    # Remplace le couple (dag_prior_loss, lambda_dag_prior) quand il est
+    # fourni : un λ par niveau, chacun avec son propre annealing.
+    dag_prior_level_losses: Optional[dict] = None,
+    lambda_dag_prior_levels: Optional[dict] = None,
 ) -> Tuple[Tensor, dict]:
     """Stage 1 composite loss.
 
@@ -473,7 +513,12 @@ def stage1_compute_loss(
         sq_err = sq_err * tail_w
 
     n_valid = valid_mask.float().sum().clamp(min=1.0)
-    mse_reg = (sq_err * valid_mask.float()).sum() / n_valid
+    if reg_loss_override is not None:
+        # A3 : la NLL Bernoulli-Gamma modélise déjà la queue — le tail-weighting
+        # ci-dessus la doublerait, on l'écarte donc entièrement.
+        mse_reg = reg_loss_override
+    else:
+        mse_reg = (sq_err * valid_mask.float()).sum() / n_valid
 
     components = {"loss_reg": float(mse_reg.detach().item())}
 
@@ -487,7 +532,23 @@ def stage1_compute_loss(
     if dag_l1_loss is not None:
         loss_total = loss_total + lambda_l1 * dag_l1_loss
         components["loss_l1"] = float(dag_l1_loss.detach().item())
-    if dag_prior_loss is not None and lambda_dag_prior > 0.0:
+    if dag_prior_level_losses:
+        # C7 : un terme par niveau de crédibilité. Le λ du niveau 3 se relâche
+        # presque entièrement en fin d'annealing, de sorte que les données
+        # puissent rejeter les arêtes spéculatives — ce rejet est un résultat
+        # à rapporter, pas un échec.
+        lam = lambda_dag_prior_levels or {}
+        total_prior = None
+        for lvl, term in dag_prior_level_losses.items():
+            w = float(lam.get(lvl, lam.get(str(lvl), 0.0)))
+            components[f"loss_dag_prior_L{lvl}"] = float(term.detach().item())
+            components[f"lambda_dag_prior_L{lvl}"] = w
+            if w > 0.0:
+                total_prior = w * term if total_prior is None else total_prior + w * term
+        if total_prior is not None:
+            loss_total = loss_total + total_prior
+            components["loss_dag_prior"] = float(total_prior.detach().item())
+    elif dag_prior_loss is not None and lambda_dag_prior > 0.0:
         loss_total = loss_total + lambda_dag_prior * dag_prior_loss
         components["loss_dag_prior"] = float(dag_prior_loss.detach().item())
     # >>> V5 — A1 : perte de préservation (O3)
@@ -875,6 +936,7 @@ def precompute_stage1_outputs(
     existing_cache: Optional[dict] = None,
     cache_h_t_pooled: bool = False,
     cache_lr_fields: bool = False,
+    bg_head: Optional[nn.Module] = None,   # V8 — A3 (BernoulliGammaHead)
 ) -> dict:
     """Iterate ``train_dataset`` once, run Stage 1 forward per sample,
     and stack outputs into a dict of CPU tensors.
@@ -1054,14 +1116,32 @@ def precompute_stage1_outputs(
             drivers = [lr_data[t] for t in range(lr_data.shape[0])]
             seq = rcn_runner.run(H_init, drivers, reconstruction_sources=None)
             H_T = seq.states[-1]
-            mu_HR = regression_head(H_T)
-            if mu_HR.shape != target.shape:
-                mu_HR = F.interpolate(
-                    mu_HR, size=target.shape[-2:],
-                    mode="bilinear", align_corners=False,
-                )
 
             baseline_log = baseline_t if baseline_t is not None else torch.zeros_like(target)
+
+            if bg_head is not None:
+                # V8 — A3 : l'ancre est la moyenne analytique p·α·β, pas la
+                # projection 1 canal du décodeur (qui n'est plus entraînée).
+                if baseline_t is None:
+                    raise ValueError(
+                        "bg_head exige la clé 'baseline' : sans elle l'ancre "
+                        "log1p(mu) - log1p(baseline) suppose une baseline nulle."
+                    )
+                from ..models.bernoulli_gamma import (
+                    BernoulliGammaHead, decode_bg_params,
+                )
+                p_bg, a_bg, b_bg = decode_bg_params(
+                    regression_head, bg_head, H_T, target_shape=target.shape[-2:])
+                mu_HR = BernoulliGammaHead.mean_as_log_residual(
+                    p_bg, a_bg, b_bg, baseline_log)
+            else:
+                mu_HR = regression_head(H_T)
+                if mu_HR.shape != target.shape:
+                    mu_HR = F.interpolate(
+                        mu_HR, size=target.shape[-2:],
+                        mode="bilinear", align_corners=False,
+                    )
+
             valid_mask = torch.isfinite(target)
             delta_target = target - mu_HR
 
