@@ -24,13 +24,29 @@ if IN_COLAB:
         subprocess.check_call(["git", "-C", REPO_DIR, "fetch", "origin"])
         subprocess.check_call(["git", "-C", REPO_DIR, "checkout", GIT_BRANCH])
         subprocess.check_call(["git", "-C", REPO_DIR, "pull", "origin", GIT_BRANCH])
-    # netcdf4 ET h5netcdf sont OBLIGATOIRES : nos .nc sont au format NetCDF-4
-    # (HDF5). Sans eux xarray se rabat sur scipy, qui ne lit que le NetCDF-3, et
-    # echoue avec "is not a valid NetCDF 3 file" — message trompeur, le fichier
-    # est bon, c'est le moteur qui manque.
-    subprocess.check_call([sys.executable, "-m", "pip", "-q", "install",
-                           "netcdf4", "h5netcdf",
-                           "xbatcher", "omegaconf", "diffusers", "torch-geometric"])
+    # Liste EPINGLEE, reprise telle quelle du 9-node et de V6' qui tournaient.
+    # Une liste courte et non epinglee produit la cascade "une erreur par run" :
+    #   cftime            -> decodage du calendrier 'noleap' de nos predicteurs
+    #                        (sinon crash sur TOUT open NetCDF)
+    #   netcdf4/h5netcdf  -> moteurs NetCDF-4. Sans eux xarray se rabat sur
+    #                        scipy, qui ne lit que le NetCDF-3, et rejette nos
+    #                        fichiers avec "is not a valid NetCDF 3 file" —
+    #                        message trompeur : le fichier est bon.
+    #   xbatcher          -> NetCDFDataPipeline.__init__ leve ImportError sans lui
+    #   diffusers==0.36.0 + la pile epinglee -> UNet2DConditionModel stable
+    # Le try/except evite de reinstaller a chaque relance de la cellule.
+    try:
+        import torch_geometric, cftime, h5netcdf, xbatcher, diffusers, omegaconf  # noqa: F401,E401
+        print("deps critiques presentes — pip install saute.")
+    except Exception as _e:
+        print(f"pip install requis : {_e}")
+        _DEPS = ["omegaconf==2.3.0", "hydra-core==1.3.2", "diffusers==0.36.0",
+                 "transformers==4.57.6", "accelerate==1.12.0",
+                 "huggingface-hub==0.36.0", "safetensors==0.7.0",
+                 "xbatcher", "webdataset", "cftime", "h5netcdf", "netcdf4",
+                 "numcodecs", "scipy", "torch-geometric", "xformers"]
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+                               "--no-warn-script-location", *_DEPS])
     ROOT = Path(REPO_DIR)
 
     # Verification que le code V8 est REELLEMENT arrive. Si la branche n'a pas
@@ -64,12 +80,15 @@ for _p in (str(ROOT), str(ROOT / "src")):
 # accuse le fichier au lieu de l'environnement.
 import importlib
 _moteurs = [m for m in ("netCDF4", "h5netcdf") if importlib.util.find_spec(m)]
-if not _moteurs:
+_cal = importlib.util.find_spec("cftime") is not None
+if not _moteurs or not _cal:
     raise ImportError(
-        "Aucun moteur NetCDF-4 disponible (netCDF4, h5netcdf). xarray se "
-        "rabattrait sur scipy, qui ne lit que le NetCDF-3 et rejetterait nos "
-        "fichiers avec un message trompeur. Installer : pip install netcdf4 h5netcdf")
-print(f"moteurs NetCDF : {_moteurs}")
+        f"Environnement incomplet — moteurs NetCDF-4 : {_moteurs or 'AUCUN'}, "
+        f"cftime : {'oui' if _cal else 'NON'}. Sans moteur NetCDF-4 xarray se "
+        "rabat sur scipy (NetCDF-3 seulement) et accuse le fichier ; sans "
+        "cftime le calendrier 'noleap' de nos predicteurs ne se decode pas. "
+        "Installer : pip install netcdf4 h5netcdf cftime, puis relancer.")
+print(f"moteurs NetCDF : {_moteurs} | cftime : oui")
 
 import numpy as np, torch
 SEED = 42
