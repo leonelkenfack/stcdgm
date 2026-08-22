@@ -27,6 +27,23 @@ if IN_COLAB:
     subprocess.check_call([sys.executable, "-m", "pip", "-q", "install",
                            "xbatcher", "omegaconf", "diffusers", "torch-geometric"])
     ROOT = Path(REPO_DIR)
+
+    # Verification que le code V8 est REELLEMENT arrive. Si la branche n'a pas
+    # ete poussee, le clone rend une version anterieure et le notebook echoue
+    # 4 cellules plus loin sur un ImportError incomprehensible.
+    _requis = ["src/st_cdgm/data/derived.py", "src/st_cdgm/priors.py",
+               "src/st_cdgm/models/bernoulli_gamma.py",
+               "src/st_cdgm/evaluation/jensen.py", "config/dag_prior_v8_c7.yaml"]
+    _absents = [f for f in _requis if not (ROOT / f).exists()]
+    if _absents:
+        _head = subprocess.check_output(
+            ["git", "-C", REPO_DIR, "log", "-1", "--oneline"]).decode().strip()
+        raise RuntimeError(
+            "Le code V8 n'est pas dans la branche clonee. Manquants : "
+            + ", ".join(_absents)
+            + f" | HEAD = {_head} | branche = {GIT_BRANCH}. "
+            "Pousser la branche (git push origin " + GIT_BRANCH + ") "
+            "avant de relancer.")
 else:
     ROOT = Path.cwd()
 
