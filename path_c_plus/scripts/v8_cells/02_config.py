@@ -26,7 +26,14 @@ SEQ_LEN     = int(CONFIG.data.seq_len)
 HIDDEN      = int(CONFIG.rcn.hidden_dim)
 LR_SHAPE    = (23, 26)
 HR_SHAPE    = (172, 179)
-CKPT_DIR    = Path("checkpoints_v8"); CKPT_DIR.mkdir(exist_ok=True)
+# Checkpoints sur DRIVE en Colab. `checkpoints_v8/` sous /content est efface
+# avec la VM : sur un run de plusieurs heures, une deconnexion perdrait
+# tout. Le clone du code reste sur le SSD local (xarray y est ~20x plus
+# rapide), mais les poids doivent survivre a la session.
+CKPT_DIR = ((Path(DRIVE_ROOT) / "checkpoints_v8") if IN_COLAB
+            else Path("checkpoints_v8"))
+CKPT_DIR.mkdir(parents=True, exist_ok=True)
+print(f"checkpoints : {CKPT_DIR}")
 RESULTS_DIR = Path("results"); RESULTS_DIR.mkdir(exist_ok=True)
 
 # --- Garde holdout. NorESM2-MM est pre-enregistre comme intouchable : une

@@ -67,8 +67,24 @@ def validation_loss(ds):
     return tot / max(n, 1)
 
 
-history, best = [], float("inf")
-for ep in range(EPOCHS_S1):
+# REPRISE. Un run de plusieurs heures sur Colab SERA interrompu : limite de
+# session, deconnexion, onglet ferme. Sans point de reprise il faut tout
+# recommencer.
+_LAST = CKPT_DIR / "stage1_last.pth"
+history, best, _start = [], float("inf"), 0
+if _LAST.exists():
+    _r = torch.load(_LAST, map_location=DEVICE, weights_only=False)
+    encoder.load_state_dict(_r["encoder_state_dict"])
+    rcn_cell.load_state_dict(_r["rcn_cell_state_dict"])
+    regression_head.load_state_dict(_r["regression_head_state_dict"])
+    if bg_head is not None and "bg_head_state_dict" in _r:
+        bg_head.load_state_dict(_r["bg_head_state_dict"])
+    opt_s1.load_state_dict(_r["optimizer_state_dict"])
+    history, best, _start = _r["history"], _r["best"], _r["epoch"] + 1
+    print(f"REPRISE a l'epoque {_start + 1}/{EPOCHS_S1} "
+          f"(meilleure val = {best:.5f})")
+
+for ep in range(_start, EPOCHS_S1):
     t_ep = time.time()
     m = train_epoch_stage1(
         encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
@@ -106,6 +122,21 @@ for ep in range(EPOCHS_S1):
           f"({m['seconds']:.0f}s)")
     m["val_loss"] = validation_loss(val_dataset)
     print(f"          val={m['val_loss']:.5f}")
+
+    _poids = {"encoder_state_dict": encoder.state_dict(),
+              "rcn_cell_state_dict": rcn_cell.state_dict(),
+              "regression_head_state_dict": regression_head.state_dict(),
+              "node_types": NODE_TYPES, "v8": OmegaConf.to_container(V8)}
+    if bg_head is not None:
+        _poids["bg_head_state_dict"] = bg_head.state_dict()
+
+    # A CHAQUE epoque : point de reprise, ETAT DE L'OPTIMISEUR compris. Sans
+    # lui, reprendre repartirait avec des moments Adam nuls — ce ne serait pas
+    # la meme trajectoire d'optimisation.
+    torch.save({**_poids, "epoch": ep,
+                "optimizer_state_dict": opt_s1.state_dict(),
+                "history": history, "best": best}, _LAST)
+
     # Selection sur la VALIDATION, jamais sur l'entrainement.
     if m["val_loss"] < best:
         best = m["val_loss"]

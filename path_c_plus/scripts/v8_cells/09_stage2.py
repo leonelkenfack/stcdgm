@@ -52,8 +52,17 @@ opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(S2.lr),
                            betas=(0.9, 0.99))
 print(f"etage 2 : lr={float(S2.lr):.1e} | sigma_data={SIGMA_DATA:.5f}")
 
-hist2 = []
-for ep in range(EPOCHS_S2):
+_LAST2 = CKPT_DIR / "stage2_last.pth"
+hist2, _start2 = [], 0
+if _LAST2.exists():
+    _r2 = torch.load(_LAST2, map_location=DEVICE, weights_only=False)
+    diffusion.load_state_dict(_r2["diffusion_state_dict"])
+    if "optimizer_state_dict" in _r2:
+        opt_s2.load_state_dict(_r2["optimizer_state_dict"])
+    hist2, _start2 = _r2.get("history", []), _r2["epoch"] + 1
+    print(f"REPRISE etage 2 a l'epoque {_start2 + 1}/{EPOCHS_S2}")
+
+for ep in range(_start2, EPOCHS_S2):
     t_ep = time.time()
     m2 = train_epoch_stage2_cached(
         diffusion_decoder=diffusion, optimizer=opt_s2,
@@ -71,7 +80,8 @@ for ep in range(EPOCHS_S2):
         raise RuntimeError("epoque etage 2 sans aucun batch : rien n'a ete "
                            "entraine, verifier la taille du cache.")
     torch.save({"epoch": ep, "diffusion_state_dict": diffusion.state_dict(),
-                "sigma_data": SIGMA_DATA}, CKPT_DIR / "stage2_last.pth")
+                "optimizer_state_dict": opt_s2.state_dict(),
+                "sigma_data": SIGMA_DATA, "history": hist2}, _LAST2)
 
 json.dump(hist2, open(RESULTS_DIR / "v8_stage2_history.json", "w"),
           indent=2, default=float)
