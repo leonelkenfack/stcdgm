@@ -39,7 +39,9 @@ cached = TensorDataset(cache["mu_HR"], cache["baseline_log"],
 # meme — seul le nombre de pas double.
 _VRAM = (torch.cuda.get_device_properties(0).total_memory / 2 ** 30
          if DEVICE.type == "cuda" else 0.0)
-BS = int(os.environ.get("V8_BS_S2", 0)) or (64 if _VRAM > 40 else 32)
+# Seuil a 30 GiB : une A100-40 rapporte 39,4 GiB, un seuil a 40 la classait
+# donc avec les L4 et divisait son debit par deux pour rien.
+BS = int(os.environ.get("V8_BS_S2", 0)) or (64 if _VRAM > 30 else 32)
 print(f"batch etage 2 : {BS} ({_VRAM:.0f} GiB de VRAM)")
 # drop_last=True : si le cache contient MOINS que batch_size, le DataLoader rend
 # zero batch et train_epoch_stage2_cached tourne a vide en renvoyant n_batches=0
