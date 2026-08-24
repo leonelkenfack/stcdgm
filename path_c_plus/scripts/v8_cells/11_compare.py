@@ -22,7 +22,10 @@ if _bl_path is not None:
     _bl = json.load(open(_bl_path))
     baselines = {k: v for k, v in _bl.get("three_way", {}).items()
                  if k in LABELS}
-    refs_status = "RECOMPUTED_IN_PROTOCOL" if baselines else "FICHIER_SANS_TABLE"
+    refs_status = "RECOMPUTED_IN_PROTOCOL"
+    if not baselines:
+        print(f"!! {_bl_path} ne contient pas de bloc `three_way` exploitable "
+              f"(clefs vues : {sorted(_bl.get('three_way', {}))}).")
     # Copie locale : le prochain run n'aura plus besoin de Drive.
     if baselines and _bl_path != _BL_LOCAL:
         json.dump({"three_way": baselines, "source": str(_bl_path)},

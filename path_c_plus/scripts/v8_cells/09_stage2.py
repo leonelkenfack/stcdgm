@@ -49,12 +49,23 @@ if len(cached) < BS:
     raise ValueError(
         f"cache de {len(cached)} echantillons pour un batch de {BS} : avec "
         f"drop_last=True le loader serait VIDE et l'etage 2 ne s'entrainerait "
-        f"pas. Reduire CONFIG.training.batch_size ou augmenter le jeu.")
+        f"pas. Baisser V8_BS_S2 ou augmenter le jeu.")
 
 def cached_loader():
     for mu, bl, dt, vm in DataLoader(cached, batch_size=BS, shuffle=True, drop_last=True):
         yield {"mu_HR": mu.to(DEVICE), "baseline_log": bl.to(DEVICE),
                "delta_target": dt.to(DEVICE), "valid_mask": vm.to(DEVICE)}
+
+
+# Nombre d'epoques DERIVE du budget en tirages. Une epoque = une passe sur le
+# cache, donc EPOCHS = tirages_vises / taille_du_cache — independamment du
+# batch et du stride. C'est cette derivation qui empeche de refaire l'erreur
+# d'origine : une constante d'epoques ne veut rien dire tant que la taille du
+# cache peut bouger sous elle.
+EPOCHS_S2 = int(os.environ.get("V8_EPOCHS_S2", 0)) or max(
+    1, -(-TARGET_DRAWS_S2 // len(cached)))
+print(f"budget etage 2 : {TARGET_DRAWS_S2:,} tirages / {len(cached)} fenetres "
+      f"= {EPOCHS_S2} epoques de {len(cached) // BS} pas")
 
 opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(S2.lr),
                            betas=(0.9, 0.99))
@@ -64,9 +75,9 @@ opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(S2.lr),
 # ici desavantagerait V8 sur un facteur qui n'a rien d'architectural.
 # decay=0.999 et non 0.9999 : le shadow n'est PAS mis a jour pendant le warmup,
 # il repart donc de l'init ALEATOIRE, dont le poids residuel apres n pas vaut
-# decay^n. A 0,9999 sur 21 000 pas il resterait ~13 % d'init aleatoire dans les
-# poids evalues ; a 0,999 il en reste e^-21, c'est-a-dire rien. Horizon
-# d'averaging ~1 000 pas, soit ~24 epoques ici.
+# decay^n. A 0,9999 sur 20 000 pas il resterait ~13 % d'init aleatoire dans les
+# poids evalues ; a 0,999 il n'en reste rien des le dixieme de ce budget.
+# Horizon d'averaging : ~1 000 pas.
 import copy
 ema = copy.deepcopy(diffusion)
 EMA_DECAY = 0.999
@@ -91,6 +102,11 @@ hist2, _start2 = [], 0
 if _LAST2.exists():
     _r2 = torch.load(_LAST2, map_location=DEVICE, weights_only=False)
     diffusion.load_state_dict(_r2["diffusion_state_dict"])
+    # ORDRE NON NEGOCIABLE : l'optimiseur AVANT le scheduler. `SequentialLR`
+    # remet le lr a sa valeur de warmup a la construction, et son
+    # `load_state_dict` ne restaure que des compteurs — c'est le state_dict de
+    # l'OPTIMISEUR qui porte le lr courant. Inverser les deux lignes ferait
+    # reprendre une epoque a 2e-5 au lieu de 1,3e-4, sans rien signaler.
     if "optimizer_state_dict" in _r2:
         opt_s2.load_state_dict(_r2["optimizer_state_dict"])
     if "ema_state_dict" in _r2:
@@ -106,9 +122,8 @@ if _LAST2.exists():
     print(f"REPRISE etage 2 a l'epoque {_start2 + 1}/{EPOCHS_S2} "
           f"(lr={opt_s2.param_groups[0]['lr']:.2e})")
 
-for ep in range(_start2, EPOCHS_S2):
-    t_ep = time.time()
-    m2 = train_epoch_stage2_cached(
+def _epoque(ep):
+    return train_epoch_stage2_cached(
         diffusion_decoder=diffusion, optimizer=opt_s2,
         cached_dataloader=cached_loader(), device=DEVICE,
         use_amp=(DEVICE.type == "cuda"), gradient_clipping=1.0,
@@ -117,8 +132,28 @@ for ep in range(_start2, EPOCHS_S2):
         conditioning_dropout_prob=float(
             CONFIG.diffusion.get("conditioning_dropout_prob", 0.13)),
         ema_model=ema, ema_decay=EMA_DECAY, ema_warmup_steps=0,
-        verbose=(ep == 0))
+        verbose=(ep == _start2))
+
+
+for ep in range(_start2, EPOCHS_S2):
+    t_ep = time.time()
+    while True:
+        try:
+            m2 = _epoque(ep)
+            break
+        except torch.cuda.OutOfMemoryError:
+            # L'UNet de reference tient sur T4 a batch 32 d'apres l'estimation,
+            # pas d'apres une mesure. Si elle est fausse, l'OOM tombe apres
+            # l'etage 1 — plusieurs heures deja payees. On divise le batch et
+            # on refait l'epoque plutot que de perdre le run. Le budget en
+            # tirages ne bouge pas ; seul le nombre de pas augmente.
+            if BS <= 4:
+                raise
+            torch.cuda.empty_cache()
+            BS //= 2
+            print(f"  OOM -> batch reduit a {BS}, epoque refaite")
     m2 = dict(m2); m2["epoch"] = ep; m2["seconds"] = round(time.time() - t_ep, 1)
+    m2["batch_size"] = BS
     m2["lr"] = opt_s2.param_groups[0]["lr"]
     sched_s2.step()
     hist2.append(m2)

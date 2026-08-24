@@ -27,7 +27,7 @@ test_cache = precompute_stage1_outputs(
 mu_all, base_all = test_cache["mu_HR"], test_cache["baseline_log"]
 delta_all = test_cache["delta_target"]
 N_TEST = int(mu_all.shape[0])
-print(f"test : {N_TEST} fenetres (split complet, stride {_STRIDE})")
+print(f"test : {N_TEST} fenetres (split complet, stride {STRIDE_EVAL})")
 
 # --- 2. climatologie per-pixel (Convention A, ETCCDI) ---------------------
 # Reutiliser le .npz des runs precedents quand il existe : un seuil p99 estime
@@ -120,7 +120,7 @@ else:
     json.dump({"metrics": res,
                "protocol": {"K": K_VERDICT, "num_steps": NUM_STEPS,
                             "cfg_scale": CFG_SCALE, "n_test": N_TEST,
-                            "stride": int(_STRIDE), "gcm": "ACCESS-CM2",
+                            "stride": int(STRIDE_EVAL), "gcm": "ACCESS-CM2",
                             "clim_source": CLIM_SOURCE,
                             "stage2_epochs": _EPOCHS_DONE,
                             "composition": "mm par membre (evaluate_ensemble)"},

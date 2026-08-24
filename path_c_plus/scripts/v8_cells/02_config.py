@@ -32,13 +32,11 @@ print(OmegaConf.to_yaml(V8))
 # --- Budget. Pour un smoke, reduire EPOCHS ; ne JAMAIS toucher aux seuils.
 EPOCHS_S1   = int(os.environ.get("V8_EPOCHS_S1", 30))
 # Etage 2 : le budget se compte en TIRAGES (echantillons vus), la seule unite
-# invariante. V5 : 250 epoques x 5 467 fenetres (stride 2) = ~1,37 M tirages.
-# Ici le cache tient ~2 734 fenetres (stride 4), donc 500 passes = le meme
-# budget. La valeur initiale, 20, venait du cap `stage2.epochs_max` du YAML de
-# base et ne donnait que ~55 000 tirages : vingt-cinq fois moins, sur un
-# modele de diffusion. Le nombre de PAS depend en plus du batch (Cell 9) ; il
-# est affiche a la premiere epoque.
-EPOCHS_S2   = int(os.environ.get("V8_EPOCHS_S2", 500))
+# invariante au batch ET au stride. V5 : 250 epoques x 5 467 fenetres = 1,37 M.
+# EPOCHS_S2 en decoule a la Cell 9, une fois le cache connu — le fixer ici
+# serait refaire l'erreur d'origine, ou 20 epoques (le cap `stage2.epochs_max`
+# du YAML de base) ne donnaient que ~55 000 tirages, vingt-cinq fois moins.
+TARGET_DRAWS_S2 = int(os.environ.get("V8_DRAWS_S2", 1_370_000))
 N_EVAL      = int(os.environ.get("V8_N_EVAL", 300))   # audit Jensen (Cell 7)
 
 # --- Protocole d'evaluation. Ces valeurs ne sont PAS libres : ce sont celles
@@ -51,6 +49,20 @@ K_VERDICT   = int(os.environ.get("V8_K", 32))
 NUM_STEPS   = int(os.environ.get("V8_NUM_STEPS", 24))
 CFG_SCALE   = 0.0
 EVAL_BATCH  = int(os.environ.get("V8_EVAL_BATCH", 16))
+
+# --- Stride. Les trois references ont tourne a stride 2 (`data.stride` de
+#     training_config_corrdiff_normal.yaml, repris tel quel par V5 et V6').
+#     L'EVALUATION doit s'y aligner : a stride 4 le split de test ne contient
+#     que la moitie des fenetres, et le seuil poole de la Convention B ne
+#     porterait pas sur le meme echantillon.
+#     L'ENTRAINEMENT reste a 4 : le budget en tirages est deja apparie, seule
+#     la diversite du cache differe (~2 734 fenetres distinctes contre 5 467).
+#     Passer a 2 double le cout de l'etage 1 et laisse celui de l'etage 2
+#     inchange (les epoques se divisent par deux, a tirages constants).
+STRIDE_TRAIN = int(os.environ.get("V8_STRIDE_TRAIN", CONFIG.data.get("stride", 4)))
+STRIDE_EVAL  = int(os.environ.get("V8_STRIDE_EVAL", _S2_REF.data.stride))
+print(f"stride : entrainement={STRIDE_TRAIN} | evaluation={STRIDE_EVAL} "
+      f"(references : {int(_S2_REF.data.stride)})")
 SEQ_LEN     = int(CONFIG.data.seq_len)
 HIDDEN      = int(CONFIG.rcn.hidden_dim)
 LR_SHAPE    = (23, 26)

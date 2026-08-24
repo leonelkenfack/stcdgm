@@ -40,12 +40,13 @@ if V8.free_nodes:
 # de calcul ET quatre fois le cache de l'etage 2 - c'est ce qui fait passer
 # l'empreinte memoire de 1,1 Go a 4,4 Go, donc d'un run qui tient sur T4 a un
 # run qui sature.
-_STRIDE = int(CONFIG.data.get("stride", 1))
-train_dataset = pipeline.build_sequence_dataset(split="train", stride=_STRIDE,
+# Le split de TEST prend le stride des references (Cell 2) : les metriques
+# auxquelles on se compare ont ete calculees sur ces fenetres-la.
+train_dataset = pipeline.build_sequence_dataset(split="train", stride=STRIDE_TRAIN,
                                                 training=True)
-val_dataset   = pipeline.build_sequence_dataset(split="val", stride=_STRIDE)
-test_dataset  = pipeline.build_sequence_dataset(split="test", stride=_STRIDE)
-print(f"stride = {_STRIDE}")
+val_dataset   = pipeline.build_sequence_dataset(split="val", stride=STRIDE_TRAIN)
+test_dataset  = pipeline.build_sequence_dataset(split="test", stride=STRIDE_EVAL)
+print(f"stride : train/val={STRIDE_TRAIN} | test={STRIDE_EVAL}")
 
 _s = next(iter(train_dataset))
 print("echantillon : lr", tuple(_s["lr"].shape),
