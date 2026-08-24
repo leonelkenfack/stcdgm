@@ -98,9 +98,46 @@ print(f"etage 2 : lr={float(S2.lr):.1e} | sigma_data={SIGMA_DATA:.5f} | "
       f"EMA decay={EMA_DECAY} | warmup {_WARM} ep puis cosinus")
 
 _LAST2 = CKPT_DIR / "stage2_last.pth"
-hist2, _start2 = [], 0
+_ARCH_S2 = list(CONFIG.diffusion.unet_kwargs.block_out_channels)
+
+
+def _incompatible(r):
+    """Pourquoi ce checkpoint ne peut PAS servir a reprendre — ou None.
+
+    Verifie AVANT tout load_state_dict : `strict=True` copie les tenseurs qui
+    correspondent avant de lever sur les autres, et laisserait donc le modele
+    a moitie ecrase par les poids d'un run etranger.
+    """
+    _a = r.get("unet_block_out_channels")
+    if _a is None:                       # checkpoint anterieur a ce champ
+        _w = r.get("diffusion_state_dict", {}).get("unet.conv_in.weight")
+        _a = [int(_w.shape[0])] if _w is not None else None
+    if _a is not None and list(_a)[:1] != _ARCH_S2[:1]:
+        return f"UNet {list(_a)} au lieu de {_ARCH_S2}"
+    # sigma_data alimente c_skip/c_out/c_in du preconditionneur EDM : reprendre
+    # avec une autre valeur entrainerait un modele autrement preconditionne,
+    # sans que rien ne le signale.
+    _s = r.get("sigma_data")
+    if _s is not None and abs(float(_s) - SIGMA_DATA) > 0.05 * SIGMA_DATA:
+        return f"sigma_data {float(_s):.5f} au lieu de {SIGMA_DATA:.5f}"
+    return None
+
+
+hist2, _start2, _r2 = [], 0, None
 if _LAST2.exists():
     _r2 = torch.load(_LAST2, map_location=DEVICE, weights_only=False)
+    _pourquoi = _incompatible(_r2)
+    if _pourquoi:
+        # Le checkpoint vient d'une AUTRE configuration : le charger leverait
+        # un mur de "size mismatch". On l'ecarte sans le detruire et on repart
+        # de zero — c'est la seule chose correcte, l'entrainement precedent ne
+        # decrit pas ce modele-ci.
+        _vieux = _LAST2.with_name(f"stage2_last.perime_{int(time.time())}.pth")
+        _LAST2.rename(_vieux)
+        print(f"CHECKPOINT ECARTE : {_pourquoi}")
+        print(f"  conserve sous {_vieux.name} ; l'etage 2 repart de zero.")
+        _r2 = None
+if _r2 is not None:
     diffusion.load_state_dict(_r2["diffusion_state_dict"])
     # ORDRE NON NEGOCIABLE : l'optimiseur AVANT le scheduler. `SequentialLR`
     # remet le lr a sa valeur de warmup a la construction, et son
@@ -172,6 +209,9 @@ for ep in range(_start2, EPOCHS_S2):
                 "optimizer_state_dict": opt_s2.state_dict(),
                 "scheduler_state_dict": sched_s2.state_dict(),
                 "ema_state_dict": ema.state_dict(),
+                # Signature d'architecture : sans elle, un checkpoint d'un run
+                # a l'UNet different se charge (mal) au lieu d'etre ecarte.
+                "unet_block_out_channels": _ARCH_S2,
                 "sigma_data": SIGMA_DATA, "history": hist2}, _LAST2)
 
 # L'evaluation porte sur les poids EMA, comme V5 et CorrDiff. Les poids vifs

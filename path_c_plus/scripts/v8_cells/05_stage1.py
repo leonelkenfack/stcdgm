@@ -71,9 +71,25 @@ def validation_loss(ds):
 # session, deconnexion, onglet ferme. Sans point de reprise il faut tout
 # recommencer.
 _LAST = CKPT_DIR / "stage1_last.pth"
-history, best, _start = [], float("inf"), 0
+history, best, _start, _r = [], float("inf"), 0, None
 if _LAST.exists():
     _r = torch.load(_LAST, map_location=DEVICE, weights_only=False)
+    # Un checkpoint d'une AUTRE configuration ne decrit pas ce modele-ci.
+    # Certains interrupteurs V8 changent les formes et feraient lever
+    # load_state_dict ; d'autres non, et la reprise serait silencieusement
+    # fausse. On compare donc la configuration, pas seulement les formes.
+    _dif = None
+    if _r.get("node_types") != NODE_TYPES:
+        _dif = f"{len(_r.get('node_types') or [])} noeuds au lieu de {len(NODE_TYPES)}"
+    elif _r.get("v8") != OmegaConf.to_container(V8):
+        _dif = "interrupteurs V8 differents"
+    if _dif:
+        _vieux = _LAST.with_name(f"stage1_last.perime_{int(time.time())}.pth")
+        _LAST.rename(_vieux)
+        print(f"CHECKPOINT ECARTE : {_dif}")
+        print(f"  conserve sous {_vieux.name} ; l'etage 1 repart de zero.")
+        _r = None
+if _r is not None:
     encoder.load_state_dict(_r["encoder_state_dict"])
     rcn_cell.load_state_dict(_r["rcn_cell_state_dict"])
     regression_head.load_state_dict(_r["regression_head_state_dict"])
