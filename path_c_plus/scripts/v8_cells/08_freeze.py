@@ -54,11 +54,46 @@ print(f"                    corr(t,mu)={_corr(_t_c, _mu_c):+.3f} | "
       f"a_opt={_a_opt:.3f} | R2={_r2:+.3f}")
 print(f"                    corr(delta,mu)={_corr(_dl_c, _mu_c):+.3f} "
       f"(seuil pre-enregistre : -0,30)")
+
+# Si mu est mauvais, DEUX pannes differentes le produisent et elles n'ont pas
+# le meme remede : soit l'ancre ne bouge pas d'un jour a l'autre (le decodeur a
+# appris la climatologie, le relief — la meteo n'arrive pas jusqu'a lui), soit
+# elle ne bouge nulle part (la tete est restee a son initialisation). On mesure
+# la part de variance PORTEE PAR LE TEMPS, avec le HR vrai comme temoin.
+_va = cache["valid_mask"][::_pas].bool()
+_pix = _va.all(dim=0)                       # pixels valides sur tout l'echantillon
+_anc = (cache["mu_HR"][::_pas] + cache["baseline_log"][::_pas])[:, _pix].double()
+_hrv = (cache["baseline_log"][::_pas] + cache["delta_target"][::_pas]
+        + cache["mu_HR"][::_pas])[:, _pix].double()
+
+
+def _part_temporelle(x):
+    """Fraction de la variance totale qui vient du jour, pas du lieu."""
+    v = float(x.var())
+    return float(x.var(dim=0).mean() / v) if v > 1e-12 else float("nan")
+
+
+_pt_anc, _pt_hr = _part_temporelle(_anc), _part_temporelle(_hrv)
+print(f"                    part temporelle : ancre {100 * _pt_anc:.1f} % | "
+      f"HR vrai {100 * _pt_hr:.1f} % | ecart-type de l'ancre {float(_anc.std()):.4f}")
+_diagnostic = ""
+if float(_anc.std()) < 0.02:
+    _diagnostic = ("l'ancre est quasi CONSTANTE partout : la tete BG est restee "
+                   "a son initialisation, rien ne l'a entrainee.")
+elif _pt_anc < 0.1 * _pt_hr:
+    _diagnostic = ("l'ancre ne varie pas d'un jour a l'autre : le decodeur a "
+                   "appris un champ STATIQUE (climatologie/relief) et l'etat du "
+                   "RCN n'apporte pas la meteo.")
+if _diagnostic:
+    print(f"                    -> {_diagnostic}")
+del _anc, _hrv, _va, _pix
 if _r2 < 0.0 and not os.environ.get("V8_IGNORE_MU_CALIB"):
     raise RuntimeError(
         f"R2(mu_HR) = {_r2:+.3f} < 0 : l'etage 1 predit PIRE que zero, la "
         f"diffusion devrait d'abord defaire mu (a_opt={_a_opt:.3f}, "
-        f"sigma(mu)/sigma(t)={_sig_mu / max(_sig_t, 1e-9):.2f}). Entrainer "
+        f"sigma(mu)/sigma(t)={_sig_mu / max(_sig_t, 1e-9):.2f}). "
+        + (f"DIAGNOSTIC : {_diagnostic} " if _diagnostic else "")
+        + f"Entrainer "
         f"l'etage 2 par-dessus coute des heures pour un resultat ininterpretable. "
         f"Reprendre l'etage 1, ou basculer sur la variante pre-enregistree "
         f"V6'.1 (delta = HR - baseline, mu en conditionnement seul). "
