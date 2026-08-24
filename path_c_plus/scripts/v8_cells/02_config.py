@@ -19,7 +19,13 @@ print(OmegaConf.to_yaml(V8))
 
 # --- Budget. Pour un smoke, reduire EPOCHS ; ne JAMAIS toucher aux seuils.
 EPOCHS_S1   = int(os.environ.get("V8_EPOCHS_S1", 30))
-EPOCHS_S2   = int(os.environ.get("V8_EPOCHS_S2", 20))
+# Etage 2 : ce qui compte est le nombre de PAS d'optimiseur, pas d'epoques.
+# Le cache tient ~2 734 fenetres (stride 4), soit 42 batches de 64 par
+# epoque. V5 tournait a stride 2 (85 batches) sur 250 epoques, soit ~21 000
+# pas ; 20 epoques ici n'en donnaient que 840 — vingt-cinq fois moins, sur
+# un modele de diffusion. 500 epoques retablissent la parite. Une epoque
+# coute peu : l'etage 1 est gele et le cache est deja calcule.
+EPOCHS_S2   = int(os.environ.get("V8_EPOCHS_S2", 500))
 N_EVAL      = int(os.environ.get("V8_N_EVAL", 300))
 K_ENSEMBLE  = int(os.environ.get("V8_ENSEMBLE", 16))
 SEQ_LEN     = int(CONFIG.data.seq_len)

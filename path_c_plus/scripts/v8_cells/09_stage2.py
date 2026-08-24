@@ -50,7 +50,20 @@ def cached_loader():
 
 opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(S2.lr),
                            betas=(0.9, 0.99))
-print(f"etage 2 : lr={float(S2.lr):.1e} | sigma_data={SIGMA_DATA:.5f}")
+
+# EMA des poids (V5 Track B1, convention Karras EDM2). V5 et CorrDiff evaluent
+# tous les deux la moyenne mobile, pas les poids du dernier pas ; s'en passer
+# ici desavantagerait V8 sur un facteur qui n'a rien d'architectural.
+# decay=0.999 et non 0.9999 : le shadow n'est PAS mis a jour pendant le warmup,
+# il repart donc de l'init ALEATOIRE, dont le poids residuel apres n pas vaut
+# decay^n. A 0,9999 sur 21 000 pas il resterait ~13 % d'init aleatoire dans les
+# poids evalues ; a 0,999 il en reste e^-21, c'est-a-dire rien. Horizon
+# d'averaging ~1 000 pas, soit ~24 epoques ici.
+import copy
+ema = copy.deepcopy(diffusion)
+EMA_DECAY = 0.999
+print(f"etage 2 : lr={float(S2.lr):.1e} | sigma_data={SIGMA_DATA:.5f} | "
+      f"EMA decay={EMA_DECAY}")
 
 _LAST2 = CKPT_DIR / "stage2_last.pth"
 hist2, _start2 = [], 0
@@ -59,6 +72,8 @@ if _LAST2.exists():
     diffusion.load_state_dict(_r2["diffusion_state_dict"])
     if "optimizer_state_dict" in _r2:
         opt_s2.load_state_dict(_r2["optimizer_state_dict"])
+    if "ema_state_dict" in _r2:
+        ema.load_state_dict(_r2["ema_state_dict"])
     hist2, _start2 = _r2.get("history", []), _r2["epoch"] + 1
     print(f"REPRISE etage 2 a l'epoque {_start2 + 1}/{EPOCHS_S2}")
 
@@ -72,6 +87,7 @@ for ep in range(_start2, EPOCHS_S2):
         # pour cfg_scale > 1 a l'inference (CorrDiff, Mardani 2024 sec 4.2).
         conditioning_dropout_prob=float(
             CONFIG.diffusion.get("conditioning_dropout_prob", 0.13)),
+        ema_model=ema, ema_decay=EMA_DECAY, ema_warmup_steps=0,
         verbose=(ep == 0))
     m2 = dict(m2); m2["epoch"] = ep; m2["seconds"] = round(time.time() - t_ep, 1)
     hist2.append(m2)
@@ -79,9 +95,22 @@ for ep in range(_start2, EPOCHS_S2):
     if int(m2.get("n_batches", 0)) == 0:
         raise RuntimeError("epoque etage 2 sans aucun batch : rien n'a ete "
                            "entraine, verifier la taille du cache.")
+    if ep == _start2:
+        # Le budget se lit en PAS, et le temps total se mesure a la premiere
+        # epoque plutot que de se decouvrir a la huitieme heure.
+        _nb = int(m2["n_batches"])
+        print(f"  -> {_nb} batches/epoque, {_nb * EPOCHS_S2:,} pas au total, "
+              f"~{m2['seconds'] * (EPOCHS_S2 - _start2) / 3600:.1f} h restantes "
+              f"(interruptible : la reprise est en place)")
     torch.save({"epoch": ep, "diffusion_state_dict": diffusion.state_dict(),
                 "optimizer_state_dict": opt_s2.state_dict(),
+                "ema_state_dict": ema.state_dict(),
                 "sigma_data": SIGMA_DATA, "history": hist2}, _LAST2)
+
+# L'evaluation porte sur les poids EMA, comme V5 et CorrDiff. Les poids vifs
+# restent dans le checkpoint : une reprise repart de la vraie trajectoire.
+diffusion.load_state_dict(ema.state_dict())
+print("poids EMA charges pour l'evaluation")
 
 json.dump(hist2, open(RESULTS_DIR / "v8_stage2_history.json", "w"),
           indent=2, default=float)
