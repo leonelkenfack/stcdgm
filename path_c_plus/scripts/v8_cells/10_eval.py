@@ -1,137 +1,133 @@
-# >>> Cell 10 : evaluation + verdict pre-enregistre
+# >>> Cell 10 : evaluation IN-PROTOCOL (celle du 3-way V6' / ORACLE / CorrDiff)
+# Le but de cette cellule n'est PAS de produire "des metriques" mais de produire
+# les MEMES metriques, dans les MEMES conditions, que celles deja mesurees sur
+# les autres modeles — sinon la Cell 11 comparerait des protocoles, pas des
+# modeles. Tout ce qui suit est donc contraint :
+#   evaluate_ensemble        la meme fonction (composition mm PAR MEMBRE)
+#   K=32, 24 pas, cfg 0.0    les reglages du 3-way
+#   graines 1000+k           les memes tirages
+#   split de test complet     au meme stride
+#   clim per-pixel partagee  le meme .npz quand il est disponible
+import time as _time
 from st_cdgm.evaluation.eval_metrics_dual_convention import (
-    to_mm_day, compute_f1_both_conventions)
+    evaluate_ensemble, to_mm_day)
 from st_cdgm.evaluation.two_stage_inference import sample_once_edm
 
 diffusion.eval()
+METRICS_PATH = RESULTS_DIR / "v8_metrics_inprotocol.json"
 
-# Etaler les N_EVAL echantillons sur TOUTE la periode de test. Prendre les
-# N_EVAL premiers jours consecutifs donnerait une tranche fortement
-# autocorrelee (les episodes pluvieux durent plusieurs jours) et ignorerait la
-# seconde annee de test.
-_n_test = sum(1 for _ in test_dataset)
-_stride = max(1, _n_test // max(N_EVAL, 1))
-print(f"test : {_n_test} jours disponibles, {N_EVAL} echantillons pris tous les "
-      f"{_stride} jours (couverture {100 * min(N_EVAL * _stride, _n_test) / _n_test:.0f} %)")
+# --- 1. etage 1 sur TOUT le split de test ---------------------------------
+# Meme chemin que le cache d'entrainement (Cell 8), tete BG comprise : mu doit
+# designer la meme quantite des deux cotes, sinon delta n'a pas le meme sens.
+test_cache = precompute_stage1_outputs(
+    encoder=encoder, rcn_runner=rcn_runner, regression_head=regression_head,
+    train_dataset=test_dataset,
+    iterate_batches_fn=lambda s: convert_sample_v8(s, builder, DEVICE),
+    device=DEVICE, bg_head=bg_head)
+mu_all, base_all = test_cache["mu_HR"], test_cache["baseline_log"]
+delta_all = test_cache["delta_target"]
+N_TEST = int(mu_all.shape[0])
+print(f"test : {N_TEST} fenetres (split complet, stride {_STRIDE})")
 
-preds, truths = [], []
-with torch.no_grad():
-    for i, s in enumerate(test_dataset):
-        if i % _stride:
-            continue
-        if len(preds) >= N_EVAL:
-            break
-        b = convert_sample_v8(s, builder, DEVICE)
-        t = b["residual"][-1].to(DEVICE)
-        if t.dim() == 3:
-            t = t.unsqueeze(0)
-        bl = b["baseline"][-1].to(DEVICE)
-        if bl.dim() == 3:
-            bl = bl.unsqueeze(0)
-        mu = predict_mu_hr(b, variant="causal", encoder=encoder, rcn_runner=rcn_runner,
-                           regression_head=regression_head, builder=builder,
-                           device=DEVICE, target_shape=t.shape[-2:], bg_head=bg_head)
-        # sample_once_edm ne prend pas de `device` : les tenseurs portent deja
-        # le leur. num_steps vient du YAML, pas d'un defaut cache.
-        members = [sample_once_edm(
-            diffusion, mu_HR=mu, baseline_log=bl, scheduler_type="edm_karras",
-            num_steps=int(CONFIG.diffusion.get("eval_num_steps",
-                                               CONFIG.diffusion.steps)),
-            cfg_scale=float(CONFIG.diffusion.get("cfg_scale", 1.0)))
-            for _ in range(K_ENSEMBLE)]
-        # expm1 PAR MEMBRE puis moyenne. L'ordre inverse rouvrirait un ecart de
-        # Jensen que A1 ne corrige pas : A1 porte sur la moyenne conditionnelle,
-        # pas sur des tirages. Mesure sur ces donnees : -2 a -15 % au p99.
-        preds.append(torch.stack([to_mm_day(bl + mu + d) for d in members]).mean(0).cpu())
-        truths.append(to_mm_day(bl + t).cpu())
-        if len(preds) % 50 == 0:
-            print(f"  {len(preds)}/{N_EVAL}")
-
-pred = torch.cat(preds).squeeze()
-truth = torch.cat(truths).squeeze()
-
-# CLIMATOLOGIE DE LA PERIODE D'ENTRAINEMENT (convention ETCCDI, et celle avec
-# laquelle les references 0,841 / 0,816 ont ete produites). La calculer sur la
-# verite de TEST reviendrait a definir l'evenement extreme a partir des memes
-# echantillons qu'on utilise pour compter les succes : le F1 en serait gonfle,
-# et la comparaison aux references ne porterait plus sur la meme quantite.
-import xarray as _xr
-
-_CLIM = RESULTS_DIR / "clim_train_p95_p99.npz"
-if _CLIM.exists():
-    _z = np.load(_CLIM)
-    clim95, clim99 = torch.from_numpy(_z["p95"]), torch.from_numpy(_z["p99"])
-    print(f"climatologie relue : {_CLIM}")
+# --- 2. climatologie per-pixel (Convention A, ETCCDI) ---------------------
+# Reutiliser le .npz des runs precedents quand il existe : un seuil p99 estime
+# sur un echantillon different donne un F1 different a modele EGAL. Les clefs
+# `clim_p95`/`clim_p99` sont celles ecrites par les runs 9-node et V6'.
+_cands = [Path("results/clim_p95_p99.npz")]
+if IN_COLAB:
+    _cands = [Path(DRIVE_ROOT) / "oracle_9node/seed_42/phase8/clim_p95_p99.npz",
+              Path(DRIVE_ROOT) / "ckpt_v2_corrdiff_normal/clim_p95_p99.npz",
+              Path(DRIVE_ROOT) / "oracle_v6_prime/seed_42/clim_p95_p99.npz"] + _cands
+_cp = next((p for p in _cands if p.exists()), None)
+if _cp is not None:
+    _z = np.load(_cp)
+    clim95 = torch.from_numpy(_z["clim_p95"].astype("float32"))
+    clim99 = torch.from_numpy(_z["clim_p99"].astype("float32"))
+    CLIM_SOURCE = str(_cp)
 else:
-    _dh = _xr.open_dataset(guard(HR_PATH), decode_times=True)
-    _tr = _dh["pr"].sel(time=slice(CONFIG.data.train_start_date,
-                                   CONFIG.data.train_end_date))
-    # 1 jour sur 2 : ~5500 jours suffisent pour un p99 par pixel (55 depassements)
-    # et divisent par deux l'empreinte memoire sur Colab.
-    _tr = _tr.isel(time=slice(None, None, 2)).values.astype("float32")
-    print(f"climatologie calculee sur {_tr.shape[0]} jours d'entrainement")
-    _p95 = np.nanquantile(_tr, 0.95, axis=0).astype("float32")
-    _p99 = np.nanquantile(_tr, 0.99, axis=0).astype("float32")
-    np.savez(_CLIM, p95=_p95, p99=_p99)
+    # Recompose le HR VRAI depuis le cache d'ENTRAINEMENT : baseline + mu +
+    # delta_target redonne exactement la cible, independamment du modele. C'est
+    # la periode d'entrainement qui sert de reference (standard ETCCDI) — la
+    # calculer sur la verite de test definirait l'evenement extreme a partir des
+    # echantillons servant a compter les succes.
+    _hr_mm = to_mm_day(cache["baseline_log"] + cache["mu_HR"]
+                       + cache["delta_target"]).squeeze(1).numpy()
+    _p95 = np.nanpercentile(_hr_mm, 95.0, axis=0).astype("float32")
+    _p99 = np.nanpercentile(_hr_mm, 99.0, axis=0).astype("float32")
+    np.savez(RESULTS_DIR / "clim_p95_p99.npz", clim_p95=_p95, clim_p99=_p99)
     clim95, clim99 = torch.from_numpy(_p95), torch.from_numpy(_p99)
-    _dh.close()
-    del _tr
-print(f"seuils : p95 med={float(clim95.median()):.2f} mm/j | "
-      f"p99 med={float(clim99.median()):.2f} mm/j")
-f1 = compute_f1_both_conventions(pred, truth, clim99, clim95)
-# RMSE masquee. Un echantillonnage de diffusion instable peut produire des
-# valeurs non finies ; une RMSE faite main renverrait alors nan sans dire
-# pourquoi. Observe sur un smoke ou l'etage 2 n'avait pas ete entraine.
-_fin = torch.isfinite(pred) & torch.isfinite(truth)
-_bad = int((~torch.isfinite(pred)).sum())
-if _bad:
-    print(f"ATTENTION : {_bad} pixels predits non finis "
-          f"({100 * _bad / pred.numel():.2f} %) - echantillonnage instable, "
-          f"les metriques ci-dessous portent sur les pixels valides seulement")
-rmse = float(((pred[_fin] - truth[_fin]) ** 2).mean().sqrt())
-print(f"\nF1@p99 : {f1}")
-print(f"RMSE   : {rmse:.4f} mm/j")
+    CLIM_SOURCE = f"calculee sur {_hr_mm.shape[0]} jours d'entrainement"
+    del _hr_mm
+print(f"climatologie : {CLIM_SOURCE}")
+print(f"  p95 med={float(clim95.median()):.2f} | p99 med={float(clim99.median()):.2f} mm/j")
 
-# References mesurees dans les runs precedents, in-protocol.
-REF = {"v5_per_gridpoint": 0.841, "noncausal_per_gridpoint": 0.816,
-       "v5_pooled": 0.512, "corrdiff_pooled": 0.550}
-verdict = {
-    "f1": f1, "rmse_mm": rmse, "references": REF,
-    "ensemble_K": K_ENSEMBLE, "n_eval": N_EVAL,
-    "n_pixels_non_finis": _bad,
-    "v8_nominal": OmegaConf.to_container(V8),
-    # Configuration EFFECTIVE : certains interrupteurs en desactivent d'autres
-    # (diagonal_driver et edge_prior exigent free_nodes). Enregistrer seulement
-    # le dict nominal ferait croire qu'une brique etait active alors qu'elle
-    # avait ete neutralisee en silence.
-    "v8_effectif": {
-        "free_nodes": bool(V8.free_nodes),
-        "driver_routing": rcn_cell.driver_routing,
-        "instantaneous": rcn_cell.A_inst is not None,
-        "edge_prior": edge_prior is not None,
-        "query_mode": regression_head.query_mode,
-        "bernoulli_gamma": bg_head is not None,
-        "jensen": jc is not None,
-    },
-    "protocole": {
-        "clim_source": "periode d'entrainement (ETCCDI)",
-        "n_test_disponibles": int(_n_test), "stride": int(_stride),
-        "reference_K": 64, "reference_num_steps": 32,
-    },
-    "lecture": (
-        "ATTRIBUTION : avec plusieurs interrupteurs actifs, ce run ne dit RIEN "
-        "sur la contribution de chaque brique. Il faut les runs P1 a un seul "
-        "changement pour cela. "
-        "COMPARABILITE : les references ont ete produites a K=64 et 32 pas de "
-        "diffusion ; a K plus faible la moyenne d'ensemble est plus bruitee. "
-        "Un ecart de 1-2 points n'est pas interpretable sans intervalle de "
-        "confiance par blocs ni plusieurs graines. "
-        "Cible V8 = PARITE in-distribution + gain OOD, pas un gain ID. Une "
-        "regression ID de quelques pour cent est PREVUE et acceptee : le DAG "
-        "gele est une feature OOD assumee (critique froide 2026-07-05). Le "
-        "verdict se joue sur EC-Earth3, puis UNE SEULE FOIS sur le holdout "
-        "NorESM2-MM. Un gain ID ici serait une bonne surprise, pas le critere."),
-}
-json.dump(verdict, open(RESULTS_DIR / "v8_verdict.json", "w"), indent=2, default=float)
-print("\n=== ECRIT results/v8_verdict.json ===")
-print(verdict["lecture"])
+# --- 3. echantillonnage par lots ------------------------------------------
+# Un membre a la fois sur TOUT le split, par paquets de EVAL_BATCH. Echantillonner
+# sample par sample (batch 1) multiplierait le nombre de forwards UNet par
+# EVAL_BATCH : plusieurs heures au lieu de dizaines de minutes.
+_EPOCHS_DONE = len(hist2)
+
+
+def sample_ensemble(K):
+    members, t0 = [], _time.time()
+    with torch.no_grad():
+        for k in range(K):
+            torch.manual_seed(1000 + k)   # memes graines que le 3-way
+            chunks = []
+            for i0 in range(0, N_TEST, EVAL_BATCH):
+                sl = slice(i0, min(i0 + EVAL_BATCH, N_TEST))
+                chunks.append(sample_once_edm(
+                    diffusion, mu_HR=mu_all[sl].to(DEVICE),
+                    baseline_log=base_all[sl].to(DEVICE),
+                    scheduler_type="edm_karras", num_steps=NUM_STEPS,
+                    cfg_scale=CFG_SCALE).cpu())
+            members.append(torch.cat(chunks, 0))
+            if k == 0 or (k + 1) % 4 == 0:
+                _el = _time.time() - t0
+                print(f"  membre {k + 1}/{K} | {_el:.0f}s ecoule | "
+                      f"ETA {_el / (k + 1) * (K - k - 1):.0f}s", flush=True)
+    return torch.stack(members, 0)          # [K, N, 1, H, W] sur CPU
+
+
+# PERSISTANCE. L'echantillonnage coute des dizaines de minutes ; relancer la
+# cellule pour lire la table de la Cell 11 ne doit pas le refaire. On invalide
+# quand meme le cache si l'etage 2 a avance depuis : sinon la table afficherait
+# en silence les metriques d'un modele moins entraine.
+_prev = json.load(open(METRICS_PATH)) if METRICS_PATH.exists() else None
+if _prev and _prev.get("protocol", {}).get("stage2_epochs") == _EPOCHS_DONE \
+        and _prev.get("protocol", {}).get("K") == K_VERDICT:
+    res = _prev["metrics"]
+    print(f"metriques relues ({METRICS_PATH}) - supprimer le fichier pour recalculer")
+else:
+    if _prev:
+        print(f"cache de metriques perime (etage 2 : "
+              f"{_prev.get('protocol', {}).get('stage2_epochs')} -> {_EPOCHS_DONE} "
+              f"epoques) - recalcul")
+    ens = sample_ensemble(K_VERDICT)
+    try:
+        res = evaluate_ensemble(ens.to(DEVICE), mu_all.to(DEVICE),
+                                base_all.to(DEVICE), delta_all.to(DEVICE),
+                                clim99.to(DEVICE), clim95.to(DEVICE))
+    except torch.cuda.OutOfMemoryError:
+        # L'ensemble fait ~0,7 Go et evaluate_ensemble en materialise deux
+        # copies. Plutot que de perdre l'echantillonnage sur un OOM a la
+        # derniere ligne, on refait le calcul sur CPU : plus lent, identique.
+        torch.cuda.empty_cache()
+        print("OOM GPU sur les metriques -> recalcul sur CPU")
+        res = evaluate_ensemble(ens, mu_all, base_all, delta_all,
+                                clim99, clim95)
+    del ens
+    json.dump({"metrics": res,
+               "protocol": {"K": K_VERDICT, "num_steps": NUM_STEPS,
+                            "cfg_scale": CFG_SCALE, "n_test": N_TEST,
+                            "stride": int(_STRIDE), "gcm": "ACCESS-CM2",
+                            "clim_source": CLIM_SOURCE,
+                            "stage2_epochs": _EPOCHS_DONE,
+                            "composition": "mm par membre (evaluate_ensemble)"},
+               "v8_nominal": OmegaConf.to_container(V8)},
+              open(METRICS_PATH, "w"), indent=2, default=float)
+    print(f"ecrit : {METRICS_PATH}")
+
+print()
+for _k in ("conv_A_F1p99", "conv_B_F1p99", "rmse", "pearson_global", "crps"):
+    print(f"  {_k:16s} = {res[_k]:.4f}")

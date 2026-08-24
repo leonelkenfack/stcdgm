@@ -32,7 +32,15 @@ print(f"parametres etage 2 : {sum(p.numel() for p in diffusion.parameters()):,}"
 
 cached = TensorDataset(cache["mu_HR"], cache["baseline_log"],
                        cache["delta_target"], cache["valid_mask"])
-BS = int(CONFIG.training.batch_size)
+# CONFIG.training.batch_size = 64 vise l'A100 80 Go : le YAML de reference dit
+# lui-meme que 64 sur cet UNet "OOM meme sur A100" sans recompute d'activations.
+# Sur T4 16 Go on descend a 32. Cela ne change PAS le budget d'entrainement :
+# une epoque reste une passe sur le cache, donc le nombre de tirages est le
+# meme — seul le nombre de pas double.
+_VRAM = (torch.cuda.get_device_properties(0).total_memory / 2 ** 30
+         if DEVICE.type == "cuda" else 0.0)
+BS = int(os.environ.get("V8_BS_S2", 0)) or (64 if _VRAM > 40 else 32)
+print(f"batch etage 2 : {BS} ({_VRAM:.0f} GiB de VRAM)")
 # drop_last=True : si le cache contient MOINS que batch_size, le DataLoader rend
 # zero batch et train_epoch_stage2_cached tourne a vide en renvoyant n_batches=0
 # sans lever. Observe sur un smoke : l'etage 2 n'avait rien entraine et rien ne
@@ -62,8 +70,21 @@ opt_s2 = torch.optim.AdamW(diffusion.parameters(), lr=float(S2.lr),
 import copy
 ema = copy.deepcopy(diffusion)
 EMA_DECAY = 0.999
+
+# Programme de pas : warmup lineaire puis cosinus (Karras EDM §5, comme V5).
+# Sur ~21 000 pas un lr constant laisse le modele osciller autour du minimum en
+# fin de course ; le warmup evite que les premiers pas, sur des poids
+# aleatoires, ne detruisent l'echelle de l'UNet.
+_WARM = max(1, min(5, EPOCHS_S2 // 50))
+sched_s2 = torch.optim.lr_scheduler.SequentialLR(
+    opt_s2,
+    [torch.optim.lr_scheduler.LinearLR(opt_s2, start_factor=0.1,
+                                       total_iters=_WARM),
+     torch.optim.lr_scheduler.CosineAnnealingLR(
+         opt_s2, T_max=max(1, EPOCHS_S2 - _WARM), eta_min=float(S2.lr) / 50)],
+    milestones=[_WARM])
 print(f"etage 2 : lr={float(S2.lr):.1e} | sigma_data={SIGMA_DATA:.5f} | "
-      f"EMA decay={EMA_DECAY}")
+      f"EMA decay={EMA_DECAY} | warmup {_WARM} ep puis cosinus")
 
 _LAST2 = CKPT_DIR / "stage2_last.pth"
 hist2, _start2 = [], 0
@@ -75,7 +96,15 @@ if _LAST2.exists():
     if "ema_state_dict" in _r2:
         ema.load_state_dict(_r2["ema_state_dict"])
     hist2, _start2 = _r2.get("history", []), _r2["epoch"] + 1
-    print(f"REPRISE etage 2 a l'epoque {_start2 + 1}/{EPOCHS_S2}")
+    if "scheduler_state_dict" in _r2:
+        sched_s2.load_state_dict(_r2["scheduler_state_dict"])
+    else:
+        # Checkpoint anterieur au programme de pas : le rejouer a vide, sinon
+        # la reprise repartirait au lr du debut au lieu du lr courant.
+        for _ in range(_start2):
+            sched_s2.step()
+    print(f"REPRISE etage 2 a l'epoque {_start2 + 1}/{EPOCHS_S2} "
+          f"(lr={opt_s2.param_groups[0]['lr']:.2e})")
 
 for ep in range(_start2, EPOCHS_S2):
     t_ep = time.time()
@@ -90,6 +119,8 @@ for ep in range(_start2, EPOCHS_S2):
         ema_model=ema, ema_decay=EMA_DECAY, ema_warmup_steps=0,
         verbose=(ep == 0))
     m2 = dict(m2); m2["epoch"] = ep; m2["seconds"] = round(time.time() - t_ep, 1)
+    m2["lr"] = opt_s2.param_groups[0]["lr"]
+    sched_s2.step()
     hist2.append(m2)
     print(f"[S2 {ep + 1:2d}/{EPOCHS_S2}] {m2}")
     if int(m2.get("n_batches", 0)) == 0:
@@ -104,6 +135,7 @@ for ep in range(_start2, EPOCHS_S2):
               f"(interruptible : la reprise est en place)")
     torch.save({"epoch": ep, "diffusion_state_dict": diffusion.state_dict(),
                 "optimizer_state_dict": opt_s2.state_dict(),
+                "scheduler_state_dict": sched_s2.state_dict(),
                 "ema_state_dict": ema.state_dict(),
                 "sigma_data": SIGMA_DATA, "history": hist2}, _LAST2)
 

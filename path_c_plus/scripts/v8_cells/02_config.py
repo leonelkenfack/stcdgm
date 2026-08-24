@@ -4,6 +4,18 @@ from st_cdgm.data.derived import FREE_NODES
 
 CONFIG = OmegaConf.load("config/training_config.yaml")
 
+# --- Etage 2 : la MEME architecture que les modeles auxquels on se compare.
+# Les metriques de reference (ORACLE, CorrDiff, V6') ont toutes ete produites
+# avec l'UNet CorrDiff-Normal : 4 niveaux, [128,256,256,256], ~50 M parametres
+# (champ `config_block_out_channels` de leurs JSON de metriques). Le bloc
+# `diffusion` du YAML de base decrit un UNet MINIMAL de 1 M parametres : le
+# garder ferait mesurer la taille de l'UNet, pas l'apport de V8. Le merge
+# apporte aussi S_churn=40 et la tail_weight 8/25 du protocole de reference.
+_S2_REF = OmegaConf.load("config/training_config_corrdiff_normal.yaml")
+CONFIG.diffusion = OmegaConf.merge(CONFIG.diffusion, _S2_REF.diffusion)
+print(f"etage 2 : UNet {list(CONFIG.diffusion.unet_kwargs.block_out_channels)} "
+      f"(CorrDiff-Normal, celui des references)")
+
 # --- Interrupteurs. Tout a False donne approximativement la pile V5.
 #     P1 exige UN SEUL changement par run pour pouvoir attribuer l'effet.
 V8 = OmegaConf.create(dict(
@@ -19,15 +31,26 @@ print(OmegaConf.to_yaml(V8))
 
 # --- Budget. Pour un smoke, reduire EPOCHS ; ne JAMAIS toucher aux seuils.
 EPOCHS_S1   = int(os.environ.get("V8_EPOCHS_S1", 30))
-# Etage 2 : ce qui compte est le nombre de PAS d'optimiseur, pas d'epoques.
-# Le cache tient ~2 734 fenetres (stride 4), soit 42 batches de 64 par
-# epoque. V5 tournait a stride 2 (85 batches) sur 250 epoques, soit ~21 000
-# pas ; 20 epoques ici n'en donnaient que 840 — vingt-cinq fois moins, sur
-# un modele de diffusion. 500 epoques retablissent la parite. Une epoque
-# coute peu : l'etage 1 est gele et le cache est deja calcule.
+# Etage 2 : le budget se compte en TIRAGES (echantillons vus), la seule unite
+# invariante. V5 : 250 epoques x 5 467 fenetres (stride 2) = ~1,37 M tirages.
+# Ici le cache tient ~2 734 fenetres (stride 4), donc 500 passes = le meme
+# budget. La valeur initiale, 20, venait du cap `stage2.epochs_max` du YAML de
+# base et ne donnait que ~55 000 tirages : vingt-cinq fois moins, sur un
+# modele de diffusion. Le nombre de PAS depend en plus du batch (Cell 9) ; il
+# est affiche a la premiere epoque.
 EPOCHS_S2   = int(os.environ.get("V8_EPOCHS_S2", 500))
-N_EVAL      = int(os.environ.get("V8_N_EVAL", 300))
-K_ENSEMBLE  = int(os.environ.get("V8_ENSEMBLE", 16))
+N_EVAL      = int(os.environ.get("V8_N_EVAL", 300))   # audit Jensen (Cell 7)
+
+# --- Protocole d'evaluation. Ces valeurs ne sont PAS libres : ce sont celles
+#     sous lesquelles V6', ORACLE (V5) et CorrDiff ont ete mesures dans le
+#     3-way. Les changer rend la Cell 11 incomparable — elle le detecte et
+#     refuse le verdict plutot que d'aligner des nombres de protocoles
+#     differents. cfg 0.0 = conditioned-only : identique a 1.0 sur edm_karras,
+#     sans le double forward CFG.
+K_VERDICT   = int(os.environ.get("V8_K", 32))
+NUM_STEPS   = int(os.environ.get("V8_NUM_STEPS", 24))
+CFG_SCALE   = 0.0
+EVAL_BATCH  = int(os.environ.get("V8_EVAL_BATCH", 16))
 SEQ_LEN     = int(CONFIG.data.seq_len)
 HIDDEN      = int(CONFIG.rcn.hidden_dim)
 LR_SHAPE    = (23, 26)

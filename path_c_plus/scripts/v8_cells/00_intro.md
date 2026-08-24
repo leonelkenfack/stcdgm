@@ -36,6 +36,20 @@ est prévue et acceptée : le DAG gelé est une feature OOD assumée, pas un
 avantage ID. Le verdict se joue sur EC-Earth3, puis **une seule fois** sur le
 holdout.
 
+## Comparaison aux autres modèles
+
+Les Cells 10-11 mesurent V8 **dans le protocole du 3-way** (K=32, 24 pas,
+cfg 0.0, split de test complet, composition mm par membre, `evaluate_ensemble`)
+puis relisent la table déjà produite pour V6', ORACLE (V5) et CorrDiff : ces
+trois-là ne sont **pas réévalués**. C'est aussi pourquoi l'étage 2 est l'UNet
+CorrDiff-Normal (~43 M paramètres) et non l'UNet minimal du YAML de base : à
+1 M paramètres, la table comparerait des tailles de réseau.
+
+Si la table de référence est absente, la Cell 11 le dit et marque la
+comparaison non valide plutôt que de s'appuyer sur les valeurs
+pré-enregistrées, que le prérégistre V6' déclare lui-même calculées avec une
+Convention A buggée.
+
 ## Règle absolue
 
 **NorESM2-MM est le holdout OOD.** Aucune cellule ne l'ouvre. Un garde lève à
