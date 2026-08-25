@@ -99,34 +99,46 @@ def validation_loss(ds):
 # REPRISE. Un run de plusieurs heures sur Colab SERA interrompu : limite de
 # session, deconnexion, onglet ferme. Sans point de reprise il faut tout
 # recommencer.
+def _incompatible_s1(ck):
+    """Pourquoi ce checkpoint ne decrit PAS ce modele-ci — ou None.
+
+    Certains interrupteurs V8 changent les formes et feraient lever
+    load_state_dict ; d'autres non, et la reprise serait alors silencieusement
+    fausse. On compare donc la configuration, pas seulement les formes. Et on
+    verifie AVANT tout chargement : `strict=True` copie les tenseurs qui
+    correspondent avant de lever sur les autres, donc l'encodeur et le RCN — que
+    le conditionnement de la tete n'a pas fait bouger — seraient deja ecrases
+    par les poids d'un run etranger au moment de l'exception.
+    """
+    if ck.get("node_types") != NODE_TYPES:
+        return f"{len(ck.get('node_types') or [])} noeuds au lieu de {len(NODE_TYPES)}"
+    if ck.get("v8") != OmegaConf.to_container(V8):
+        return "interrupteurs V8 differents"
+    if bg_head is not None and "bg_head_state_dict" in ck:
+        _w_ck = ck["bg_head_state_dict"].get("proj.weight")
+        _w_now = bg_head.state_dict()["proj.weight"]
+        if _w_ck is not None and tuple(_w_ck.shape) != tuple(_w_now.shape):
+            return (f"tete BG {tuple(_w_ck.shape)} au lieu de "
+                    f"{tuple(_w_now.shape)} (conditionnement different)")
+    return None
+
+
+def _ecarter(chemin, pourquoi):
+    """Renomme un checkpoint perime au lieu de le detruire, et le dit."""
+    _v = chemin.with_name(f"{chemin.stem}.perime_{int(time.time())}.pth")
+    chemin.rename(_v)
+    print(f"CHECKPOINT ECARTE : {pourquoi}")
+    print(f"  conserve sous {_v.name}")
+
+
 _LAST = CKPT_DIR / "stage1_last.pth"
 history, best, _start, _r = [], float("inf"), 0, None
 if _LAST.exists():
     _r = torch.load(_LAST, map_location=DEVICE, weights_only=False)
-    # Un checkpoint d'une AUTRE configuration ne decrit pas ce modele-ci.
-    # Certains interrupteurs V8 changent les formes et feraient lever
-    # load_state_dict ; d'autres non, et la reprise serait silencieusement
-    # fausse. On compare donc la configuration, pas seulement les formes.
-    _dif = None
-    if _r.get("node_types") != NODE_TYPES:
-        _dif = f"{len(_r.get('node_types') or [])} noeuds au lieu de {len(NODE_TYPES)}"
-    elif _r.get("v8") != OmegaConf.to_container(V8):
-        _dif = "interrupteurs V8 differents"
-    elif bg_head is not None and "bg_head_state_dict" in _r:
-        # La tete a change de forme quand elle a recu la baseline et les
-        # statiques en entree. Les formes de l'encodeur et du RCN, elles, n'ont
-        # pas bouge : sans ce controle ils se chargeraient AVANT que la tete ne
-        # leve, laissant la pile a moitie ecrasee par un run etranger.
-        _w_ck = _r["bg_head_state_dict"].get("proj.weight")
-        _w_now = bg_head.state_dict()["proj.weight"]
-        if _w_ck is not None and tuple(_w_ck.shape) != tuple(_w_now.shape):
-            _dif = (f"tete BG {tuple(_w_ck.shape)} au lieu de "
-                    f"{tuple(_w_now.shape)} (conditionnement different)")
+    _dif = _incompatible_s1(_r)
     if _dif:
-        _vieux = _LAST.with_name(f"stage1_last.perime_{int(time.time())}.pth")
-        _LAST.rename(_vieux)
-        print(f"CHECKPOINT ECARTE : {_dif}")
-        print(f"  conserve sous {_vieux.name} ; l'etage 1 repart de zero.")
+        _ecarter(_LAST, _dif)
+        print("  l'etage 1 repart de zero.")
         _r = None
 if _r is not None:
     encoder.load_state_dict(_r["encoder_state_dict"])
@@ -244,11 +256,32 @@ if history:
 # CHARGER le meilleur checkpoint. Sans cela, les cellules suivantes
 # travailleraient sur les poids de la DERNIERE epoque et le checkpoint
 # "meilleur" ne serait qu'un fichier decoratif.
-_ck = torch.load(CKPT_DIR / "stage1_best.pth", map_location=DEVICE, weights_only=False)
-encoder.load_state_dict(_ck["encoder_state_dict"])
-rcn_cell.load_state_dict(_ck["rcn_cell_state_dict"])
-regression_head.load_state_dict(_ck["regression_head_state_dict"])
-if bg_head is not None:
-    bg_head.load_state_dict(_ck["bg_head_state_dict"])
-print(f"meilleure perte de VALIDATION : {best:.5f} (epoque {_ck['epoch'] + 1}) "
-      f"- poids recharges")
+# MEME CONTROLE que la reprise : ce fichier-ci survit aussi d'un run a l'autre,
+# et il etait charge sans rien verifier. Un checkpoint d'une configuration
+# anterieure levait donc ici, apres l'entrainement complet.
+_BEST = CKPT_DIR / "stage1_best.pth"
+_ck = torch.load(_BEST, map_location=DEVICE, weights_only=False) if _BEST.exists() else None
+if _ck is not None:
+    _dif_b = _incompatible_s1(_ck)
+    if _dif_b:
+        _ecarter(_BEST, _dif_b)
+        _ck = None
+if _ck is not None:
+    encoder.load_state_dict(_ck["encoder_state_dict"])
+    rcn_cell.load_state_dict(_ck["rcn_cell_state_dict"])
+    regression_head.load_state_dict(_ck["regression_head_state_dict"])
+    if bg_head is not None:
+        bg_head.load_state_dict(_ck["bg_head_state_dict"])
+    print(f"meilleure perte de VALIDATION : {best:.5f} (epoque {_ck['epoch'] + 1}) "
+          f"- poids recharges")
+elif history:
+    # La boucle a tourne : les poids en memoire sont ceux de la DERNIERE
+    # epoque, pas de la meilleure. C'est utilisable, mais ce n'est pas la meme
+    # chose et le silence serait trompeur.
+    print("ATTENTION : aucun checkpoint 'meilleur' exploitable. Les cellules "
+          "suivantes utilisent les poids de la DERNIERE epoque.")
+else:
+    raise RuntimeError(
+        "Ni entrainement ni checkpoint 'meilleur' utilisable : les poids en "
+        "memoire sont ceux de l'INITIALISATION. Relancer la Cell 5 apres avoir "
+        "verifie EPOCHS_S1 et le contenu de " + str(CKPT_DIR))
