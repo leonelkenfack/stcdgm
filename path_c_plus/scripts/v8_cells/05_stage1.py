@@ -30,6 +30,11 @@ print(f"etage 1 : lr={float(S1.lr):.1e} lambda_reg={float(S1.lambda_reg)} "
 # modes de defaillance documentes de cette architecture.
 from st_cdgm.models.bernoulli_gamma import decode_bg_params, stage1_bg_loss
 
+# UN seul seuil humide, lu aux deux endroits. Le laisser en dur a deux endroits
+# est exactement ce qui a fait diverger l'entrainement (0,1) de la validation
+# (defaut 1,0) sans que rien ne le signale.
+BG_WET_SEUIL = 0.1
+
 
 @torch.no_grad()
 def validation_loss(ds):
@@ -52,7 +57,14 @@ def validation_loss(ds):
         if bg_head is not None:
             pb, ab, bb = decode_bg_params(regression_head, bg_head, H_T,
                                           target_shape=t.shape[-2:])
-            v, _ = stage1_bg_loss(pb, ab, bb, t, bl)
+            # wet_threshold EXPLICITE. Le defaut de stage1_bg_loss est 1,0 et
+            # l'entrainement passe 0,1 : sans cet argument, la validation
+            # notait une AUTRE vraisemblance que celle optimisee — elles
+            # divergent sur toute la bande 0,1 a 1 mm/j, precisement celle que
+            # A3 existe pour traiter. Le checkpoint "meilleur" etait donc
+            # selectionne sur un critere que le modele n'a jamais minimise, et
+            # la courbe de validation plate n'etait pas interpretable.
+            v, _ = stage1_bg_loss(pb, ab, bb, t, bl, wet_threshold=BG_WET_SEUIL)
         else:
             mu = regression_head(H_T)
             if mu.shape != t.shape:
@@ -126,7 +138,7 @@ for ep in range(_start, EPOCHS_S1):
         # ferait ajuster la Gamma au-dessus de 1 mm/j, ce qui donne alpha=1,05
         # au lieu de 0,55 - la forme fausse d'un facteur 2, et c'est elle qui
         # gouverne les extremes.
-        bg_wet_threshold=0.1,
+        bg_wet_threshold=BG_WET_SEUIL,
         skip_block=skip_block, p1_tail_alpha=0.0, p3_k_samples=0,
         verbose=(ep == 0),
     )

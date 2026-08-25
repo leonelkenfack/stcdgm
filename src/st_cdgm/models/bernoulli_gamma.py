@@ -101,24 +101,54 @@ class BernoulliGammaHead(nn.Module):
         """
         return p * alpha * beta ** 2 * (1.0 + alpha) - (p * alpha * beta) ** 2
 
+    # Grille de quadrature pour E[log1p(G)]. Log-espacee en u, ou G = beta*u et
+    # u ~ Gamma(alpha, 1) : la grille est ainsi INDEPENDANTE de (alpha, beta),
+    # donc partagee par tous les pixels et calculee une fois.
+    _LOG_U = torch.linspace(-18.0, 4.5, 128)
+    _QUAD_U = _LOG_U.exp()
+    _QUAD_W = torch.cat([                      # poids trapezes en log-u
+        ((_LOG_U[1] - _LOG_U[0]) / 2.0).reshape(1),
+        (_LOG_U[2:] - _LOG_U[:-2]) / 2.0,
+        ((_LOG_U[-1] - _LOG_U[-2]) / 2.0).reshape(1),
+    ])
+
     @staticmethod
     def mean_log1p(p: Tensor, alpha: Tensor, beta: Tensor,
                    delta: float = 0.0) -> Tensor:
         """``E[log1p(X)]`` — la moyenne dans l'espace ou vit l'etage 2.
 
         Ce n'est PAS ``log1p(E[X])``. La structure hurdle donne exactement
-        ``E[log1p(X)] = p * E[log1p(G)]`` (car ``log1p(0) = 0``), et
-        ``E[log1p(G)]`` s'obtient par developpement autour de ``mu_G = alpha*beta``
-        avec les moments centres de la Gamma (``Var = alpha*beta^2``,
-        ``mu3 = 2*alpha*beta^3``). L'ordre 4 DEGRADE le resultat : la serie de
-        Taylor de log1p a un rayon de convergence fini alors que la Gamma a un
-        support non borne — verifie, ne pas le rajouter.
+        ``E[log1p(X)] = p * E[log1p(G)]`` (car ``log1p(0) = 0``).
+
+        ``E[log1p(G)]`` est obtenu par QUADRATURE et non plus par un
+        developpement de Taylor. L'ancienne version tronquait a l'ordre 3 :
+
+            log1p(mu) - Var/2(1+mu)^2 + (2/3)mu3/(1+mu)^3
+
+        Le rayon de convergence de log1p est fini, le support de la Gamma ne
+        l'est pas, et le troisieme terme croit en beta^3 pendant que son
+        denominateur croit en (1+alpha*beta)^3 : des que alpha < 1 avec beta
+        grand, il DIVERGE. Mesure contre Monte-Carlo :
+
+            alpha  beta   vrai   ordre 3   erreur
+             0.55   8.0   1.246    2.275    +1.03     <- regime "bruine"
+             0.30  20.0   1.207    5.386    +4.18
+             0.20  30.0   1.033   10.605    +9.57
+
+        Or l'ecart-type du residu que l'etage 2 doit apprendre vaut 0,23 : une
+        erreur de +1,03 est quatre fois le signal entier. Le self-check ne
+        testait que (alpha=2, beta=5), ou l'erreur n'est que de +0,12, et
+        passait. La quadrature ci-dessous est exacte a 0,002 sur toute la plage
+        alpha in [0,05, 5], beta in [0,5, 30] pour ~1 ms par carte HR sur GPU.
         """
-        mu_g = alpha * beta + delta
-        one = 1.0 + mu_g
-        e_log_g = (torch.log1p(mu_g)
-                   - 0.5 * (alpha * beta ** 2) / one ** 2
-                   + (2.0 / 3.0) * (alpha * beta ** 3) / one ** 3)
+        u = BernoulliGammaHead._QUAD_U.to(alpha.device, alpha.dtype)
+        w = BernoulliGammaHead._QUAD_W.to(alpha.device, alpha.dtype)
+        log_u = BernoulliGammaHead._LOG_U.to(alpha.device, alpha.dtype)
+        a = alpha.unsqueeze(-1)
+        b = beta.unsqueeze(-1)
+        # densite de u ~ Gamma(a, 1) en log, multipliee par u (jacobien log-u)
+        log_dens = a * log_u - u - torch.lgamma(a)
+        e_log_g = (log_dens.exp() * w * torch.log1p(delta + b * u)).sum(-1)
         # Terme sec : le pipeline transforme par log1p(x + delta), donc un pixel
         # sec vaut log1p(delta) et non 0. L'omettre laisse un decalage
         # systematique sur toute la fraction seche du domaine.
@@ -266,6 +296,33 @@ if __name__ == "__main__":
     assert biais_corr < biais_naif / 4.0, (
         f"la correction de concavite doit diviser le biais par au moins 4 : "
         f"{biais_naif:.4f} -> {biais_corr:.4f}")
+    # ------------------------------------------------------------------ #
+    # E[log1p(G)] SUR TOUTE LA PLAGE, pas seulement au point commode.
+    # Le test ci-dessus n'exerce que (alpha=2, beta=5), ou l'ancien
+    # developpement de Taylor a l'ordre 3 se trompait de +0,12 et passait.
+    # A (alpha=0,55, beta=8) — la loi "bruine" que le docstring de
+    # wet_threshold declare realiste — il se trompait de +1,03, soit quatre
+    # fois l'ecart-type du residu que l'etage 2 doit apprendre. Ce balayage
+    # est la pour que ca ne puisse plus passer inapercu.
+    # ------------------------------------------------------------------ #
+    torch.manual_seed(1)
+    pire, pire_pt = 0.0, None
+    for _al in (0.05, 0.2, 0.55, 1.0, 2.0, 5.0):
+        for _be in (0.5, 2.0, 8.0, 30.0):
+            _g = torch.distributions.Gamma(torch.tensor(_al), torch.tensor(1.0 / _be))
+            _vrai = float(torch.log1p(_g.sample((200_000,))).mean())
+            _q = float(BernoulliGammaHead.mean_log1p(
+                torch.ones(1), torch.full((1,), _al), torch.full((1,), _be)))
+            if abs(_q - _vrai) > pire:
+                pire, pire_pt = abs(_q - _vrai), (_al, _be, _vrai, _q)
+    print(f"E[log1p(G)] par quadrature : erreur max {pire:.4f} sur alpha in "
+          f"[0,05, 5] x beta in [0,5, 30]  (pire cas alpha={pire_pt[0]}, "
+          f"beta={pire_pt[1]} : {pire_pt[3]:.4f} vs {pire_pt[2]:.4f})")
+    assert pire < 0.02, (
+        f"E[log1p(G)] devie de {pire:.4f} en (alpha={pire_pt[0]}, "
+        f"beta={pire_pt[1]}) — l'ecart-type du residu vaut ~0,23, une erreur "
+        f"de cette taille rend l'ancre inutilisable")
+
     # La variance analytique doit coller a l'empirique (elle sert a la correction).
     var_a = float(BernoulliGammaHead.variance(p, a, b).mean())
     var_e = float(y.var())
