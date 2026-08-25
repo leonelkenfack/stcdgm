@@ -55,6 +55,31 @@ print(f"                    corr(t,mu)={_corr(_t_c, _mu_c):+.3f} | "
 print(f"                    corr(delta,mu)={_corr(_dl_c, _mu_c):+.3f} "
       f"(seuil pre-enregistre : -0,30)")
 
+# QUE VAUT-IL LA PEINE DE PREDIRE ? Un R2 negatif dit que mu est mauvais, pas
+# ce qui etait atteignable. Deux references gratuites repondent :
+#   mu := 0            -> R2 = 0 par construction, le plancher a battre ;
+#   climatologie de t  -> la moyenne PAR PIXEL du residu, une simple table de
+#                         correspondance, sans modele et sans meteo.
+# La baseline etant la verite HR lissee a 4x (baseline_strategy="hr_smoothing"),
+# t est le detail sous-maille de la verite elle-meme, dont une bonne part est
+# OROGRAPHIQUE donc statique. Si la climatologie atteint deja le R2 d'un run
+# anterieur, ce run n'avait pas de competence meteo a l'etage 1 : il avait
+# appris le relief, et c'est un tout autre probleme.
+_t_full = cache["delta_target"] + cache["mu_HR"]
+_m_full = cache["valid_mask"].bool()
+_n_pix = _m_full.float().sum(dim=0).clamp(min=1.0)
+_clim_t = torch.where(_m_full, _t_full, torch.zeros_like(_t_full)).sum(dim=0) / _n_pix
+_r2_clim = 1.0 - float(((_t_full - _clim_t)[_m_full].double().pow(2).sum())
+                       / (_t_full[_m_full].double().pow(2).sum()))
+_part_stat = float(_clim_t[_m_full.any(dim=0)].var() / _t_full[_m_full].var())
+print(f"references            mu := 0        : R2 = +0.000  (plancher)")
+print(f"                      climatologie(t) : R2 = {_r2_clim:+.3f}  "
+      f"({100 * _part_stat:.1f} % de la variance de t est STATIQUE)")
+if _r2 < _r2_clim:
+    print(f"                      -> l'etage 1 fait moins bien qu'une moyenne "
+          f"par pixel calculee sans aucun modele.")
+del _t_full, _m_full, _n_pix, _clim_t
+
 # Si mu est mauvais, DEUX pannes differentes le produisent et elles n'ont pas
 # le meme remede : soit l'ancre ne bouge pas d'un jour a l'autre (le decodeur a
 # appris la climatologie, le relief — la meteo n'arrive pas jusqu'a lui), soit
