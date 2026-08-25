@@ -167,6 +167,17 @@ for ep in range(_start, EPOCHS_S1):
 
 json.dump(history, open(RESULTS_DIR / "v8_stage1_history.json", "w"),
           indent=2, default=float)
+# Trajectoire, en trois lignes. Sur une reprise ou la boucle ne tourne pas, la
+# question "l'etage 1 a-t-il seulement appris ?" se poserait sinon sans reponse
+# a l'ecran — et c'est la premiere a se poser quand mu_HR se revele inutilisable.
+if history:
+    _tr = [float(h["loss"]) for h in history]
+    _va = [float(h["val_loss"]) for h in history if "val_loss" in h]
+    print(f"trajectoire etage 1 sur {len(history)} epoques :")
+    print(f"  entrainement {_tr[0]:.5f} -> {_tr[-1]:.5f} (min {min(_tr):.5f})")
+    if _va:
+        print(f"  validation   {_va[0]:.5f} -> {_va[-1]:.5f} (min {min(_va):.5f}"
+              f" a l'epoque {_va.index(min(_va)) + 1})")
 # CHARGER le meilleur checkpoint. Sans cela, les cellules suivantes
 # travailleraient sur les poids de la DERNIERE epoque et le checkpoint
 # "meilleur" ne serait qu'un fichier decoratif.

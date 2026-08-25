@@ -75,7 +75,16 @@ CKPT_DIR = ((Path(DRIVE_ROOT) / "checkpoints_v8") if IN_COLAB
             else Path("checkpoints_v8"))
 CKPT_DIR.mkdir(parents=True, exist_ok=True)
 print(f"checkpoints : {CKPT_DIR}")
-RESULTS_DIR = Path("results"); RESULTS_DIR.mkdir(exist_ok=True)
+# Les resultats aussi sur Drive, et pour la meme raison que les checkpoints :
+# `results/` vit dans le clone, donc sur le disque EPHEMERE de la VM. Tout y
+# passait — l'historique des pertes, la climatologie, les metriques
+# in-protocol, le verdict. Le cache de metriques de la Cell 10, cense eviter
+# de reechantillonner pendant des dizaines de minutes, ne survivait meme pas a
+# une deconnexion.
+RESULTS_DIR = ((Path(DRIVE_ROOT) / "results_v8") if IN_COLAB
+               else Path("results"))
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+print(f"resultats   : {RESULTS_DIR}")
 
 # --- Garde holdout. NorESM2-MM est pre-enregistre comme intouchable : une
 #     seule evaluation finale, jamais pendant le developpement. Toute cellule

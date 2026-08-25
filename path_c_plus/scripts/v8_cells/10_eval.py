@@ -33,7 +33,7 @@ print(f"test : {N_TEST} fenetres (split complet, stride {STRIDE_EVAL})")
 # Reutiliser le .npz des runs precedents quand il existe : un seuil p99 estime
 # sur un echantillon different donne un F1 different a modele EGAL. Les clefs
 # `clim_p95`/`clim_p99` sont celles ecrites par les runs 9-node et V6'.
-_cands = [Path("results/clim_p95_p99.npz")]
+_cands = [RESULTS_DIR / "clim_p95_p99.npz"]
 if IN_COLAB:
     _cands = [Path(DRIVE_ROOT) / "oracle_9node/seed_42/phase8/clim_p95_p99.npz",
               Path(DRIVE_ROOT) / "ckpt_v2_corrdiff_normal/clim_p95_p99.npz",
