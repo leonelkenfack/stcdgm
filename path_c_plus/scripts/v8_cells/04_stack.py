@@ -123,7 +123,30 @@ print(f"decodeur  : query_mode={regression_head.query_mode} | "
       f"features={regression_head.feature_channels}")
 
 # --- tete Bernoulli-Gamma (A3) --------------------------------------------
-bg_head = (BernoulliGammaHead(regression_head.feature_channels).to(DEVICE)
+# CHAMPS STATIQUES HR. Le builder les porte deja (`SP_HR`), mais aucun
+# metachemin de l'encodeur ne les lit : V5, V6' et le 9-noeuds ajoutaient une
+# configuration ("SP_HR", "causes", "GP850"), la Cell 4 de V8 l'avait perdue.
+# H_T ne contient donc AUCUNE information orographique. Plutot que d'en faire
+# un 14e noeud du DAG — le relief ne change pas dans le temps, une arete A(tau)
+# vers lui n'a pas de sens — on le donne a la TETE, a la resolution HR ou il
+# vit nativement. Le prior C7, le routage diagonal et A(0)/A(1) restent a 13.
+_stat = builder._static_features            # [N_hr, C_stat]
+STATIC_MAP = (_stat.t().reshape(1, _stat.shape[1], *HR_SHAPE).contiguous()
+              if _stat.numel() else None)
+if STATIC_MAP is not None:
+    # Z-score par canal : les statiques sont en unites physiques heterogenes
+    # (metres, fractions, ecarts-types). Non normalisees, l'altitude ecraserait
+    # tout le reste dans la convolution 1x1.
+    _m = STATIC_MAP.mean(dim=(0, 2, 3), keepdim=True)
+    _s = STATIC_MAP.std(dim=(0, 2, 3), keepdim=True).clamp(min=1e-6)
+    STATIC_MAP = ((STATIC_MAP - _m) / _s).to(DEVICE)
+    print(f"statiques : {STATIC_MAP.shape[1]} canaux HR {tuple(STATIC_MAP.shape[-2:])} "
+          f"-> donnes a la tete")
+else:
+    print("statiques : AUCUN — la tete sera aveugle au relief")
+
+bg_head = (BernoulliGammaHead(regression_head.feature_channels,
+                              static_map=STATIC_MAP, anchored=True).to(DEVICE)
            if V8.bernoulli_gamma else None)
 # A3 exclut le melange convexe du skip-block : A4 propose de le retirer, et il
 # casserait l'interpretation de mu = p*alpha*beta comme moyenne conditionnelle.

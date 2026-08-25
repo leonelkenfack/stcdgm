@@ -1131,7 +1131,8 @@ def precompute_stage1_outputs(
                     BernoulliGammaHead, decode_bg_params,
                 )
                 p_bg, a_bg, b_bg = decode_bg_params(
-                    regression_head, bg_head, H_T, target_shape=target.shape[-2:])
+                    regression_head, bg_head, H_T, target_shape=target.shape[-2:],
+                    baseline_log=baseline_log)
                 mu_HR = BernoulliGammaHead.mean_as_log_residual(
                     p_bg, a_bg, b_bg, baseline_log)
             else:

@@ -1990,6 +1990,7 @@ def train_epoch_stage1(
                     p_bg, a_bg, b_bg = decode_bg_params(
                         regression_head, bg_head, H_T,
                         target_shape=target_residual.shape[-2:],
+                        baseline_log=baseline_log,
                     )
                     bg_nll, mu_HR_causal = stage1_bg_loss(
                         p_bg, a_bg, b_bg, target_residual, baseline_log,

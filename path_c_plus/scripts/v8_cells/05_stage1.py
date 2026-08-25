@@ -19,6 +19,22 @@ S1 = CONFIG.two_stage.stage1
 opt_s1 = AdamW([p for m in STAGE1_MODULES for p in m.parameters()],
                lr=float(S1.lr), betas=(0.9, 0.99),
                weight_decay=float(S1.get("weight_decay", 0.0)))
+
+# Le YAML declare `scheduler: cosine`, `warmup_epochs: 1` et
+# `early_stop_patience: 3` (config/training_config.yaml:545-550). La cellule
+# les ignorait tous les trois : lr constant sur 30 epoques, et aucun arret
+# quand la validation cesse de progresser. Sur le run precedent elle plafonnait
+# des la cinquieme, les vingt-cinq suivantes n'ont fait que memoriser.
+_W1 = max(1, int(S1.get("warmup_epochs", 1)))
+sched_s1 = torch.optim.lr_scheduler.SequentialLR(
+    opt_s1,
+    [torch.optim.lr_scheduler.LinearLR(opt_s1, start_factor=0.1, total_iters=_W1),
+     torch.optim.lr_scheduler.CosineAnnealingLR(
+         opt_s1, T_max=max(1, EPOCHS_S1 - _W1), eta_min=float(S1.lr) / 50)],
+    milestones=[_W1])
+PATIENCE = int(S1.get("early_stop_patience", 3))
+print(f"          warmup {_W1} ep puis cosinus | early stop apres {PATIENCE} "
+      f"epoques sans gain de validation")
 print(f"etage 1 : lr={float(S1.lr):.1e} lambda_reg={float(S1.lambda_reg)} "
       f"beta_rec={float(S1.beta_rec)} gamma_dag_max={float(S1.gamma_dag_max)} "
       f"lambda_l1={float(S1.lambda_l1)}")
@@ -56,7 +72,8 @@ def validation_loss(ds):
         H_T = seq.states[-1]
         if bg_head is not None:
             pb, ab, bb = decode_bg_params(regression_head, bg_head, H_T,
-                                          target_shape=t.shape[-2:])
+                                          target_shape=t.shape[-2:],
+                                          baseline_log=bl)
             # wet_threshold EXPLICITE. Le defaut de stage1_bg_loss est 1,0 et
             # l'entrainement passe 0,1 : sans cet argument, la validation
             # notait une AUTRE vraisemblance que celle optimisee — elles
@@ -95,6 +112,16 @@ if _LAST.exists():
         _dif = f"{len(_r.get('node_types') or [])} noeuds au lieu de {len(NODE_TYPES)}"
     elif _r.get("v8") != OmegaConf.to_container(V8):
         _dif = "interrupteurs V8 differents"
+    elif bg_head is not None and "bg_head_state_dict" in _r:
+        # La tete a change de forme quand elle a recu la baseline et les
+        # statiques en entree. Les formes de l'encodeur et du RCN, elles, n'ont
+        # pas bouge : sans ce controle ils se chargeraient AVANT que la tete ne
+        # leve, laissant la pile a moitie ecrasee par un run etranger.
+        _w_ck = _r["bg_head_state_dict"].get("proj.weight")
+        _w_now = bg_head.state_dict()["proj.weight"]
+        if _w_ck is not None and tuple(_w_ck.shape) != tuple(_w_now.shape):
+            _dif = (f"tete BG {tuple(_w_ck.shape)} au lieu de "
+                    f"{tuple(_w_now.shape)} (conditionnement different)")
     if _dif:
         _vieux = _LAST.with_name(f"stage1_last.perime_{int(time.time())}.pth")
         _LAST.rename(_vieux)
@@ -107,10 +134,21 @@ if _r is not None:
     regression_head.load_state_dict(_r["regression_head_state_dict"])
     if bg_head is not None and "bg_head_state_dict" in _r:
         bg_head.load_state_dict(_r["bg_head_state_dict"])
+    # L'optimiseur AVANT le scheduler : `SequentialLR` remet le lr a sa valeur
+    # de warmup a la construction et son load_state_dict ne restaure que des
+    # compteurs. C'est l'optimiseur qui porte le lr courant.
     opt_s1.load_state_dict(_r["optimizer_state_dict"])
     history, best, _start = _r["history"], _r["best"], _r["epoch"] + 1
+    if "scheduler_state_dict" in _r:
+        sched_s1.load_state_dict(_r["scheduler_state_dict"])
+    else:
+        for _ in range(_start):
+            sched_s1.step()
+    _sans_gain = int(_r.get("sans_gain", 0))
     print(f"REPRISE a l'epoque {_start + 1}/{EPOCHS_S1} "
-          f"(meilleure val = {best:.5f})")
+          f"(meilleure val = {best:.5f}, lr={opt_s1.param_groups[0]['lr']:.2e})")
+else:
+    _sans_gain = 0
 
 for ep in range(_start, EPOCHS_S1):
     t_ep = time.time()
@@ -149,7 +187,9 @@ for ep in range(_start, EPOCHS_S1):
           f"reg={m['loss_reg']:.5f} dag={m.get('loss_dag', 0.0):.4f} "
           f"({m['seconds']:.0f}s)")
     m["val_loss"] = validation_loss(val_dataset)
-    print(f"          val={m['val_loss']:.5f}")
+    m["lr"] = opt_s1.param_groups[0]["lr"]
+    sched_s1.step()
+    print(f"          val={m['val_loss']:.5f} (lr={m['lr']:.2e})")
 
     _poids = {"encoder_state_dict": encoder.state_dict(),
               "rcn_cell_state_dict": rcn_cell.state_dict(),
@@ -163,6 +203,8 @@ for ep in range(_start, EPOCHS_S1):
     # la meme trajectoire d'optimisation.
     torch.save({**_poids, "epoch": ep,
                 "optimizer_state_dict": opt_s1.state_dict(),
+                "scheduler_state_dict": sched_s1.state_dict(),
+                "sans_gain": _sans_gain,
                 "history": history, "best": best}, _LAST)
 
     # Selection sur la VALIDATION, jamais sur l'entrainement.
@@ -176,6 +218,15 @@ for ep in range(_start, EPOCHS_S1):
                     "node_types": NODE_TYPES,
                     "v8": OmegaConf.to_container(V8)},
                    CKPT_DIR / "stage1_best.pth")
+        _sans_gain = 0
+    else:
+        _sans_gain += 1
+        if _sans_gain >= PATIENCE:
+            print(f"ARRET ANTICIPE : {PATIENCE} epoques sans gain de validation "
+                  f"(meilleure = {best:.5f} a l'epoque "
+                  f"{1 + max(range(len(history)), key=lambda i: -history[i].get('val_loss', 9e9))}). "
+                  f"Les epoques suivantes ne feraient que memoriser.")
+            break
 
 json.dump(history, open(RESULTS_DIR / "v8_stage1_history.json", "w"),
           indent=2, default=float)

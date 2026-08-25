@@ -32,7 +32,10 @@ with torch.no_grad():
         _etages["etat RCN H_T"].append(_HT.flatten().cpu())
         _etages["features decodeur"].append(_f.flatten().cpu())
         if bg_head is not None:
-            _p, _a, _bb = bg_head(_f)
+            _blj0 = _b["baseline"][-1].to(DEVICE)
+            if _blj0.dim() == 3:
+                _blj0 = _blj0.unsqueeze(0)
+            _p, _a, _bb = bg_head(_f, baseline_log=_blj0)
             _anc_j = BernoulliGammaHead.mean_log1p(_p, _a, _bb)
             _etages["ancre E[log1p]"].append(_anc_j.flatten().cpu())
             _tj = _b["residual"][-1].to(DEVICE)

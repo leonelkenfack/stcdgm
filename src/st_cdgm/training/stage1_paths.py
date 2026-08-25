@@ -152,6 +152,7 @@ def predict_mu_hr(
             p_bg, a_bg, b_bg = decode_bg_params(
                 regression_head, bg_head, seq_out.states[-1],
                 target_shape=baseline_log.shape[-2:],
+                baseline_log=baseline_log,
             )
             mu_hr = BernoulliGammaHead.mean_as_log_residual(
                 p_bg, a_bg, b_bg, baseline_log)

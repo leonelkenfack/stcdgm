@@ -33,6 +33,8 @@ pour retrouver l'ancre attendue par l'étage 2.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -61,30 +63,79 @@ class BernoulliGammaHead(nn.Module):
         l'occurrence et l'indice CDD : celui-ci est un choix d'ESTIMATION.
     """
 
-    def __init__(self, in_channels: int, wet_threshold: float = 0.1) -> None:
+    def __init__(self, in_channels: int, static_map: Optional[Tensor] = None,
+                 wet_threshold: float = 0.1, anchored: bool = True,
+                 mean_floor_mm: float = 0.05) -> None:
         super().__init__()
         self.wet_threshold = float(wet_threshold)
-        self.proj = nn.Conv2d(in_channels, 3, kernel_size=1)
-        # Biais initial : p~0.35 (frequence humide observee ~0.39), alpha~1,
-        # beta~1. Le poids part petit mais NON NUL : a zero, dL/dfeats =
-        # W^T·dL/draw = 0, et aucun gradient n'atteindrait le decodeur ni le
-        # chemin causal en amont au premier pas.
+        self.anchored = bool(anchored)
+        self.mean_floor_mm = float(mean_floor_mm)
+        # Champ statique HR (relief, fraction terre, ecart-type sous-maille...)
+        # stocke comme TAMPON : c'est une constante du domaine, elle n'a pas a
+        # traverser tous les appelants. Sans lui, la tete ignore ou sont les
+        # montagnes — et le detail sous-maille qu'elle doit predire est
+        # precisement module par le relief.
+        self.register_buffer("static_map", static_map, persistent=static_map is not None)
+        _n_stat = 0 if static_map is None else int(static_map.shape[1])
+        _n_base = 1 if anchored else 0        # baseline_log en canal d'entree
+        self.cond_channels = _n_base + _n_stat
+        self.proj = nn.Conv2d(in_channels + self.cond_channels, 3, kernel_size=1)
+        # Le poids part petit mais NON NUL : a zero, dL/dfeats = W^T·dL/draw = 0
+        # et aucun gradient n'atteindrait le decodeur ni le chemin causal.
         nn.init.normal_(self.proj.weight, std=0.01)
         with torch.no_grad():
-            self.proj.bias.copy_(torch.tensor([-0.6, 0.55, 0.55]))
+            if anchored:
+                # [logit_p, correction LOG de l'intensite, log-forme]. La
+                # correction part a 0, donc alpha*beta = baseline a l'init :
+                # "ne rien faire" reproduit la baseline au lieu de produire un
+                # champ libre. C'est la propriete que A3 avait supprimee sans
+                # rien mettre a la place, et qui a donne R2 = -3,34.
+                self.proj.bias.copy_(torch.tensor([0.40, 0.0, 0.55]))
+            else:
+                self.proj.bias.copy_(torch.tensor([-0.6, 0.55, 0.55]))
 
-    def forward(self, feats: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        """feats [B,C,H,W] -> (p, alpha, beta), chacun [B,1,H,W]."""
-        raw = self.proj(feats)
-        # .float() OBLIGATOIRE avant le clamp : sous AMP fp16, `1 - 1e-6`
-        # s'arrondit exactement a 1.0 (eps fp16 ~ 1e-3), le clamp haut devient
-        # inoperant, et des qu'un logit depasse ~8 la sigmoide sature a 1.0 —
-        # log1p(-p) vaut alors -inf sur TOUS les pixels secs, et la NLL part en
-        # NaN au backward.
+    def forward(self, feats: Tensor, baseline_log: Optional[Tensor] = None
+                ) -> tuple[Tensor, Tensor, Tensor]:
+        """feats [B,C,H,W] -> (p, alpha, beta), chacun [B,1,H,W].
+
+        ``baseline_log`` est requis en mode ancre : il sert DEUX fois, comme
+        canal d'entree (la correction depend de la pluie grossiere locale) et
+        comme echelle de l'intensite Gamma.
+        """
+        if self.anchored and baseline_log is None:
+            raise ValueError(
+                "tete ancree : baseline_log est requis. Sans lui l'intensite "
+                "Gamma n'a pas d'echelle et la tete redevient un champ libre.")
+        parts = [feats]
+        if self.anchored:
+            parts.append(baseline_log.to(feats.dtype))
+        if self.static_map is not None:
+            parts.append(self.static_map.to(feats.dtype).expand(
+                feats.shape[0], -1, -1, -1))
+        raw = self.proj(torch.cat(parts, dim=1) if len(parts) > 1 else feats)
+        # .float() OBLIGATOIRE : sous AMP fp16, `1 - 1e-6` s'arrondit exactement
+        # a 1.0 (eps fp16 ~ 1e-3), et des qu'un logit depasse ~8 la sigmoide
+        # sature — log1p(-p) vaut alors -inf sur tous les pixels secs et la NLL
+        # part en NaN au backward.
         raw = raw.float()
-        p = torch.sigmoid(raw[:, 0:1]).clamp(_EPS, 1.0 - _EPS)
-        alpha = nn.functional.softplus(raw[:, 1:2]) + _EPS
-        beta = nn.functional.softplus(raw[:, 2:3]) + _EPS
+        # Bornage AFFINE et non clamp : `clamp` a un gradient EXACTEMENT nul
+        # hors intervalle, donc tout pixel qui sature une fois est mort pour de
+        # bon. Ici la borne est atteinte asymptotiquement, le gradient ne
+        # s'annule jamais.
+        p = _EPS + (1.0 - 2.0 * _EPS) * torch.sigmoid(raw[:, 0:1])
+        alpha = nn.functional.softplus(raw[:, 2:3]) + _EPS
+        if self.anchored:
+            base_mm = torch.expm1(baseline_log.float()).clamp(min=0.0)
+            # L'intensite Gamma est ANCREE sur la baseline : alpha*beta =
+            # (baseline + plancher) * exp(correction). Le plancher evite une
+            # Gamma degeneree la ou la baseline est nulle. La correction est
+            # bornee a exp(+-4), soit un facteur 55 : au-dela ce n'est plus une
+            # correction, c'est un champ libre par un autre chemin.
+            mean_g = (base_mm + self.mean_floor_mm) * torch.exp(
+                raw[:, 1:2].clamp(-4.0, 4.0))
+            beta = (mean_g / alpha).clamp(min=_EPS)
+        else:
+            beta = nn.functional.softplus(raw[:, 1:2]) + _EPS
         return p, alpha, beta
 
     @staticmethod
@@ -211,7 +262,9 @@ def bernoulli_gamma_nll(p: Tensor, alpha: Tensor, beta: Tensor, y_mm: Tensor,
 
 
 def decode_bg_params(regression_head, bg_head, H_T: Tensor,
-                     target_shape=None) -> tuple[Tensor, Tensor, Tensor]:
+                     target_shape=None,
+                     baseline_log: Optional[Tensor] = None
+                     ) -> tuple[Tensor, Tensor, Tensor]:
     """``H_T`` -> ``(p, alpha, beta)`` via les features du décodeur.
 
     Point d'entrée unique : le décodeur expose ses features *avant* sa
@@ -224,7 +277,7 @@ def decode_bg_params(regression_head, bg_head, H_T: Tensor,
     if target_shape is not None and tuple(feats.shape[-2:]) != tuple(target_shape):
         feats = nn.functional.interpolate(
             feats, size=tuple(target_shape), mode="bilinear", align_corners=False)
-    return bg_head(feats)
+    return bg_head(feats, baseline_log=baseline_log)
 
 
 def stage1_bg_loss(p: Tensor, alpha: Tensor, beta: Tensor,
@@ -266,7 +319,7 @@ if __name__ == "__main__":
     y = wet * torch.distributions.Gamma(a_t, 1.0 / b_t).sample((B, 1, H, W))
 
     feats = torch.ones(B, C, H, W)           # entree constante : la tete ne peut
-    head = BernoulliGammaHead(C)             # qu'apprendre la loi marginale
+    head = BernoulliGammaHead(C, anchored=False)   # qu'apprendre la loi marginale
     opt = torch.optim.Adam(head.parameters(), lr=0.05)
     for _ in range(400):
         p, a, b = head(feats)
@@ -357,9 +410,33 @@ if __name__ == "__main__":
     dec = GraphToGridDecoder(d_model=16, hr_h=24, hr_w=26,
                              intermediate_h=6, intermediate_w=7,
                              n_heads=2, refine_channels=8)
-    bg = BernoulliGammaHead(dec.feature_channels)
+    _stat_map = torch.randn(1, 4, 24, 26)            # 4 champs statiques HR
+    bg = BernoulliGammaHead(dec.feature_channels, static_map=_stat_map)
     H_T = torch.randn(2, 3, 12, 16)                  # [B, q, N, d_model]
-    p2, a2, b2 = decode_bg_params(dec, bg, H_T, target_shape=(24, 26))
+    _bl2 = torch.log1p(torch.rand(2, 1, 24, 26) * 8.0)
+    p2, a2, b2 = decode_bg_params(dec, bg, H_T, target_shape=(24, 26),
+                                  baseline_log=_bl2)
+    # ------------------------------------------------------------------ #
+    # LA propriete de la tete ancree : a l'initialisation, l'intensite Gamma
+    # REPRODUIT la baseline. "Ne rien faire" vaut donc la baseline, et l'ancre
+    # part du plancher R2 = 0 au lieu d'un champ libre. C'est precisement ce
+    # que la version non ancree avait perdu : mesure sur le run, R2 = -3,34
+    # avec sigma(mu) = 1,9 fois la cible entiere.
+    # ------------------------------------------------------------------ #
+    _base_mm = torch.expm1(_bl2).clamp(min=0.0) + bg.mean_floor_mm
+    _ecart = ((a2 * b2 - _base_mm).abs() / _base_mm).max()
+    print(f"tete ancree : ecart max |alpha*beta - baseline| = {100 * float(_ecart):.1f} % "
+          f"a l'initialisation")
+    assert _ecart < 0.15, (
+        f"l'intensite Gamma devie de {100 * float(_ecart):.0f} % de la baseline "
+        f"des l'initialisation : l'ancrage ne tient pas")
+    # Et la tete DOIT refuser de travailler sans baseline plutot que de
+    # retomber en silence sur un champ libre.
+    try:
+        bg(dec(H_T, return_features=True))
+        raise AssertionError("la tete ancree doit exiger baseline_log")
+    except ValueError:
+        pass
     assert p2.shape == (2, 1, 24, 26), f"forme inattendue {tuple(p2.shape)}"
     assert (a2 > 0).all() and (b2 > 0).all(), "alpha/beta doivent rester positifs"
     # la tete doit bien voir les features, pas la projection 1 canal
