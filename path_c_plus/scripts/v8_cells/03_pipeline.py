@@ -48,6 +48,28 @@ val_dataset   = pipeline.build_sequence_dataset(split="val", stride=STRIDE_TRAIN
 test_dataset  = pipeline.build_sequence_dataset(split="test", stride=STRIDE_EVAL)
 print(f"stride : train/val={STRIDE_TRAIN} | test={STRIDE_EVAL}")
 
+# --- CE QUI EST ATTEIGNABLE, avant d'entrainer quoi que ce soit -------------
+# La cible de l'etage 1 est t = log1p(HR) - log1p(baseline), et la baseline est
+# la verite HR lissee a 4x (baseline_strategy="hr_smoothing"). t est donc le
+# detail SOUS-MAILLE de la verite, dont une part est orographique — statique,
+# et predictible par une simple moyenne par pixel, sans modele et sans meteo.
+# Ce plafond gratuit ne depend d'aucun entrainement : il se lit sur la donnee,
+# ici, en quelques secondes. Sans lui, un R2 d'etage 1 ne veut rien dire : on
+# ignore s'il est bon, mauvais, ou simplement en train de recopier le relief.
+_res = pipeline.get_residual_dataset()
+_arr = _res[list(_res.data_vars)[0]].sel(
+    time=slice(CONFIG.data.train_start_date,
+               CONFIG.data.train_end_date)).values[::3]
+_fin = np.isfinite(_arr)
+_clim = np.where(_fin, _arr, 0.0).sum(axis=0) / np.maximum(_fin.sum(axis=0), 1)
+_sse = float(((_arr - _clim)[_fin] ** 2).sum())
+_sst = float((_arr[_fin] ** 2).sum())
+print(f"cible t : sigma={float(_arr[_fin].std()):.4f} | R2 d'une climatologie "
+      f"PAR PIXEL = {1.0 - _sse / _sst:+.3f}  ({_arr.shape[0]} jours, 1 sur 3)")
+print("          plancher gratuit : un etage 1 qui ne le bat pas n'apporte "
+      "rien qu'une table de correspondance ne donne deja.")
+del _arr, _fin, _clim, _res
+
 _s = next(iter(train_dataset))
 print("echantillon : lr", tuple(_s["lr"].shape),
       "| residual", tuple(_s["residual"].shape),
