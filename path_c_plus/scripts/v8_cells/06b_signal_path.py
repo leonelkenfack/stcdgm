@@ -16,6 +16,7 @@ print(f"sonde sur {len(_ech)} jours espaces de 10 fenetres")
 
 _etages = {"entree LR (temoin)": [], "etat RCN H_T": [],
            "features decodeur": [], "ancre E[log1p]": []}
+_champs = []          # (ancre, HR vrai) par jour, pour la decomposition ci-dessous
 for _m in STAGE1_MODULES:
     _m.eval()
 with torch.no_grad():
@@ -32,8 +33,13 @@ with torch.no_grad():
         _etages["features decodeur"].append(_f.flatten().cpu())
         if bg_head is not None:
             _p, _a, _bb = bg_head(_f)
-            _etages["ancre E[log1p]"].append(
-                BernoulliGammaHead.mean_log1p(_p, _a, _bb).flatten().cpu())
+            _anc_j = BernoulliGammaHead.mean_log1p(_p, _a, _bb)
+            _etages["ancre E[log1p]"].append(_anc_j.flatten().cpu())
+            _tj = _b["residual"][-1].to(DEVICE)
+            _blj = _b["baseline"][-1].to(DEVICE)
+            if _tj.dim() == 3:
+                _tj, _blj = _tj.unsqueeze(0), _blj.unsqueeze(0)
+            _champs.append((_anc_j.squeeze().cpu(), (_blj + _tj).squeeze().cpu()))
 for _m in STAGE1_MODULES:
     _m.train()
 
@@ -75,4 +81,36 @@ elif _fin == _fin and _ref == _ref and _fin < _ref / 10.0:
           f"l'entree. Le defaut est reparti sur toute la chaine.")
 elif _ref == _ref:
     print("Aucune rupture franche : la meteo traverse toute la chaine.")
-del _etages, _ech
+
+# --- Niveau ou motif ? -----------------------------------------------------
+# Une part temporelle elevee dit que l'ancre BOUGE, pas qu'elle bouge bien. On
+# separe donc le NIVEAU du jour (sa moyenne spatiale) du MOTIF (l'anomalie
+# autour de ce niveau), et on regarde lequel des deux suit la verite. Predire
+# la pluie moyenne du domaine sans son organisation spatiale, et predire une
+# organisation sans le bon niveau, sont deux echecs opposes.
+if _champs:
+    _AN = torch.stack([c[0] for c in _champs]).double()      # [K, H, W]
+    _HR = torch.stack([c[1] for c in _champs]).double()
+    _ok = torch.isfinite(_HR).all(dim=0)                     # pixels valides partout
+    _AN, _HR = _AN[:, _ok], _HR[:, _ok]                      # [K, P]
+    _niv_a, _niv_h = _AN.mean(dim=1), _HR.mean(dim=1)        # niveau du jour
+    _mot_a, _mot_h = _AN - _niv_a[:, None], _HR - _niv_h[:, None]
+
+    def _c(x, y):
+        x, y = x.flatten() - x.mean(), y.flatten() - y.mean()
+        _d = x.norm() * y.norm()
+        return float(x @ y / _d) if _d > 1e-12 else float("nan")
+
+    print("decomposition de l'ancre (niveau du jour / motif spatial) :")
+    print(f"  ecart-type   niveau {float(_niv_a.std()):.4f}  "
+          f"motif {float(_mot_a.std()):.4f}   "
+          f"(verite : {float(_niv_h.std()):.4f} / {float(_mot_h.std()):.4f})")
+    print(f"  correlation  niveau {_c(_niv_a, _niv_h):+.3f}  "
+          f"motif {_c(_mot_a, _mot_h):+.3f}")
+    if float(_mot_a.std()) < 0.1 * float(_mot_h.std()):
+        print("  -> la tete ne produit quasiment PAS de motif spatial : elle "
+              "predit un niveau journalier, pas un champ de pluie.")
+    elif _c(_mot_a, _mot_h) < 0.1:
+        print("  -> le motif spatial existe mais ne suit pas la verite.")
+    del _AN, _HR, _mot_a, _mot_h
+del _etages, _ech, _champs
