@@ -21,9 +21,25 @@ if IN_COLAB:
         subprocess.check_call(["git", "clone", "--depth=200", "-b", GIT_BRANCH,
                                GIT_URL, REPO_DIR])
     else:
+        _tete = lambda: subprocess.check_output(
+            ["git", "-C", REPO_DIR, "rev-parse", "HEAD"]).decode().strip()
+        _avant = _tete()
         subprocess.check_call(["git", "-C", REPO_DIR, "fetch", "origin"])
         subprocess.check_call(["git", "-C", REPO_DIR, "checkout", GIT_BRANCH])
         subprocess.check_call(["git", "-C", REPO_DIR, "pull", "origin", GIT_BRANCH])
+        # PYTHON NE RECHARGE PAS UN MODULE DEJA IMPORTE. Relancer la Cell 1
+        # apres un `git pull` met a jour les FICHIERS mais laisse en memoire le
+        # code importe avant : les cellules suivantes tournent alors sur
+        # l'ancienne version, sans le moindre signe. Deux cycles de debogage y
+        # sont passes — un correctif deploye, la meme erreur, aucun moyen de
+        # distinguer "le correctif est faux" de "le correctif n'est pas charge".
+        if _avant != _tete() and any(m.startswith("st_cdgm") for m in sys.modules):
+            raise RuntimeError(
+                f"Code mis a jour ({_avant[:8]} -> {_tete()[:8]}) alors que "
+                f"st_cdgm est DEJA importe dans ce noyau. Les cellules "
+                f"suivantes utiliseraient l'ancienne version.\n"
+                f"  -> Execution > Redemarrer la session, puis relancer depuis "
+                f"la Cell 1.")
     # Liste EPINGLEE, reprise telle quelle du 9-node et de V6' qui tournaient.
     # Une liste courte et non epinglee produit la cascade "une erreur par run" :
     #   cftime            -> decodage du calendrier 'noleap' de nos predicteurs

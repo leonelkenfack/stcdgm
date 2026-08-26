@@ -30,6 +30,23 @@ def collect(ds, n_max=400):
 mu_tr, tg_tr, bl_tr = collect(train_dataset)
 print("echantillon de calibration :", mu_tr.shape)
 
+# QUI est non fini. `JensenCorrector.fit` ne sait dire que "0 pixels finis" :
+# le compte porte sur bl+mu ET tg-mu, donc n'importe lequel des trois tableaux
+# peut etre en cause et le message ne le dit pas. Deux cycles de debogage ont
+# ete perdus a chercher du cote de mu alors que rien ne l'y designait.
+_diag = {"mu": mu_tr, "cible": tg_tr, "baseline": bl_tr}
+for _n, _a in _diag.items():
+    print(f"  {_n:9s} fini sur {100 * float(np.isfinite(_a).mean()):5.1f} % des pixels")
+_com = np.isfinite(mu_tr) & np.isfinite(tg_tr) & np.isfinite(bl_tr)
+if _com.sum() == 0:
+    _coupables = [_n for _n, _a in _diag.items() if not np.isfinite(_a).any()]
+    raise RuntimeError(
+        f"aucun pixel exploitable. Non fini PARTOUT : "
+        f"{', '.join(_coupables) if _coupables else 'aucun seul, mais leurs '
+        'masques ne se recouvrent nulle part'}.")
+print(f"  intersection exploitable : {100 * float(_com.mean()):.1f} % "
+      f"({int(_com.sum()):,} pixels)")
+
 # s^2 calibre sur le TRAIN uniquement. C'est un parametre de calibration :
 # l'estimer sur le test ferait fuiter la cible dans la metrique.
 jc = JensenCorrector.fit(mu_tr, tg_tr, bl_tr) if V8.jensen else None
