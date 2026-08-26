@@ -137,9 +137,23 @@ if STATIC_MAP is not None:
     # Z-score par canal : les statiques sont en unites physiques heterogenes
     # (metres, fractions, ecarts-types). Non normalisees, l'altitude ecraserait
     # tout le reste dans la convolution 1x1.
-    _m = STATIC_MAP.mean(dim=(0, 2, 3), keepdim=True)
-    _s = STATIC_MAP.std(dim=(0, 2, 3), keepdim=True).clamp(min=1e-6)
-    STATIC_MAP = ((STATIC_MAP - _m) / _s).to(DEVICE)
+    # STATISTIQUES IGNORANT LES NaN. Un champ masque sur l'ocean a des NaN, et
+    # `mean()` sur un tenseur qui en contient rend NaN : tout le canal
+    # devenait NaN, puis tous les pixels via la convolution, puis mu partout.
+    # Mesure : un seul NaN -> 0 pixel fini sur toute la carte, et le gradient
+    # de la tete detruit des le premier pas.
+    _ok = torch.isfinite(STATIC_MAP)
+    _n = _ok.sum(dim=(0, 2, 3), keepdim=True).clamp(min=1)
+    _z = torch.where(_ok, STATIC_MAP, torch.zeros_like(STATIC_MAP))
+    _m = _z.sum(dim=(0, 2, 3), keepdim=True) / _n
+    _var = (torch.where(_ok, (STATIC_MAP - _m) ** 2,
+                        torch.zeros_like(STATIC_MAP)).sum(dim=(0, 2, 3),
+                                                          keepdim=True) / _n)
+    # nan_to_num APRES : un pixel masque prend 0, c'est-a-dire la moyenne du
+    # canal — la valeur neutre pour une convolution.
+    STATIC_MAP = torch.nan_to_num((STATIC_MAP - _m) / _var.sqrt().clamp(min=1e-6),
+                                  nan=0.0, posinf=0.0, neginf=0.0).to(DEVICE)
+    assert torch.isfinite(STATIC_MAP).all(), "statiques non finies apres z-score"
     print(f"statiques : {STATIC_MAP.shape[1]} canaux HR {tuple(STATIC_MAP.shape[-2:])} "
           f"-> donnes a la tete")
 else:

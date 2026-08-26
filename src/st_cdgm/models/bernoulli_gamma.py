@@ -75,6 +75,12 @@ class BernoulliGammaHead(nn.Module):
         # traverser tous les appelants. Sans lui, la tete ignore ou sont les
         # montagnes — et le detail sous-maille qu'elle doit predire est
         # precisement module par le relief.
+        # nan_to_num a l'enregistrement : un champ statique masque sur l'ocean
+        # contamine sinon TOUT le canal des la standardisation, et de la tous
+        # les pixels via la convolution.
+        if static_map is not None:
+            static_map = torch.nan_to_num(static_map, nan=0.0,
+                                          posinf=0.0, neginf=0.0)
         self.register_buffer("static_map", static_map, persistent=static_map is not None)
         _n_stat = 0 if static_map is None else int(static_map.shape[1])
         _n_base = 1 if anchored else 0        # baseline_log en canal d'entree
@@ -108,7 +114,15 @@ class BernoulliGammaHead(nn.Module):
                 "Gamma n'a pas d'echelle et la tete redevient un champ libre.")
         parts = [feats]
         if self.anchored:
-            parts.append(baseline_log.to(feats.dtype))
+            # NaN = ocean. Ils doivent etre neutralises AVANT la convolution :
+            # le gradient d'un poids de conv SOMME sur tous les pixels, donc un
+            # seul NaN detruit TOUS les poids de la tete des le premier pas. Le
+            # masque de la vraisemblance, lui, n'intervient qu'apres — trop
+            # tard. mu reste NaN sur l'ocean par la soustraction finale de la
+            # baseline dans `mean_as_log_residual`, ce que l'aval masque deja.
+            _bl_safe = torch.nan_to_num(baseline_log.to(feats.dtype), nan=0.0,
+                                        posinf=0.0, neginf=0.0)
+            parts.append(_bl_safe)
         if self.static_map is not None:
             parts.append(self.static_map.to(feats.dtype).expand(
                 feats.shape[0], -1, -1, -1))
@@ -125,7 +139,7 @@ class BernoulliGammaHead(nn.Module):
         p = _EPS + (1.0 - 2.0 * _EPS) * torch.sigmoid(raw[:, 0:1])
         alpha = nn.functional.softplus(raw[:, 2:3]) + _EPS
         if self.anchored:
-            base_mm = torch.expm1(baseline_log.float()).clamp(min=0.0)
+            base_mm = torch.expm1(_bl_safe.float()).clamp(min=0.0)
             # L'intensite Gamma est ANCREE sur la baseline : alpha*beta =
             # (baseline + plancher) * exp(correction). Le plancher evite une
             # Gamma degeneree la ou la baseline est nulle. La correction est
