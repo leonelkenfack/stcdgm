@@ -198,6 +198,23 @@ for ep in range(_start, EPOCHS_S1):
     print(f"[S1 {ep + 1:2d}/{EPOCHS_S1}] loss={m['loss']:.5f} "
           f"reg={m['loss_reg']:.5f} dag={m.get('loss_dag', 0.0):.4f} "
           f"({m['seconds']:.0f}s)")
+    # POIDS NON FINIS : arret immediat. Le gradient d'un poids de convolution
+    # somme sur tout le domaine, donc une seule cellule divergente suffit a
+    # rendre NaN toute la tete — et plus rien ne le signale ensuite : la perte
+    # affiche nan, l'entrainement continue, et l'anomalie ne se decouvre que
+    # trois cellules plus loin sous la forme "0 pixel exploitable". Detecter
+    # ici coute un balayage des parametres par epoque.
+    _mauvais = [n for _mod, _pref in zip(STAGE1_MODULES,
+                                         ("encodeur", "RCN", "decodeur", "tete BG"))
+                for n, _p in _mod.named_parameters()
+                if not torch.isfinite(_p).all() for n in (f"{_pref}.{n}",)]
+    if _mauvais:
+        raise RuntimeError(
+            f"epoque {ep + 1} : parametres NON FINIS -> {_mauvais[:6]}"
+            + (f" (+{len(_mauvais) - 6} autres)" if len(_mauvais) > 6 else "")
+            + ". L'entrainement a diverge ; poursuivre ne produirait que des "
+              "NaN. Verifier alpha_min et le plancher de la tete.")
+
     m["val_loss"] = validation_loss(val_dataset)
     m["lr"] = opt_s1.param_groups[0]["lr"]
     sched_s1.step()

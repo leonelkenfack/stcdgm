@@ -40,10 +40,48 @@ for _n, _a in _diag.items():
 _com = np.isfinite(mu_tr) & np.isfinite(tg_tr) & np.isfinite(bl_tr)
 if _com.sum() == 0:
     _coupables = [_n for _n, _a in _diag.items() if not np.isfinite(_a).any()]
+    # mu non fini PARTOUT ne peut venir que de p, alpha ou beta, donc des POIDS
+    # de la tete : la baseline, elle, est finie sur la terre. Le dire ici evite
+    # de chercher la cause dans le calcul de l'ancre — ce qui a deja coute deux
+    # cycles.
+    if "mu" in _coupables:
+        # OU la finitude se perd-elle ? mu non fini partout peut venir de la
+        # tete comme de TOUT ce qui la precede — un etat H_T diverge donne des
+        # features NaN, donc p/alpha/beta NaN, donc mu NaN, et la tete serait
+        # innocente. On remonte la chaine sur un echantillon plutot que de
+        # designer un coupable par raisonnement.
+        print("\nOU la finitude se perd (un echantillon) :")
+        for _mod, _nom in zip(STAGE1_MODULES,
+                              ("encodeur", "RCN", "decodeur", "tete BG")):
+            _bad = [n for n, _p in _mod.named_parameters()
+                    if not torch.isfinite(_p).all()]
+            print(f"  poids {_nom:9s} : "
+                  + (f"NON FINIS -> {_bad[:4]}" if _bad else "finis"))
+        with torch.no_grad():
+            _s0 = next(iter(train_dataset))
+            _b0 = convert_sample_v8(_s0, builder, DEVICE)
+            _bl0 = _b0["baseline"][-1].to(DEVICE)
+            if _bl0.dim() == 3:
+                _bl0 = _bl0.unsqueeze(0)
+            _lr0 = _b0["lr"].to(DEVICE)
+            _et = [("entree LR", _lr0), ("H(0)", encoder.init_state(_b0["hetero"]))]
+            _H0 = _et[-1][1]
+            _HT = rcn_runner.run(_H0, [_lr0[k] for k in range(_lr0.shape[0])],
+                                 reconstruction_sources=None).states[-1]
+            _et.append(("H_T", _HT))
+            _f0 = regression_head(_HT, return_features=True)
+            _et.append(("features", _f0))
+            if bg_head is not None:
+                _p0, _a0, _b0p = bg_head(_f0, baseline_log=_bl0)
+                _et += [("p", _p0), ("alpha", _a0), ("beta", _b0p)]
+            for _nom, _t in _et:
+                _pc = 100.0 * float(torch.isfinite(_t).float().mean())
+                print(f"  {_nom:12s} fini sur {_pc:5.1f} %"
+                      + ("   <- RUPTURE ICI" if _pc == 0.0 else ""))
     raise RuntimeError(
         f"aucun pixel exploitable. Non fini PARTOUT : "
         f"{', '.join(_coupables) if _coupables else 'aucun seul, mais leurs '
-        'masques ne se recouvrent nulle part'}.")
+        'masques ne se recouvrent nulle part'}. Voir le trace ci-dessus.")
 print(f"  intersection exploitable : {100 * float(_com.mean()):.1f} % "
       f"({int(_com.sum()):,} pixels)")
 

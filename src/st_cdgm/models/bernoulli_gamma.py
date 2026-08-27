@@ -65,11 +65,12 @@ class BernoulliGammaHead(nn.Module):
 
     def __init__(self, in_channels: int, static_map: Optional[Tensor] = None,
                  wet_threshold: float = 0.1, anchored: bool = True,
-                 mean_floor_mm: float = 0.05) -> None:
+                 mean_floor_mm: float = 0.05, alpha_min: float = 0.05) -> None:
         super().__init__()
         self.wet_threshold = float(wet_threshold)
         self.anchored = bool(anchored)
         self.mean_floor_mm = float(mean_floor_mm)
+        self.alpha_min = float(alpha_min)
         # Champ statique HR (relief, fraction terre, ecart-type sous-maille...)
         # stocke comme TAMPON : c'est une constante du domaine, elle n'a pas a
         # traverser tous les appelants. Sans lui, la tete ignore ou sont les
@@ -137,7 +138,15 @@ class BernoulliGammaHead(nn.Module):
         # bon. Ici la borne est atteinte asymptotiquement, le gradient ne
         # s'annule jamais.
         p = _EPS + (1.0 - 2.0 * _EPS) * torch.sigmoid(raw[:, 0:1])
-        alpha = nn.functional.softplus(raw[:, 2:3]) + _EPS
+        # PLANCHER SUR ALPHA, et non `+ _EPS`. En mode ancre, beta = mean/alpha :
+        # la derivee de beta vaut -mean/alpha^2, donc alpha = 1e-6 donne un
+        # facteur 1e12 sur le gradient. Un seul pas suffit alors a envoyer les
+        # poids a l'infini, et la sortie devient NaN a TOUS les pixels — le
+        # symptome observe (mu non fini sur 100 % du domaine alors que la
+        # baseline l'etait sur 93,9 %). Le seuil humide a 0,1 mm/j pousse
+        # justement l'ajustement vers des alpha petits. 0,05 borne 1/alpha^2 a
+        # 400 et reste sous toute forme de pluie journaliere plausible.
+        alpha = nn.functional.softplus(raw[:, 2:3]) + self.alpha_min
         if self.anchored:
             base_mm = torch.expm1(_bl_safe.float()).clamp(min=0.0)
             # L'intensite Gamma est ANCREE sur la baseline : alpha*beta =
@@ -147,7 +156,11 @@ class BernoulliGammaHead(nn.Module):
             # correction, c'est un champ libre par un autre chemin.
             mean_g = (base_mm + self.mean_floor_mm) * torch.exp(
                 raw[:, 1:2].clamp(-4.0, 4.0))
-            beta = (mean_g / alpha).clamp(min=_EPS)
+            # Borne haute sur beta : avec alpha au plancher, beta vaut au plus
+            # 20 fois l'intensite visee. La borne n'est atteinte que dans un
+            # regime deja aberrant, mais elle empeche une seule cellule
+            # divergente de contaminer la somme du gradient sur tout le domaine.
+            beta = (mean_g / alpha).clamp(min=_EPS, max=1e4)
         else:
             beta = nn.functional.softplus(raw[:, 1:2]) + _EPS
         return p, alpha, beta
